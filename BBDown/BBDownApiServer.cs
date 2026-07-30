@@ -9,7 +9,9 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
+
 using BBDown.Core;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -22,39 +24,37 @@ public class BBDownApiServer
     private readonly List<DownloadTask> runningTasks = [];
     private readonly List<DownloadTask> finishedTasks = [];
 
-    public void SetUpServer()
+    public void SetUpServer( )
     {
         if (app is not null) return;
-        var builder = WebApplication.CreateSlimBuilder();
-        builder.Services.ConfigureHttpJsonOptions((options) =>
-        {
-            options.SerializerOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(options.SerializerOptions.TypeInfoResolver, AppJsonSerializerContext.Default);
-        });
+        WebApplicationBuilder builder = WebApplication.CreateSlimBuilder( );
+        builder.Services.ConfigureHttpJsonOptions((options) => options.SerializerOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(options.SerializerOptions.TypeInfoResolver, AppJsonSerializerContext.Default));
         builder.Services.AddCors((options) =>
         {
             options.AddPolicy("AllowAnyOrigin",
                 policy =>
                 {
-                    policy.AllowAnyOrigin()
-                          .AllowAnyMethod()
-                          .AllowAnyHeader();
+                    policy.AllowAnyOrigin( )
+                          .AllowAnyMethod( )
+                          .AllowAnyHeader( );
                 });
         });
-        app = builder.Build();
+        app = builder.Build( );
         app.UseCors("AllowAnyOrigin");
-        var taskStatusApi = app.MapGroup("/get-tasks");
-        taskStatusApi.MapGet("/", handler: () => Results.Json(new DownloadTaskCollection(runningTasks, finishedTasks), AppJsonSerializerContext.Default.DownloadTaskCollection));
-        taskStatusApi.MapGet("/running", handler: () => Results.Json(runningTasks, AppJsonSerializerContext.Default.ListDownloadTask));
-        taskStatusApi.MapGet("/finished", handler: () => Results.Json(finishedTasks, AppJsonSerializerContext.Default.ListDownloadTask));
+        Microsoft.AspNetCore.Routing.RouteGroupBuilder taskStatusApi = app.MapGroup("/get-tasks");
+        taskStatusApi.MapGet("/", handler: ( ) => Results.Json(new DownloadTaskCollection(runningTasks, finishedTasks), AppJsonSerializerContext.Default.DownloadTaskCollection));
+        taskStatusApi.MapGet("/running", handler: ( ) => Results.Json(runningTasks, AppJsonSerializerContext.Default.ListDownloadTask));
+        taskStatusApi.MapGet("/finished", handler: ( ) => Results.Json(finishedTasks, AppJsonSerializerContext.Default.ListDownloadTask));
         taskStatusApi.MapGet("/{id}", (string id) =>
         {
-            var task = finishedTasks.FirstOrDefault(a => a.Aid == id);
-            var rtask = runningTasks.FirstOrDefault(a => a.Aid == id);
+            DownloadTask? task = finishedTasks.FirstOrDefault(a => a.Aid == id);
+            DownloadTask? rtask = runningTasks.FirstOrDefault(a => a.Aid == id);
             if (rtask is not null) task = rtask;
             if (task is null)
             {
-                return Results.NotFound();
+                return Results.NotFound( );
             }
+
             return Results.Json(task, AppJsonSerializerContext.Default.DownloadTask);
         });
         app.MapPost("/add-task", (MyOptionBindingResult<ServeRequestOptions> bindingResult) =>
@@ -64,18 +64,21 @@ public class BBDownApiServer
                 //var exception = bindingResult.Exception;
                 return Results.BadRequest("输入有误");
             }
-            var req = bindingResult.Result;
+
+            ServeRequestOptions? req = bindingResult.Result;
             _ = AddDownloadTaskAsync(req)
-                .ContinueWith(async task => {
+                .ContinueWith(async task =>
+                {
                     // send request to callback webhook
                     if (string.IsNullOrEmpty(req.CallBackWebHook))
                     {
                         return;
                     }
-                    string callback = req.CallBackWebHook;
-                    var client = new HttpClient();
-                    var downloadTask = await task;
-                    string? jsonContent = JsonSerializer.Serialize(downloadTask, AppJsonSerializerContext.Default.DownloadTask);
+
+                    var callback = req.CallBackWebHook;
+                    var client = new HttpClient( );
+                    DownloadTask downloadTask = await task;
+                    var jsonContent = JsonSerializer.Serialize(downloadTask, AppJsonSerializerContext.Default.DownloadTask);
                     try
                     {
                         await client.PostAsync(callback, new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json"));
@@ -84,19 +87,19 @@ public class BBDownApiServer
                     {
                         Logger.LogDebug("回调失败", e.Message);
                     }
-                 });
-            return Results.Ok();
+                });
+            return Results.Ok( );
         });
-        var finishedRemovalApi = app.MapGroup("remove-finished");
-        finishedRemovalApi.MapGet("/", () => { finishedTasks.RemoveAll(t => true); return Results.Ok(); });
-        finishedRemovalApi.MapGet("/failed", () => { finishedTasks.RemoveAll(t => !t.IsSuccessful); return Results.Ok(); });
-        finishedRemovalApi.MapGet("/{id}", (string id) => { finishedTasks.RemoveAll(t => t.Aid == id); return Results.Ok(); });
+        Microsoft.AspNetCore.Routing.RouteGroupBuilder finishedRemovalApi = app.MapGroup("remove-finished");
+        finishedRemovalApi.MapGet("/", ( ) => { finishedTasks.RemoveAll(t => true); return Results.Ok( ); });
+        finishedRemovalApi.MapGet("/failed", ( ) => { finishedTasks.RemoveAll(t => !t.IsSuccessful); return Results.Ok( ); });
+        finishedRemovalApi.MapGet("/{id}", (string id) => { finishedTasks.RemoveAll(t => t.Aid == id); return Results.Ok( ); });
     }
 
     public void Run(string url)
     {
         if (app is null) return;
-        bool result = Uri.TryCreate(url, UriKind.Absolute, out Uri? uriResult)
+        var result = Uri.TryCreate(url, UriKind.Absolute, out Uri? uriResult)
             && uriResult.Scheme == Uri.UriSchemeHttp;
         if (!result)
         {
@@ -104,28 +107,31 @@ public class BBDownApiServer
             Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine($"{url}不是合法的http URL，url示例：http://0.0.0.0:5000");
             Console.WriteLine("如果您需要https，请额外配置反向代理");
-            Console.ResetColor();
-            Console.WriteLine();
+            Console.ResetColor( );
+            Console.WriteLine( );
             Thread.Sleep(1);
             Environment.Exit(1);
         }
+
         app.Run(url);
     }
 
     private async Task<DownloadTask> AddDownloadTaskAsync(MyOption option)
     {
-        var aid = await BBDownUtil.GetAvIdAsync(option.Url);
+        var aid = await Utils.GetAvIdAsync(option.Url);
         DownloadTask? runningTask = runningTasks.FirstOrDefault(task => task.Aid == aid);
         if (runningTask is not null)
         {
             return runningTask;
-        };
-        var task = new DownloadTask(aid, option.Url, DateTimeOffset.Now.ToUnixTimeSeconds());
+        }
+
+        ;
+        var task = new DownloadTask(aid, option.Url, DateTimeOffset.Now.ToUnixTimeSeconds( ));
         runningTasks.Add(task);
         try
         {
-            var (encodingPriority, dfnPriority, firstEncoding, downloadDanmaku, downloadDanmakuFormats, input, savePathFormat, lang, aidOri, delay) = Program.SetUpWork(option);
-            var (fetchedAid, vInfo, apiType) = await Program.GetVideoInfoAsync(option, aidOri, input);
+            (Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority, var firstEncoding, var downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, var input, var savePathFormat, var lang, var aidOri, var delay) = Program.SetUpWork(option);
+            (var fetchedAid, Core.Entity.VInfo vInfo, var apiType) = await Program.GetVideoInfoAsync(option, aidOri, input);
             task.Title = vInfo.Title;
             task.Pic = vInfo.Pic;
             task.VideoPubTime = vInfo.PubTime;
@@ -138,17 +144,19 @@ public class BBDownApiServer
             Console.BackgroundColor = ConsoleColor.Red;
             Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine($"{aid}下载失败");
-            var msg = Config.DEBUG_LOG ? e.ToString() : e.Message;
+            var msg = Config.DEBUG_LOG ? e.ToString( ) : e.Message;
             Console.Write($"{msg}{Environment.NewLine}请尝试升级到最新版本后重试!");
-            Console.ResetColor();
-            Console.WriteLine();
+            Console.ResetColor( );
+            Console.WriteLine( );
         }
-        task.TaskFinishTime = DateTimeOffset.Now.ToUnixTimeSeconds();
+
+        task.TaskFinishTime = DateTimeOffset.Now.ToUnixTimeSeconds( );
         if (task.IsSuccessful)
         {
             task.Progress = 1f;
-            task.DownloadSpeed = (double)(task.TotalDownloadedBytes / (task.TaskFinishTime - task.TaskCreateTime));
+            task.DownloadSpeed = (double) (task.TotalDownloadedBytes / (task.TaskFinishTime - task.TaskCreateTime));
         }
+
         runningTasks.Remove(task);
         finishedTasks.Add(task);
         return task;
@@ -175,11 +183,11 @@ public record DownloadTask(string Aid, string Url, long TaskCreateTime)
     public bool IsSuccessful = false;
 
     [JsonInclude]
-    public List<string> SavePaths = new();
+    public List<string> SavePaths = [];
 };
 public record DownloadTaskCollection(List<DownloadTask> Running, List<DownloadTask> Finished);
 
-record struct MyOptionBindingResult<T>(T? Result, Exception? Exception)
+internal record struct MyOptionBindingResult<T>(T? Result, Exception? Exception)
 {
     public bool IsValid => Exception is null;
 
@@ -192,11 +200,12 @@ record struct MyOptionBindingResult<T>(T? Result, Exception? Exception)
             {
                 return new(default, new InvalidOperationException($"Cannot find TypeInfo for type {typeof(T)}"));
             }
+
             var item = await httpContext.Request.ReadFromJsonAsync(jsonTypeInfo);
 
-            if (item is null) return new(default, new NoNullAllowedException());
+            if (item is null) return new(default, new NoNullAllowedException( ));
 
-            return new((T)item, null);
+            return new((T) item, null);
         }
         catch (Exception ex)
         {

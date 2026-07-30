@@ -1,15 +1,18 @@
-﻿using BBDown.Core.Protobuf;
-using Google.Protobuf;
 using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using static BBDown.Core.Util.HTTPUtil;
+
+using BBDown.Core.Protobuf;
+
+using Google.Protobuf;
+
 using static BBDown.Core.Logger;
+using static BBDown.Core.Util.HTTPUtil;
 
 namespace BBDown.Core;
 
-static class AppHelper
+internal static class AppHelper
 {
     private static readonly string API = "https://grpc.biliapi.net/bilibili.app.playurl.v1.PlayURL/PlayView";
     private static readonly string API2 = "https://app.bilibili.com/bilibili.pgc.gateway.player.v2.PlayURL/PlayView";
@@ -55,7 +58,7 @@ static class AppHelper
     public static async Task<string> DoReqAsync(string aid, string cid, string epId, string qn, bool bangumi, string encoding, string appkey = "")
     {
 
-        var headers = GetHeader(appkey);
+        Dictionary<string, string> headers = GetHeader(appkey);
         LogDebug("App-Req-Headers: {0}", JsonSerializer.Serialize(headers, JsonContext.Default.DictionaryStringString));
         byte[] data;
         // 只有pgc接口才有配音和片头尾信息
@@ -71,7 +74,8 @@ static class AppHelper
             var body = GetPayload(Convert.ToInt64(aid), Convert.ToInt64(cid), Convert.ToInt64(qn), GetVideoCodeType(encoding));
             data = await GetPostResponseAsync(API, body, headers);
         }
-        var resp = new MessageParser<PlayViewReply>(() => new PlayViewReply()).ParseFrom(ReadMessage(data));
+
+        PlayViewReply resp = new MessageParser<PlayViewReply>(( ) => new PlayViewReply( )).ParseFrom(ReadMessage(data));
 
         LogDebug("PlayViewReplyPlain: {0}", JsonSerializer.Serialize(resp, JsonContext.Default.PlayViewReply));
         return ConvertToDashJson(resp);
@@ -84,22 +88,22 @@ static class AppHelper
     /// <returns></returns>
     private static string ConvertToDashJson(object data)
     {
-        var resp = (PlayViewReply)data;
-        var videos = new List<object>();
-        var audios = new List<object>();
-        var clips = new List<object>();
+        var resp = (PlayViewReply) data;
+        var videos = new List<object>( );
+        var audios = new List<object>( );
+        var clips = new List<object>( );
 
         if (resp.VideoInfo.StreamList != null)
         {
-            foreach (var item in resp.VideoInfo.StreamList)
+            foreach (StreamItem? item in resp.VideoInfo.StreamList)
             {
                 if (item.DashVideo != null)
                 {
                     videos.Add(new AudioInfoWitCodecId(
                         item.StreamInfo.Quality,
                         item.DashVideo.BaseUrl,
-                        item.DashVideo.BackupUrl.ToList(),
-                        (uint)(item.DashVideo.Size * 8 / (resp.VideoInfo.Timelength / 1000)),
+                        item.DashVideo.BackupUrl.ToList( ),
+                        (uint) (item.DashVideo.Size * 8 / (resp.VideoInfo.Timelength / 1000)),
                         item.DashVideo.Codecid
                     ));
                 }
@@ -111,7 +115,7 @@ static class AppHelper
             audios.AddRange(resp.VideoInfo.DashAudio.Select(item => new AudioInfoWithCodecName(
                 item.Id,
                 item.BaseUrl,
-                item.BackupUrl.ToList(),
+                item.BackupUrl.ToList( ),
                 item.Bandwidth,
                 "M4A"
             )));
@@ -122,7 +126,7 @@ static class AppHelper
             audios.Add(new AudioInfoWithCodecName(
                 resp.VideoInfo.Flac.Audio.Id,
                 resp.VideoInfo.Flac.Audio.BaseUrl,
-                resp.VideoInfo.Flac.Audio.BackupUrl.ToList(),
+                resp.VideoInfo.Flac.Audio.BackupUrl.ToList( ),
                 resp.VideoInfo.Flac.Audio.Bandwidth,
                 "FLAC"
             ));
@@ -133,7 +137,7 @@ static class AppHelper
             audios.Add(new AudioInfoWithCodecName(
                 resp.VideoInfo.Dolby.Audio.Id,
                 resp.VideoInfo.Dolby.Audio.BaseUrl,
-                resp.VideoInfo.Dolby.Audio.BackupUrl.ToList(),
+                resp.VideoInfo.Dolby.Audio.BackupUrl.ToList( ),
                 resp.VideoInfo.Dolby.Audio.Bandwidth,
                 "E-AC-3"
             ));
@@ -148,31 +152,31 @@ static class AppHelper
             )));
         }
 
-        var backgroundAudios = new List<object>();
-        var roles = new List<object>();
+        var backgroundAudios = new List<object>( );
+        var roles = new List<object>( );
         if (resp.PlayExtInfo != null && resp.PlayExtInfo.PlayDubbingInfo != null && resp.PlayExtInfo.PlayDubbingInfo.BackgroundAudio != null)
         {
-            var dubInfo = resp.PlayExtInfo.PlayDubbingInfo;
+            PlayDubbingInfo dubInfo = resp.PlayExtInfo.PlayDubbingInfo;
 
             backgroundAudios.AddRange(dubInfo.BackgroundAudio.Audio.Select(item => new AudioInfoWithCodecName(
                 item.Id,
                 item.BaseUrl,
-                item.BackupUrl.ToList(),
+                item.BackupUrl.ToList( ),
                 item.Bandwidth,
                 "M4A"
             )));
 
-            foreach (var item in dubInfo.RoleAudioList)
+            foreach (RoleAudioProto? item in dubInfo.RoleAudioList)
             {
-                foreach (var role in item.AudioMaterialList)
+                foreach (AudioMaterialProto? role in item.AudioMaterialList)
                 {
-                    List<object> roleAudios = role.Audio.Select(item => new AudioInfoWithCodecName(
+                    var roleAudios = role.Audio.Select(item => new AudioInfoWithCodecName(
                         item.Id,
                         item.BaseUrl,
-                        item.BackupUrl.ToList(),
+                        item.BackupUrl.ToList( ),
                         item.Bandwidth,
                         "M4A"
-                    )).Cast<object>().ToList();
+                    )).Cast<object>( ).ToList( );
 
                     roles.Add(new AudioMaterial(
                         role.AudioId,
@@ -222,26 +226,25 @@ static class AppHelper
             ForceHost = 2 //0:允许使用ip 1:使用http 2:使用https
         };
         LogDebug("PayLoadPlain: {0}", JsonSerializer.Serialize(obj, JsonContext.Default.PlayViewReq));
-        return PackMessage(obj.ToByteArray());
+        return PackMessage(obj.ToByteArray( ));
     }
-
 
     #region 生成Headers相关方法
 
     private static Dictionary<string, string> GetHeader(string appkey)
     {
-        return new Dictionary<string, string>()
+        return new Dictionary<string, string>( )
         {
             ["Host"] = "grpc.biliapi.net",
             ["user-agent"] = $"Dalvik/{dalvikVer} (Linux; U; Android {osVer}; {brand} {model}) {appVer} os/android model/{brand} mobi_app/android build/{build} channel/{channel} innerVer/{build} osVer/{osVer} network/2 grpc-java-cronet/{cronet}",
             ["te"] = "trailers",
-            ["x-bili-fawkes-req-bin"] = GenerateFawkesReqBin(),
+            ["x-bili-fawkes-req-bin"] = GenerateFawkesReqBin( ),
             ["x-bili-metadata-bin"] = GenerateMetadataBin(appkey),
             ["authorization"] = $"identify_v1 {Config.TOKEN}",
-            ["x-bili-device-bin"] = GenerateDeviceBin(),
-            ["x-bili-network-bin"] = GenerateNetworkBin(),
+            ["x-bili-device-bin"] = GenerateDeviceBin( ),
+            ["x-bili-network-bin"] = GenerateNetworkBin( ),
             ["x-bili-restriction-bin"] = "",
-            ["x-bili-locale-bin"] = GenerateLocaleBin(),
+            ["x-bili-locale-bin"] = GenerateLocaleBin( ),
             ["x-bili-exps-bin"] = "",
             ["grpc-encoding"] = "gzip",
             ["grpc-accept-encoding"] = "identity,gzip",
@@ -249,7 +252,7 @@ static class AppHelper
         };
     }
 
-    private static string GenerateLocaleBin()
+    private static string GenerateLocaleBin( )
     {
         var obj = new Locale
         {
@@ -259,20 +262,20 @@ static class AppHelper
                 Region = region
             }
         };
-        return Convert.ToBase64String(obj.ToByteArray());
+        return Convert.ToBase64String(obj.ToByteArray( ));
     }
 
-    private static string GenerateNetworkBin()
+    private static string GenerateNetworkBin( )
     {
         var obj = new Network
         {
             Type = networkType,
             Oid = networkOid
         };
-        return Convert.ToBase64String(obj.ToByteArray());
+        return Convert.ToBase64String(obj.ToByteArray( ));
     }
 
-    private static string GenerateDeviceBin()
+    private static string GenerateDeviceBin( )
     {
         var obj = new Device
         {
@@ -286,7 +289,7 @@ static class AppHelper
             Model = model,
             Osver = osVer
         };
-        return Convert.ToBase64String(obj.ToByteArray());
+        return Convert.ToBase64String(obj.ToByteArray( ));
     }
 
     private static string GenerateMetadataBin(string appkey)
@@ -300,10 +303,10 @@ static class AppHelper
             Buvid = buvid,
             Platform = platform
         };
-        return Convert.ToBase64String(obj.ToByteArray());
+        return Convert.ToBase64String(obj.ToByteArray( ));
     }
 
-    private static string GenerateFawkesReqBin()
+    private static string GenerateFawkesReqBin( )
     {
         var obj = new FawkesReq
         {
@@ -311,7 +314,7 @@ static class AppHelper
             Env = env,
             SessionId = sessionId
         };
-        return Convert.ToBase64String(obj.ToByteArray());
+        return Convert.ToBase64String(obj.ToByteArray( ));
     }
 
     #endregion
@@ -349,17 +352,18 @@ static class AppHelper
     /// <returns></returns>
     public static byte[] PackMessage(byte[] input)
     {
-        using var stream = new MemoryStream();
+        using var stream = new MemoryStream( );
         using (var writer = new BinaryWriter(stream))
         {
             var comp = GzipCompress(input);
-            var reverse = (stackalloc byte[4]);
-            writer.Write((byte)1);
+            Span<byte> reverse = stackalloc byte[4];
+            writer.Write((byte) 1);
             BinaryPrimitives.WriteInt32BigEndian(reverse, comp.Length);
             writer.Write(reverse);
             writer.Write(comp);
         }
-        return stream.ToArray();
+
+        return stream.ToArray( );
     }
 
     /// <summary>
@@ -369,12 +373,13 @@ static class AppHelper
     /// <returns></returns>
     private static byte[] GzipCompress(byte[] data)
     {
-        using var output = new MemoryStream();
+        using var output = new MemoryStream( );
         using (var comp = new GZipStream(output, CompressionMode.Compress))
         {
             comp.Write(data, 0, data.Length);
         }
-        return output.ToArray();
+
+        return output.ToArray( );
     }
 
     /// <summary>
@@ -384,16 +389,16 @@ static class AppHelper
     /// <returns></returns>
     private static byte[] GzipDecompress(byte[] data)
     {
-        using var output = new MemoryStream();
+        using var output = new MemoryStream( );
         using (var input = new MemoryStream(data))
         {
             using var decomp = new GZipStream(input, CompressionMode.Decompress);
             decomp.CopyTo(output);
         }
-        return output.ToArray();
+
+        return output.ToArray( );
     }
 }
-
 
 [JsonSerializable(typeof(AudioMaterial))]
 [JsonSerializable(typeof(DubbingInfo))]
@@ -425,8 +430,15 @@ internal class AudioMaterial
         Audio = audio;
     }
 
-    public override bool Equals(object? obj) => obj is AudioMaterial other && AudioId == other.AudioId && Title == other.Title && PersonName == other.PersonName && Audio == other.Audio;
-    public override int GetHashCode() => HashCode.Combine(Title, Audio);
+    public override bool Equals(object? obj)
+    {
+        return obj is AudioMaterial other && AudioId == other.AudioId && Title == other.Title && PersonName == other.PersonName && Audio == other.Audio;
+    }
+
+    public override int GetHashCode( )
+    {
+        return HashCode.Combine(Title, Audio);
+    }
 }
 
 internal class DubbingInfo
@@ -442,8 +454,15 @@ internal class DubbingInfo
         RoleAudioList = role_audio_list;
     }
 
-    public override bool Equals(object? obj) => obj is DubbingInfo other && BackgroundAudio == other.BackgroundAudio && RoleAudioList == other.RoleAudioList;
-    public override int GetHashCode() => HashCode.Combine(BackgroundAudio, RoleAudioList);
+    public override bool Equals(object? obj)
+    {
+        return obj is DubbingInfo other && BackgroundAudio == other.BackgroundAudio && RoleAudioList == other.RoleAudioList;
+    }
+
+    public override int GetHashCode( )
+    {
+        return HashCode.Combine(BackgroundAudio, RoleAudioList);
+    }
 }
 
 internal class DashClip
@@ -462,8 +481,15 @@ internal class DashClip
         ToastText = toastText;
     }
 
-    public override bool Equals(object? obj) => obj is DashClip other && Start == other.Start && End == other.End && ToastText == other.ToastText;
-    public override int GetHashCode() => HashCode.Combine(Start, End, ToastText);
+    public override bool Equals(object? obj)
+    {
+        return obj is DashClip other && Start == other.Start && End == other.End && ToastText == other.ToastText;
+    }
+
+    public override int GetHashCode( )
+    {
+        return HashCode.Combine(Start, End, ToastText);
+    }
 }
 
 internal class AudioInfoWithCodecName
@@ -488,8 +514,15 @@ internal class AudioInfoWithCodecName
         Codecs = codecs;
     }
 
-    public override bool Equals(object? obj) => obj is AudioInfoWithCodecName other && Id == other.Id && BaseUrl == other.BaseUrl && BackupUrl.SequenceEqual(other.BackupUrl) && Bandwidth == other.Bandwidth && Codecs == other.Codecs;
-    public override int GetHashCode() => HashCode.Combine(Id, BaseUrl, BackupUrl, Bandwidth, Codecs);
+    public override bool Equals(object? obj)
+    {
+        return obj is AudioInfoWithCodecName other && Id == other.Id && BaseUrl == other.BaseUrl && BackupUrl.SequenceEqual(other.BackupUrl) && Bandwidth == other.Bandwidth && Codecs == other.Codecs;
+    }
+
+    public override int GetHashCode( )
+    {
+        return HashCode.Combine(Id, BaseUrl, BackupUrl, Bandwidth, Codecs);
+    }
 }
 
 internal class AudioInfoWitCodecId
@@ -514,8 +547,15 @@ internal class AudioInfoWitCodecId
         Codecid = codecid;
     }
 
-    public override bool Equals(object? obj) => obj is AudioInfoWitCodecId other && Id == other.Id && BaseUrl == other.BaseUrl && Bandwidth == other.Bandwidth && Codecid == other.Codecid;
-    public override int GetHashCode() => HashCode.Combine(Id, BaseUrl, Bandwidth, Codecid);
+    public override bool Equals(object? obj)
+    {
+        return obj is AudioInfoWitCodecId other && Id == other.Id && BaseUrl == other.BaseUrl && Bandwidth == other.Bandwidth && Codecid == other.Codecid;
+    }
+
+    public override int GetHashCode( )
+    {
+        return HashCode.Combine(Id, BaseUrl, Bandwidth, Codecid);
+    }
 }
 
 internal class DashInfo
@@ -531,8 +571,15 @@ internal class DashInfo
         Audio = audio;
     }
 
-    public override bool Equals(object? obj) => obj is DashInfo other && EqualityComparer<List<object>>.Default.Equals(Video, other.Video) && EqualityComparer<List<object>>.Default.Equals(Audio, other.Audio);
-    public override int GetHashCode() => HashCode.Combine(Video, Audio);
+    public override bool Equals(object? obj)
+    {
+        return obj is DashInfo other && EqualityComparer<List<object>>.Default.Equals(Video, other.Video) && EqualityComparer<List<object>>.Default.Equals(Audio, other.Audio);
+    }
+
+    public override int GetHashCode( )
+    {
+        return HashCode.Combine(Video, Audio);
+    }
 }
 
 internal class DashData
@@ -551,8 +598,15 @@ internal class DashData
         ClipList = clipList;
     }
 
-    public override bool Equals(object? obj) => obj is DashData other && TimeLength == other.TimeLength && EqualityComparer<DashInfo>.Default.Equals(Dash, other.Dash) && EqualityComparer<List<object>>.Default.Equals(ClipList, other.ClipList);
-    public override int GetHashCode() => HashCode.Combine(TimeLength, Dash, ClipList);
+    public override bool Equals(object? obj)
+    {
+        return obj is DashData other && TimeLength == other.TimeLength && EqualityComparer<DashInfo>.Default.Equals(Dash, other.Dash) && EqualityComparer<List<object>>.Default.Equals(ClipList, other.ClipList);
+    }
+
+    public override int GetHashCode( )
+    {
+        return HashCode.Combine(TimeLength, Dash, ClipList);
+    }
 }
 
 internal class DashJson
@@ -577,6 +631,13 @@ internal class DashJson
         DubbingInfo = dubbingInfo;
     }
 
-    public override bool Equals(object? obj) => obj is DashJson other && Code == other.Code && Message == other.Message && Ttl == other.Ttl && EqualityComparer<DashData>.Default.Equals(Data, other.Data);
-    public override int GetHashCode() => HashCode.Combine(Code, Message, Ttl, Data, DubbingInfo);
+    public override bool Equals(object? obj)
+    {
+        return obj is DashJson other && Code == other.Code && Message == other.Message && Ttl == other.Ttl && EqualityComparer<DashData>.Default.Equals(Data, other.Data);
+    }
+
+    public override int GetHashCode( )
+    {
+        return HashCode.Combine(Code, Message, Ttl, Data, DubbingInfo);
+    }
 }

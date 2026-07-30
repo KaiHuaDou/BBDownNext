@@ -1,22 +1,22 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
 namespace BBDown;
 
-static class BBDownAria2c
+internal static class BBDownAria2c
 {
     public static string ARIA2C = "aria2c";
 
     public static async Task<int> RunCommandCodeAsync(string command, string args)
     {
-        using Process p = new();
+        using Process p = new( );
         p.StartInfo.UseShellExecute = false;
         p.StartInfo.RedirectStandardOutput = false;
         p.StartInfo.FileName = command;
         p.StartInfo.Arguments = args;
-        p.Start();
-        await p.WaitForExitAsync();
+        p.Start( );
+        await p.WaitForExitAsync( );
         return p.ExitCode;
     }
 

@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 
 namespace BBDown.Core.Util;
 
@@ -16,9 +16,9 @@ public static class BilibiliBvConverter
 
     private static readonly byte[] ALPHABET = Encoding.ASCII.GetBytes("FcwAPNKTMug3GV5Lj7EJnHpWsx4tb8haYeviqBz6rkCy12mUSDQX9RdoZf");
 
-    private static readonly Dictionary<byte, long> REV_ALPHABETA = new Dictionary<byte, long>();
+    private static readonly Dictionary<byte, long> REV_ALPHABETA = [];
 
-    static BilibiliBvConverter()
+    static BilibiliBvConverter( )
     {
         for (byte i = 0; i < ALPHABET.Length; i++)
         {
@@ -32,13 +32,14 @@ public static class BilibiliBvConverter
         {
             throw new Exception($"Av {avid} is smaller than {MIN_AID}");
         }
+
         if (avid >= MAX_AID)
         {
             throw new Exception($"Av {avid} is bigger than {MAX_AID}");
         }
 
         var bvid = new byte[BV_LEN];
-        long tmp = (MAX_AID | avid) ^ XOR_CODE;
+        var tmp = (MAX_AID | avid) ^ XOR_CODE;
 
         for (byte i = BV_LEN - 1; tmp != 0; i--)
         {
@@ -59,12 +60,12 @@ public static class BilibiliBvConverter
             throw new Exception($"Bv BV1{bvid_str} must to be 12 char");
         }
 
-        byte[] bvid = Encoding.ASCII.GetBytes(bvid_str);
+        var bvid = Encoding.ASCII.GetBytes(bvid_str);
         (bvid[0], bvid[6]) = (bvid[6], bvid[0]);
         (bvid[1], bvid[4]) = (bvid[4], bvid[1]);
 
         long avid = 0;
-        foreach (byte b in bvid)
+        foreach (var b in bvid)
         {
             avid = avid * BASE + REV_ALPHABETA[b];
         }

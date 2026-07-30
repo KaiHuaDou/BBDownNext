@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.CommandLine.Parsing;
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.IO;
 using System.Linq;
+
 using static BBDown.Core.Logger;
 
 namespace BBDown;
@@ -20,23 +21,24 @@ internal static class BBDownConfigParser
             if (File.Exists(configPath))
             {
                 Log($"加载配置文件: {configPath}");
-                var configArgs = File
+                IEnumerable<string> configArgs = File
                     .ReadAllLines(configPath)
                     .Where(s => !string.IsNullOrEmpty(s) && !s.StartsWith('#'))
                     .SelectMany(s =>
                         {
-                            var trimLine = s.Trim();
+                            var trimLine = s.Trim( );
                             if (trimLine.StartsWith('-') && trimLine.Contains(' '))
                             {
                                 var spaceIndex = trimLine.IndexOf(' ');
                                 var paramsGroup = new[] { trimLine[..spaceIndex], trimLine[spaceIndex..] };
                                 return paramsGroup.Where(s => !string.IsNullOrEmpty(s)).Select(s => s.Trim(' ').Trim('\"'));
                             }
+
                             return [trimLine.Trim('\"')];
                         }
                     );
-                var configArgsResult = rootCommand.Parse(configArgs.ToArray());
-                foreach (var item in configArgsResult.CommandResult.Children)
+                ParseResult configArgsResult = rootCommand.Parse(configArgs.ToArray( ));
+                foreach (SymbolResult item in configArgsResult.CommandResult.Children)
                 {
                     if (item is OptionResult o)
                     {

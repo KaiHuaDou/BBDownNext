@@ -7,5 +7,4 @@ internal class ServeRequestOptions : MyOption
     /// 任务完成回调Http请求地址
     /// </summary>
     public string? CallBackWebHook { get; set; }
-
 }

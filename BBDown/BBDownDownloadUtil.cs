@@ -1,14 +1,15 @@
-﻿using System;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
+
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
-using System.Collections.Concurrent;
 
 namespace BBDown;
 
@@ -34,9 +35,10 @@ internal static class BBDownDownloadUtil
             onProgress(id, fileStream.Position, fileStream.Position);
             return;
         }
+
         var downloadedBytes = fromPosition + fileStream.Position;
 
-        using var httpRequestMessage = new HttpRequestMessage();
+        using var httpRequestMessage = new HttpRequestMessage( );
         if (!url.Contains("platform=android_tv_yst") && !url.Contains("platform=android"))
             httpRequestMessage.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com");
         httpRequestMessage.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
@@ -45,7 +47,7 @@ internal static class BBDownDownloadUtil
         httpRequestMessage.Headers.IfRange = lastTime != null ? new(lastTime.Value) : null;
         httpRequestMessage.RequestUri = new(url);
 
-        using var response = (await AppHttpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode();
+        using HttpResponseMessage response = (await AppHttpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
 
         if (response.StatusCode == HttpStatusCode.OK) // server doesn't response a partial content
         {
@@ -54,7 +56,7 @@ internal static class BBDownDownloadUtil
             fileStream.Seek(0, SeekOrigin.Begin);
         }
 
-        using var stream = await response.Content.ReadAsStreamAsync();
+        using Stream stream = await response.Content.ReadAsStreamAsync( );
         var totalBytes = downloadedBytes + (response.Content.Headers.ContentLength ?? long.MaxValue - downloadedBytes);
 
         const int blockSize = 1048576 / 4;
@@ -65,7 +67,7 @@ internal static class BBDownDownloadUtil
             var recevied = await stream.ReadAsync(buffer);
             if (recevied == 0) break;
             await fileStream.WriteAsync(buffer.AsMemory(0, recevied));
-            await fileStream.FlushAsync();
+            await fileStream.FlushAsync( );
             downloadedBytes += recevied;
             onProgress(id, downloadedBytes - fromPosition, totalBytes);
         }
@@ -79,23 +81,24 @@ internal static class BBDownDownloadUtil
         if (string.IsNullOrEmpty(url)) return;
         if (config.ForceHttp) url = ReplaceUrl(url);
         LogDebug("Start downloading: {0}", url);
-        string desDir = Path.GetDirectoryName(path)!;
+        var desDir = Path.GetDirectoryName(path)!;
         if (!string.IsNullOrEmpty(desDir) && !Directory.Exists(desDir)) Directory.CreateDirectory(desDir);
         if (config.UseAria2c)
         {
             await BBDownAria2c.DownloadFileByAria2cAsync(url, path, config.Aria2cArgs);
             if (File.Exists(path + ".aria2") || !File.Exists(path))
                 throw new Exception("aria2下载可能存在错误");
-            Console.WriteLine();
+            Console.WriteLine( );
             return;
         }
-        int retry = 0;
-        string tmpName = Path.Combine(desDir, Path.GetFileNameWithoutExtension(path) + ".tmp");
-        reDown:
+
+        var retry = 0;
+        var tmpName = Path.Combine(desDir, Path.GetFileNameWithoutExtension(path) + ".tmp");
+reDown:
         try
         {
             using var progress = new ProgressBar(config.RelatedTask);
-            await RangeDownloadToTmpAsync(0, url, tmpName, 0, null, (_, downloaded, total) => progress.Report((double)downloaded / total, downloaded));
+            await RangeDownloadToTmpAsync(0, url, tmpName, 0, null, (_, downloaded, total) => progress.Report((double) downloaded / total, downloaded));
             File.Move(tmpName, path, true);
         }
         catch (Exception)
@@ -114,10 +117,11 @@ internal static class BBDownDownloadUtil
             await BBDownAria2c.DownloadFileByAria2cAsync(url, path, config.Aria2cArgs);
             if (File.Exists(path + ".aria2") || !File.Exists(path))
                 throw new Exception("aria2下载可能存在错误");
-            Console.WriteLine();
+            Console.WriteLine( );
             return;
         }
-        long fileSize = await GetFileSizeAsync(url);
+
+        var fileSize = await GetFileSizeAsync(url);
         LogDebug("文件大小：{0} bytes", fileSize);
         //已下载过, 跳过下载
         if (File.Exists(path) && new FileInfo(path).Length == fileSize)
@@ -125,25 +129,26 @@ internal static class BBDownDownloadUtil
             LogDebug("文件已下载过, 跳过下载");
             return;
         }
+
         List<Clip> allClips = GetAllClips(url, fileSize);
-        int total = allClips.Count;
+        var total = allClips.Count;
         LogDebug("分段数量：{0}", total);
-        ConcurrentDictionary<int, long> clipProgress = new();
-        foreach (var i in allClips) clipProgress[i.index] = 0;
+        ConcurrentDictionary<int, long> clipProgress = new( );
+        foreach (Clip i in allClips) clipProgress[i.index] = 0;
 
         using var progress = new ProgressBar(config.RelatedTask);
         progress.Report(0);
         await Parallel.ForEachAsync(allClips, async (clip, _) =>
         {
-            int retry = 0;
-            string tmp = Path.Combine(Path.GetDirectoryName(path)!, clip.index.ToString("00000") + "_" + Path.GetFileNameWithoutExtension(path) + (Path.GetExtension(path).EndsWith(".mp4") ? ".vclip" : ".aclip"));
-            reDown:
+            var retry = 0;
+            var tmp = Path.Combine(Path.GetDirectoryName(path)!, clip.index.ToString("00000") + "_" + Path.GetFileNameWithoutExtension(path) + (Path.GetExtension(path).EndsWith(".mp4") ? ".vclip" : ".aclip"));
+reDown:
             try
             {
                 await RangeDownloadToTmpAsync(clip.index, url, tmp, clip.from, clip.to == -1 ? null : clip.to, (index, downloaded, _) =>
                 {
                     clipProgress[index] = downloaded;
-                    progress.Report((double)clipProgress.Values.Sum() / fileSize, clipProgress.Values.Sum());
+                    progress.Report((double) clipProgress.Values.Sum( ) / fileSize, clipProgress.Values.Sum( ));
                 }, true);
             }
             catch (NotSupportedException)
@@ -163,12 +168,12 @@ internal static class BBDownDownloadUtil
     private static List<Clip> GetAllClips(string url, long fileSize)
     {
         List<Clip> clips = [];
-        int index = 0;
+        var index = 0;
         long counter = 0;
-        int perSize = 20 * 1024 * 1024;
+        var perSize = 20 * 1024 * 1024;
         while (fileSize > 0)
         {
-            Clip c = new()
+            Clip c = new( )
             {
                 index = index,
                 from = counter,
@@ -190,19 +195,20 @@ internal static class BBDownDownloadUtil
                 break;
             }
         }
+
         return clips;
     }
 
     private static async Task<long> GetFileSizeAsync(string url)
     {
-        using var httpRequestMessage = new HttpRequestMessage();
+        using var httpRequestMessage = new HttpRequestMessage( );
         if (!url.Contains("platform=android_tv_yst") && !url.Contains("platform=android"))
             httpRequestMessage.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com");
         httpRequestMessage.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
         httpRequestMessage.Headers.TryAddWithoutValidation("Cookie", Core.Config.COOKIE);
         httpRequestMessage.RequestUri = new(url);
-        var response = (await AppHttpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode();
-        long totalSizeBytes = response.Content.Headers.ContentLength ?? 0;
+        HttpResponseMessage response = (await AppHttpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
+        var totalSizeBytes = response.Content.Headers.ContentLength ?? 0;
 
         return totalSizeBytes;
     }

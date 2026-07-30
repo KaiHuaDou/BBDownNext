@@ -1,7 +1,5 @@
-﻿using System;
+using System;
 using System.CommandLine;
-using System.CommandLine.Binding;
-using System.CommandLine.Parsing;
 using System.Threading.Tasks;
 
 namespace BBDown;
@@ -52,27 +50,27 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> ForceReplaceHost = new(["--force-replace-host"], "强制替换下载服务器host(默认开启)");
     private static readonly Option<bool> SaveArchivesToFile = new(["--save-archives-to-file"], "将下载过的视频记录到本地文件中, 用于后续跳过下载同个视频");
     private static readonly Option<string> DelayPerPage = new(["--delay-per-page"], "设置下载合集分P之间的下载间隔时间(单位: 秒, 默认无间隔)");
-    private static readonly Option<string> FilePattern = new(["--file-pattern", "-F"], 
-        $"使用内置变量自定义单P存储文件名:\r\n\r\n" + 
-        $"<videoTitle>: 视频主标题\r\n" + 
-        $"<pageNumber>: 视频分P序号\r\n" + 
-        $"<pageNumberWithZero>: 视频分P序号(前缀补零)\r\n" + 
-        $"<pageTitle>: 视频分P标题\r\n" + 
-        $"<bvid>: 视频BV号\r\n" + 
-        $"<aid>: 视频aid\r\n" + 
-        $"<cid>: 视频cid\r\n" + 
-        $"<dfn>: 视频清晰度\r\n" + 
-        $"<res>: 视频分辨率\r\n" + 
-        $"<fps>: 视频帧率\r\n" + 
-        $"<videoCodecs>: 视频编码\r\n" + 
-        $"<videoBandwidth>: 视频码率\r\n" + 
-        $"<audioCodecs>: 音频编码\r\n" + 
-        $"<audioBandwidth>: 音频码率\r\n" + 
-        $"<ownerName>: 上传者名称\r\n" + 
-        $"<ownerMid>: 上传者mid\r\n" + 
-        $"<publishDate>: 收藏夹/番剧/合集发布时间\r\n" + 
-        $"<videoDate>: 视频发布时间(分p视频发布时间与<publishDate>相同)\r\n" + 
-        $"<apiType>: API类型(TV/APP/INTL/WEB)\r\n\r\n" + 
+    private static readonly Option<string> FilePattern = new(["--file-pattern", "-F"],
+        $"使用内置变量自定义单P存储文件名:\r\n\r\n" +
+        $"<videoTitle>: 视频主标题\r\n" +
+        $"<pageNumber>: 视频分P序号\r\n" +
+        $"<pageNumberWithZero>: 视频分P序号(前缀补零)\r\n" +
+        $"<pageTitle>: 视频分P标题\r\n" +
+        $"<bvid>: 视频BV号\r\n" +
+        $"<aid>: 视频aid\r\n" +
+        $"<cid>: 视频cid\r\n" +
+        $"<dfn>: 视频清晰度\r\n" +
+        $"<res>: 视频分辨率\r\n" +
+        $"<fps>: 视频帧率\r\n" +
+        $"<videoCodecs>: 视频编码\r\n" +
+        $"<videoBandwidth>: 视频码率\r\n" +
+        $"<audioCodecs>: 音频编码\r\n" +
+        $"<audioBandwidth>: 音频码率\r\n" +
+        $"<ownerName>: 上传者名称\r\n" +
+        $"<ownerMid>: 上传者mid\r\n" +
+        $"<publishDate>: 收藏夹/番剧/合集发布时间\r\n" +
+        $"<videoDate>: 视频发布时间(分p视频发布时间与<publishDate>相同)\r\n" +
+        $"<apiType>: API类型(TV/APP/INTL/WEB)\r\n\r\n" +
         $"默认为: {Program.SinglePageDefaultSavePath}\r\n");
     private static readonly Option<string> MultiFilePattern = new(["--multi-file-pattern", "-M"], $"使用内置变量自定义多P存储文件名:\r\n\r\n默认为: {Program.MultiPageDefaultSavePath}\r\n");
     private static readonly Option<string> Host = new(["--host"], "指定BiliPlus host(使用BiliPlus需要access_token, 不需要cookie, 解析服务器能够获取你账号的大部分权限!)");
@@ -88,8 +86,7 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> NoPaddingPageNum = new(["--no-padding-page-num"], "不给分P序号补零") { IsHidden = true };
     private static readonly Option<bool> BandwithAscending = new(["--bandwith-ascending"], "比特率升序(最小体积优先)") { IsHidden = true };
 
-
-    class MyOptionBinder : BinderBase<MyOption>
+    private class MyOptionBinder : BinderBase<MyOption>
     {
         protected override MyOption GetBoundValue(BindingContext bindingContext)
         {
@@ -222,7 +219,7 @@ internal static class CommandLineInvoker
             BandwithAscending
         };
 
-        rootCommand.SetHandler(async (myOption) => await action(myOption), new MyOptionBinder());
+        rootCommand.SetHandler(async (myOption) => await action(myOption), new MyOptionBinder( ));
 
         return rootCommand;
     }

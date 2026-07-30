@@ -1,5 +1,6 @@
-﻿using BBDown.Core.Util;
 using System.Diagnostics.CodeAnalysis;
+
+using BBDown.Core.Util;
 
 namespace BBDown.Core.Entity;
 
@@ -19,11 +20,8 @@ public static class Entity
         public string? desc;
         public string? ownerName;
         public string? ownerMid;
-        public string bvid
-        {
-            get => BilibiliBvConverter.Encode(long.Parse(aid));
-        }
-        public List<ViewPoint> points = new();
+        public string bvid => BilibiliBvConverter.Encode(long.Parse(aid));
+        public List<ViewPoint> points = [];
 
         [SetsRequiredMembers]
         public Page(int index, string aid, string cid, string epid, string title, int dur, string res, long pubTime)
@@ -108,7 +106,7 @@ public static class Entity
                    epid == page.epid;
         }
 
-        public override int GetHashCode()
+        public override int GetHashCode( )
         {
             return HashCode.Combine(aid, cid, epid);
         }
@@ -145,7 +143,7 @@ public static class Entity
                    dur == video.dur;
         }
 
-        public override int GetHashCode()
+        public override int GetHashCode( )
         {
             return HashCode.Combine(id, dfn, res, fps, codecs, bandwith, dur);
         }
@@ -159,9 +157,9 @@ public static class Entity
         public required string codecs;
         public required long bandwith;
         public required int dur;
-        
+
         // E-AC-3 => EAC3
-        public string shortCodecs => codecs.ToUpper().Replace("-", string.Empty);
+        public string shortCodecs => codecs.ToUpper( ).Replace("-", string.Empty);
 
         public override bool Equals(object? obj)
         {
@@ -173,7 +171,7 @@ public static class Entity
                    dur == audio.dur;
         }
 
-        public override int GetHashCode()
+        public override int GetHashCode( )
         {
             return HashCode.Combine(id, dfn, codecs, bandwith, dur);
         }

@@ -1,6 +1,7 @@
-﻿using static BBDown.Core.Logger;
 using System.Text;
 using System.Xml;
+
+using static BBDown.Core.Logger;
 
 namespace BBDown.Core;
 
@@ -12,7 +13,7 @@ public static class DanmakuUtil
     private const double MOVE_SPEND_TIME = 8.00;    //单条条滚动弹幕存在时间（控制速度）
     private const double TOP_SPEND_TIME = 4.00;     //单条顶部或底部弹幕存在时间
     private const int PROTECT_LENGTH = 50;          //滚动弹幕屏占百分比
-    public static readonly DanmakuComparer comparer = new();
+    public static readonly DanmakuComparer comparer = new( );
 
     /*public static async Task DownloadAsync(Page p, string xmlPath, bool aria2c, string aria2cProxy)
     {
@@ -23,12 +24,12 @@ public static class DanmakuUtil
     public static DanmakuItem[]? ParseXml(string xmlPath)
     {
         // 解析xml文件
-        XmlDocument xmlFile = new();
-        XmlReaderSettings settings = new()
+        XmlDocument xmlFile = new( );
+        XmlReaderSettings settings = new( )
         {
             IgnoreComments = true//忽略文档里面的注释
         };
-        var danmakus = new List<DanmakuItem>();
+        var danmakus = new List<DanmakuItem>( );
         using (var reader = XmlReader.Create(xmlPath, settings))
         {
             try
@@ -37,7 +38,7 @@ public static class DanmakuUtil
             }
             catch (Exception ex)
             {
-                LogDebug("解析字幕xml时出现异常: {0}", ex.ToString());
+                LogDebug("解析字幕xml时出现异常: {0}", ex.ToString( ));
                 return null;
             }
         }
@@ -45,17 +46,17 @@ public static class DanmakuUtil
         XmlNode? rootNode = xmlFile.SelectSingleNode("i");
         if (rootNode != null)
         {
-            XmlElement rootElement = (XmlElement)rootNode;
+            var rootElement = (XmlElement) rootNode;
             XmlNodeList? dNodeList = rootElement.SelectNodes("d");
             if (dNodeList != null)
             {
                 foreach (XmlNode node in dNodeList)
                 {
-                    XmlElement dElement = (XmlElement)node;
-                    string attr = dElement.GetAttribute("p").ToString();
+                    var dElement = (XmlElement) node;
+                    var attr = dElement.GetAttribute("p").ToString( );
                     if (attr != null)
                     {
-                        string[] vs = attr.Split(',');
+                        var vs = attr.Split(',');
                         if (vs.Length >= 8)
                         {
                             DanmakuItem danmaku = new(vs, dElement.InnerText);
@@ -65,7 +66,8 @@ public static class DanmakuUtil
                 }
             }
         }
-        return danmakus.ToArray();
+
+        return danmakus.ToArray( );
     }
 
     /// <summary>
@@ -76,7 +78,7 @@ public static class DanmakuUtil
     /// <returns></returns>
     public static async Task SaveAsAssAsync(DanmakuItem[] danmakus, string outputPath)
     {
-        var sb = new StringBuilder();
+        var sb = new StringBuilder( );
         // ASS字幕文件头
         sb.AppendLine("[Script Info]");
         sb.AppendLine("Script Updated By: BBDown(https://github.com/nilaoda/BBDown)");
@@ -93,14 +95,14 @@ public static class DanmakuUtil
         sb.AppendLine($"Style: BBDOWN_Style, 黑体, {FONT_SIZE}, &H00FFFFFF, &H00FFFFFF, &H00000000, &H00000000, 0, 0, 0, 0, 100, 100, 0.00, 0.00, 1, 2, 0, 7, 0, 0, 0, 0");
         sb.AppendLine("[Events]");
         sb.AppendLine("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text");
-            
-        PositionController controller = new();   // 弹幕位置控制器
+
+        PositionController controller = new( );   // 弹幕位置控制器
         Array.Sort(danmakus, comparer);
         foreach (DanmakuItem danmaku in danmakus)
         {
-            int height = controller.UpdatePosition(danmaku.DanmakuMode, danmaku.Second, danmaku.Content.Length);
+            var height = controller.UpdatePosition(danmaku.DanmakuMode, danmaku.Second, danmaku.Content.Length);
             if (height == -1) continue;
-            string effect = "";
+            var effect = "";
             effect += danmaku.DanmakuMode switch
             {
                 3 => $"\\an8\\pos({MONITOR_WIDTH / 2}, {MONITOR_HEIGHT - FONT_SIZE - height})",
@@ -111,24 +113,25 @@ public static class DanmakuUtil
             {
                 effect += $"\\c&{danmaku.Color}&";
             }
+
             sb.AppendLine($"Dialogue: 2,{danmaku.StartTime},{danmaku.EndTime},BBDOWN_Style,,0000,0000,0000,,{{{effect}}}{danmaku.Content}");
         }
 
-        await File.WriteAllTextAsync(outputPath, sb.ToString(), Encoding.UTF8);
+        await File.WriteAllTextAsync(outputPath, sb.ToString( ), Encoding.UTF8);
     }
 
     protected class PositionController
     {
-        readonly int maxLine = MONITOR_HEIGHT * PROTECT_LENGTH / FONT_SIZE / 100;    //总行数
+        private readonly int maxLine = MONITOR_HEIGHT * PROTECT_LENGTH / FONT_SIZE / 100;    //总行数
         // 三个位置的弹幕队列，记录弹幕结束时间
 
-        readonly List<double> moveQueue = new();
-        readonly List<double> topQueue = new();
-        readonly List<double> bottomQueue = new();
+        private readonly List<double> moveQueue = [];
+        private readonly List<double> topQueue = [];
+        private readonly List<double> bottomQueue = [];
 
-        public PositionController()
+        public PositionController( )
         {
-            for (int i = 0; i < maxLine; i++)
+            for (var i = 0; i < maxLine; i++)
             {
                 moveQueue.Add(0.00);
                 topQueue.Add(0.00);
@@ -140,7 +143,7 @@ public static class DanmakuUtil
         {
             // 获取可用位置
             List<double> vs;
-            double displayTime = TOP_SPEND_TIME;
+            var displayTime = TOP_SPEND_TIME;
             if (type == POS_BOTTOM)
             {
                 vs = bottomQueue;
@@ -152,9 +155,10 @@ public static class DanmakuUtil
             else
             {
                 vs = moveQueue;
-                displayTime = MOVE_SPEND_TIME * (length + 5) * FONT_SIZE / (MONITOR_WIDTH + (length * MOVE_SPEND_TIME));
+                displayTime = MOVE_SPEND_TIME * (length + 5) * FONT_SIZE / (MONITOR_WIDTH + length * MOVE_SPEND_TIME);
             }
-            for (int i = 0; i < maxLine; i++)
+
+            for (var i = 0; i < maxLine; i++)
             {
                 if (time >= vs[i])
                 {   // 此条弹幕已结束，更新该位置信息
@@ -162,6 +166,7 @@ public static class DanmakuUtil
                     return i * FONT_SIZE;
                 }
             }
+
             return -1;
         }
     }
@@ -178,7 +183,7 @@ public static class DanmakuUtil
             };
             try
             {
-                double second = double.Parse(attrs[0]);
+                var second = double.Parse(attrs[0]);
                 Second = second;
                 StartTime = ComputeTime(second);
                 EndTime = ComputeTime(second + (DanmakuMode == 1 ? MOVE_SPEND_TIME : TOP_SPEND_TIME));
@@ -187,25 +192,27 @@ public static class DanmakuUtil
             {
                 Log(e.Message);
             }
+
             FontSize = attrs[2];
             try
             {
-                int colorD = int.Parse(attrs[3]);
+                var colorD = int.Parse(attrs[3]);
                 Color = string.Format("{0:X6}", colorD);
             }
             catch (FormatException e)
             {
                 Log(e.Message);
             }
+
             Timestamp = attrs[4];
             Content = content;
         }
         private static string ComputeTime(double second)
         {
-            int hour = (int)second / 3600;
-            int minute = (int)(second - (hour * 3600)) / 60;
-            second -= (hour * 3600) + (minute * 60);
-            return hour.ToString() + string.Format(":{0:D2}:", minute) + string.Format("{0:00.00}", second);
+            var hour = (int) second / 3600;
+            var minute = (int) (second - hour * 3600) / 60;
+            second -= hour * 3600 + minute * 60;
+            return hour.ToString( ) + string.Format(":{0:D2}:", minute) + string.Format("{0:00.00}", second);
         }
         public string Content { get; set; } = "";
         // 弹幕内容

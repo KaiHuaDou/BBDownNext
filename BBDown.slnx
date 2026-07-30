@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/解决方案项/">
+    <File Path=".dockerignore" />
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="Dockerfile" />
+    <File Path="json-api-doc.md" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="BBDown.Core/BBDown.Core.csproj" />
+  <Project Path="BBDown/BBDown.csproj" />
+</Solution>

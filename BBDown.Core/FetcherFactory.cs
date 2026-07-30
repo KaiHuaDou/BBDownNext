@@ -1,4 +1,4 @@
-﻿using BBDown.Core.Fetcher;
+using BBDown.Core.Fetcher;
 
 namespace BBDown.Core;
 
@@ -11,31 +11,32 @@ public static class FetcherFactory
     /// <returns>IFetcher</returns>
     public static IFetcher CreateFetcher(string aidOri, bool useIntlApi)
     {
-        IFetcher fetcher = new NormalInfoFetcher();
+        IFetcher fetcher = new NormalInfoFetcher( );
         if (aidOri.StartsWith("cheese"))
         {
-            fetcher = new CheeseInfoFetcher();
+            fetcher = new CheeseInfoFetcher( );
         }
         else if (aidOri.StartsWith("ep"))
         {
-            fetcher = useIntlApi ? new IntlBangumiInfoFetcher() : new BangumiInfoFetcher();
+            fetcher = useIntlApi ? new IntlBangumiInfoFetcher( ) : new BangumiInfoFetcher( );
         }
         else if (aidOri.StartsWith("mid"))
         {
-            fetcher = new SpaceVideoFetcher();
+            fetcher = new SpaceVideoFetcher( );
         }
         else if (aidOri.StartsWith("listBizId"))
         {
-            fetcher = new MediaListFetcher();
+            fetcher = new MediaListFetcher( );
         }
         else if (aidOri.StartsWith("seriesBizId"))
         {
-            fetcher = new SeriesListFetcher();
+            fetcher = new SeriesListFetcher( );
         }
         else if (aidOri.StartsWith("favId"))
         {
-            fetcher = new FavListFetcher();
+            fetcher = new FavListFetcher( );
         }
+
         return fetcher;
     }
 }

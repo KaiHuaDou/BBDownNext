@@ -1,15 +1,17 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading.Tasks;
-using static BBDown.Core.Entity.Entity;
-using static BBDown.BBDownUtil;
-using static BBDown.Core.Logger;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+
 using BBDown.Core;
 using BBDown.Core.Entity;
+
 using static BBDown.BBDownDownloadUtil;
+using static BBDown.Utils;
+using static BBDown.Core.Entity.Entity;
+using static BBDown.Core.Logger;
 
 namespace BBDown;
 
@@ -32,26 +34,31 @@ internal partial class Program
                 LogWarn($"已切换至 -F \"{SinglePageDefaultSavePath}\" -M \"{MultiPageDefaultSavePath}\"");
             }
         }
+
         if (myOption.Aria2cProxy != "")
         {
             LogWarn("--aria2c-proxy 已被弃用, 请使用 --aria2c-args 来设置aria2c代理, 本次执行已添加该代理");
             myOption.Aria2cArgs += $" --all-proxy=\"{myOption.Aria2cProxy}\"";
         }
+
         if (myOption.OnlyHevc)
         {
             LogWarn("--only-hevc/-hevc 已被弃用, 请使用 --encoding-priority 来设置编码优先级, 本次执行已将hevc设置为最高优先级");
             myOption.EncodingPriority = "hevc";
         }
+
         if (myOption.OnlyAvc)
         {
             LogWarn("--only-avc/-avc 已被弃用, 请使用 --encoding-priority 来设置编码优先级, 本次执行已将avc设置为最高优先级");
             myOption.EncodingPriority = "avc";
         }
+
         if (myOption.OnlyAv1)
         {
             LogWarn("--only-av1/-av1 已被弃用, 请使用 --encoding-priority 来设置编码优先级, 本次执行已将av1设置为最高优先级");
             myOption.EncodingPriority = "av1";
         }
+
         if (myOption.NoPaddingPageNum)
         {
             LogWarn("--no-padding-page-num 已被弃用, 建议使用 --file-pattern/-F 或 --multi-file-pattern/-M 来自定义输出文件名格式");
@@ -61,6 +68,7 @@ internal partial class Program
                 LogWarn($"已切换至 -M \"{MultiPageDefaultSavePath}\"");
             }
         }
+
         if (myOption.BandwithAscending)
         {
             LogWarn("--bandwith-ascending 已被弃用, 建议使用 --video-ascending 与 --audio-ascending 来指定视频或音频是否升序, 本次执行已将视频与音频均设为升序");
@@ -76,19 +84,19 @@ internal partial class Program
     /// <returns></returns>
     private static Dictionary<string, byte> ParseEncodingPriority(MyOption myOption, out string firstEncoding)
     {
-        var encodingPriority = new Dictionary<string, byte>();
+        var encodingPriority = new Dictionary<string, byte>( );
         firstEncoding = "";
         if (myOption.EncodingPriority != null)
         {
             var encodingPriorityTemp = myOption.EncodingPriority
-                .ToUpper()
+                .ToUpper( )
                 .Replace('，', ',')
                 .Replace("-", string.Empty)
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(s => !string.IsNullOrEmpty(s)).ToList();
+                .Where(s => !string.IsNullOrEmpty(s)).ToList( );
             byte index = 0;
-            firstEncoding = encodingPriorityTemp.First();
-            foreach (string encoding in encodingPriorityTemp)
+            firstEncoding = encodingPriorityTemp.First( );
+            foreach (var encoding in encodingPriorityTemp)
             {
                 if (encodingPriority.ContainsKey(encoding))
                     continue;
@@ -96,6 +104,7 @@ internal partial class Program
                 index++;
             }
         }
+
         return encodingPriority;
     }
 
@@ -103,14 +112,14 @@ internal partial class Program
     {
         if (string.IsNullOrEmpty(myOption.DownloadDanmakuFormats)) return BBDownDanmakuFormatInfo.DefaultFormats;
 
-        var formats = myOption.DownloadDanmakuFormats.Replace("，", ",").ToLower().Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var formats = myOption.DownloadDanmakuFormats.Replace("，", ",").ToLower( ).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         if (formats.Any(format => !BBDownDanmakuFormatInfo.AllFormatNames.Contains(format)))
         {
             LogError($"包含不支持的下载弹幕格式：{myOption.DownloadDanmakuFormats}");
             return BBDownDanmakuFormatInfo.DefaultFormats;
         }
-        
-        return formats.Select(BBDownDanmakuFormatInfo.FromFormatName).ToArray();
+
+        return formats.Select(BBDownDanmakuFormatInfo.FromFormatName).ToArray( );
     }
 
     /// <summary>
@@ -120,18 +129,20 @@ internal partial class Program
     /// <returns></returns>
     private static Dictionary<string, int> ParseDfnPriority(MyOption myOption)
     {
-        var dfnPriority = new Dictionary<string, int>();
+        var dfnPriority = new Dictionary<string, int>( );
         if (myOption.DfnPriority != null)
         {
-            var dfnPriorityTemp = myOption.DfnPriority.Replace("，", ",").Split(',').Select(s => s.ToUpper().Trim()).Where(s => !string.IsNullOrEmpty(s));
-            int index = 0;
-            foreach (string dfn in dfnPriorityTemp)
+            IEnumerable<string> dfnPriorityTemp = myOption.DfnPriority.Replace("，", ",").Split(',').Select(s => s.ToUpper( ).Trim( )).Where(s => !string.IsNullOrEmpty(s));
+            var index = 0;
+            foreach (var dfn in dfnPriorityTemp)
             {
                 if (dfnPriority.ContainsKey(dfn)) { continue; }
+
                 dfnPriority[dfn] = index;
                 index++;
             }
         }
+
         return dfnPriority;
     }
 
@@ -188,7 +199,6 @@ internal partial class Program
                     throw new Exception("找不到可执行的aria2c文件");
                 BBDownAria2c.ARIA2C = binPath;
             }
-
         }
     }
 
@@ -209,6 +219,7 @@ internal partial class Program
             myOption.AudioOnly = false;
             myOption.VideoOnly = false;
         }
+
         if (myOption.SkipSubtitle)
         {
             myOption.SubOnly = false;
@@ -248,6 +259,7 @@ internal partial class Program
             LogDebug("文件路径：{0}", Path.Combine(APP_DIR, "BBDown.data"));
             Config.COOKIE = File.ReadAllText(Path.Combine(APP_DIR, "BBDown.data"));
         }
+
         if (string.IsNullOrEmpty(Config.TOKEN) && File.Exists(Path.Combine(APP_DIR, "BBDownTV.data")) && myOption.UseTvApi)
         {
             Log("加载本地token...");
@@ -255,6 +267,7 @@ internal partial class Program
             Config.TOKEN = File.ReadAllText(Path.Combine(APP_DIR, "BBDownTV.data"));
             Config.TOKEN = Config.TOKEN.Replace("access_token=", "");
         }
+
         if (string.IsNullOrEmpty(Config.TOKEN) && File.Exists(Path.Combine(APP_DIR, "BBDownApp.data")) && myOption.UseAppApi)
         {
             Log("加载本地token...");
@@ -264,12 +277,12 @@ internal partial class Program
         }
     }
 
-    private static object fileLock = new object();
+    private static readonly object fileLock = new( );
     public static void SaveAidToFile(string aid)
     {
         lock (fileLock)
         {
-            string filePath = Path.Combine(APP_DIR, "BBDown.archives");
+            var filePath = Path.Combine(APP_DIR, "BBDown.archives");
             LogDebug("文件路径：{0}", filePath);
             File.AppendAllText(filePath, $"{aid}|");
         }
@@ -279,7 +292,7 @@ internal partial class Program
     {
         lock (fileLock)
         {
-            string filePath = Path.Combine(APP_DIR, "BBDown.archives");
+            var filePath = Path.Combine(APP_DIR, "BBDown.archives");
             if (!File.Exists(filePath)) return false;
             LogDebug("文件路径：{0}", filePath);
             var text = File.ReadAllText(filePath);
@@ -298,7 +311,7 @@ internal partial class Program
     {
         List<string>? selectedPages = null;
         List<Page> pagesInfo = vInfo.PagesInfo;
-        string selectPage = myOption.SelectPage.ToUpper().Trim().Trim(',');
+        var selectPage = myOption.SelectPage.ToUpper( ).Trim( ).Trim(',');
 
         if (string.IsNullOrEmpty(selectPage))
         {
@@ -316,11 +329,11 @@ internal partial class Program
         }
         else if (selectPage != "ALL")
         {
-            selectedPages = new List<string>();
+            selectedPages = [];
 
             //选择最新分P
-            string lastPage = pagesInfo.Count.ToString();
-            foreach (string key in new[] { "LAST", "NEW", "LATEST" })
+            var lastPage = pagesInfo.Count.ToString( );
+            foreach (var key in new[] { "LAST", "NEW", "LATEST" })
             {
                 selectPage = selectPage.Replace(key, lastPage);
             }
@@ -329,12 +342,12 @@ internal partial class Program
             {
                 if (selectPage.Contains('-'))
                 {
-                    string[] tmp = selectPage.Split('-');
-                    int start = int.Parse(tmp[0]);
-                    int end = int.Parse(tmp[1]);
-                    for (int i = start; i <= end; i++)
+                    var tmp = selectPage.Split('-');
+                    var start = int.Parse(tmp[0]);
+                    var end = int.Parse(tmp[1]);
+                    for (var i = start; i <= end; i++)
                     {
-                        selectedPages.Add(i.ToString());
+                        selectedPages.Add(i.ToString( ));
                     }
                 }
                 else
@@ -345,7 +358,9 @@ internal partial class Program
                     }
                 }
             }
-            catch { LogError("解析分P参数时失败了~"); selectedPages = null; };
+            catch { LogError("解析分P参数时失败了~"); selectedPages = null; }
+
+            ;
         }
 
         return selectedPages;
@@ -364,12 +379,13 @@ internal partial class Program
             //处理PCDN
             if (!myOption.AllowPcdn)
             {
-                var pcdnReg = PcdnRegex();
+                Regex pcdnReg = PcdnRegex( );
                 if (selectedVideo != null && pcdnReg.IsMatch(selectedVideo.baseUrl))
                 {
                     LogWarn($"检测到视频流为PCDN, 尝试强制替换为{BACKUP_HOST}……");
                     selectedVideo.baseUrl = pcdnReg.Replace(selectedVideo.baseUrl, $"://{BACKUP_HOST}/");
                 }
+
                 if (selectedAudio != null && pcdnReg.IsMatch(selectedAudio.baseUrl))
                 {
                     LogWarn($"检测到音频流为PCDN, 尝试强制替换为{BACKUP_HOST}……");
@@ -377,12 +393,13 @@ internal partial class Program
                 }
             }
 
-            var akamReg = AkamRegex();
+            Regex akamReg = AkamRegex( );
             if (selectedVideo != null && Config.AREA != "" && selectedVideo.baseUrl.Contains("akamaized.net"))
             {
                 LogWarn($"检测到视频流为外国源, 尝试强制替换为{BACKUP_HOST}……");
                 selectedVideo.baseUrl = akamReg.Replace(selectedVideo.baseUrl, $"://{BACKUP_HOST}/");
             }
+
             if (selectedAudio != null && Config.AREA != "" && selectedAudio.baseUrl.Contains("akamaized.net"))
             {
                 LogWarn($"检测到音频流为外国源, 尝试强制替换为{BACKUP_HOST}……");
@@ -394,12 +411,13 @@ internal partial class Program
             if (selectedVideo != null)
             {
                 LogWarn($"尝试将视频流强制替换为{myOption.UposHost}……");
-                selectedVideo.baseUrl = UposRegex().Replace(selectedVideo.baseUrl, $"://{myOption.UposHost}/");
+                selectedVideo.baseUrl = UposRegex( ).Replace(selectedVideo.baseUrl, $"://{myOption.UposHost}/");
             }
+
             if (selectedAudio != null)
             {
                 LogWarn($"尝试将音频流强制替换为{myOption.UposHost}……");
-                selectedAudio.baseUrl = UposRegex().Replace(selectedAudio.baseUrl, $"://{myOption.UposHost}/");
+                selectedAudio.baseUrl = UposRegex( ).Replace(selectedAudio.baseUrl, $"://{myOption.UposHost}/");
             }
         }
     }
@@ -411,43 +429,45 @@ internal partial class Program
     /// <param name="pageDur"></param>
     private static void PrintAllTracksInfo(ParsedResult parsedResult, int pageDur, bool onlyShowInfo)
     {
-        if (parsedResult.BackgroundAudioTracks.Any() && parsedResult.RoleAudioList.Any())
+        if (parsedResult.BackgroundAudioTracks.Any( ) && parsedResult.RoleAudioList.Any( ))
         {
             Log($"共计{parsedResult.BackgroundAudioTracks.Count}条背景音频流.");
-            int index = 0;
-            foreach (var a in parsedResult.BackgroundAudioTracks)
+            var index = 0;
+            foreach (Audio a in parsedResult.BackgroundAudioTracks)
             {
-                int pDur = pageDur == 0 ? a.dur : pageDur;
+                var pDur = pageDur == 0 ? a.dur : pageDur;
                 LogColor($"{index++}. [{a.codecs}] [{a.bandwith} kbps] [~{FormatFileSize(pDur * a.bandwith * 1024 / 8)}]", false);
             }
+
             Log($"共计{parsedResult.RoleAudioList.Count}条配音, 每条包含{parsedResult.RoleAudioList[0].audio.Count}条配音流.");
             index = 0;
-            foreach (var a in parsedResult.RoleAudioList[0].audio)
+            foreach (Audio a in parsedResult.RoleAudioList[0].audio)
             {
-                int pDur = pageDur == 0 ? a.dur : pageDur;
+                var pDur = pageDur == 0 ? a.dur : pageDur;
                 LogColor($"{index++}. [{a.codecs}] [{a.bandwith} kbps] [~{FormatFileSize(pDur * a.bandwith * 1024 / 8)}]", false);
             }
         }
         //展示所有的音视频流信息
-        if (parsedResult.VideoTracks.Any())
+        if (parsedResult.VideoTracks.Any( ))
         {
             Log($"共计{parsedResult.VideoTracks.Count}条视频流.");
-            int index = 0;
-            foreach (var v in parsedResult.VideoTracks)
+            var index = 0;
+            foreach (Video v in parsedResult.VideoTracks)
             {
-                int pDur = pageDur == 0 ? v.dur : pageDur;
+                var pDur = pageDur == 0 ? v.dur : pageDur;
                 var size = v.size > 0 ? v.size : pDur * v.bandwith * 1024 / 8;
                 LogColor($"{index++}. [{v.dfn}] [{v.res}] [{v.codecs}] [{v.fps}] [{v.bandwith} kbps] [~{FormatFileSize(size)}]".Replace("[] ", ""), false);
                 if (onlyShowInfo) Console.WriteLine(v.baseUrl);
             }
         }
-        if (parsedResult.AudioTracks.Any())
+
+        if (parsedResult.AudioTracks.Any( ))
         {
             Log($"共计{parsedResult.AudioTracks.Count}条音频流.");
-            int index = 0;
-            foreach (var a in parsedResult.AudioTracks)
+            var index = 0;
+            foreach (Audio a in parsedResult.AudioTracks)
             {
-                int pDur = pageDur == 0 ? a.dur : pageDur;
+                var pDur = pageDur == 0 ? a.dur : pageDur;
                 LogColor($"{index++}. [{a.codecs}] [{a.bandwith} kbps] [~{FormatFileSize(pDur * a.bandwith * 1024 / 8)}]", false);
                 if (onlyShowInfo) Console.WriteLine(a.baseUrl);
             }
@@ -458,13 +478,14 @@ internal partial class Program
     {
         if (selectedVideo != null)
         {
-            int pDur = pageDur == 0 ? selectedVideo.dur : pageDur;
+            var pDur = pageDur == 0 ? selectedVideo.dur : pageDur;
             var size = selectedVideo.size > 0 ? selectedVideo.size : pDur * selectedVideo.bandwith * 1024 / 8;
             LogColor($"[视频] [{selectedVideo.dfn}] [{selectedVideo.res}] [{selectedVideo.codecs}] [{selectedVideo.fps}] [{selectedVideo.bandwith} kbps] [~{FormatFileSize(size)}]".Replace("[] ", ""), false);
         }
+
         if (selectedAudio != null)
         {
-            int pDur = pageDur == 0 ? selectedAudio.dur : pageDur;
+            var pDur = pageDur == 0 ? selectedAudio.dur : pageDur;
             LogColor($"[音频] [{selectedAudio.codecs}] [{selectedAudio.bandwith} kbps] [~{FormatFileSize(pDur * selectedAudio.bandwith * 1024 / 8)}]", false);
         }
     }
@@ -477,21 +498,22 @@ internal partial class Program
     /// <param name="aIndex"></param>
     private static void SelectTrackManually(ParsedResult parsedResult, ref int vIndex, ref int aIndex)
     {
-        if (parsedResult.VideoTracks.Any())
+        if (parsedResult.VideoTracks.Any( ))
         {
             Log("请选择一条视频流(输入序号): ", false);
             Console.ForegroundColor = ConsoleColor.Cyan;
-            vIndex = Convert.ToInt32(Console.ReadLine());
+            vIndex = Convert.ToInt32(Console.ReadLine( ));
             if (vIndex > parsedResult.VideoTracks.Count || vIndex < 0) vIndex = 0;
-            Console.ResetColor();
+            Console.ResetColor( );
         }
-        if (parsedResult.AudioTracks.Any())
+
+        if (parsedResult.AudioTracks.Any( ))
         {
             Log("请选择一条音频流(输入序号): ", false);
             Console.ForegroundColor = ConsoleColor.Cyan;
-            aIndex = Convert.ToInt32(Console.ReadLine());
+            aIndex = Convert.ToInt32(Console.ReadLine( ));
             if (aIndex > parsedResult.AudioTracks.Count || aIndex < 0) aIndex = 0;
-            Console.ResetColor();
+            Console.ResetColor( );
         }
     }
 
@@ -507,7 +529,7 @@ internal partial class Program
             Log($"合并{(video ? "视频" : "音频")}分片...");
             CombineMultipleFilesIntoSingleFile(GetFiles(Path.GetDirectoryName(destPath)!, $".{(video ? "v" : "a")}clip"), destPath);
             Log("清理分片...");
-            foreach (var file in new DirectoryInfo(Path.GetDirectoryName(destPath)!).EnumerateFiles("*.?clip")) file.Delete();
+            foreach (FileInfo file in new DirectoryInfo(Path.GetDirectoryName(destPath)!).EnumerateFiles("*.?clip")) file.Delete( );
         }
         else
         {
@@ -516,14 +538,15 @@ internal partial class Program
                 LogWarn("检测到cmcc域名cdn, 已经禁用多线程");
                 downloadConfig.ForceHttp = false;
             }
+
             await DownloadFileAsync(url, destPath, downloadConfig);
         }
     }
 
     [GeneratedRegex("://.*:\\d+/")]
-    private static partial Regex PcdnRegex();
+    private static partial Regex PcdnRegex( );
     [GeneratedRegex("://.*akamaized\\.net/")]
-    private static partial Regex AkamRegex();
+    private static partial Regex AkamRegex( );
     [GeneratedRegex("://[^/]+/")]
-    private static partial Regex UposRegex();
+    private static partial Regex UposRegex( );
 }
