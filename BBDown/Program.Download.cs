@@ -528,19 +528,19 @@ internal partial class Program
                 .OrderBy(v => encodingPriority.GetValueOrDefault(v.codecs, (byte) 100))
                 .ThenBy(v => dfnPriority.GetValueOrDefault(v.dfn, 100))
                 .ThenByDescending(v => Convert.ToInt32(v.id))
-                .ThenBy(v => videoAscending ? v.bandwith : -v.bandwith)]
+                .ThenBy(v => videoAscending ? v.bandwidth : -v.bandwidth)]
             : [.. videoTracks
                 .OrderBy(v => dfnPriority.GetValueOrDefault(v.dfn, 100))
                 .ThenBy(v => encodingPriority.GetValueOrDefault(v.codecs, (byte) 100))
                 .ThenByDescending(v => Convert.ToInt32(v.id))
-                .ThenBy(v => videoAscending ? v.bandwith : -v.bandwith)];
+                .ThenBy(v => videoAscending ? v.bandwidth : -v.bandwidth)];
     }
 
     private static List<Audio> SortTracks(List<Audio> audioTracks, Dictionary<string, byte> encodingPriority, bool audioAscending)
     {
         return [.. audioTracks
             .OrderBy(a => encodingPriority.GetValueOrDefault(a.shortCodecs, (byte) 100))
-            .ThenBy(a => audioAscending ? a.bandwith : -a.bandwith)];
+            .ThenBy(a => audioAscending ? a.bandwidth : -a.bandwidth)];
     }
 
     private static string FormatSavePath(string savePathFormat, string title, Video? videoTrack, Audio? audioTrack, Page p, int pagesCount, string apiType, long pubTime)
@@ -579,9 +579,9 @@ internal partial class Program
                 "res" => videoTrack == null ? "" : videoTrack.res,
                 "fps" => videoTrack == null ? "" : videoTrack.fps,
                 "videoCodecs" => videoTrack == null ? "" : videoTrack.codecs,
-                "videoBandwidth" => videoTrack == null ? "" : videoTrack.bandwith.ToString( ),
+                "videoBandwidth" => videoTrack == null ? "" : videoTrack.bandwidth.ToString( ),
                 "audioCodecs" => audioTrack == null ? "" : audioTrack.codecs,
-                "audioBandwidth" => audioTrack == null ? "" : audioTrack.bandwith.ToString( ),
+                "audioBandwidth" => audioTrack == null ? "" : audioTrack.bandwidth.ToString( ),
                 "publishDate" => FormatTimeStamp(pubTime, defaultDateFormat),
                 "videoDate" => FormatTimeStamp(p.pubTime, defaultDateFormat),
                 "apiType" => apiType,

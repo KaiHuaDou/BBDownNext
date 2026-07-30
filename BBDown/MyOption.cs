@@ -60,5 +60,5 @@ internal class MyOption
     public bool OnlyAv1 { get; set; }
     public bool AddDfnSubfix { get; set; }
     public bool NoPaddingPageNum { get; set; }
-    public bool BandwithAscending { get; set; }
+    public bool BandwidthAscending { get; set; }
 }

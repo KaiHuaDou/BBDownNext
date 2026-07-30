@@ -83,7 +83,7 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> OnlyAv1 = new("--only-av1", ["-av1"]) { Description = "只下载av1编码", Hidden = true };
     private static readonly Option<bool> AddDfnSubfix = new("--add-dfn-subfix", []) { Description = "为文件加入清晰度后缀, 如XXX[1080P 高码率]", Hidden = true };
     private static readonly Option<bool> NoPaddingPageNum = new("--no-padding-page-num", []) { Description = "不给分P序号补零", Hidden = true };
-    private static readonly Option<bool> BandwithAscending = new("--bandwith-ascending", []) { Description = "比特率升序(最小体积优先)", Hidden = true };
+    private static readonly Option<bool> BandwidthAscending = new("--bandwith-ascending", []) { Description = "比特率升序(最小体积优先)", Hidden = true };
 
 
     public static RootCommand GetRootCommand(Func<MyOption, Task> action)
@@ -146,7 +146,7 @@ internal static class CommandLineInvoker
             OnlyAv1,
             AddDfnSubfix,
             NoPaddingPageNum,
-            BandwithAscending
+            BandwidthAscending
         };
 
         rootCommand.SetAction(async parseResult =>
@@ -212,7 +212,7 @@ internal static class CommandLineInvoker
             option.OnlyAv1 = parseResult.GetValue(OnlyAv1)!;
             option.AddDfnSubfix = parseResult.GetValue(AddDfnSubfix)!;
             option.NoPaddingPageNum = parseResult.GetValue(NoPaddingPageNum)!;
-            option.BandwithAscending = parseResult.GetValue(BandwithAscending)!;
+            option.BandwidthAscending = parseResult.GetValue(BandwidthAscending)!;
             await action(option);
         });
 

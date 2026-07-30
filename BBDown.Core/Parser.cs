@@ -128,7 +128,7 @@ public static partial class Parser
                             dur = pDur,
                             id = videoId,
                             dfn = Config.qualitys[videoId],
-                            bandwith = Convert.ToInt64(dashVideo.GetProperty("bandwidth").ToString( )) / 1000,
+                            bandwidth = Convert.ToInt64(dashVideo.GetProperty("bandwidth").ToString( )) / 1000,
                             baseUrl = PickBaseUrl(urlList),
                             codecs = GetVideoCodec(dashVideo.GetProperty("codecid").ToString( )),
                             size = dashVideo.TryGetProperty("size", out JsonElement sizeNode) ? Convert.ToDouble(sizeNode.ToString( )) : 0
@@ -146,7 +146,7 @@ public static partial class Parser
                     id = node.GetProperty("id").ToString( ),
                     dfn = node.GetProperty("id").ToString( ),
                     dur = pDur,
-                    bandwith = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
+                    bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
                     baseUrl = PickBaseUrl(urlList),
                     codecs = "M4A"
                 };
@@ -257,7 +257,7 @@ public static partial class Parser
                         dur = pDur,
                         id = videoId,
                         dfn = Config.qualitys[videoId],
-                        bandwith = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
+                        bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
                         baseUrl = PickBaseUrl(urlList),
                         codecs = GetVideoCodec(node.GetProperty("codecid").ToString( )),
                         size = node.TryGetProperty("size", out JsonElement sizeNode) ? Convert.ToDouble(sizeNode.ToString( )) : 0
@@ -301,7 +301,7 @@ public static partial class Parser
                         id = audioId,
                         dfn = audioId,
                         dur = pDur,
-                        bandwith = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
+                        bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
                         baseUrl = PickBaseUrl(urlList),
                         codecs = codecs
                     });
@@ -319,7 +319,7 @@ public static partial class Parser
                         id = audioId,
                         dfn = audioId,
                         dur = pDur,
-                        bandwith = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
+                        bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
                         baseUrl = PickBaseUrl(urlList),
                         codecs = node.GetProperty("codecs").ToString( )
                     });
@@ -337,7 +337,7 @@ public static partial class Parser
                             id = audioId,
                             dfn = audioId,
                             dur = pDur,
-                            bandwith = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
+                            bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
                             baseUrl = PickBaseUrl(urlList),
                             codecs = node.GetProperty("codecs").ToString( )
                         });

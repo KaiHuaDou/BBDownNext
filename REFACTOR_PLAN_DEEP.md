@@ -231,6 +231,12 @@ Entity 全 record             // 去 Equals/GetHashCode 样板，行为在模块
 - **不变量**：CLI 参数名完全不变；仅内部标识符改名。
 - **验收**：`dotnet build` 0 错误；`--help` 选项名与现在一致。
 
+#### Phase H 执行记录（已落地）
+- 内部标识符全量 `bandwith→bandwidth` / `Bandwith→Bandwidth`（`Entity.Video/Audio` 字段、`Parser.cs` 6 处赋值、`Program.Download.cs` 排序/命名变量、`Program.Methods.cs` 展示、`MyOption.BandwidthAscending`、`CommandLineInvoker.BandwidthAscending`）。
+- **CLI 字面量精确保留**：`--bandwith-ascending` 参数名与弃用提示文案中的旧拼写原样不动（唯二残留，铁律）。
+- 拼写复扫（recevied/ponints/lenght 等常见错拼）：0 命中，Phase 4 已清干净；无残留调试注释需删。
+- **验收状态**：`dotnet build` 0 错误 0 警告；`-info --bandwith-ascending av...` EXIT=0 参数解析正常。
+
 ### Phase I — 安全网：为「手动可控的纯函数」加轻量单测
 - **目标**：在动手激进重构前/中，给"可控泄露的纯函数"补少量单测作回归网。
 - **改动**：
