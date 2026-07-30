@@ -7,9 +7,9 @@ using static BBDown.Core.Util.HTTPUtil;
 
 namespace BBDown.Core.Fetcher;
 
-public class SpaceVideoFetcher : IFetcher
+public static class SpaceVideoFetcher
 {
-    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[4..];
         // using the live API can bypass w_rid

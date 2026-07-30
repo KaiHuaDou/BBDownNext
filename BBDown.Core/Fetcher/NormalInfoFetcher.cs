@@ -9,9 +9,9 @@ using static BBDown.Core.Util.HTTPUtil;
 
 namespace BBDown.Core.Fetcher;
 
-public partial class NormalInfoFetcher : IFetcher
+public static partial class NormalInfoFetcher
 {
-    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         var api = $"https://api.bilibili.com/x/web-interface/view?aid={id}";
         var json = await GetWebSourceAsync(api, cfg);

@@ -108,6 +108,21 @@ Entity 全 record             // 去 Equals/GetHashCode 样板，行为在模块
 - **不变量**：每种源的返回 `VInfo` 结构与现在完全一致；`useIntlApi` 对 bangumi 的分支保留。
 - **验收**：`dotnet build` 0 错误；`--help` 与各类型 id 解析冒烟（av/bv/ep/ss/space:/fav:/md）。
 
+#### Phase B 执行记录（已落地）
+- 8 个 Fetcher 由 `class Xxx : IFetcher` 改为 `static class Xxx`（Normal / IntlBangumi 为 `static partial class`，保留其 `[GeneratedRegex]` source-gen 方法）；`FetchAsync` 改为 `public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)`，签名与原接口方法一致，仅去掉实例语义。
+- 派发实现为 `FetcherRegistry.FetchAsync(id, cfg, useIntlApi)` 的 **`switch` 表达式**（而非 `Dictionary`，二者等价；`switch` 编译期可穷尽、零分配、更易静态分析）。前缀映射与删除前的 `FetcherFactory.CreateFetcher` 逐条对齐，确保行为一致：
+  - `cheese…` → `CheeseInfoFetcher`
+  - `ep…` → `useIntlApi ? IntlBangumiInfoFetcher : BangumiInfoFetcher`
+  - `mid…` → `SpaceVideoFetcher`
+  - `listBizId…` → `MediaListFetcher`
+  - `seriesBizId…` → `SeriesListFetcher`
+  - `favId…` → `FavListFetcher`
+  - 默认 → `NormalInfoFetcher`
+- 删除 `IFetcher.cs` 与 `FetcherFactory.cs`（已 `git rm`，与 Phase B 同 commit）。`Program.cs` 两处 `FetcherFactory.CreateFetcher(...).FetchAsync` 调用点改为 `FetcherRegistry.FetchAsync(...)`（try 主路径 + catch 回退路径均已替换）。
+- 内部耦合消除：`FavListFetcher` 的 `new NormalInfoFetcher().FetchAsync(...)` 与 `MediaListFetcher` 的 `new SeriesListFetcher().FetchAsync($"seriesBizId:{id}", cfg)` 改为直接静态调用，去掉 `new` 实例耦合。
+- **磁盘意外恢复**：执行 `git rm` 后曾因环境/网络故障导致工作树 32 个被跟踪文件被误删（`git ls-files -d` 确认），`Program.cs`（含 Phase B 接线）与 `FetcherRegistry.cs`（未跟踪新建）幸存或需重建；已用 `git restore --source=HEAD --staged --worktree -- <32 files>` 全部从 HEAD 恢复，随后重新应用 8 个 fetcher 的 static 转换、`FetcherRegistry.cs` 重建，最终构建 0 错误 0 警告。
+- **冒烟验证**：`dotnet build -c Debug` 0 错误 0 警告；`-info` dry-run（BV1GJ411x7h7）→ EXIT=0，经 `FetcherRegistry` 派发到 `NormalInfoFetcher` 并完整解析；`--audio-only` 真实下载（Windows 工作目录）→ 产出 `【官方 MV】Never Gonna Give You Up - Rick Astley.m4a`（~6.1MB），EXIT=0，全链路 fetch→字幕→下载→合并 通过。
+
 ### Phase C — 巨型方法函数化（DownloadPageAsync / ExtractTracksAsync，去 goto）
 - **目标**：把两个 ~400/340 行、含 `goto` 的怪物拆成**纯函数 / 本地函数**，消除 `goto`（downloadPage:/reParse:）。
 - **改动**：

@@ -7,9 +7,9 @@ using static BBDown.Core.Util.HTTPUtil;
 
 namespace BBDown.Core.Fetcher;
 
-public class BangumiInfoFetcher : IFetcher
+public static class BangumiInfoFetcher
 {
-    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[3..];
         var index = "";

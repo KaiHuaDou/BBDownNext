@@ -11,9 +11,9 @@ namespace BBDown.Core.Fetcher;
 /// 列表解析
 /// https://space.bilibili.com/23630128/channel/seriesdetail?sid=340933
 /// </summary>
-public class SeriesListFetcher : IFetcher
+public static class SeriesListFetcher
 {
-    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         //套用BBDownMediaListFetcher.cs的代码
         //只修改id = id.Substring(12);以及api地址的type=5

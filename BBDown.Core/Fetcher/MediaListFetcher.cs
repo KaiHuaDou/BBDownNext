@@ -12,9 +12,9 @@ namespace BBDown.Core.Fetcher;
 /// https://space.bilibili.com/23630128/channel/collectiondetail?sid=2045
 /// https://www.bilibili.com/medialist/play/23630128?business=space_collection&business_id=2045 (无法从该链接打开合集)
 /// </summary>
-public class MediaListFetcher : IFetcher
+public static class MediaListFetcher
 {
-    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[10..];
         var api = $"https://api.bilibili.com/x/v1/medialist/info?type=8&biz_id={id}&tid=0";
@@ -28,7 +28,7 @@ public class MediaListFetcher : IFetcher
             // 也有可能是“系列”却被误识别为合集，这里优先尝试按系列解析
             try
             {
-                return await new SeriesListFetcher( ).FetchAsync($"seriesBizId:{id}", cfg);
+                return await SeriesListFetcher.FetchAsync($"seriesBizId:{id}", cfg);
             }
             catch
             {

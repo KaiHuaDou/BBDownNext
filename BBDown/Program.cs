@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 using BBDown.Core;
 using BBDown.Core.Entity;
+using BBDown.Core.Fetcher;
 using BBDown.Core.Util;
 
 using static BBDown.BBDownDownloadUtil;
@@ -220,13 +221,12 @@ internal partial class Program
         }
 
         Log("获取视频信息...");
-        IFetcher fetcher = FetcherFactory.CreateFetcher(aidOri, myOption.UseIntlApi);
         VInfo? vInfo = null;
 
         // 只输入 EP/SS 时优先按番剧查找，如果找不到则尝试按课程查找
         try
         {
-            vInfo = await fetcher.FetchAsync(aidOri, cfg);
+            vInfo = await FetcherRegistry.FetchAsync(aidOri, cfg, myOption.UseIntlApi);
         }
         catch (KeyNotFoundException e)
         {
@@ -244,8 +244,7 @@ internal partial class Program
             }
 
             Log("获取视频信息...");
-            fetcher = FetcherFactory.CreateFetcher(aidOri, myOption.UseIntlApi);
-            vInfo = await fetcher.FetchAsync(aidOri, cfg);
+            vInfo = await FetcherRegistry.FetchAsync(aidOri, cfg, myOption.UseIntlApi);
         }
 
         var title = vInfo.Title;

@@ -12,9 +12,9 @@ namespace BBDown.Core.Fetcher;
 /// https://space.bilibili.com/3/favlist
 ///
 /// </summary>
-public class FavListFetcher : IFetcher
+public static class FavListFetcher
 {
-    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[6..];
         var favId = id.Split(':')[0];
@@ -60,7 +60,7 @@ public class FavListFetcher : IFetcher
             var pageCount = m.GetProperty("page").GetInt32( );
             if (pageCount > 1)
             {
-                VInfo tmpInfo = await new NormalInfoFetcher( ).FetchAsync(m.GetProperty("id").ToString( ), cfg);
+                VInfo tmpInfo = await NormalInfoFetcher.FetchAsync(m.GetProperty("id").ToString( ), cfg);
                 foreach (Page item in tmpInfo.PagesInfo)
                 {
                     Page p = new(index++, item)
