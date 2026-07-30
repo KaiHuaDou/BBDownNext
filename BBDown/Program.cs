@@ -381,10 +381,8 @@ downloadPage:
             var audioPath = $"{p.aid}/{p.aid}.P{p.index}.{p.cid}.m4a";
             var coverPath = $"{p.aid}/{p.aid}.jpg";
 
-            //处理文件夹以.结尾导致的异常情况
-            if (title.EndsWith('.')) title += "_fix";
-            //处理文件夹以.开头导致的异常情况
-            if (title.StartsWith('.')) title = "_" + title;
+            //处理文件夹以.开头/结尾导致的异常情况
+            title = SanitizeTitle(title);
 
             //处理封面&&字幕
             if (!myOption.OnlyShowInfo)
@@ -431,7 +429,7 @@ downloadPage:
 
                 if (myOption.SubOnly)
                 {
-                    if (Directory.Exists(p.aid) && Directory.GetFiles(p.aid).Length == 0) Directory.Delete(p.aid, true);
+                    TryDeleteEmptyDir(p.aid);
                     return;
                 }
             }
@@ -572,7 +570,7 @@ downloadPage:
                     var coverUrl = pic == "" ? p.cover! : pic;
                     var newCoverPath = Path.ChangeExtension(savePath, Path.GetExtension(coverUrl));
                     await DownloadFileAsync(coverUrl, newCoverPath, downloadConfig);
-                    if (Directory.Exists(p.aid) && Directory.GetFiles(p.aid).Length == 0) Directory.Delete(p.aid, true);
+                    TryDeleteEmptyDir(p.aid);
                     relatedTask?.SavePaths.Add(newCoverPath);
                 }
 
@@ -669,7 +667,7 @@ downloadPage:
                 foreach (AudioMaterial a in audioMaterial) File.Delete(a.path);
                 if (selectedPagesInfo.Count == 1 || p.index == selectedPagesInfo.Last( ).index || p.aid != selectedPagesInfo.Last( ).aid)
                     File.Delete(coverPath);
-                if (Directory.Exists(p.aid) && Directory.GetFiles(p.aid).Length == 0) Directory.Delete(p.aid, true);
+                TryDeleteEmptyDir(p.aid);
             }
             else if (parsedResult.Clips.Any( ) && parsedResult.Dfns.Any( ))   //flv
             {
@@ -763,7 +761,7 @@ reParse:
                 if (p.points.Any( )) File.Delete(Path.Combine(Path.GetDirectoryName(string.IsNullOrEmpty(videoPath) ? audioPath : videoPath)!, "chapters"));
                 if (selectedPagesInfo.Count == 1 || p.index == selectedPagesInfo.Last( ).index || p.aid != selectedPagesInfo.Last( ).aid)
                     File.Delete(coverPath);
-                if (Directory.Exists(p.aid) && Directory.GetFiles(p.aid).Length == 0) Directory.Delete(p.aid, true);
+                TryDeleteEmptyDir(p.aid);
             }
             else
             {
@@ -887,6 +885,19 @@ reParse:
         if (!result.EndsWith(".mp4")) { result += ".mp4"; }
 
         return result;
+    }
+
+    private static void TryDeleteEmptyDir(string path)
+    {
+        if (Directory.Exists(path) && Directory.GetFiles(path).Length == 0)
+            Directory.Delete(path, true);
+    }
+
+    private static string SanitizeTitle(string title)
+    {
+        if (title.EndsWith('.')) title += "_fix";
+        if (title.StartsWith('.')) title = "_" + title;
+        return title;
     }
 
     [GeneratedRegex("<([\\w:\\-.]+?)>")]

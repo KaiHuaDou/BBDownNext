@@ -69,11 +69,11 @@ internal static class BBDownDownloadUtil
 
         while (downloadedBytes < totalBytes)
         {
-            var recevied = await stream.ReadAsync(buffer);
-            if (recevied == 0) break;
-            await fileStream.WriteAsync(buffer.AsMemory(0, recevied));
+            var received = await stream.ReadAsync(buffer);
+            if (received == 0) break;
+            await fileStream.WriteAsync(buffer.AsMemory(0, received));
             await fileStream.FlushAsync( );
-            downloadedBytes += recevied;
+            downloadedBytes += received;
             onProgress(id, downloadedBytes - fromPosition, totalBytes);
         }
 

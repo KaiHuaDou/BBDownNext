@@ -461,7 +461,7 @@ internal static partial class Utils
     /// <returns></returns>
     public static async Task<List<ViewPoint>> FetchPointsAsync(string cid, string aid)
     {
-        var ponints = new List<ViewPoint>( );
+        var points = new List<ViewPoint>( );
         try
         {
             var api = $"https://api.bilibili.com/x/player/wbi/v2?cid={cid}&aid={aid}";
@@ -471,7 +471,7 @@ internal static partial class Utils
             {
                 foreach (JsonElement point in vPoint.EnumerateArray( ))
                 {
-                    ponints.Add(new ViewPoint( )
+                    points.Add(new ViewPoint( )
                     {
                         title = point.GetProperty("content").GetString( )!,
                         start = int.Parse(point.GetProperty("from").ToString( )),
@@ -482,7 +482,7 @@ internal static partial class Utils
         }
         catch (Exception) { }
 
-        return ponints;
+        return points;
     }
 
     /// <summary>
