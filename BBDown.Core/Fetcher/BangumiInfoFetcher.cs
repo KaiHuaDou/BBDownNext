@@ -56,13 +56,17 @@ public static class BangumiInfoFetcher
 
             var _title = page.GetProperty("title").ToString( ) + " " + page.GetProperty("long_title").ToString( );
             _title = _title.Trim( );
-            Page p = new(i++,
-                page.GetProperty("aid").ToString( ),
-                page.GetProperty("cid").ToString( ),
-                page.GetProperty("id").ToString( ),
-                _title,
-                0, res,
-                page.GetProperty("pub_time").GetInt64( ));
+            Page p = new( )
+            {
+                index = i++,
+                aid = page.GetProperty("aid").ToString( ),
+                cid = page.GetProperty("cid").ToString( ),
+                epid = page.GetProperty("id").ToString( ),
+                title = _title,
+                dur = 0,
+                res = res,
+                pubTime = page.GetProperty("pub_time").GetInt64( ),
+            };
             if (p.epid == id) index = p.index.ToString( );
             pagesInfo.Add(p);
         }

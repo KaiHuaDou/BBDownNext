@@ -26,18 +26,21 @@ public static class CheeseInfoFetcher
         List<Page> pagesInfo = [];
         foreach (JsonElement page in pages)
         {
-            Page p = new(page.GetProperty("index").GetInt32( ),
-                page.GetProperty("aid").ToString( ),
-                page.GetProperty("cid").ToString( ),
-                page.GetProperty("id").ToString( ),
-                page.GetProperty("title").ToString( ).Trim( ),
-                page.GetProperty("duration").GetInt32( ),
-                "",
-                page.GetProperty("release_date").GetInt64( ),
-                "",
-                "",
-                ownerName,
-                ownerMid);
+            Page p = new( )
+            {
+                index = page.GetProperty("index").GetInt32( ),
+                aid = page.GetProperty("aid").ToString( ),
+                cid = page.GetProperty("cid").ToString( ),
+                epid = page.GetProperty("id").ToString( ),
+                title = page.GetProperty("title").ToString( ).Trim( ),
+                dur = page.GetProperty("duration").GetInt32( ),
+                res = "",
+                pubTime = page.GetProperty("release_date").GetInt64( ),
+                cover = "",
+                desc = "",
+                ownerName = ownerName,
+                ownerMid = ownerMid,
+            };
             if (p.epid == id) index = p.index.ToString( );
             pagesInfo.Add(p);
         }

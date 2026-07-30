@@ -196,6 +196,13 @@ Entity 全 record             // 去 Equals/GetHashCode 样板，行为在模块
 - **不变量**：相等语义与现在一致（`Page` 仍按 aid/cid/epid 判等）。
 - **验收**：`dotnet build` 0 错误；下载排序 / 去重冒烟。
 
+#### Phase F 执行记录（已落地）
+- `Page`：**删除全部 5 个构造器**（含 `[SetsRequiredMembers]` 样板），9 个调用点（7 个 Fetcher 文件）全部改为 `new Page { index=..., aid=..., ... }` 对象初始化器；拷贝构造改为 `CopyWith(int index)` 方法（注释标明沿用原语义：desc/points 不随源复制）。自定义 `Equals`/`GetHashCode`（仅 aid/cid/epid）原样保留并加注释警示。
+- `AudioMaterial`：删除 2 个构造器，`Program.cs` 两处调用点改对象初始化器（`AudioMaterialInfo→AudioMaterial` 的字段映射就地展开，3 行字段赋值不值得留一个转换构造器）。
+- **主动收敛范围**：**未将任何实体转 `record`**，与计划原文第 1 条不同——`Video`/`Audio` 的手写等值是**子集等值**（排除 `baseUrl`/`size`），`record` 合成的全成员等值会静默改变 `Distinct()` 去重行为；在 record 里重新 override Equals 则样板一点没少、纯属换皮。`Subtitle`/`Clip`/`ViewPoint`/`AudioMaterialInfo` 无等值需求，转 record 零收益。实体保持 `class` + `required` 字段。
+- `Entity.cs` 净减约 90 行样板；移除不再需要的 `using System.Diagnostics.CodeAnalysis`。
+- **验收状态**：`dotnet build` 0 错误 0 警告；`-info` 冒烟 EXIT=0（NormalInfoFetcher 对象初始化器路径已真实覆盖）。收藏夹/合集去重路径逻辑未动（`Contains` 仍走原 Equals）。
+
 ### Phase G — 入口收敛（Program 拆 partial；server 复用 core；Login 合并）
 - **目标**：`Program.Main` 巨型文件拆分；CLI 与 server 复用同一核心；`Login.Web/TV` 合并。
 - **改动**：

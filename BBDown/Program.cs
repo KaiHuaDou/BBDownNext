@@ -621,7 +621,7 @@ internal partial class Program
                     var backgroundPath = $"{p.aid}/{p.aid}.{p.cid}.P{p.index}.back_ground.m4a";
                     Log($"开始下载P{p.index}背景配音...");
                     await DownloadTrackAsync(selectedBackgroundAudio.baseUrl, backgroundPath, downloadConfig, video: false);
-                    audioMaterial.Add(new AudioMaterial("背景音频", "", backgroundPath));
+                    audioMaterial.Add(new AudioMaterial { title = "背景音频", personName = "", path = backgroundPath });
                 }
 
                 if (parsedResult.RoleAudioList.Any( ))
@@ -630,7 +630,7 @@ internal partial class Program
                     {
                         Log($"开始下载P{p.index}配音[{role.title}]...");
                         await DownloadTrackAsync(role.audio[aIndex].baseUrl, role.path, downloadConfig, video: false);
-                        audioMaterial.Add(new AudioMaterial(role));
+                        audioMaterial.Add(new AudioMaterial { title = role.title, personName = role.personName, path = role.path });
                     }
                 }
 

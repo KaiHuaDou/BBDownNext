@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 using BBDown.Core.Util;
 
 namespace BBDown.Core.Entity;
@@ -23,81 +21,23 @@ public static class Entity
         public string bvid => BilibiliBvConverter.Encode(long.Parse(aid));
         public List<ViewPoint> points = [];
 
-        [SetsRequiredMembers]
-        public Page(int index, string aid, string cid, string epid, string title, int dur, string res, long pubTime)
+        // 沿用原拷贝构造语义：desc/points 不随源 Page 复制
+        public Page CopyWith(int index) => new( )
         {
-            this.aid = aid;
-            this.index = index;
-            this.cid = cid;
-            this.epid = epid;
-            this.title = title;
-            this.dur = dur;
-            this.res = res;
-            this.pubTime = pubTime;
-        }
+            index = index,
+            aid = aid,
+            cid = cid,
+            epid = epid,
+            title = title,
+            dur = dur,
+            res = res,
+            pubTime = pubTime,
+            cover = cover,
+            ownerName = ownerName,
+            ownerMid = ownerMid,
+        };
 
-        [SetsRequiredMembers]
-        public Page(int index, string aid, string cid, string epid, string title, int dur, string res, long pubTime, string cover)
-        {
-            this.aid = aid;
-            this.index = index;
-            this.cid = cid;
-            this.epid = epid;
-            this.title = title;
-            this.dur = dur;
-            this.res = res;
-            this.pubTime = pubTime;
-            this.cover = cover;
-        }
-
-        [SetsRequiredMembers]
-        public Page(int index, string aid, string cid, string epid, string title, int dur, string res, long pubTime, string cover, string desc)
-        {
-            this.aid = aid;
-            this.index = index;
-            this.cid = cid;
-            this.epid = epid;
-            this.title = title;
-            this.dur = dur;
-            this.res = res;
-            this.pubTime = pubTime;
-            this.cover = cover;
-            this.desc = desc;
-        }
-
-        [SetsRequiredMembers]
-        public Page(int index, string aid, string cid, string epid, string title, int dur, string res, long pubTime, string cover, string desc, string ownerName, string ownerMid)
-        {
-            this.aid = aid;
-            this.index = index;
-            this.cid = cid;
-            this.epid = epid;
-            this.title = title;
-            this.dur = dur;
-            this.res = res;
-            this.pubTime = pubTime;
-            this.cover = cover;
-            this.desc = desc;
-            this.ownerName = ownerName;
-            this.ownerMid = ownerMid;
-        }
-
-        [SetsRequiredMembers]
-        public Page(int index, Page page)
-        {
-            this.index = index;
-            this.aid = page.aid;
-            this.cid = page.cid;
-            this.epid = page.epid;
-            this.title = page.title;
-            this.dur = page.dur;
-            this.res = page.res;
-            this.pubTime = page.pubTime;
-            this.cover = page.cover;
-            this.ownerName = page.ownerName;
-            this.ownerMid = page.ownerMid;
-        }
-
+        // 等值仅看 aid/cid/epid（跨列表去重用），勿改为 record 全成员等值
         public override bool Equals(object? obj)
         {
             return obj is Page page &&
@@ -196,22 +136,6 @@ public static class Entity
         public required string title;
         public required string personName;
         public required string path;
-
-        [SetsRequiredMembers]
-        public AudioMaterial(string title, string personName, string path)
-        {
-            this.title = title;
-            this.personName = personName;
-            this.path = path;
-        }
-
-        [SetsRequiredMembers]
-        public AudioMaterial(AudioMaterialInfo audioMaterialInfo)
-        {
-            this.title = audioMaterialInfo.title;
-            this.personName = audioMaterialInfo.personName;
-            this.path = audioMaterialInfo.path;
-        }
     }
 
     public class AudioMaterialInfo

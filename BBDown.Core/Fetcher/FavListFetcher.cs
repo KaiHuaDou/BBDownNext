@@ -64,29 +64,30 @@ public static class FavListFetcher
                 VInfo tmpInfo = await NormalInfoFetcher.FetchAsync(m.GetProperty("id").ToString( ), cfg);
                 foreach (Page item in tmpInfo.PagesInfo)
                 {
-                    Page p = new(index++, item)
-                    {
-                        title = m.GetProperty("title").ToString( ) + $"_P{item.index}_{item.title}",
-                        cover = tmpInfo.Pic,
-                        desc = m.GetProperty("intro").ToString( )
-                    };
+                    Page p = item.CopyWith(index++);
+                    p.title = m.GetProperty("title").ToString( ) + $"_P{item.index}_{item.title}";
+                    p.cover = tmpInfo.Pic;
+                    p.desc = m.GetProperty("intro").ToString( );
                     if (!pagesInfo.Contains(p)) pagesInfo.Add(p);
                 }
             }
             else
             {
-                Page p = new(index++,
-                    m.GetProperty("id").ToString( ),
-                    m.GetProperty("ugc").GetProperty("first_cid").ToString( ),
-                    "", //epid
-                    m.GetProperty("title").ToString( ),
-                    m.GetProperty("duration").GetInt32( ),
-                    "",
-                    m.GetProperty("pubtime").GetInt64( ),
-                    m.GetProperty("cover").ToString( ),
-                    m.GetProperty("intro").ToString( ),
-                    m.GetProperty("upper").GetProperty("name").ToString( ),
-                    m.GetProperty("upper").GetProperty("mid").ToString( ));
+                Page p = new( )
+                {
+                    index = index++,
+                    aid = m.GetProperty("id").ToString( ),
+                    cid = m.GetProperty("ugc").GetProperty("first_cid").ToString( ),
+                    epid = "",
+                    title = m.GetProperty("title").ToString( ),
+                    dur = m.GetProperty("duration").GetInt32( ),
+                    res = "",
+                    pubTime = m.GetProperty("pubtime").GetInt64( ),
+                    cover = m.GetProperty("cover").ToString( ),
+                    desc = m.GetProperty("intro").ToString( ),
+                    ownerName = m.GetProperty("upper").GetProperty("name").ToString( ),
+                    ownerMid = m.GetProperty("upper").GetProperty("mid").ToString( ),
+                };
                 if (!pagesInfo.Contains(p)) pagesInfo.Add(p);
             }
         }
