@@ -154,6 +154,16 @@ Entity 全 record             // 去 Equals/GetHashCode 样板，行为在模块
 - **不变量**：解析结果与现在一致（重点回归：BV↔av 互转、ep/ss 跳集、URL 直链）。
 - **验收**：`dotnet build` 0 错误；各形态 id 单测 + 冒烟。
 
+#### Phase D 执行记录（已落地）
+- `Utils.GetAvIdAsync` 由 18 分支 if 链拆为两条派发链 + 4 个小函数：
+  - `ResolveUrlAsync(input, cfg)`：全部 http(s) URL 形态（b23.tv 重定向前置，其后按原有顺序早返回，**分支顺序逐条保持不变**，语义等价）。
+  - `ResolveShorthandAsync(input, cfg)`：`bv/av/cheese//ep/ss/md` 简写形态，未知输入照旧抛「输入有误」。
+  - `ResolveCheeseAsync`：合并原 URL 分支与简写分支中**逐字重复**的 cheese ep/ss 解析。
+  - `ResolveSpaceList`（纯函数）：新版空间 lists 链接 season/series/未知 三态判定。
+  - `ScrapeFirstEpIdAsync`：兜底网页抓取 `__INITIAL_STATE__` 取首个 epId。
+- **主动收敛范围**：未抽 `ParseInputId(raw)=>(kind,id)` 元组真源——`avid` 字符串前缀（`ep:`/`cheese:`/`mid:`/`listBizId:`…）本身已是 `FetcherRegistry` 派发的单一真源，再引入 kind 枚举/元组属过度包装（用户明确反对）；也未建字典派发表，URL 分支多为 `Contains` 组合条件非纯前缀，if 早返回链最直白。
+- **验收状态**：`dotnet build` 0 错误 0 警告；冒烟 `-info` URL 形态（BV 链接→aid 626497566→分P列表 OK）与 `av626497566` 简写形态均 EXIT=0 解析正确。播放地址解析仍受 `v_voucher` 环境限流（同 Phase C 记录，非回归）。
+
 ### Phase E — HTTP 层收敛为可控泄露抽象
 - **目标**：`HTTPUtil` 已集中 `HttpClient`，但 Cookie/Token/Host/Referer 注入散落各处；收敛为薄封装 + 明确逃生舱。
 - **改动**：

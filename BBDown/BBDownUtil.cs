@@ -21,174 +21,100 @@ internal static partial class Utils
 {
     public static async Task<string> GetAvIdAsync(string input, Core.AppConfig cfg)
     {
-        var avid = input;
-        if (input.StartsWith("http"))
-        {
-            if (input.Contains("b23.tv"))
-            {
-                var tmp = await GetWebLocationAsync(input);
-                if (tmp == input) throw new Exception("无限重定向");
-                input = tmp;
-            }
-
-            if (input.Contains("video/av"))
-            {
-                avid = AvRegex( ).Match(input).Groups[1].Value;
-            }
-            else if (input.ToLower( ).Contains("video/bv"))
-            {
-                avid = GetAidByBV(BVRegex( ).Match(input).Groups[1].Value);
-            }
-            else if (input.Contains("/cheese/"))
-            {
-                var epId = "";
-                if (input.Contains("/ep"))
-                {
-                    epId = EpRegex( ).Match(input).Groups[1].Value;
-                }
-                else if (input.Contains("/ss"))
-                {
-                    epId = await GetEpidBySSIdAsync(SsRegex( ).Match(input).Groups[1].Value, cfg);
-                }
-
-                avid = $"cheese:{epId}";
-            }
-            else if (input.Contains("/ep"))
-            {
-                var epId = EpRegex( ).Match(input).Groups[1].Value;
-                avid = $"ep:{epId}";
-            }
-            else if (input.Contains("/ss"))
-            {
-                var epId = await GetEpIdByBangumiSSIdAsync(SsRegex( ).Match(input).Groups[1].Value, cfg);
-                avid = $"ep:{epId}";
-            }
-            else if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_collection")) // 列表类型是合集
-            {
-                var bizId = GetQueryString("business_id", input);
-                avid = $"listBizId:{bizId}";
-            }
-            else if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_series")) // 列表类型是系列
-            {
-                var bizId = GetQueryString("business_id", input);
-                avid = $"seriesBizId:{bizId}";
-            }
-            else if (input.Contains("/channel/collectiondetail?sid="))
-            {
-                var bizId = GetQueryString("sid", input);
-                avid = $"listBizId:{bizId}";
-            }
-            else if (input.Contains("/channel/seriesdetail?sid="))
-            {
-                var bizId = GetQueryString("sid", input);
-                avid = $"seriesBizId:{bizId}";
-            }
-            // 新版个人空间合集/系列链接兼容：
-            // 例如：
-            //   合集: https://space.bilibili.com/392959666/lists/1560264?type=season
-            //   系列: https://space.bilibili.com/392959666/lists/1560264?type=series
-            else if (input.Contains("/space.bilibili.com/") && input.Contains("/lists/"))
-            {
-                var type = GetQueryString("type", input).ToLower( );
-                // path 最后一个 / 后到 ? 前即为 sid
-                var path = input.Split('?', '#')[0];
-                var sidPart = path[(path.LastIndexOf('/') + 1)..];
-
-                if (type == "season")
-                {
-                    avid = $"listBizId:{sidPart}";
-                }
-                else if (type == "series")
-                {
-                    avid = $"seriesBizId:{sidPart}";
-                }
-                else
-                {
-                    // 未知类型按合集处理，至少不会识别失败
-                    avid = $"listBizId:{sidPart}";
-                }
-            }
-            else if (input.Contains("/space.bilibili.com/") && input.Contains("/favlist"))
-            {
-                var mid = UidRegex( ).Match(input).Groups[1].Value;
-                var fid = GetQueryString("fid", input);
-                avid = $"favId:{fid}:{mid}";
-            }
-            else if (input.Contains("/space.bilibili.com/"))
-            {
-                var mid = UidRegex( ).Match(input).Groups[1].Value;
-                avid = $"mid:{mid}";
-            }
-            else if (input.Contains("ep_id="))
-            {
-                var epId = GetQueryString("ep_id", input);
-                avid = $"ep:{epId}";
-            }
-            else if (GlobalEpRegex( ).Match(input).Success)
-            {
-                var epId = GlobalEpRegex( ).Match(input).Groups[1].Value;
-                avid = $"ep:{epId}";
-            }
-            else if (BangumiMdRegex( ).Match(input).Success)
-            {
-                var mdId = BangumiMdRegex( ).Match(input).Groups[1].Value;
-                var epId = await GetEpIdByMDAsync(mdId, cfg);
-                avid = $"ep:{epId}";
-            }
-            else
-            {
-                var web = await GetWebSourceAsync(input, cfg);
-                Regex regex = StateRegex( );
-                var json = regex.Match(web).Groups[1].Value;
-                using var jDoc = JsonDocument.Parse(json);
-                var epId = jDoc.RootElement.GetProperty("epList").EnumerateArray( ).First( ).GetProperty("id").ToString( );
-                avid = $"ep:{epId}";
-            }
-        }
-        else if (input.ToLower( ).StartsWith("bv"))
-        {
-            avid = GetAidByBV(input[3..]);
-        }
-        else if (input.ToLower( ).StartsWith("av")) // av
-        {
-            avid = input.ToLower( )[2..];
-        }
-        else if (input.StartsWith("cheese/")) // ^cheese/(ep|ss)\d+ 格式
-        {
-            var epId = "";
-            if (input.Contains("/ep"))
-            {
-                epId = EpRegex( ).Match(input).Groups[1].Value;
-            }
-            else if (input.Contains("/ss"))
-            {
-                epId = await GetEpidBySSIdAsync(SsRegex( ).Match(input).Groups[1].Value, cfg);
-            }
-
-            avid = $"cheese:{epId}";
-        }
-        else if (input.StartsWith("ep"))
-        {
-            var epId = input[2..];
-            avid = $"ep:{epId}";
-        }
-        else if (input.StartsWith("ss"))
-        {
-            var epId = await GetEpIdByBangumiSSIdAsync(input[2..], cfg);
-            avid = $"ep:{epId}";
-        }
-        else if (input.StartsWith("md"))
-        {
-            var mdId = MdRegex( ).Match(input).Groups[1].Value;
-            var epId = await GetEpIdByMDAsync(mdId, cfg);
-            avid = $"ep:{epId}";
-        }
-        else
-        {
-            throw new Exception("输入有误");
-        }
-
+        var avid = input.StartsWith("http")
+            ? await ResolveUrlAsync(input, cfg)
+            : await ResolveShorthandAsync(input, cfg);
         return await FixAvidAsync(avid);
+    }
+
+    private static async Task<string> ResolveUrlAsync(string input, Core.AppConfig cfg)
+    {
+        if (input.Contains("b23.tv"))
+        {
+            var tmp = await GetWebLocationAsync(input);
+            if (tmp == input) throw new Exception("无限重定向");
+            input = tmp;
+        }
+
+        if (input.Contains("video/av"))
+            return AvRegex( ).Match(input).Groups[1].Value;
+        if (input.ToLower( ).Contains("video/bv"))
+            return GetAidByBV(BVRegex( ).Match(input).Groups[1].Value);
+        if (input.Contains("/cheese/"))
+            return await ResolveCheeseAsync(input, cfg);
+        if (input.Contains("/ep"))
+            return $"ep:{EpRegex( ).Match(input).Groups[1].Value}";
+        if (input.Contains("/ss"))
+            return $"ep:{await GetEpIdByBangumiSSIdAsync(SsRegex( ).Match(input).Groups[1].Value, cfg)}";
+        if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_collection")) // 列表类型是合集
+            return $"listBizId:{GetQueryString("business_id", input)}";
+        if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_series")) // 列表类型是系列
+            return $"seriesBizId:{GetQueryString("business_id", input)}";
+        if (input.Contains("/channel/collectiondetail?sid="))
+            return $"listBizId:{GetQueryString("sid", input)}";
+        if (input.Contains("/channel/seriesdetail?sid="))
+            return $"seriesBizId:{GetQueryString("sid", input)}";
+        if (input.Contains("/space.bilibili.com/") && input.Contains("/lists/"))
+            return ResolveSpaceList(input);
+        if (input.Contains("/space.bilibili.com/") && input.Contains("/favlist"))
+            return $"favId:{GetQueryString("fid", input)}:{UidRegex( ).Match(input).Groups[1].Value}";
+        if (input.Contains("/space.bilibili.com/"))
+            return $"mid:{UidRegex( ).Match(input).Groups[1].Value}";
+        if (input.Contains("ep_id="))
+            return $"ep:{GetQueryString("ep_id", input)}";
+        if (GlobalEpRegex( ).Match(input) is { Success: true } globalEp)
+            return $"ep:{globalEp.Groups[1].Value}";
+        if (BangumiMdRegex( ).Match(input) is { Success: true } md)
+            return $"ep:{await GetEpIdByMDAsync(md.Groups[1].Value, cfg)}";
+        return $"ep:{await ScrapeFirstEpIdAsync(input, cfg)}";
+    }
+
+    private static async Task<string> ResolveShorthandAsync(string input, Core.AppConfig cfg)
+    {
+        if (input.ToLower( ).StartsWith("bv"))
+            return GetAidByBV(input[3..]);
+        if (input.ToLower( ).StartsWith("av"))
+            return input.ToLower( )[2..];
+        if (input.StartsWith("cheese/")) // ^cheese/(ep|ss)\d+ 格式
+            return await ResolveCheeseAsync(input, cfg);
+        if (input.StartsWith("ep"))
+            return $"ep:{input[2..]}";
+        if (input.StartsWith("ss"))
+            return $"ep:{await GetEpIdByBangumiSSIdAsync(input[2..], cfg)}";
+        if (input.StartsWith("md"))
+            return $"ep:{await GetEpIdByMDAsync(MdRegex( ).Match(input).Groups[1].Value, cfg)}";
+        throw new Exception("输入有误");
+    }
+
+    private static async Task<string> ResolveCheeseAsync(string input, Core.AppConfig cfg)
+    {
+        var epId = "";
+        if (input.Contains("/ep"))
+            epId = EpRegex( ).Match(input).Groups[1].Value;
+        else if (input.Contains("/ss"))
+            epId = await GetEpidBySSIdAsync(SsRegex( ).Match(input).Groups[1].Value, cfg);
+        return $"cheese:{epId}";
+    }
+
+    // 新版个人空间合集/系列链接：
+    //   合集: https://space.bilibili.com/392959666/lists/1560264?type=season
+    //   系列: https://space.bilibili.com/392959666/lists/1560264?type=series
+    private static string ResolveSpaceList(string input)
+    {
+        // path 最后一个 / 后到 ? 前即为 sid
+        var path = input.Split('?', '#')[0];
+        var sid = path[(path.LastIndexOf('/') + 1)..];
+        var type = GetQueryString("type", input).ToLower( );
+        // 未知类型按合集处理，至少不会识别失败
+        return type == "series" ? $"seriesBizId:{sid}" : $"listBizId:{sid}";
+    }
+
+    private static async Task<string> ScrapeFirstEpIdAsync(string input, Core.AppConfig cfg)
+    {
+        var web = await GetWebSourceAsync(input, cfg);
+        var json = StateRegex( ).Match(web).Groups[1].Value;
+        using var jDoc = JsonDocument.Parse(json);
+        return jDoc.RootElement.GetProperty("epList").EnumerateArray( ).First( ).GetProperty("id").ToString( );
     }
 
     public static string FormatFileSize(double fileSize)
