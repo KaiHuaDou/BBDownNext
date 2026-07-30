@@ -118,7 +118,7 @@ public class BBDownApiServer
 
     private async Task<DownloadTask> AddDownloadTaskAsync(MyOption option)
     {
-        var aid = await Utils.GetAvIdAsync(option.Url);
+        var aid = await Utils.GetAvIdAsync(option.Url, new AppConfig(option.Cookie ?? "", option.AccessToken?.Replace("access_token=", "") ?? "", option.Host, option.EpHost, option.TvHost, option.Area, ""));
         DownloadTask? runningTask = runningTasks.FirstOrDefault(task => task.Aid == aid);
         if (runningTask is not null)
         {
@@ -131,12 +131,12 @@ public class BBDownApiServer
         try
         {
             (Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority, var firstEncoding, var downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, var input, var savePathFormat, var lang, var aidOri, var delay) = Program.SetUpWork(option);
-            (var fetchedAid, Core.Entity.VInfo vInfo, var apiType) = await Program.GetVideoInfoAsync(option, aidOri, input);
+            (var fetchedAid, Core.Entity.VInfo vInfo, var apiType, AppConfig cfg) = await Program.GetVideoInfoAsync(option, aidOri, input);
             task.Title = vInfo.Title;
             task.Pic = vInfo.Pic;
             task.VideoPubTime = vInfo.PubTime;
             await Program.DownloadPagesAsync(option, vInfo, encodingPriority, dfnPriority, firstEncoding, downloadDanmaku, downloadDanmakuFormats,
-                        input, savePathFormat, lang, fetchedAid, delay, apiType, task);
+                        input, savePathFormat, lang, fetchedAid, delay, apiType, cfg, task);
             task.IsSuccessful = true;
         }
         catch (Exception e)

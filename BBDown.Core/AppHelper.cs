@@ -55,10 +55,10 @@ internal static class AppHelper
     /// <param name="qn"></param>
     /// <param name="appkey"></param>
     /// <returns></returns>
-    public static async Task<string> DoReqAsync(string aid, string cid, string epId, string qn, bool bangumi, string encoding, string appkey = "")
+    public static async Task<string> DoReqAsync(string aid, string cid, string epId, string qn, bool bangumi, string encoding, AppConfig cfg, string appkey = "")
     {
 
-        Dictionary<string, string> headers = GetHeader(appkey);
+        Dictionary<string, string> headers = GetHeader(appkey, cfg);
         LogDebug("App-Req-Headers: {0}", JsonSerializer.Serialize(headers, JsonContext.Default.DictionaryStringString));
         byte[] data;
         // 只有pgc接口才有配音和片头尾信息
@@ -231,7 +231,7 @@ internal static class AppHelper
 
     #region 生成Headers相关方法
 
-    private static Dictionary<string, string> GetHeader(string appkey)
+    private static Dictionary<string, string> GetHeader(string appkey, AppConfig cfg)
     {
         return new Dictionary<string, string>( )
         {
@@ -240,7 +240,7 @@ internal static class AppHelper
             ["te"] = "trailers",
             ["x-bili-fawkes-req-bin"] = GenerateFawkesReqBin( ),
             ["x-bili-metadata-bin"] = GenerateMetadataBin(appkey),
-            ["authorization"] = $"identify_v1 {Config.TOKEN}",
+            ["authorization"] = $"identify_v1 {cfg.Token}",
             ["x-bili-device-bin"] = GenerateDeviceBin( ),
             ["x-bili-network-bin"] = GenerateNetworkBin( ),
             ["x-bili-restriction-bin"] = "",

@@ -9,12 +9,12 @@ namespace BBDown.Core.Fetcher;
 
 public class CheeseInfoFetcher : IFetcher
 {
-    public async Task<VInfo> FetchAsync(string id)
+    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[7..];
         var index = "";
         var api = $"https://api.bilibili.com/pugv/view/web/season?ep_id={id}";
-        var json = await GetWebSourceAsync(api);
+        var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
         JsonElement data = infoJson.RootElement.GetProperty("data");
         var cover = data.GetProperty("cover").ToString( );

@@ -19,7 +19,7 @@ namespace BBDown;
 
 internal static partial class Utils
 {
-    public static async Task<string> GetAvIdAsync(string input)
+    public static async Task<string> GetAvIdAsync(string input, Core.AppConfig cfg)
     {
         var avid = input;
         if (input.StartsWith("http"))
@@ -48,7 +48,7 @@ internal static partial class Utils
                 }
                 else if (input.Contains("/ss"))
                 {
-                    epId = await GetEpidBySSIdAsync(SsRegex( ).Match(input).Groups[1].Value);
+                    epId = await GetEpidBySSIdAsync(SsRegex( ).Match(input).Groups[1].Value, cfg);
                 }
 
                 avid = $"cheese:{epId}";
@@ -60,7 +60,7 @@ internal static partial class Utils
             }
             else if (input.Contains("/ss"))
             {
-                var epId = await GetEpIdByBangumiSSIdAsync(SsRegex( ).Match(input).Groups[1].Value);
+                var epId = await GetEpIdByBangumiSSIdAsync(SsRegex( ).Match(input).Groups[1].Value, cfg);
                 avid = $"ep:{epId}";
             }
             else if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_collection")) // 列表类型是合集
@@ -132,12 +132,12 @@ internal static partial class Utils
             else if (BangumiMdRegex( ).Match(input).Success)
             {
                 var mdId = BangumiMdRegex( ).Match(input).Groups[1].Value;
-                var epId = await GetEpIdByMDAsync(mdId);
+                var epId = await GetEpIdByMDAsync(mdId, cfg);
                 avid = $"ep:{epId}";
             }
             else
             {
-                var web = await GetWebSourceAsync(input);
+                var web = await GetWebSourceAsync(input, cfg);
                 Regex regex = StateRegex( );
                 var json = regex.Match(web).Groups[1].Value;
                 using var jDoc = JsonDocument.Parse(json);
@@ -162,7 +162,7 @@ internal static partial class Utils
             }
             else if (input.Contains("/ss"))
             {
-                epId = await GetEpidBySSIdAsync(SsRegex( ).Match(input).Groups[1].Value);
+                epId = await GetEpidBySSIdAsync(SsRegex( ).Match(input).Groups[1].Value, cfg);
             }
 
             avid = $"cheese:{epId}";
@@ -174,13 +174,13 @@ internal static partial class Utils
         }
         else if (input.StartsWith("ss"))
         {
-            var epId = await GetEpIdByBangumiSSIdAsync(input[2..]);
+            var epId = await GetEpIdByBangumiSSIdAsync(input[2..], cfg);
             avid = $"ep:{epId}";
         }
         else if (input.StartsWith("md"))
         {
             var mdId = MdRegex( ).Match(input).Groups[1].Value;
-            var epId = await GetEpIdByMDAsync(mdId);
+            var epId = await GetEpIdByMDAsync(mdId, cfg);
             avid = $"ep:{epId}";
         }
         else
@@ -238,28 +238,28 @@ internal static partial class Utils
         return Core.Util.BilibiliBvConverter.Decode(bv).ToString( );
     }
 
-    private static async Task<string> GetEpidBySSIdAsync(string ssid)
+    private static async Task<string> GetEpidBySSIdAsync(string ssid, Core.AppConfig cfg)
     {
         var api = $"https://api.bilibili.com/pugv/view/web/season?season_id={ssid}";
-        var json = await GetWebSourceAsync(api);
+        var json = await GetWebSourceAsync(api, cfg);
         using var jDoc = JsonDocument.Parse(json);
         var epId = jDoc.RootElement.GetProperty("data").GetProperty("episodes").EnumerateArray( ).First( ).GetProperty("id").ToString( );
         return epId;
     }
 
-    private static async Task<string> GetEpIdByBangumiSSIdAsync(string ssId)
+    private static async Task<string> GetEpIdByBangumiSSIdAsync(string ssId, Core.AppConfig cfg)
     {
-        var api = $"https://{Core.Config.EPHOST}/pgc/view/web/season?season_id={ssId}";
-        var json = await GetWebSourceAsync(api);
+        var api = $"https://{cfg.EpHost}/pgc/view/web/season?season_id={ssId}";
+        var json = await GetWebSourceAsync(api, cfg);
         using var jDoc = JsonDocument.Parse(json);
         var epId = jDoc.RootElement.GetProperty("result").GetProperty("episodes").EnumerateArray( ).First( ).GetProperty("id").ToString( );
         return epId;
     }
 
-    private static async Task<string> GetEpIdByMDAsync(string mdId)
+    private static async Task<string> GetEpIdByMDAsync(string mdId, Core.AppConfig cfg)
     {
         var api = $"https://api.bilibili.com/pgc/review/user?media_id={mdId}";
-        var json = await GetWebSourceAsync(api);
+        var json = await GetWebSourceAsync(api, cfg);
         using var jDoc = JsonDocument.Parse(json);
         var epId = jDoc.RootElement.GetProperty("result").GetProperty("media").GetProperty("new_ep").GetProperty("id").ToString( );
         return epId;
@@ -459,13 +459,13 @@ internal static partial class Utils
     /// <param name="cid"></param>
     /// <param name="aid"></param>
     /// <returns></returns>
-    public static async Task<List<ViewPoint>> FetchPointsAsync(string cid, string aid)
+    public static async Task<List<ViewPoint>> FetchPointsAsync(string cid, string aid, Core.AppConfig cfg)
     {
         var points = new List<ViewPoint>( );
         try
         {
             var api = $"https://api.bilibili.com/x/player/wbi/v2?cid={cid}&aid={aid}";
-            var json = await GetWebSourceAsync(api);
+            var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
             if (infoJson.RootElement.GetProperty("data").TryGetProperty("view_points", out JsonElement vPoint))
             {
@@ -555,22 +555,22 @@ internal static partial class Utils
         return tmp.ToString( );
     }
 
-    public static async Task<bool> CheckLogin(string cookie)
+    public static async Task<(bool isLogin, string wbi)> CheckLogin(Core.AppConfig cfg)
     {
         try
         {
             var api = "https://api.bilibili.com/x/web-interface/nav";
-            var source = await GetWebSourceAsync(api);
+            var source = await GetWebSourceAsync(api, cfg);
             JsonElement json = JsonDocument.Parse(source).RootElement;
             var is_login = json.GetProperty("data").GetProperty("isLogin").GetBoolean( );
             JsonElement wbi_img = json.GetProperty("data").GetProperty("wbi_img");
-            Core.Config.WBI = GetMixinKey(RSubString(wbi_img.GetProperty("img_url").GetString( )!) + RSubString(wbi_img.GetProperty("sub_url").GetString( )!));
-            LogDebug("wbi: {0}", Core.Config.WBI);
-            return is_login;
+            var wbi = GetMixinKey(RSubString(wbi_img.GetProperty("img_url").GetString( )!) + RSubString(wbi_img.GetProperty("sub_url").GetString( )!));
+            LogDebug("wbi: {0}", wbi);
+            return (is_login, wbi);
         }
         catch (Exception)
         {
-            return false;
+            return (false, "");
         }
     }
 

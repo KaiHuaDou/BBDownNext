@@ -9,18 +9,18 @@ namespace BBDown.Core.Fetcher;
 
 public class SpaceVideoFetcher : IFetcher
 {
-    public async Task<VInfo> FetchAsync(string id)
+    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[4..];
         // using the live API can bypass w_rid
         var userInfoApi = $"https://api.live.bilibili.com/live_user/v1/Master/info?uid={id}";
-        var userName = BBDown.Core.Util.FileNameUtil.GetValidFileName(JsonDocument.Parse(await GetWebSourceAsync(userInfoApi)).RootElement.GetProperty("data").GetProperty("info").GetProperty("uname").ToString( ), ".", true);
+        var userName = BBDown.Core.Util.FileNameUtil.GetValidFileName(JsonDocument.Parse(await GetWebSourceAsync(userInfoApi, cfg)).RootElement.GetProperty("data").GetProperty("info").GetProperty("uname").ToString( ), ".", true);
         List<string> urls = [];
         var pageSize = 50;
         var pageNumber = 1;
-        var api = Parser.WbiSign($"mid={id}&order=pubdate&pn={pageNumber}&ps={pageSize}&tid=0&wts={DateTimeOffset.Now.ToUnixTimeSeconds( )}");
+        var api = Parser.WbiSign($"mid={id}&order=pubdate&pn={pageNumber}&ps={pageSize}&tid=0&wts={DateTimeOffset.Now.ToUnixTimeSeconds( )}", cfg);
         api = $"https://api.bilibili.com/x/space/wbi/arc/search?{api}";
-        var json = await GetWebSourceAsync(api);
+        var json = await GetWebSourceAsync(api, cfg);
         var infoJson = JsonDocument.Parse(json);
         JsonElement.ArrayEnumerator pages = infoJson.RootElement.GetProperty("data").GetProperty("list").GetProperty("vlist").EnumerateArray( );
         foreach (JsonElement page in pages)
@@ -33,7 +33,7 @@ public class SpaceVideoFetcher : IFetcher
         while (pageNumber < totalPage)
         {
             pageNumber++;
-            urls.AddRange(await GetVideosByPageAsync(pageNumber, pageSize, id));
+            urls.AddRange(await GetVideosByPageAsync(pageNumber, pageSize, id, cfg));
         }
 
         await File.WriteAllTextAsync("urls.txt", string.Join(Environment.NewLine, urls));
@@ -46,12 +46,12 @@ pause");
         throw new Exception("暂不支持该功能");
     }
 
-    private static async Task<List<string>> GetVideosByPageAsync(int pageNumber, int pageSize, string mid)
+    private static async Task<List<string>> GetVideosByPageAsync(int pageNumber, int pageSize, string mid, AppConfig cfg)
     {
         List<string> urls = [];
-        var api = Parser.WbiSign($"mid={mid}&order=pubdate&pn={pageNumber}&ps={pageSize}&tid=0&wts={DateTimeOffset.Now.ToUnixTimeSeconds( )}");
+        var api = Parser.WbiSign($"mid={mid}&order=pubdate&pn={pageNumber}&ps={pageSize}&tid=0&wts={DateTimeOffset.Now.ToUnixTimeSeconds( )}", cfg);
         api = $"https://api.bilibili.com/x/space/wbi/arc/search?{api}";
-        var json = await GetWebSourceAsync(api);
+        var json = await GetWebSourceAsync(api, cfg);
         var infoJson = JsonDocument.Parse(json);
         JsonElement.ArrayEnumerator pages = infoJson.RootElement.GetProperty("data").GetProperty("list").GetProperty("vlist").EnumerateArray( );
         foreach (JsonElement page in pages)

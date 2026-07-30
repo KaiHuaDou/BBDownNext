@@ -14,7 +14,7 @@ namespace BBDown.Core.Fetcher;
 /// </summary>
 public class FavListFetcher : IFetcher
 {
-    public async Task<VInfo> FetchAsync(string id)
+    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[6..];
         var favId = id.Split(':')[0];
@@ -23,7 +23,7 @@ public class FavListFetcher : IFetcher
         if (favId == "")
         {
             var favListApi = $"https://api.bilibili.com/x/v3/fav/folder/created/list-all?up_mid={mid}";
-            favId = JsonDocument.Parse(await GetWebSourceAsync(favListApi)).RootElement.GetProperty("data").GetProperty("list").EnumerateArray( ).First( ).GetProperty("id").ToString( );
+            favId = JsonDocument.Parse(await GetWebSourceAsync(favListApi, cfg)).RootElement.GetProperty("data").GetProperty("list").EnumerateArray( ).First( ).GetProperty("id").ToString( );
         }
 
         var pageSize = 20;
@@ -31,7 +31,7 @@ public class FavListFetcher : IFetcher
         List<Page> pagesInfo = [];
 
         var api = $"https://api.bilibili.com/x/v3/fav/resource/list?media_id={favId}&pn=1&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
-        var json = await GetWebSourceAsync(api);
+        var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
         JsonElement data = infoJson.RootElement.GetProperty("data");
         var totalCount = data.GetProperty("info").GetProperty("media_count").GetInt32( );
@@ -45,7 +45,7 @@ public class FavListFetcher : IFetcher
         for (var page = 2; page <= totalPage; page++)
         {
             api = $"https://api.bilibili.com/x/v3/fav/resource/list?media_id={favId}&pn={page}&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
-            json = await GetWebSourceAsync(api);
+            json = await GetWebSourceAsync(api, cfg);
             var jsonDoc = JsonDocument.Parse(json);
             data = jsonDoc.RootElement.GetProperty("data");
             medias.AddRange(data.GetProperty("medias").EnumerateArray( ).ToList( ));
@@ -60,7 +60,7 @@ public class FavListFetcher : IFetcher
             var pageCount = m.GetProperty("page").GetInt32( );
             if (pageCount > 1)
             {
-                VInfo tmpInfo = await new NormalInfoFetcher( ).FetchAsync(m.GetProperty("id").ToString( ));
+                VInfo tmpInfo = await new NormalInfoFetcher( ).FetchAsync(m.GetProperty("id").ToString( ), cfg);
                 foreach (Page item in tmpInfo.PagesInfo)
                 {
                     Page p = new(index++, item)

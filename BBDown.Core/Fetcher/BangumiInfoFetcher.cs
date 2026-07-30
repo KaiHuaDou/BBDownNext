@@ -9,12 +9,12 @@ namespace BBDown.Core.Fetcher;
 
 public class BangumiInfoFetcher : IFetcher
 {
-    public async Task<VInfo> FetchAsync(string id)
+    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[3..];
         var index = "";
-        var api = $"https://{Config.EPHOST}/pgc/view/web/season?ep_id={id}";
-        var json = await GetWebSourceAsync(api);
+        var api = $"https://{cfg.EpHost}/pgc/view/web/season?ep_id={id}";
+        var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
         JsonElement result = infoJson.RootElement.GetProperty("result");
         var cover = result.GetProperty("cover").ToString( );

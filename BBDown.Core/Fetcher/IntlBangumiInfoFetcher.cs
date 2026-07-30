@@ -10,14 +10,14 @@ namespace BBDown.Core.Fetcher;
 
 public partial class IntlBangumiInfoFetcher : IFetcher
 {
-    public async Task<VInfo> FetchAsync(string id)
+    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[3..];
         var index = "";
         //string api = $"https://api.global.bilibili.com/intl/gateway/ogv/m/view?ep_id={id}";
-        var api = "https://" + (Config.HOST == "api.bilibili.com" ? "api.bilibili.tv" : Config.HOST) +
-                     $"/intl/gateway/v2/ogv/view/app/season?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a" + (Config.TOKEN != "" ? $"&access_key={Config.TOKEN}" : "");
-        var json = (await GetWebSourceAsync(api)).Replace("\\/", "/");
+        var api = "https://" + (cfg.Host == "api.bilibili.com" ? "api.bilibili.tv" : cfg.Host) +
+                     $"/intl/gateway/v2/ogv/view/app/season?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a" + (cfg.Token != "" ? $"&access_key={cfg.Token}" : "");
+        var json = (await GetWebSourceAsync(api, cfg)).Replace("\\/", "/");
         using var infoJson = JsonDocument.Parse(json);
         JsonElement result = infoJson.RootElement.GetProperty("result");
         var seasonId = result.GetProperty("season_id").ToString( );
@@ -28,7 +28,7 @@ public partial class IntlBangumiInfoFetcher : IFetcher
         if (cover == "")
         {
             var animeUrl = $"https://bangumi.bilibili.com/anime/{seasonId}";
-            var web = await GetWebSourceAsync(animeUrl);
+            var web = await GetWebSourceAsync(animeUrl, cfg);
             if (web != "")
             {
                 Regex regex = StateRegex( );

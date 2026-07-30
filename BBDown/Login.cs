@@ -19,7 +19,7 @@ internal static class Login
     public static async Task<string> GetLoginStatusAsync(string qrcodeKey)
     {
         var queryUrl = $"https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key={qrcodeKey}&source=main-fe-header";
-        return await HTTPUtil.GetWebSourceAsync(queryUrl);
+        return await HTTPUtil.GetWebSourceAsync(queryUrl, Core.AppConfig.Empty);
     }
 
     public static async Task Web( )
@@ -28,7 +28,7 @@ internal static class Login
         {
             Log("获取登录地址...");
             var loginUrl = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header";
-            var url = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(loginUrl)).RootElement.GetProperty("data").GetProperty("url").ToString( );
+            var url = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(loginUrl, Core.AppConfig.Empty)).RootElement.GetProperty("data").GetProperty("url").ToString( );
             var qrcodeKey = GetQueryString("qrcode_key", url);
             //Log(oauthKey);
             //Log(url);

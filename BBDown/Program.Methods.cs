@@ -95,7 +95,7 @@ internal partial class Program
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Where(s => !string.IsNullOrEmpty(s)).ToList( );
             byte index = 0;
-            firstEncoding = encodingPriorityTemp.First( );
+            firstEncoding = encodingPriorityTemp.FirstOrDefault( ) ?? "";
             foreach (var encoding in encodingPriorityTemp)
             {
                 if (encodingPriority.ContainsKey(encoding))
@@ -248,33 +248,35 @@ internal partial class Program
     }
 
     /// <summary>
-    /// 加载用户的认证信息（cookie或token）
+    /// 加载用户的认证信息（cookie或token）, 命令行传入的优先于本地文件
     /// </summary>
-    /// <param name="myOption"></param>
-    private static void LoadCredentials(MyOption myOption)
+    private static (string cookie, string token) LoadCredentials(MyOption myOption)
     {
-        if (string.IsNullOrEmpty(Config.COOKIE) && File.Exists(Path.Combine(APP_DIR, "BBDown.data")))
+        var cookie = myOption.Cookie ?? "";
+        var token = myOption.AccessToken?.Replace("access_token=", "") ?? "";
+
+        if (string.IsNullOrEmpty(cookie) && File.Exists(Path.Combine(APP_DIR, "BBDown.data")))
         {
             Log("加载本地cookie...");
             LogDebug("文件路径：{0}", Path.Combine(APP_DIR, "BBDown.data"));
-            Config.COOKIE = File.ReadAllText(Path.Combine(APP_DIR, "BBDown.data"));
+            cookie = File.ReadAllText(Path.Combine(APP_DIR, "BBDown.data"));
         }
 
-        if (string.IsNullOrEmpty(Config.TOKEN) && File.Exists(Path.Combine(APP_DIR, "BBDownTV.data")) && myOption.UseTvApi)
+        if (string.IsNullOrEmpty(token) && File.Exists(Path.Combine(APP_DIR, "BBDownTV.data")) && myOption.UseTvApi)
         {
             Log("加载本地token...");
             LogDebug("文件路径：{0}", Path.Combine(APP_DIR, "BBDownTV.data"));
-            Config.TOKEN = File.ReadAllText(Path.Combine(APP_DIR, "BBDownTV.data"));
-            Config.TOKEN = Config.TOKEN.Replace("access_token=", "");
+            token = File.ReadAllText(Path.Combine(APP_DIR, "BBDownTV.data")).Replace("access_token=", "");
         }
 
-        if (string.IsNullOrEmpty(Config.TOKEN) && File.Exists(Path.Combine(APP_DIR, "BBDownApp.data")) && myOption.UseAppApi)
+        if (string.IsNullOrEmpty(token) && File.Exists(Path.Combine(APP_DIR, "BBDownApp.data")) && myOption.UseAppApi)
         {
             Log("加载本地token...");
             LogDebug("文件路径：{0}", Path.Combine(APP_DIR, "BBDownApp.data"));
-            Config.TOKEN = File.ReadAllText(Path.Combine(APP_DIR, "BBDownApp.data"));
-            Config.TOKEN = Config.TOKEN.Replace("access_token=", "");
+            token = File.ReadAllText(Path.Combine(APP_DIR, "BBDownApp.data")).Replace("access_token=", "");
         }
+
+        return (cookie, token);
     }
 
     private static readonly object fileLock = new( );
@@ -372,7 +374,7 @@ internal partial class Program
     /// <param name="myOption"></param>
     /// <param name="video"></param>
     /// <param name="audio"></param>
-    private static void HandlePcdn(MyOption myOption, Video? selectedVideo, Audio? selectedAudio)
+    private static void HandlePcdn(MyOption myOption, Video? selectedVideo, Audio? selectedAudio, AppConfig cfg)
     {
         if (myOption.UposHost == "")
         {
@@ -394,13 +396,13 @@ internal partial class Program
             }
 
             Regex akamReg = AkamRegex( );
-            if (selectedVideo != null && Config.AREA != "" && selectedVideo.baseUrl.Contains("akamaized.net"))
+            if (selectedVideo != null && cfg.Area != "" && selectedVideo.baseUrl.Contains("akamaized.net"))
             {
                 LogWarn($"检测到视频流为外国源, 尝试强制替换为{BACKUP_HOST}……");
                 selectedVideo.baseUrl = akamReg.Replace(selectedVideo.baseUrl, $"://{BACKUP_HOST}/");
             }
 
-            if (selectedAudio != null && Config.AREA != "" && selectedAudio.baseUrl.Contains("akamaized.net"))
+            if (selectedAudio != null && cfg.Area != "" && selectedAudio.baseUrl.Contains("akamaized.net"))
             {
                 LogWarn($"检测到音频流为外国源, 尝试强制替换为{BACKUP_HOST}……");
                 selectedAudio.baseUrl = akamReg.Replace(selectedAudio.baseUrl, $"://{BACKUP_HOST}/");

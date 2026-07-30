@@ -2,23 +2,10 @@ namespace BBDown.Core;
 
 public static class Config
 {
-    //For WEB
-    public static string COOKIE { get; set; } = "";
-    //For APP/TV
-    public static string TOKEN { get; set; } = "";
-    //日志级别
+    //日志级别（进程级 ambient，由 SetUpWork 设置一次；日志调用遍及全局，不适合逐层透传）
     public static bool DEBUG_LOG { get; set; } = false;
-    //BiliPlus Host
-    public static string HOST { get; set; } = "api.bilibili.com";
-    //BiliPlus EP Host
-    public static string EPHOST { get; set; } = "api.bilibili.com";
-    //Bili Tv Api Host
-    public static string TVHOST { get; set; } = "api.snm0516.aisee.tv";
-    //BiliPlus Area
-    public static string AREA { get; set; } = "";
 
-    public static string WBI { get; set; } = "";
-
+    //质量对照表（纯只读，从不修改）
     public static readonly Dictionary<string, string> qualitys = new( ) {
         {"127","8K 超高清" }, {"126","杜比视界" }, {"125","HDR 真彩" }, {"120","4K 超清" }, {"116","1080P 高帧率" },
         {"112","1080P 高码率" }, {"100","智能修复" }, {"80","1080P 高清" }, {"74","720P 高帧率" },

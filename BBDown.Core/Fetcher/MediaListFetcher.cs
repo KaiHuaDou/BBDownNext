@@ -14,11 +14,11 @@ namespace BBDown.Core.Fetcher;
 /// </summary>
 public class MediaListFetcher : IFetcher
 {
-    public async Task<VInfo> FetchAsync(string id)
+    public async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[10..];
         var api = $"https://api.bilibili.com/x/v1/medialist/info?type=8&biz_id={id}&tid=0";
-        var json = await GetWebSourceAsync(api);
+        var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
         JsonElement root = infoJson.RootElement;
         JsonElement data = root.GetProperty("data");
@@ -28,7 +28,7 @@ public class MediaListFetcher : IFetcher
             // 也有可能是“系列”却被误识别为合集，这里优先尝试按系列解析
             try
             {
-                return await new SeriesListFetcher( ).FetchAsync($"seriesBizId:{id}");
+                return await new SeriesListFetcher( ).FetchAsync($"seriesBizId:{id}", cfg);
             }
             catch
             {
@@ -53,7 +53,7 @@ public class MediaListFetcher : IFetcher
         while (hasMore)
         {
             var listApi = $"https://api.bilibili.com/x/v2/medialist/resource/list?type=8&oid={oid}&otype=2&biz_id={id}&with_current=true&mobi_app=web&ps=20&direction=false&sort_field=1&tid=0&desc=false";
-            json = await GetWebSourceAsync(listApi);
+            json = await GetWebSourceAsync(listApi, cfg);
             using var listJson = JsonDocument.Parse(json);
             JsonElement listRoot = listJson.RootElement;
             data = listRoot.GetProperty("data");

@@ -2,5 +2,5 @@
 
 public interface IFetcher
 {
-    Task<Entity.VInfo> FetchAsync(string id);
+    Task<Entity.VInfo> FetchAsync(string id, AppConfig cfg);
 }

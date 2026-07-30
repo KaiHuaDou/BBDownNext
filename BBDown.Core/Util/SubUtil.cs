@@ -219,13 +219,13 @@ public static partial class SubUtil
 
     #region 字幕接口
 
-    private static async Task<List<Subtitle>?> GetIntlSubtitlesFromApi1Async(string aid, string cid, string epId, int index)
+    private static async Task<List<Subtitle>?> GetIntlSubtitlesFromApi1Async(string aid, string cid, string epId, int index, AppConfig cfg)
     {
         try
         {
             List<Subtitle> subtitles = [];
-            var api = "https://" + (Config.EPHOST == "api.bilibili.com" ? "api.biliintl.com" : Config.EPHOST) + $"/intl/gateway/web/v2/subtitle?episode_id={epId}";
-            var json = await GetWebSourceAsync(api);
+            var api = "https://" + (cfg.EpHost == "api.bilibili.com" ? "api.biliintl.com" : cfg.EpHost) + $"/intl/gateway/web/v2/subtitle?episode_id={epId}";
+            var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
             JsonElement.ArrayEnumerator subs = infoJson.RootElement.GetProperty("data").GetProperty("subtitles").EnumerateArray( );
             foreach (JsonElement sub in subs)
@@ -245,14 +245,14 @@ public static partial class SubUtil
         }
     }
 
-    private static async Task<List<Subtitle>?> GetIntlSubtitlesFromApi2Async(string aid, string cid, string epId, int index)
+    private static async Task<List<Subtitle>?> GetIntlSubtitlesFromApi2Async(string aid, string cid, string epId, int index, AppConfig cfg)
     {
         try
         {
             List<Subtitle> subtitles = [];
-            var api = "https://" + (Config.HOST == "api.bilibili.com" ? "api.bilibili.tv" : Config.HOST) +
-                         $"/intl/gateway/v2/ogv/view/app/season?ep_id={epId}&platform=android&s_locale=zh_SG" + (Config.TOKEN != "" ? $"&access_key={Config.TOKEN}" : "");
-            var json = await GetWebSourceAsync(api);
+            var api = "https://" + (cfg.Host == "api.bilibili.com" ? "api.bilibili.tv" : cfg.Host) +
+                         $"/intl/gateway/v2/ogv/view/app/season?ep_id={epId}&platform=android&s_locale=zh_SG" + (cfg.Token != "" ? $"&access_key={cfg.Token}" : "");
+            var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
             JsonElement.ArrayEnumerator subs = infoJson.RootElement.GetProperty("result").GetProperty("modules")[0].GetProperty("data")
                 .GetProperty("episodes")[index - 1].GetProperty("subtitles").EnumerateArray( );
@@ -273,13 +273,13 @@ public static partial class SubUtil
         }
     }
 
-    private static async Task<List<Subtitle>?> GetSubtitlesFromApi1Async(string aid, string cid, string epId, int index)
+    private static async Task<List<Subtitle>?> GetSubtitlesFromApi1Async(string aid, string cid, string epId, int index, AppConfig cfg)
     {
         try
         {
             List<Subtitle> subtitles = [];
             var api = $"https://api.bilibili.com/x/web-interface/view?aid={aid}&cid={cid}";
-            var json = await GetWebSourceAsync(api);
+            var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
             JsonElement.ArrayEnumerator subs = infoJson.RootElement.GetProperty("data").GetProperty("subtitle").GetProperty("list").EnumerateArray( );
             foreach (JsonElement sub in subs)
@@ -298,13 +298,13 @@ public static partial class SubUtil
         }
     }
 
-    private static async Task<List<Subtitle>?> GetSubtitlesFromApi2Async(string aid, string cid, string epId, int index)
+    private static async Task<List<Subtitle>?> GetSubtitlesFromApi2Async(string aid, string cid, string epId, int index, AppConfig cfg)
     {
         try
         {
             List<Subtitle> subtitles = [];
             var api = $"https://api.bilibili.com/x/player/wbi/v2?cid={cid}&aid={aid}";
-            var json = await GetWebSourceAsync(api);
+            var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
             JsonElement.ArrayEnumerator subs = infoJson.RootElement.GetProperty("data").GetProperty("subtitle").GetProperty("subtitles").EnumerateArray( );
             foreach (JsonElement sub in subs)
@@ -387,23 +387,23 @@ public static partial class SubUtil
 
     #endregion
 
-    public static async Task<List<Subtitle>> GetSubtitlesAsync(string aid, string cid, string epId, int index, bool intl)
+    public static async Task<List<Subtitle>> GetSubtitlesAsync(string aid, string cid, string epId, int index, bool intl, AppConfig cfg)
     {
         List<Subtitle>? subtitles = [];
         if (intl)
         {
-            subtitles = await GetIntlSubtitlesFromApi1Async(aid, cid, epId, index) ?? await GetIntlSubtitlesFromApi2Async(aid, cid, epId, index);
+            subtitles = await GetIntlSubtitlesFromApi1Async(aid, cid, epId, index, cfg) ?? await GetIntlSubtitlesFromApi2Async(aid, cid, epId, index, cfg);
         }
         else
         {
-            if (Config.COOKIE == "")
+            if (cfg.Cookie == "")
             {
                 subtitles = await GetSubtitlesFromApi3Async(aid, cid, epId, index); // 未登录只有APP可以拿到字幕了
             }
             else
             {
-                subtitles = await GetSubtitlesFromApi2Async(aid, cid, epId, index)
-                            ?? await GetSubtitlesFromApi1Async(aid, cid, epId, index)
+                subtitles = await GetSubtitlesFromApi2Async(aid, cid, epId, index, cfg)
+                            ?? await GetSubtitlesFromApi1Async(aid, cid, epId, index, cfg)
                             ?? await GetSubtitlesFromApi3Async(aid, cid, epId, index);
             }
         }
@@ -422,12 +422,12 @@ public static partial class SubUtil
         return subtitles;
     }
 
-    public static async Task SaveSubtitleAsync(string url, string path)
+    public static async Task SaveSubtitleAsync(string url, string path, AppConfig cfg)
     {
         if (path.EndsWith(".srt"))
-            await File.WriteAllTextAsync(path, ConvertSubFromJson(await GetWebSourceAsync(url)), Encoding.UTF8);
+            await File.WriteAllTextAsync(path, ConvertSubFromJson(await GetWebSourceAsync(url, cfg)), Encoding.UTF8);
         else
-            await File.WriteAllTextAsync(path, await GetWebSourceAsync(url), Encoding.UTF8);
+            await File.WriteAllTextAsync(path, await GetWebSourceAsync(url, cfg), Encoding.UTF8);
     }
 
     private static string ConvertSubFromJson(string jsonString)

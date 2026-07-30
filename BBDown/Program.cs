@@ -183,37 +183,35 @@ internal partial class Program
         var savePathFormat = myOption.FilePattern;
         var lang = myOption.Language;
         var aidOri = ""; //原始aid
-        var delay = Convert.ToInt32(myOption.DelayPerPage);
+        var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
         Config.DEBUG_LOG = myOption.Debug;
-        Config.HOST = myOption.Host;
-        Config.EPHOST = myOption.EpHost;
-        Config.TVHOST = myOption.TvHost;
-        Config.AREA = myOption.Area;
-        Config.COOKIE = myOption.Cookie;
-        Config.TOKEN = myOption.AccessToken.Replace("access_token=", "");
 
         LogDebug("AppDirectory: {0}", APP_DIR);
         LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption, MyOptionJsonContext.Default.MyOption));
         return (encodingPriority, dfnPriority, firstEncoding, downloadDanmaku, downloadDanmakuFormats, input, savePathFormat, lang, aidOri, delay);
     }
 
-    public static async Task<(string fetchedAid, VInfo vInfo, string apiType)> GetVideoInfoAsync(MyOption myOption, string aidOri, string input)
+    public static async Task<(string fetchedAid, VInfo vInfo, string apiType, AppConfig cfg)> GetVideoInfoAsync(MyOption myOption, string aidOri, string input)
     {
         // 加载认证信息
-        LoadCredentials(myOption);
+        var (cookie, token) = LoadCredentials(myOption);
+
+        var cfg = new AppConfig(cookie, token, myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
 
         // 检测是否登录了账号
-        if (myOption is { UseIntlApi: false, UseTvApi: false } && Config.AREA == "")
+        if (myOption is { UseIntlApi: false, UseTvApi: false } && cfg.Area == "")
         {
             Log("检测账号登录...");
-            if (!await CheckLogin(Config.COOKIE))
+            var (isLogin, wbi) = await CheckLogin(cfg);
+            cfg = cfg with { Wbi = wbi };
+            if (!isLogin)
             {
                 LogWarn("你尚未登录B站账号, 解析可能受到限制");
             }
         }
 
         Log("获取aid...");
-        aidOri = await GetAvIdAsync(input);
+        aidOri = await GetAvIdAsync(input, cfg);
         Log($"获取aid结束: {aidOri}");
 
         if (string.IsNullOrEmpty(aidOri))
@@ -228,7 +226,7 @@ internal partial class Program
         // 只输入 EP/SS 时优先按番剧查找，如果找不到则尝试按课程查找
         try
         {
-            vInfo = await fetcher.FetchAsync(aidOri);
+            vInfo = await fetcher.FetchAsync(aidOri, cfg);
         }
         catch (KeyNotFoundException e)
         {
@@ -247,7 +245,7 @@ internal partial class Program
 
             Log("获取视频信息...");
             fetcher = FetcherFactory.CreateFetcher(aidOri, myOption.UseIntlApi);
-            vInfo = await fetcher.FetchAsync(aidOri);
+            vInfo = await fetcher.FetchAsync(aidOri, cfg);
         }
 
         var title = vInfo.Title;
@@ -297,11 +295,11 @@ internal partial class Program
             Log($"P{p.index}: [{p.cid}] [{p.title}] [{FormatTime(p.dur)}]");
         }
 
-        return (aidOri, vInfo, apiType);
+        return (aidOri, vInfo, apiType, cfg);
     }
 
     public static async Task DownloadPagesAsync(MyOption myOption, VInfo vInfo, Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority,
-        string firstEncoding, bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, int delay, string apiType, DownloadTask? relatedTask = null)
+        string firstEncoding, bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, int delay, string apiType, AppConfig cfg, DownloadTask? relatedTask = null)
     {
         List<Page> pagesInfo = vInfo.PagesInfo;
         var bangumi = vInfo.IsBangumi;
@@ -347,7 +345,7 @@ internal partial class Program
             }
 
             await DownloadPageAsync(p, myOption, vInfo, pagesInfo, encodingPriority, dfnPriority, firstEncoding,
-                downloadDanmaku, downloadDanmakuFormats, input, savePathFormat, lang, aidOri, apiType, relatedTask);
+                downloadDanmaku, downloadDanmakuFormats, input, savePathFormat, lang, aidOri, apiType, cfg, relatedTask);
 
             if (myOption.SaveArchivesToFile)
             {
@@ -359,7 +357,7 @@ internal partial class Program
     }
 
     private static async Task DownloadPageAsync(Page p, MyOption myOption, VInfo vInfo, List<Page> selectedPagesInfo, Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority,
-        string firstEncoding, bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, string apiType, DownloadTask? relatedTask = null)
+        string firstEncoding, bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, string apiType, AppConfig cfg, DownloadTask? relatedTask = null)
     {
         var desc = string.IsNullOrEmpty(p.desc) ? vInfo.Desc : p.desc;
         var bangumi = vInfo.IsBangumi;
@@ -374,7 +372,7 @@ downloadPage:
         try
         {
             LogDebug("尝试获取章节信息...");
-            p.points = await FetchPointsAsync(p.cid, p.aid);
+            p.points = await FetchPointsAsync(p.cid, p.aid, cfg);
 
             var videoPath = $"{p.aid}/{p.aid}.P{p.index}.{p.cid}.mp4";
             var audioPath = $"{p.aid}/{p.aid}.P{p.index}.{p.cid}.m4a";
@@ -393,13 +391,13 @@ downloadPage:
 
                 if (!myOption.SkipCover && !myOption.SubOnly && !File.Exists(coverPath) && !myOption.DanmakuOnly && !myOption.CoverOnly)
                 {
-                    await DownloadFileAsync(pic == "" ? p.cover! : pic, coverPath, new DownloadConfig( ));
+                    await DownloadFileAsync(pic == "" ? p.cover! : pic, coverPath, new DownloadConfig( ) { Cookie = cfg.Cookie });
                 }
 
                 if (!myOption.SkipSubtitle && !myOption.DanmakuOnly && !myOption.CoverOnly)
                 {
                     LogDebug("获取字幕...");
-                    subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.UseIntlApi);
+                    subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.UseIntlApi, cfg);
                     if (myOption.SkipAi && subtitleInfo.Any( ))
                     {
                         Log($"跳过下载AI字幕");
@@ -410,7 +408,7 @@ downloadPage:
                     {
                         Log($"下载字幕 {s.lan} => {SubUtil.GetSubtitleCode(s.lan).Item2}...");
                         LogDebug("下载：{0}", s.url);
-                        await SubUtil.SaveSubtitleAsync(s.url, s.path);
+                        await SubUtil.SaveSubtitleAsync(s.url, s.path, cfg);
                         if (myOption.SubOnly && File.Exists(s.path) && File.ReadAllText(s.path) != "")
                         {
                             var _outSubPath = FormatSavePath(savePathFormat, title, null, null, p, pagesCount, apiType, pubTime);
@@ -434,7 +432,7 @@ downloadPage:
             }
 
             //调用解析
-            ParsedResult parsedResult = await ExtractTracksAsync(aidOri, p.aid, p.cid, p.epid, myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, firstEncoding);
+            ParsedResult parsedResult = await ExtractTracksAsync(aidOri, p.aid, p.cid, p.epid, myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, firstEncoding, cfg);
             List<AudioMaterial> audioMaterial = [];
             if (!p.points.Any( ))
             {
@@ -455,6 +453,7 @@ downloadPage:
                 ForceHttp = myOption.ForceHttp,
                 MultiThread = myOption.MultiThread,
                 RelatedTask = relatedTask,
+                Cookie = cfg.Cookie,
             };
 
             //此处代码简直灾难, 后续优化吧
@@ -583,7 +582,7 @@ downloadPage:
                 }
 
                 //处理PCDN
-                HandlePcdn(myOption, selectedVideo, selectedAudio);
+                HandlePcdn(myOption, selectedVideo, selectedAudio, cfg);
 
                 if (!myOption.OnlyShowInfo && File.Exists(savePath) && new FileInfo(savePath).Length != 0)
                 {
@@ -689,7 +688,7 @@ reParse:
                     Console.ResetColor( );
                     //重新解析
                     parsedResult.VideoTracks.Clear( );
-                    parsedResult = await ExtractTracksAsync(aidOri, p.aid, p.cid, p.epid, myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, firstEncoding, dfns[vIndex]);
+                    parsedResult = await ExtractTracksAsync(aidOri, p.aid, p.cid, p.epid, myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, firstEncoding, cfg, dfns[vIndex]);
                     if (!p.points.Any( )) p.points = parsedResult.ExtraPoints;
                     flag = true;
                     selected = true;
@@ -794,9 +793,9 @@ reParse:
         {
             (Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority, var firstEncoding, var downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats,
                 var input, var savePathFormat, var lang, var aidOri, var delay) = SetUpWork(myOption);
-            (var fetchedAid, VInfo vInfo, var apiType) = await GetVideoInfoAsync(myOption, aidOri, input);
+            (var fetchedAid, VInfo vInfo, var apiType, AppConfig cfg) = await GetVideoInfoAsync(myOption, aidOri, input);
             await DownloadPagesAsync(myOption, vInfo, encodingPriority, dfnPriority, firstEncoding, downloadDanmaku, downloadDanmakuFormats,
-                input, savePathFormat, lang, fetchedAid, delay, apiType);
+                input, savePathFormat, lang, fetchedAid, delay, apiType, cfg);
         }
         catch (Exception e)
         {

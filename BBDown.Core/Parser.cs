@@ -13,32 +13,32 @@ namespace BBDown.Core;
 
 public static partial class Parser
 {
-    public static string WbiSign(string api)
+    public static string WbiSign(string api, AppConfig cfg)
     {
-        return $"{api}&w_rid=" + string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(api + Config.WBI)).Select(i => i.ToString("x2")).ToArray( ));
+        return $"{api}&w_rid=" + string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(api + cfg.Wbi)).Select(i => i.ToString("x2")).ToArray( ));
     }
 
-    private static async Task<string> GetPlayJsonAsync(string encoding, string aidOri, string aid, string cid, string epId, bool tvApi, bool intl, bool appApi, string qn = "0")
+    private static async Task<string> GetPlayJsonAsync(string encoding, string aidOri, string aid, string cid, string epId, bool tvApi, bool intl, bool appApi, AppConfig cfg, string qn = "0")
     {
         LogDebug("aid={0},cid={1},epId={2},tvApi={3},IntlApi={4},appApi={5},qn={6}", aid, cid, epId, tvApi, intl, appApi, qn);
 
-        if (intl) return await GetPlayJsonAsync(aid, cid, epId, qn);
+        if (intl) return await GetPlayJsonAsync(aid, cid, epId, qn, cfg);
 
         var cheese = aidOri.StartsWith("cheese:");
         var bangumi = cheese || aidOri.StartsWith("ep:");
         LogDebug("bangumi={0},cheese={1}", bangumi, cheese);
 
-        if (appApi) return await AppHelper.DoReqAsync(aid, cid, epId, qn, bangumi, encoding, Config.TOKEN);
+        if (appApi) return await AppHelper.DoReqAsync(aid, cid, epId, qn, bangumi, encoding, cfg);
 
-        var prefix = tvApi ? bangumi ? $"{Config.TVHOST}/pgc/player/api/playurltv" : $"{Config.TVHOST}/x/tv/playurl"
-            : bangumi ? $"{Config.HOST}/pgc/player/web/v2/playurl" : "api.bilibili.com/x/player/wbi/playurl";
+        var prefix = tvApi ? bangumi ? $"{cfg.TvHost}/pgc/player/api/playurltv" : $"{cfg.TvHost}/x/tv/playurl"
+            : bangumi ? $"{cfg.Host}/pgc/player/web/v2/playurl" : "api.bilibili.com/x/player/wbi/playurl";
         prefix = $"https://{prefix}?";
 
         string api;
         if (tvApi)
         {
             StringBuilder apiBuilder = new( );
-            if (Config.TOKEN != "") apiBuilder.Append($"access_key={Config.TOKEN}&");
+            if (cfg.Token != "") apiBuilder.Append($"access_key={cfg.Token}&");
             apiBuilder.Append($"appkey=4409e2ce8ffd12b8&build=106500&cid={cid}&device=android");
             if (bangumi) apiBuilder.Append($"&ep_id={epId}&expire=0");
             apiBuilder.Append($"&fnval=4048&fnver=0&fourk=1&mid=0&mobi_app=android_tv_yst");
@@ -50,39 +50,39 @@ public static partial class Parser
             // 尝试提高可读性
             StringBuilder apiBuilder = new( );
             apiBuilder.Append($"support_multi_audio=true&from_client=BROWSER&avid={aid}&cid={cid}&fnval=4048&fnver=0&fourk=1");
-            if (Config.AREA != "") apiBuilder.Append($"&access_key={Config.TOKEN}&area={Config.AREA}");
+            if (cfg.Area != "") apiBuilder.Append($"&access_key={cfg.Token}&area={cfg.Area}");
             apiBuilder.Append($"&otype=json&qn={qn}");
             if (bangumi) apiBuilder.Append($"&module=bangumi&ep_id={epId}&session=");
-            if (Config.COOKIE == "") apiBuilder.Append("&try_look=1");
+            if (cfg.Cookie == "") apiBuilder.Append("&try_look=1");
             apiBuilder.Append($"&wts={GetTimeStamp(true)}");
-            api = prefix + (bangumi ? apiBuilder.ToString( ) : WbiSign(apiBuilder.ToString( )));
+            api = prefix + (bangumi ? apiBuilder.ToString( ) : WbiSign(apiBuilder.ToString( ), cfg));
         }
 
         //课程接口
         if (cheese) api = api.Replace("/pgc/", "/pugv/");
 
-        var webJson = await GetWebSourceAsync(api);
+        var webJson = await GetWebSourceAsync(api, cfg);
         //以下情况从网页源代码尝试解析
         if (webJson.Contains("\"大会员专享限制\""))
         {
             Log("此视频需要大会员，您大概率需要登录一个有大会员的账号才可以下载，尝试从网页源码解析");
             var webUrl = "https://www.bilibili.com/bangumi/play/ep" + epId;
-            var webSource = await GetWebSourceAsync(webUrl);
+            var webSource = await GetWebSourceAsync(webUrl, cfg);
             webJson = PlayerJsonRegex( ).Match(webSource).Groups[1].Value;
         }
 
         return webJson;
     }
 
-    private static async Task<string> GetPlayJsonAsync(string aid, string cid, string epId, string qn, string code = "0")
+    private static async Task<string> GetPlayJsonAsync(string aid, string cid, string epId, string qn, AppConfig cfg, string code = "0")
     {
-        var isBiliPlus = Config.HOST != "api.bilibili.com";
-        var api = $"https://{(isBiliPlus ? Config.HOST : "api.biliintl.com")}/intl/gateway/v2/ogv/playurl?";
+        var isBiliPlus = cfg.Host != "api.bilibili.com";
+        var api = $"https://{(isBiliPlus ? cfg.Host : "api.biliintl.com")}/intl/gateway/v2/ogv/playurl?";
 
         StringBuilder paramBuilder = new( );
-        if (Config.TOKEN != "") paramBuilder.Append($"access_key={Config.TOKEN}&");
+        if (cfg.Token != "") paramBuilder.Append($"access_key={cfg.Token}&");
         paramBuilder.Append($"aid={aid}");
-        if (isBiliPlus) paramBuilder.Append($"&appkey=7d089525d3611b1c&area={(Config.AREA == "" ? "th" : Config.AREA)}");
+        if (isBiliPlus) paramBuilder.Append($"&appkey=7d089525d3611b1c&area={(cfg.Area == "" ? "th" : cfg.Area)}");
         paramBuilder.Append($"&cid={cid}&ep_id={epId}&platform=android&prefer_code_type={code}&qn={qn}");
         if (isBiliPlus) paramBuilder.Append($"&ts={GetTimeStamp(true)}");
 
@@ -90,17 +90,17 @@ public static partial class Parser
         var param = paramBuilder.ToString( );
         api += isBiliPlus ? $"{param}&sign={GetSign(param, true)}" : param;
 
-        var webJson = await GetWebSourceAsync(api);
+        var webJson = await GetWebSourceAsync(api, cfg);
         return webJson;
     }
 
-    public static async Task<ParsedResult> ExtractTracksAsync(string aidOri, string aid, string cid, string epId, bool tvApi, bool intlApi, bool appApi, string encoding, string qn = "0")
+    public static async Task<ParsedResult> ExtractTracksAsync(string aidOri, string aid, string cid, string epId, bool tvApi, bool intlApi, bool appApi, string encoding, AppConfig cfg, string qn = "0")
     {
         var intlCode = "0";
         ParsedResult parsedResult = new( )
         {
             //调用解析
-            WebJsonString = await GetPlayJsonAsync(encoding, aidOri, aid, cid, epId, tvApi, intlApi, appApi, qn)
+            WebJsonString = await GetPlayJsonAsync(encoding, aidOri, aid, cid, epId, tvApi, intlApi, appApi, cfg, qn)
         };
 
         LogDebug(parsedResult.WebJsonString);
@@ -155,7 +155,7 @@ startParsing:
             if (intlCode == "0")
             {
                 intlCode = "1";
-                parsedResult.WebJsonString = await GetPlayJsonAsync(aid, cid, epId, qn, intlCode);
+                parsedResult.WebJsonString = await GetPlayJsonAsync(aid, cid, epId, qn, cfg, intlCode);
                 goto startParsing;
             }
 
@@ -194,7 +194,7 @@ startParsing:
 reParse:
             if (reParse)
             {
-                parsedResult.WebJsonString = await GetPlayJsonAsync(encoding, aidOri, aid, cid, epId, tvApi, intlApi, appApi, GetMaxQn( ));
+                parsedResult.WebJsonString = await GetPlayJsonAsync(encoding, aidOri, aid, cid, epId, tvApi, intlApi, appApi, cfg, GetMaxQn( ));
                 respJson = JsonDocument.Parse(parsedResult.WebJsonString);
                 data = respJson.RootElement;
                 root = nodeName == null ? data : nodeName == "video_info" ? data.GetProperty("result").GetProperty(nodeName) : data.GetProperty(nodeName);
@@ -354,7 +354,7 @@ reParse:
         else if (parsedResult.WebJsonString.Contains("\"durl\":[")) //flv
         {
             //默认以最高清晰度解析
-            parsedResult.WebJsonString = await GetPlayJsonAsync(encoding, aidOri, aid, cid, epId, tvApi, intlApi, appApi, GetMaxQn( ));
+            parsedResult.WebJsonString = await GetPlayJsonAsync(encoding, aidOri, aid, cid, epId, tvApi, intlApi, appApi, cfg, GetMaxQn( ));
             data = JsonDocument.Parse(parsedResult.WebJsonString).RootElement;
             root = nodeName == null ? data : nodeName == "video_info" ? data.GetProperty("result").GetProperty(nodeName) : data.GetProperty(nodeName);
             var quality = "";
