@@ -114,21 +114,16 @@ internal partial class Program
             return 1;
         }
 
-        CommandResult rootCommandResult = rootResult.CommandResult;
-
-
-        return await rootResult.InvokeAsync(new InvocationConfiguration( )
-        {
-            EnableDefaultExceptionHandler = false
-        });
-
         var argsList = new List<string>( );
 
         foreach (SymbolResult item in rootResult.CommandResult.Children)
         {
             if (item is ArgumentResult a)
             {
-                argsList.Add(a.Tokens[0].Value);
+                if (a.Tokens.Count > 0)
+                {
+                    argsList.Add(a.Tokens[0].Value);
+                }
             }
             else if (item is OptionResult o)
             {
@@ -152,7 +147,7 @@ internal partial class Program
         //处理配置文件
         BBDownConfigParser.HandleConfig(argsList, rootCommand);
 
-        return await rootResult.InvokeAsync( );
+        return await rootResult.InvokeAsync(new InvocationConfiguration( ) { EnableDefaultExceptionHandler = false });
     }
 
     private static Task RunApp(MyOption myOption)

@@ -12,7 +12,9 @@ public static class HTTPUtil
     {
         AllowAutoRedirect = true,
         AutomaticDecompression = DecompressionMethods.All,
-        ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+        ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) =>
+            sslPolicyErrors == System.Net.Security.SslPolicyErrors.None ||
+            Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1"
     })
     {
         Timeout = TimeSpan.FromMinutes(2)

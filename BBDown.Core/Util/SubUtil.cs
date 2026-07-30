@@ -240,12 +240,12 @@ public static partial class SubUtil
                     path = $"{aid}/{aid}.{cid}.{lan}{(url.Contains(".json") ? ".srt" : ".ass")}"
                 };
 
-                //有空的URL 不合法
-                if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
-                    throw new Exception("Bad url");
-
                 subtitles.Add(subtitle);
             }
+
+            //有空的URL 不合法
+            if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
+                throw new Exception("Bad url");
 
             return subtitles;
         }
@@ -277,12 +277,12 @@ public static partial class SubUtil
                     path = $"{aid}/{aid}.{cid}.{lan}{(url.Contains(".json") ? ".srt" : ".ass")}"
                 };
 
-                //有空的URL 不合法
-                if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
-                    throw new Exception("Bad url");
-
                 subtitles.Add(subtitle);
             }
+
+            //有空的URL 不合法
+            if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
+                throw new Exception("Bad url");
 
             return subtitles;
         }
