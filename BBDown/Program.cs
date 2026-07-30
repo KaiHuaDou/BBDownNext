@@ -66,7 +66,6 @@ internal partial class Program
     public static async Task<int> Main(params string[] args)
     {
         Console.CancelKeyPress += Console_CancelKeyPress;
-        ServicePointManager.DefaultConnectionLimit = 2048;
 
         RootCommand rootCommand = CommandLineInvoker.GetRootCommand(RunApp);
         rootCommand.Description = "BBDown是一个免费且便捷高效的哔哩哔哩下载/解析软件.";
@@ -154,7 +153,7 @@ internal partial class Program
         server.Run(string.IsNullOrEmpty(listenUrl) ? defaultListenUrl : listenUrl);
     }
 
-    public static (Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority, string? firstEncoding,
+    public static (Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority, string firstEncoding,
         bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, int delay)
         SetUpWork(MyOption myOption)
     {
@@ -302,7 +301,7 @@ internal partial class Program
     }
 
     public static async Task DownloadPagesAsync(MyOption myOption, VInfo vInfo, Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority,
-        string? firstEncoding, bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, int delay, string apiType, DownloadTask? relatedTask = null)
+        string firstEncoding, bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, int delay, string apiType, DownloadTask? relatedTask = null)
     {
         List<Page> pagesInfo = vInfo.PagesInfo;
         var bangumi = vInfo.IsBangumi;
@@ -360,7 +359,7 @@ internal partial class Program
     }
 
     private static async Task DownloadPageAsync(Page p, MyOption myOption, VInfo vInfo, List<Page> selectedPagesInfo, Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority,
-        string? firstEncoding, bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, string apiType, DownloadTask? relatedTask = null)
+        string firstEncoding, bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, string apiType, DownloadTask? relatedTask = null)
     {
         var desc = string.IsNullOrEmpty(p.desc) ? vInfo.Desc : p.desc;
         var bangumi = vInfo.IsBangumi;

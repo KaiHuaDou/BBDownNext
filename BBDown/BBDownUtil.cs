@@ -564,7 +564,7 @@ internal static partial class Utils
             JsonElement json = JsonDocument.Parse(source).RootElement;
             var is_login = json.GetProperty("data").GetProperty("isLogin").GetBoolean( );
             JsonElement wbi_img = json.GetProperty("data").GetProperty("wbi_img");
-            Core.Config.WBI = GetMixinKey(RSubString(wbi_img.GetProperty("img_url").GetString( )) + RSubString(wbi_img.GetProperty("sub_url").GetString( )));
+            Core.Config.WBI = GetMixinKey(RSubString(wbi_img.GetProperty("img_url").GetString( )!) + RSubString(wbi_img.GetProperty("sub_url").GetString( )!));
             LogDebug("wbi: {0}", Core.Config.WBI);
             return is_login;
         }

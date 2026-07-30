@@ -69,7 +69,7 @@ public static class HTTPUtil
 
         LogDebug("获取网页重定向地址: Url: {0}, Headers: {1}", url, webRequest.Headers);
         HttpResponseMessage webResponse = (await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
-        var location = webResponse.RequestMessage.RequestUri.AbsoluteUri;
+        var location = webResponse.RequestMessage!.RequestUri!.AbsoluteUri;
         LogDebug("Location: {0}", location);
         return location;
     }

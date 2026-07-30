@@ -65,7 +65,7 @@ public class BBDownApiServer
                 return Results.BadRequest("输入有误");
             }
 
-            ServeRequestOptions? req = bindingResult.Result;
+            ServeRequestOptions req = bindingResult.Result!;
             _ = AddDownloadTaskAsync(req)
                 .ContinueWith(async task =>
                 {

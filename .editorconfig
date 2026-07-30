@@ -155,3 +155,11 @@ dotnet_naming_symbols.private_or_internal_static_field.required_modifiers = stat
 dotnet_naming_symbols.types.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
 dotnet_naming_symbols.types.applicable_kinds = class, struct, interface, enum
 dotnet_naming_symbols.types.required_modifiers =
+
+# 显式固定可控的分析器严重级别（守住清理后的零警告基线，不升级为 error 以保持保守）
+[*.cs]
+dotnet_diagnostic.CS8600.severity = warning
+dotnet_diagnostic.CS8602.severity = warning
+dotnet_diagnostic.CS8604.severity = warning
+dotnet_diagnostic.CS8618.severity = warning
+dotnet_diagnostic.SYSLIB0014.severity = warning
