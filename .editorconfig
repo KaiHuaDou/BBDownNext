@@ -163,3 +163,10 @@ dotnet_diagnostic.CS8602.severity = warning
 dotnet_diagnostic.CS8604.severity = warning
 dotnet_diagnostic.CS8618.severity = warning
 dotnet_diagnostic.SYSLIB0014.severity = warning
+
+# 常见风格噪音（与 CA1862/RCS1155 一致，保持零警告基线的稳定性；均为纯风格项，不掩盖真实缺陷）
+dotnet_diagnostic.CA1305.severity = none   # 区域敏感格式，本工具显示层不涉及多语言格式化
+dotnet_diagnostic.CA1308.severity = none   # ToLowerInvariant 风格提示
+dotnet_diagnostic.CA2007.severity = none   # ConfigureAwait，控制台单线程同步上下文无需
+dotnet_diagnostic.CA1848.severity = none   # 建议用 LoggerMessage 委托，本工具使用自定义轻量日志封装
+dotnet_diagnostic.CA1812.severity = none   # 内部类从未实例化，可能与源生成/反射路径误报

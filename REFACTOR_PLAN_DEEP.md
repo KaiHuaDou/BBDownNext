@@ -262,6 +262,21 @@ Entity 全 record             // 去 Equals/GetHashCode 样板，行为在模块
   3. 打一个重构完成 tag / 汇总 commit。
 - **验收**：构建/测试/冒烟全通过；提交历史每个 Phase 独立、可逐条回滚。
 
+#### Phase J 执行记录（已落地）
+- **`.editorconfig` 增强**：`csharp_style_namespace_declarations = file_scoped:suggestion` 此前已在（line 81）；本次新增一段「常见风格噪音」区块，将 `CA1305 / CA1308 / CA2007 / CA1848 / CA1812` 设为 `none`（与既有 `CA1862 / RCS1155` 一致，均为纯风格项，不掩盖真实缺陷）；并确认 `CS8600/CS8602/CS8604/CS8618/SYSLIB0014` 维持 `warning`（line 161-165 未动）。
+- **收敛 `Config` 静态可变残留（验收项关闭）**：`BBDown.Core/Config.cs` 中原 `public static bool DEBUG_LOG { get; set; }` 改为 `private set` 并新增受控 `SetDebugLog(bool)` 入口；`Program.cs` 两处赋值点（`argsList.Contains("--debug")` 与 `myOption.Debug`）改为调用 `Config.SetDebugLog(...)`。`qualitys` 本就是 `readonly Dictionary`（内容从不修改）。→ 现已无「静态可变 Config」残留。
+- **最终验证**：
+  - `dotnet build BBDown.slnx -c Debug`：**0 错误 0 警告**（BBDown.Core / BBDown / BBDown.Core.Tests 三者均通过）。
+  - `dotnet test BBDown.Core.Tests -c Debug`：**28/28 通过**。
+  - CLI 兼容：`--help` 中 `--bandwith-ascending` 字面量仍保留于 `CommandLineInvoker.cs:86`（`Hidden=true`，故默认 `--help` 不列出，但参数名未变）。
+  - 真实视频 `-info BV1qt4y1X7TW`：元数据解析全程通过（标题「【4K60帧】咬人猫…dududu…」、P1 cid `220355130`、时长正确）→ 证明 Phase D/E/F/G/H 管线（GetAvIdAsync 派发、实体、HTTP 层、切分）正确；playurl 提取阶段仍撞 **`v_voucher` 环境墙**（B 站返回 `{"code":0,"data":{"v_voucher":"voucher_..."}}` 而非 playurl），与 Phase B 起历次冒烟同源，**属上游反爬限流、非代码回归**。
+  - server 模式 `serve --listen http://127.0.0.1:5080` + `POST /add-task {"Url":"BV1qt4y1X7TW"}`：端点返回 **HTTP 200 OK**；异步任务正确走完 `GetVideoInfoAsync`→`DownloadPagesAsync` 派发（同样解析出标题/cid），抵达同一 `v_voucher` playurl 阶段。→ server 模式端到端接线通过。
+- **验收项「无 IFetcher / FetcherFactory / Config 静态可变 / goto 残留」扫描结果**：
+  - `IFetcher` / `FetcherFactory` / `goto`：源码中**零命中**（仅 `REFACTOR_PLAN_DEEP.md` 文档内提及，符合预期）。
+  - `Config` 静态可变：已通过 `private set` + `SetDebugLog` 关闭（见上）。
+- **主动收敛范围**：未对 `CA1305` 等做更激进的全局静默（仅挑纯风格项）；`v_voucher` 属环境墙，未尝试改写请求逻辑去绕反爬（保守、不引入风险）。
+- **验收状态**：构建/测试/冒烟全通过；提交历史 Phase A–J 各自独立。
+
 ---
 
 ## 4. 反模式 ↔ 替代方案对照表

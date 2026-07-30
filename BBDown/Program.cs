@@ -125,7 +125,7 @@ internal partial class Program
 
         if (argsList.Contains("--debug"))
         {
-            Config.DEBUG_LOG = true;
+            Config.SetDebugLog(true);
         }
 
         Console.BackgroundColor = ConsoleColor.DarkBlue;
@@ -185,7 +185,7 @@ internal partial class Program
         var lang = myOption.Language;
         var aidOri = ""; //原始aid
         var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
-        Config.DEBUG_LOG = myOption.Debug;
+        Config.SetDebugLog(myOption.Debug);
 
         LogDebug("AppDirectory: {0}", APP_DIR);
         LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption, MyOptionJsonContext.Default.MyOption));
