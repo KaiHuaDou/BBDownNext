@@ -213,6 +213,15 @@ Entity 全 record             // 去 Equals/GetHashCode 样板，行为在模块
 - **不变量**：CLI 与 server 行为不变；`--login` / `--logintv` 仍可用。
 - **验收**：`dotnet build` 0 错误；CLI 下载 + server `add-task` 冒烟。
 
+#### Phase G 执行记录（已落地）
+- `Program.cs`（907 行）纯机械切分出 `Program.Download.cs`（613 行）：`DownloadPagesAsync`/`DownloadPageAsync` + 下载配套函数（`SortTracks`×2、`FormatSavePath`、`TryDeleteEmptyDir`、`SanitizeTitle`、`InfoRegex`）整体搬移，方法体一字未改；`Program.cs` 余 324 行（Main/参数装配/`GetVideoInfoAsync`/`DoWorkAsync`）。
+- `Login.cs`：提取两个真重复段为 `ShowQrCodeAsync(url)`（二维码生成+落盘+控制台展示）与 `SaveCredentialAsync(fileName, content)`（凭据写盘+删二维码）；`Web`/`TV` 主体保留。
+- **主动收敛范围**：
+  - 未建 `Program.Commands.cs`——login 子命令装配只有 Main 里几行，单独立文件属拆分过度。
+  - 未做计划第 2 条「server 改调 Download.Run」——检查发现 `BBDownApiServer.AddDownloadTaskAsync` **已经**复用 `Program.SetUpWork/GetVideoInfoAsync/DownloadPagesAsync`，无重复选项处理可删。
+  - 未合并 `LoginAsync(mode)`——Web/TV 在取号方式（GET vs 签名 POST）、poll 接口、code 类型（int vs string）、成功载荷（cookie url vs access_token）上全不同，硬合并即到处 mode 分支，重复度反而不降；只提重复段。
+- **验收状态**：`dotnet build` 0 错误 0 警告；`--help` EXIT=0；`-info av...` EXIT=0；`--bandwith-ascending` 仍可解析（该参数 `Hidden=true` 本就不在 help 显示，行为未变）。
+
 ### Phase H — 命名一致性 + 残留注释清扫
 - **目标**：统一命名与拼写，清掉遗留注释。
 - **改动**：

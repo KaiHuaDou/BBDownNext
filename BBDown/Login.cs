@@ -16,6 +16,23 @@ namespace BBDown;
 
 internal static class Login
 {
+    private static async Task ShowQrCodeAsync(string url)
+    {
+        Log("生成二维码...");
+        QRCodeGenerator qrGenerator = new( );
+        QRCodeData qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+        PngByteQRCode pngByteCode = new(qrCodeData);
+        await File.WriteAllBytesAsync("qrcode.png", pngByteCode.GetGraphic(7));
+        Log("生成二维码成功: qrcode.png, 请打开并扫描, 或扫描打印的二维码");
+        new ConsoleQRCode(qrCodeData).GetGraphic( );
+    }
+
+    private static async Task SaveCredentialAsync(string fileName, string content)
+    {
+        await File.WriteAllTextAsync(Path.Combine(Program.APP_DIR, fileName), content);
+        File.Delete("qrcode.png");
+    }
+
     public static async Task<string> GetLoginStatusAsync(string qrcodeKey)
     {
         var queryUrl = $"https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key={qrcodeKey}&source=main-fe-header";
@@ -30,17 +47,8 @@ internal static class Login
             var loginUrl = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header";
             var url = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(loginUrl, Core.AppConfig.Empty)).RootElement.GetProperty("data").GetProperty("url").ToString( );
             var qrcodeKey = GetQueryString("qrcode_key", url);
-            //Log(oauthKey);
-            //Log(url);
             var flag = false;
-            Log("生成二维码...");
-            QRCodeGenerator qrGenerator = new( );
-            QRCodeData qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
-            PngByteQRCode pngByteCode = new(qrCodeData);
-            await File.WriteAllBytesAsync("qrcode.png", pngByteCode.GetGraphic(7));
-            Log("生成二维码成功: qrcode.png, 请打开并扫描, 或扫描打印的二维码");
-            var consoleQRCode = new ConsoleQRCode(qrCodeData);
-            consoleQRCode.GetGraphic( );
+            await ShowQrCodeAsync(url);
 
             while (true)
             {
@@ -69,8 +77,7 @@ internal static class Login
                     var cc = JsonDocument.Parse(w).RootElement.GetProperty("data").GetProperty("url").ToString( );
                     Log("登录成功: SESSDATA=" + GetQueryString("SESSDATA", cc));
                     //导出cookie, 转义英文逗号 否则部分场景会出问题
-                    await File.WriteAllTextAsync(Path.Combine(Program.APP_DIR, "BBDown.data"), cc[(cc.IndexOf('?') + 1)..].Replace("&", ";").Replace(",", "%2C"));
-                    File.Delete("qrcode.png");
+                    await SaveCredentialAsync("BBDown.data", cc[(cc.IndexOf('?') + 1)..].Replace("&", ";").Replace(",", "%2C"));
                     break;
                 }
             }
@@ -90,14 +97,7 @@ internal static class Login
             var web = Encoding.UTF8.GetString(responseArray);
             var url = JsonDocument.Parse(web).RootElement.GetProperty("data").GetProperty("url").ToString( );
             var authCode = JsonDocument.Parse(web).RootElement.GetProperty("data").GetProperty("auth_code").ToString( );
-            Log("生成二维码...");
-            QRCodeGenerator qrGenerator = new( );
-            QRCodeData qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
-            PngByteQRCode pngByteCode = new(qrCodeData);
-            await File.WriteAllBytesAsync("qrcode.png", pngByteCode.GetGraphic(7));
-            Log("生成二维码成功: qrcode.png, 请打开并扫描, 或扫描打印的二维码");
-            var consoleQRCode = new ConsoleQRCode(qrCodeData);
-            consoleQRCode.GetGraphic( );
+            await ShowQrCodeAsync(url);
             parms.Set("auth_code", authCode);
             parms.Set("ts", GetTimeStamp(true));
             parms.Remove("sign");
@@ -121,9 +121,7 @@ internal static class Login
                 {
                     var cc = JsonDocument.Parse(web).RootElement.GetProperty("data").GetProperty("access_token").ToString( );
                     Log("登录成功: AccessToken=" + cc);
-                    //导出cookie
-                    await File.WriteAllTextAsync(Path.Combine(Program.APP_DIR, "BBDownTV.data"), "access_token=" + cc);
-                    File.Delete("qrcode.png");
+                    await SaveCredentialAsync("BBDownTV.data", "access_token=" + cc);
                     break;
                 }
             }
