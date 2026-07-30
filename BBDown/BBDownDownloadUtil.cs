@@ -25,14 +25,6 @@ internal static class BBDownDownloadUtil
         public string Cookie { get; set; } = string.Empty;
     }
 
-    private static void AddCommonHeaders(HttpRequestMessage request, string url, string cookie)
-    {
-        if (!url.Contains("platform=android_tv_yst") && !url.Contains("platform=android"))
-            request.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com");
-        request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
-        request.Headers.TryAddWithoutValidation("Cookie", cookie);
-    }
-
     private static async Task RangeDownloadToTmpAsync(int id, string url, string tmpName, long fromPosition, long? toPosition, Action<int, long, long> onProgress, string cookie, bool failOnRangeNotSupported = false)
     {
         DateTimeOffset? lastTime = File.Exists(tmpName) ? new FileInfo(tmpName).LastWriteTimeUtc : null;
@@ -47,13 +39,7 @@ internal static class BBDownDownloadUtil
 
         var downloadedBytes = fromPosition + fileStream.Position;
 
-        using var httpRequestMessage = new HttpRequestMessage( );
-        AddCommonHeaders(httpRequestMessage, url, cookie);
-        httpRequestMessage.Headers.Range = new(downloadedBytes, toPosition);
-        httpRequestMessage.Headers.IfRange = lastTime != null ? new(lastTime.Value) : null;
-        httpRequestMessage.RequestUri = new(url);
-
-        using HttpResponseMessage response = (await AppHttpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
+        using HttpResponseMessage response = await GetWithRangeAsync(url, downloadedBytes, toPosition, cookie, lastTime);
 
         if (response.StatusCode == HttpStatusCode.OK) // server doesn't response a partial content
         {
@@ -210,13 +196,10 @@ internal static class BBDownDownloadUtil
 
     private static async Task<long> GetFileSizeAsync(string url, string cookie)
     {
-        using var httpRequestMessage = new HttpRequestMessage( );
-        AddCommonHeaders(httpRequestMessage, url, cookie);
-        httpRequestMessage.RequestUri = new(url);
-        HttpResponseMessage response = (await AppHttpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
-        var totalSizeBytes = response.Content.Headers.ContentLength ?? 0;
-
-        return totalSizeBytes;
+        using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        AddDownloadHeaders(httpRequestMessage, url, cookie);
+        HttpResponseMessage response = (await SendRawAsync(httpRequestMessage)).EnsureSuccessStatusCode( );
+        return response.Content.Headers.ContentLength ?? 0;
     }
 
     /// <summary>

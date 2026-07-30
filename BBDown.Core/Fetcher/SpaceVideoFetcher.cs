@@ -14,7 +14,8 @@ public static class SpaceVideoFetcher
         id = id[4..];
         // using the live API can bypass w_rid
         var userInfoApi = $"https://api.live.bilibili.com/live_user/v1/Master/info?uid={id}";
-        var userName = BBDown.Core.Util.FileNameUtil.GetValidFileName(JsonDocument.Parse(await GetWebSourceAsync(userInfoApi, cfg)).RootElement.GetProperty("data").GetProperty("info").GetProperty("uname").ToString( ), ".", true);
+        using var userJson = await GetJsonAsync(userInfoApi, cfg);
+        var userName = BBDown.Core.Util.FileNameUtil.GetValidFileName(userJson.RootElement.GetProperty("data").GetProperty("info").GetProperty("uname").ToString( ), ".", true);
         List<string> urls = [];
         var pageSize = 50;
         var pageNumber = 1;

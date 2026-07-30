@@ -172,6 +172,17 @@ Entity 全 record             // 去 Equals/GetHashCode 样板，行为在模块
   3. 提供 `GetWithRangeAsync(url, from, to, cfg)` 给下载用；Cookie/Host/Token 从 `AppConfig` 注入，而非读 `Config` 静态。
   4. **不**引入 `IHttpService` 接口；用静态模块 + 可选委托参数即可。
 - **可控泄露点**：封装常用请求，但 `SendRawAsync` 暴露 `HttpRequestMessage`，遇到奇葩接口能直接 `new HttpRequestMessage` 而不必绕过封装。
+
+#### Phase E 执行记录（已落地）
+- `HTTPUtil` 新增四个成员（均为静态方法，未引入接口）：
+  - `SendRawAsync(HttpRequestMessage)`：逃生舱，统一 debug 日志 + `ResponseHeadersRead` 发送。
+  - `GetJsonAsync(url, cfg) => JsonDocument`：计划原文写 `JsonElement`，落地改为 `JsonDocument`——`JsonElement` 在 document dispose 后失效，返回 `JsonDocument` 让调用方 `using` 是唯一 disposal 正确的裸 JSON 形态。
+  - `AddDownloadHeaders(request, url, cookie)`：原 `BBDownDownloadUtil.AddCommonHeaders` 上移（Referer 按 platform=android 分支的行为原样保留）。
+  - `GetWithRangeAsync(url, from, to, cookie, ifRange)`：下载专用 Range 请求，含 `IfRange` 与 `EnsureSuccessStatusCode`。
+- `BBDownDownloadUtil`：`RangeDownloadToTmpAsync` 改用 `GetWithRangeAsync`；`GetFileSizeAsync` 改用 `AddDownloadHeaders + SendRawAsync`（不加 Range 头，保持原 200 响应行为）；删除本地 `AddCommonHeaders`。
+- `FavListFetcher`/`SpaceVideoFetcher`：两处单行 `JsonDocument.Parse(await GetWebSourceAsync(...))` 改用 `GetJsonAsync` 并补上原本缺失的 `using`（顺带修掉两处 JsonDocument 泄漏）。
+- **主动收敛范围**：其余 20+ 处 `GetWebSourceAsync` + 手动 Parse 调用点未批量迁移——多数带自定义错误处理/字符串预处理，强改属高风险低收益；`Login.cs` 的 `AppHttpClient.PostAsync` 属合法逃生舱用法，留待 Phase G 处理 Login 时一并看。Cookie/Token 从 `AppConfig` 注入已在 Phase A 完成。
+- **验收状态**：`dotnet build` 0 错误 0 警告；下载冒烟仍被 `v_voucher` 环境限流拦在解析层（同 Phase C/D），Range 下载路径为机械等价替换，待 Phase J 复测。
 - **不变量**：请求头 / Cookie / UA 行为与现在一致（保留平台分支 `platform=android_tv_yst` / `android` 的免 Referer 逻辑）。
 - **验收**：`dotnet build` 0 错误；下载 + 字幕 + 重定向（GetWebLocationAsync）冒烟。
 

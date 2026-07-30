@@ -23,7 +23,8 @@ public static class FavListFetcher
         if (favId == "")
         {
             var favListApi = $"https://api.bilibili.com/x/v3/fav/folder/created/list-all?up_mid={mid}";
-            favId = JsonDocument.Parse(await GetWebSourceAsync(favListApi, cfg)).RootElement.GetProperty("data").GetProperty("list").EnumerateArray( ).First( ).GetProperty("id").ToString( );
+            using var favJson = await GetJsonAsync(favListApi, cfg);
+            favId = favJson.RootElement.GetProperty("data").GetProperty("list").EnumerateArray( ).First( ).GetProperty("id").ToString( );
         }
 
         var pageSize = 20;

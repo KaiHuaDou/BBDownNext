@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text.Json;
 
 using static BBDown.Core.Logger;
 
@@ -72,6 +73,36 @@ public static class HTTPUtil
         var location = webResponse.RequestMessage!.RequestUri!.AbsoluteUri;
         LogDebug("Location: {0}", location);
         return location;
+    }
+
+    // 逃生舱：需要自行控制 Header/Range/平台分支时直接构造 HttpRequestMessage 走这里
+    public static Task<HttpResponseMessage> SendRawAsync(HttpRequestMessage request)
+    {
+        LogDebug("发送请求: {0} {1}, Headers: {2}", request.Method, request.RequestUri?.AbsoluteUri ?? "", request.Headers);
+        return AppHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+    }
+
+    // 返回裸 JsonDocument，调用方自己取字段并负责 Dispose
+    public static async Task<JsonDocument> GetJsonAsync(string url, AppConfig cfg)
+    {
+        return JsonDocument.Parse(await GetWebSourceAsync(url, cfg));
+    }
+
+    public static void AddDownloadHeaders(HttpRequestMessage request, string url, string cookie)
+    {
+        if (!url.Contains("platform=android_tv_yst") && !url.Contains("platform=android"))
+            request.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com");
+        request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
+        request.Headers.TryAddWithoutValidation("Cookie", cookie);
+    }
+
+    public static async Task<HttpResponseMessage> GetWithRangeAsync(string url, long from, long? to, string cookie, DateTimeOffset? ifRange = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        AddDownloadHeaders(request, url, cookie);
+        request.Headers.Range = new(from, to);
+        request.Headers.IfRange = ifRange != null ? new(ifRange.Value) : null;
+        return (await SendRawAsync(request)).EnsureSuccessStatusCode( );
     }
 
     public static async Task<byte[]> GetPostResponseAsync(string Url, byte[] postData, Dictionary<string, string>? headers = null)
