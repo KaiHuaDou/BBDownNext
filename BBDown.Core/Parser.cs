@@ -121,15 +121,14 @@ startParsing:
                     if (dashVideo.GetProperty("base_url").ToString( ) != "")
                     {
                         var videoId = stream.GetProperty("stream_info").GetProperty("quality").ToString( );
-                        var urlList = new List<string>( ) { dashVideo.GetProperty("base_url").ToString( ) };
-                        urlList.AddRange(dashVideo.GetProperty("backup_url").EnumerateArray( ).Select(i => i.ToString( )));
+                        var urlList = BuildUrlList(dashVideo);
                         Video v = new( )
                         {
                             dur = pDur,
                             id = videoId,
                             dfn = Config.qualitys[videoId],
                             bandwith = Convert.ToInt64(dashVideo.GetProperty("bandwidth").ToString( )) / 1000,
-                            baseUrl = urlList.FirstOrDefault(i => !BaseUrlRegex( ).IsMatch(i), urlList.First( )),
+                            baseUrl = PickBaseUrl(urlList),
                             codecs = GetVideoCodec(dashVideo.GetProperty("codecid").ToString( )),
                             size = dashVideo.TryGetProperty("size", out JsonElement sizeNode) ? Convert.ToDouble(sizeNode.ToString( )) : 0
                         };
@@ -140,15 +139,14 @@ startParsing:
 
             foreach (JsonElement node in audio)
             {
-                var urlList = new List<string>( ) { node.GetProperty("base_url").ToString( ) };
-                urlList.AddRange(node.GetProperty("backup_url").EnumerateArray( ).Select(i => i.ToString( )));
+                var urlList = BuildUrlList(node);
                 Audio a = new( )
                 {
                     id = node.GetProperty("id").ToString( ),
                     dfn = node.GetProperty("id").ToString( ),
                     dur = pDur,
                     bandwith = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-                    baseUrl = urlList.FirstOrDefault(i => !BaseUrlRegex( ).IsMatch(i), urlList.First( )),
+                    baseUrl = PickBaseUrl(urlList),
                     codecs = "M4A"
                 };
                 if (!parsedResult.AudioTracks.Contains(a)) parsedResult.AudioTracks.Add(a);
@@ -226,7 +224,7 @@ reParse:
                     }
                 }
             }
-            catch (Exception) {; }
+            catch (Exception ex) { LogDebug("处理音轨扩展信息失败: {0}", ex.Message); }
 
             //处理Hi-Res无损
             try
@@ -243,17 +241,13 @@ reParse:
                     }
                 }
             }
-            catch (Exception) {; }
+            catch (Exception ex) { LogDebug("处理音轨扩展信息失败: {0}", ex.Message); }
 
             if (video != null)
             {
                 foreach (JsonElement node in video)
                 {
-                    var urlList = new List<string>( ) { node.GetProperty("base_url").ToString( ) };
-                    if (node.TryGetProperty("backup_url", out JsonElement element) && element.ValueKind != JsonValueKind.Null)
-                    {
-                        urlList.AddRange(element.EnumerateArray( ).Select(i => i.ToString( )));
-                    }
+                    var urlList = BuildUrlList(node);
 
                     var videoId = node.GetProperty("id").ToString( );
                     Video v = new( )
@@ -262,7 +256,7 @@ reParse:
                         id = videoId,
                         dfn = Config.qualitys[videoId],
                         bandwith = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-                        baseUrl = urlList.FirstOrDefault(i => !BaseUrlRegex( ).IsMatch(i), urlList.First( )),
+                        baseUrl = PickBaseUrl(urlList),
                         codecs = GetVideoCodec(node.GetProperty("codecid").ToString( )),
                         size = node.TryGetProperty("size", out JsonElement sizeNode) ? Convert.ToDouble(sizeNode.ToString( )) : 0
                     };
@@ -287,11 +281,7 @@ reParse:
             {
                 foreach (JsonElement node in audio)
                 {
-                    var urlList = new List<string>( ) { node.GetProperty("base_url").ToString( ) };
-                    if (node.TryGetProperty("backup_url", out JsonElement element) && element.ValueKind != JsonValueKind.Null)
-                    {
-                        urlList.AddRange(element.EnumerateArray( ).Select(i => i.ToString( )));
-                    }
+                    var urlList = BuildUrlList(node);
 
                     var audioId = node.GetProperty("id").ToString( );
                     var codecs = node.GetProperty("codecs").ToString( );
@@ -310,7 +300,7 @@ reParse:
                         dfn = audioId,
                         dur = pDur,
                         bandwith = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-                        baseUrl = urlList.FirstOrDefault(i => !BaseUrlRegex( ).IsMatch(i), urlList.First( )),
+                        baseUrl = PickBaseUrl(urlList),
                         codecs = codecs
                     });
                 }
@@ -321,15 +311,14 @@ reParse:
                 foreach (JsonElement node in backgroundAudio)
                 {
                     var audioId = node.GetProperty("id").ToString( );
-                    var urlList = new List<string> { node.GetProperty("base_url").ToString( ) };
-                    urlList.AddRange(node.GetProperty("backup_url").EnumerateArray( ).Select(i => i.ToString( )));
+                    var urlList = BuildUrlList(node);
                     parsedResult.BackgroundAudioTracks.Add(new Audio( )
                     {
                         id = audioId,
                         dfn = audioId,
                         dur = pDur,
                         bandwith = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-                        baseUrl = urlList.FirstOrDefault(i => !BaseUrlRegex( ).IsMatch(i), urlList.First( )),
+                        baseUrl = PickBaseUrl(urlList),
                         codecs = node.GetProperty("codecs").ToString( )
                     });
                 }
@@ -340,15 +329,14 @@ reParse:
                     foreach (JsonElement node in role.GetProperty("audio").EnumerateArray( ))
                     {
                         var audioId = node.GetProperty("id").ToString( );
-                        var urlList = new List<string> { node.GetProperty("base_url").ToString( ) };
-                        urlList.AddRange(node.GetProperty("backup_url").EnumerateArray( ).Select(i => i.ToString( )));
+                        var urlList = BuildUrlList(node);
                         roleAudioTracks.Add(new Audio( )
                         {
                             id = audioId,
                             dfn = audioId,
                             dur = pDur,
                             bandwith = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-                            baseUrl = urlList.FirstOrDefault(i => !BaseUrlRegex( ).IsMatch(i), urlList.First( )),
+                            baseUrl = PickBaseUrl(urlList),
                             codecs = node.GetProperty("codecs").ToString( )
                         });
                     }
@@ -469,6 +457,19 @@ reParse:
     {
         var toEncode = parms + (isBiliPlus ? "acd495b248ec528c2eed1e862d393126" : "59b43e04ad6965f34319062b478f83dd");
         return string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(toEncode)).Select(i => i.ToString("x2")).ToArray( ));
+    }
+
+    private static List<string> BuildUrlList(JsonElement node)
+    {
+        var urlList = new List<string> { node.GetProperty("base_url").ToString( ) };
+        if (node.TryGetProperty("backup_url", out JsonElement element) && element.ValueKind != JsonValueKind.Null)
+            urlList.AddRange(element.EnumerateArray( ).Select(i => i.ToString( )));
+        return urlList;
+    }
+
+    private static string PickBaseUrl(List<string> urlList)
+    {
+        return urlList.FirstOrDefault(i => !BaseUrlRegex( ).IsMatch(i), urlList.First( ));
     }
 
     [GeneratedRegex("window.__playinfo__=([\\s\\S]*?)<\\/script>")]

@@ -24,6 +24,14 @@ internal static class BBDownDownloadUtil
         public DownloadTask? RelatedTask { get; set; } = null;
     }
 
+    private static void AddCommonHeaders(HttpRequestMessage request, string url)
+    {
+        if (!url.Contains("platform=android_tv_yst") && !url.Contains("platform=android"))
+            request.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com");
+        request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
+        request.Headers.TryAddWithoutValidation("Cookie", Core.Config.COOKIE);
+    }
+
     private static async Task RangeDownloadToTmpAsync(int id, string url, string tmpName, long fromPosition, long? toPosition, Action<int, long, long> onProgress, bool failOnRangeNotSupported = false)
     {
         DateTimeOffset? lastTime = File.Exists(tmpName) ? new FileInfo(tmpName).LastWriteTimeUtc : null;
@@ -39,10 +47,7 @@ internal static class BBDownDownloadUtil
         var downloadedBytes = fromPosition + fileStream.Position;
 
         using var httpRequestMessage = new HttpRequestMessage( );
-        if (!url.Contains("platform=android_tv_yst") && !url.Contains("platform=android"))
-            httpRequestMessage.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com");
-        httpRequestMessage.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
-        httpRequestMessage.Headers.TryAddWithoutValidation("Cookie", Core.Config.COOKIE);
+        AddCommonHeaders(httpRequestMessage, url);
         httpRequestMessage.Headers.Range = new(downloadedBytes, toPosition);
         httpRequestMessage.Headers.IfRange = lastTime != null ? new(lastTime.Value) : null;
         httpRequestMessage.RequestUri = new(url);
@@ -202,10 +207,7 @@ reDown:
     private static async Task<long> GetFileSizeAsync(string url)
     {
         using var httpRequestMessage = new HttpRequestMessage( );
-        if (!url.Contains("platform=android_tv_yst") && !url.Contains("platform=android"))
-            httpRequestMessage.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com");
-        httpRequestMessage.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
-        httpRequestMessage.Headers.TryAddWithoutValidation("Cookie", Core.Config.COOKIE);
+        AddCommonHeaders(httpRequestMessage, url);
         httpRequestMessage.RequestUri = new(url);
         HttpResponseMessage response = (await AppHttpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
         var totalSizeBytes = response.Content.Headers.ContentLength ?? 0;

@@ -85,7 +85,7 @@ public class BBDownApiServer
                     }
                     catch (System.Exception e)
                     {
-                        Logger.LogDebug("回调失败", e.Message);
+                        Logger.LogDebug("回调失败: {0}", e.Message);
                     }
                 });
             return Results.Ok( );

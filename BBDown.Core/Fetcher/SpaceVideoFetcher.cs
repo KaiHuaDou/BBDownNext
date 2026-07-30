@@ -14,7 +14,7 @@ public class SpaceVideoFetcher : IFetcher
         id = id[4..];
         // using the live API can bypass w_rid
         var userInfoApi = $"https://api.live.bilibili.com/live_user/v1/Master/info?uid={id}";
-        var userName = GetValidFileName(JsonDocument.Parse(await GetWebSourceAsync(userInfoApi)).RootElement.GetProperty("data").GetProperty("info").GetProperty("uname").ToString( ), ".", true);
+        var userName = BBDown.Core.Util.FileNameUtil.GetValidFileName(JsonDocument.Parse(await GetWebSourceAsync(userInfoApi)).RootElement.GetProperty("data").GetProperty("info").GetProperty("uname").ToString( ), ".", true);
         List<string> urls = [];
         var pageSize = 50;
         var pageNumber = 1;
@@ -60,22 +60,5 @@ pause");
         }
 
         return urls;
-    }
-
-    private static string GetValidFileName(string input, string re = ".", bool filterSlash = false)
-    {
-        var title = input;
-        foreach (var invalidChar in Path.GetInvalidFileNameChars( ))
-        {
-            title = title.Replace(invalidChar.ToString( ), re);
-        }
-
-        if (filterSlash)
-        {
-            title = title.Replace("/", re);
-            title = title.Replace("\\", re);
-        }
-
-        return title;
     }
 }

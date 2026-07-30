@@ -232,19 +232,10 @@ public static partial class SubUtil
             {
                 var lan = sub.GetProperty("lang_key").ToString( );
                 var url = sub.GetProperty("url").ToString( );
-                Subtitle subtitle = new( )
-                {
-                    url = url,
-                    lan = lan,
-                    path = $"{aid}/{aid}.{cid}.{lan}{(url.Contains(".json") ? ".srt" : ".ass")}"
-                };
-
-                subtitles.Add(subtitle);
+                subtitles.Add(BuildSubtitle(aid, cid, lan, url, true));
             }
 
-            //有空的URL 不合法
-            if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
-                throw new Exception("Bad url");
+            EnsureValidUrls(subtitles);
 
             return subtitles;
         }
@@ -269,19 +260,10 @@ public static partial class SubUtil
             {
                 var lan = sub.GetProperty("key").ToString( );
                 var url = sub.GetProperty("url").ToString( ).Replace("\\\\/", "/");
-                Subtitle subtitle = new( )
-                {
-                    url = url,
-                    lan = lan,
-                    path = $"{aid}/{aid}.{cid}.{lan}{(url.Contains(".json") ? ".srt" : ".ass")}"
-                };
-
-                subtitles.Add(subtitle);
+                subtitles.Add(BuildSubtitle(aid, cid, lan, url, true));
             }
 
-            //有空的URL 不合法
-            if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
-                throw new Exception("Bad url");
+            EnsureValidUrls(subtitles);
 
             return subtitles;
         }
@@ -303,18 +285,10 @@ public static partial class SubUtil
             foreach (JsonElement sub in subs)
             {
                 var lan = sub.GetProperty("lan").ToString( );
-                Subtitle subtitle = new( )
-                {
-                    url = sub.GetProperty("subtitle_url").ToString( ),
-                    lan = lan,
-                    path = $"{aid}/{aid}.{cid}.{lan}.srt"
-                };
-                subtitles.Add(subtitle);
+                subtitles.Add(BuildSubtitle(aid, cid, lan, sub.GetProperty("subtitle_url").ToString( ), false));
             }
 
-            //有空的URL 不合法
-            if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
-                throw new Exception("Bad url");
+            EnsureValidUrls(subtitles);
 
             return subtitles;
         }
@@ -336,18 +310,10 @@ public static partial class SubUtil
             foreach (JsonElement sub in subs)
             {
                 var lan = sub.GetProperty("lan").ToString( );
-                Subtitle subtitle = new( )
-                {
-                    url = sub.GetProperty("subtitle_url").ToString( ),
-                    lan = lan,
-                    path = $"{aid}/{aid}.{cid}.{lan}.srt"
-                };
-                subtitles.Add(subtitle);
+                subtitles.Add(BuildSubtitle(aid, cid, lan, sub.GetProperty("subtitle_url").ToString( ), false));
             }
 
-            //有空的URL 不合法
-            if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
-                throw new Exception("Bad url");
+            EnsureValidUrls(subtitles);
 
             return subtitles;
         }
@@ -391,9 +357,7 @@ public static partial class SubUtil
                     path = $"{aid}/{aid}.{cid}.{item.Lan}.srt"
                 }));
             }
-            //有空的URL 不合法
-            if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
-                throw new Exception("Bad url");
+            EnsureValidUrls(subtitles);
 
             return subtitles;
         }
@@ -401,6 +365,24 @@ public static partial class SubUtil
         {
             return null;
         }
+    }
+
+    private static Subtitle BuildSubtitle(string aid, string cid, string lan, string url, bool intl)
+    {
+        var ext = intl ? (url.Contains(".json") ? ".srt" : ".ass") : ".srt";
+        return new Subtitle
+        {
+            url = url,
+            lan = lan,
+            path = $"{aid}/{aid}.{cid}.{lan}{ext}"
+        };
+    }
+
+    private static void EnsureValidUrls(List<Subtitle> subtitles)
+    {
+        // 有空的URL 不合法
+        if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
+            throw new Exception("Bad url");
     }
 
     #endregion
