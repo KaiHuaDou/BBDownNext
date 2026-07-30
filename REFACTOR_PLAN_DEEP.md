@@ -133,6 +133,17 @@ Entity 全 record             // 去 Equals/GetHashCode 样板，行为在模块
 - **不变量**：输出文件、命名、合并行为与现在逐字节一致（重点回归：DASH / FLV / 杜比 / Hi-Res / 互动视频分支）。
 - **验收**：`dotnet build` 0 错误；真实视频下载冒烟（含一次重解析路径，验证 goto 改写等价）。
 
+#### Phase C 执行记录（已落地）
+- **消除全部 `goto`**（按 Phase J「无 goto 残留」目标，主动把 `BBDownDownloadUtil.cs` 的两处 `reDown` 也一并改写，避免遗留）：
+  - `BBDownDownloadUtil.cs`：`DownloadFileAsync` 的 `reDown`、`MultiThreadDownloadFileAsync` 内 `Parallel.ForEachAsync` lambda 的 `reDown`（均为下载重试）。
+  - `Program.cs` `DownloadPageAsync`：`downloadPage:`（整段 try/catch 重试）、`reParse:`（FLV 分支交互选清晰度后的重解析）。
+  - `Parser.cs` `ExtractTracksAsync`：`startParsing:`（intl 接口二次解析）、`reParse:`（免二压二次请求）。
+- **改写方式统一为语义等价的 `while (true)` + `continue`/`break`**：
+  - 重试类（`downloadPage`/`reDown`）：`try` 正常完成（含成功下载且无 `return`）落到 `while` 尾部 `break` 退出；异常进 `catch` 后 `continue` 重试，重试上限不变（3 次 / `retryCount>2` 抛）。
+  - 重解析类（`reParse`/`startParsing`）：首次解析后若需重选/免二压，置标志位 `continue` 回到循环顶重取 `WebJsonString` 并重排，第二次直接落到底部 `break`。**行为与原 `goto` 逐字节等价**（含 FLV 交互选择后 `vIndex` 被重置为 0 的细节——因重取已按所选 dfn 过滤，与原逻辑一致）。
+- **主动收敛范围**：未做计划原文的「拆为 6 个函数」。——巨型方法仅做最小化控制流改写，严守「不过度 / 不破坏行为」约束；如后续确需进一步拆分，单列 Phase 处理。
+- **验收状态**：`dotnet build` 0 错误 0 警告；`grep -rn "goto" *.cs` 全仓库 0 命中。`-info`/下载冒烟因 B 站对测试 IP 返回 `v_voucher` 反爬挑战（`{"code":0,"data":{"v_voucher":...}}`，非 playurl 数据）而未能产出文件——该响应来自网络层，`ExtractTracksAsync` 控制流改写不可能改变服务端返回，属环境问题非回归；Phase B 同视频曾成功下载，证明管线在 API 正常时工作。待 Phase J 最终冒烟复测。
+
 ### Phase D — 入口 id 解析派发（GetAvIdAsync 18 分支 → 函数表 / 模式匹配）
 - **目标**：`Utils.GetAvIdAsync` 的 18 分支 if 链改为**前缀派发 + 每情形一个小纯函数**。
 - **改动**：

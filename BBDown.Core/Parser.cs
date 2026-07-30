@@ -105,8 +105,9 @@ public static partial class Parser
 
         LogDebug(parsedResult.WebJsonString);
 
-startParsing:
-        var respJson = JsonDocument.Parse(parsedResult.WebJsonString);
+        while (true)
+        {
+            var respJson = JsonDocument.Parse(parsedResult.WebJsonString);
         JsonElement data = respJson.RootElement;
 
         //intl接口
@@ -156,7 +157,7 @@ startParsing:
             {
                 intlCode = "1";
                 parsedResult.WebJsonString = await GetPlayJsonAsync(aid, cid, epId, qn, cfg, intlCode);
-                goto startParsing;
+                continue;
             }
 
             return parsedResult;
@@ -191,9 +192,10 @@ startParsing:
             try { pDur = root.GetProperty("timelength").GetInt32( ) / 1000; } catch { }
 
             var reParse = false;
-reParse:
-            if (reParse)
+            while (true)
             {
+                if (reParse)
+                {
                 parsedResult.WebJsonString = await GetPlayJsonAsync(encoding, aidOri, aid, cid, epId, tvApi, intlApi, appApi, cfg, GetMaxQn( ));
                 respJson = JsonDocument.Parse(parsedResult.WebJsonString);
                 data = respJson.RootElement;
@@ -274,7 +276,7 @@ reParse:
             if (!reParse && !appApi)
             {
                 reParse = true;
-                goto reParse;
+                continue;
             }
 
             if (audio != null)
@@ -348,8 +350,10 @@ reParse:
                         path = $"{aid}/{aid}.{cid}.{role.GetProperty("audio_id")}.m4a",
                         audio = roleAudioTracks
                     });
-                }
             }
+            break;
+            }
+        }
         }
         else if (parsedResult.WebJsonString.Contains("\"durl\":[")) //flv
         {
@@ -424,6 +428,7 @@ reParse:
         }
 
         return parsedResult;
+        }
     }
 
     /// <summary>

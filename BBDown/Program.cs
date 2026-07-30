@@ -367,9 +367,10 @@ internal partial class Program
         var pubTime = vInfo.PubTime;
         var selected = false; //用户是否已经手动选择过了轨道
         var retryCount = 0;
-downloadPage:
-        try
+        while (true)
         {
+            try
+            {
             LogDebug("尝试获取章节信息...");
             p.points = await FetchPointsAsync(p.cid, p.aid, cfg);
 
@@ -671,7 +672,8 @@ downloadPage:
                 var flag = false;
                 List<string> clips = parsedResult.Clips;
                 List<string> dfns = parsedResult.Dfns;
-reParse:
+                while (true)
+                {
 //排序
                 parsedResult.VideoTracks = SortTracks(parsedResult.VideoTracks, dfnPriority, encodingPriority, myOption.VideoAscending);
 
@@ -691,7 +693,7 @@ reParse:
                     if (!p.points.Any( )) p.points = parsedResult.ExtraPoints;
                     flag = true;
                     selected = true;
-                    goto reParse;
+                    continue;
                 }
 
                 Log($"共计{parsedResult.VideoTracks.Count}条流(共有{clips.Count}个分段).");
@@ -759,6 +761,8 @@ reParse:
                 if (selectedPagesInfo.Count == 1 || p.index == selectedPagesInfo.Last( ).index || p.aid != selectedPagesInfo.Last( ).aid)
                     File.Delete(coverPath);
                 TryDeleteEmptyDir(p.aid);
+                break;
+                }
             }
             else
             {
@@ -782,7 +786,8 @@ reParse:
             LogError(ex.Message);
             LogWarn("下载出现异常, 3秒后将进行自动重试...");
             await Task.Delay(3000);
-            goto downloadPage;
+        }
+            break;
         }
     }
 

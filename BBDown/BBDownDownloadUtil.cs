@@ -100,17 +100,19 @@ internal static class BBDownDownloadUtil
 
         var retry = 0;
         var tmpName = Path.Combine(desDir, Path.GetFileNameWithoutExtension(path) + ".tmp");
-reDown:
-        try
+        while (true)
         {
-            using var progress = new ProgressBar(config.RelatedTask);
-            await RangeDownloadToTmpAsync(0, url, tmpName, 0, null, (_, downloaded, total) => progress.Report((double) downloaded / total, downloaded), config.Cookie);
-            File.Move(tmpName, path, true);
-        }
-        catch (Exception)
-        {
-            if (++retry == 3) throw;
-            goto reDown;
+            try
+            {
+                using var progress = new ProgressBar(config.RelatedTask);
+                await RangeDownloadToTmpAsync(0, url, tmpName, 0, null, (_, downloaded, total) => progress.Report((double) downloaded / total, downloaded), config.Cookie);
+                File.Move(tmpName, path, true);
+                break;
+            }
+            catch (Exception)
+            {
+                if (++retry == 3) throw;
+            }
         }
     }
 
@@ -148,24 +150,25 @@ reDown:
         {
             var retry = 0;
             var tmp = Path.Combine(Path.GetDirectoryName(path)!, clip.index.ToString("00000") + "_" + Path.GetFileNameWithoutExtension(path) + (Path.GetExtension(path).EndsWith(".mp4") ? ".vclip" : ".aclip"));
-reDown:
-            try
+            while (true)
             {
-                await RangeDownloadToTmpAsync(clip.index, url, tmp, clip.from, clip.to == -1 ? null : clip.to, (index, downloaded, _) =>
+                try
                 {
-                    clipProgress[index] = downloaded;
-                    progress.Report((double) clipProgress.Values.Sum( ) / fileSize, clipProgress.Values.Sum( ));
-                }, config.Cookie, true);
-            }
-            catch (NotSupportedException)
-            {
-                if (++retry == 3) throw new Exception($"服务器可能并不支持多线程下载, 请使用 --multi-thread false 关闭多线程");
-                goto reDown;
-            }
-            catch (Exception)
-            {
-                if (++retry == 3) throw new Exception($"Failed to download clip {clip.index}");
-                goto reDown;
+                    await RangeDownloadToTmpAsync(clip.index, url, tmp, clip.from, clip.to == -1 ? null : clip.to, (index, downloaded, _) =>
+                    {
+                        clipProgress[index] = downloaded;
+                        progress.Report((double) clipProgress.Values.Sum( ) / fileSize, clipProgress.Values.Sum( ));
+                    }, config.Cookie, true);
+                    break;
+                }
+                catch (NotSupportedException)
+                {
+                    if (++retry == 3) throw new Exception($"服务器可能并不支持多线程下载, 请使用 --multi-thread false 关闭多线程");
+                }
+                catch (Exception)
+                {
+                    if (++retry == 3) throw new Exception($"Failed to download clip {clip.index}");
+                }
             }
         });
     }
