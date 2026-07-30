@@ -292,9 +292,7 @@ internal static partial class Utils
             using FileStream inputStream = File.OpenRead(inputFilePath);
             // Buffer size can be passed as the second argument.
             inputStream.CopyTo(outputStream);
-            //Console.WriteLine("The file {0} has been processed.", inputFilePath);
         }
-        //Global.ExplorerFile(outputFilePath);
     }
 
     /// <summary>

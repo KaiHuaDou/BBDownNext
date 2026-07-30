@@ -54,7 +54,6 @@ public class FavListFetcher : IFetcher
         foreach (JsonElement m in medias)
         {
             //只处理视频类型(可以直接在query param上指定type=2)
-            // if (m.GetProperty("type").GetInt32() != 2) continue;
             //只处理未失效视频
             if (m.GetProperty("attr").GetInt32( ) != 0) continue;
 

@@ -90,15 +90,6 @@ internal partial class Program
         serverCommand.SetAction(result => StartServer(result.GetValue<string>("--listen")));
         rootCommand.Subcommands.Add(serverCommand);
 
-        //.UseExceptionHandler((ex, context) =>
-        //{
-        //    LogError(ex.Message);
-        //    try { Console.CursorVisible = true; } catch { }
-
-        //    Thread.Sleep(3000);
-        //    Environment.Exit(1);
-        //}, 1)
-
         ParseResult rootResult = rootCommand.Parse(args, new ParserConfiguration( )
         {
             EnablePosixBundling = true,

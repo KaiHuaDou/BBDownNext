@@ -86,7 +86,6 @@ public static class HTTPUtil
             RequestUri = new Uri(Url),
             Method = HttpMethod.Post,
             Content = content,
-            //Version = HttpVersion.Version20
         };
 
         if (headers != null)

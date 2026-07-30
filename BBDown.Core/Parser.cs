@@ -61,7 +61,6 @@ public static partial class Parser
         //课程接口
         if (cheese) api = api.Replace("/pgc/", "/pugv/");
 
-        //Console.WriteLine(api);
         var webJson = await GetWebSourceAsync(api);
         //以下情况从网页源代码尝试解析
         if (webJson.Contains("\"大会员专享限制\""))

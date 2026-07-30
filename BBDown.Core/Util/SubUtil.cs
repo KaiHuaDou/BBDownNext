@@ -170,7 +170,6 @@ public static partial class SubUtil
             "uk" => ("ukr", "Українська"),
             "ur" => ("urd", "Urdu"),
             "vi" => ("vie", "Tiếng Việt"),
-            //太多了，我蚌埠住了，后面懒得查
             //"ie"                => ("", ""),
             //"oc"                => ("",   ""),
             //"or"                => ("",   ""),
@@ -317,11 +316,6 @@ public static partial class SubUtil
             if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
                 throw new Exception("Bad url");
 
-            //无字幕片源 但是字幕没上导致的空列表，尝试从国际接口获取
-            //if (subtitles.Count == 0 && !string.IsNullOrEmpty(epId))
-            //{
-            //    return await GetSubtitlesAsync(aid, cid, epId, true);
-            //}
             return subtitles;
         }
         catch (Exception)
