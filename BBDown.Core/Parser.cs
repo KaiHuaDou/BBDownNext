@@ -464,7 +464,7 @@ public static partial class Parser
         return string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(toEncode)).Select(i => i.ToString("x2")).ToArray( ));
     }
 
-    private static List<string> BuildUrlList(JsonElement node)
+    internal static List<string> BuildUrlList(JsonElement node)
     {
         var urlList = new List<string> { node.GetProperty("base_url").ToString( ) };
         if (node.TryGetProperty("backup_url", out JsonElement element) && element.ValueKind != JsonValueKind.Null)
@@ -472,7 +472,7 @@ public static partial class Parser
         return urlList;
     }
 
-    private static string PickBaseUrl(List<string> urlList)
+    internal static string PickBaseUrl(List<string> urlList)
     {
         return urlList.FirstOrDefault(i => !BaseUrlRegex( ).IsMatch(i), urlList.First( ));
     }

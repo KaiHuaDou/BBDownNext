@@ -9,5 +9,6 @@
     <File Path="README.md" />
   </Folder>
   <Project Path="BBDown.Core/BBDown.Core.csproj" />
+  <Project Path="BBDown.Core.Tests/BBDown.Core.Tests.csproj" />
   <Project Path="BBDown/BBDown.csproj" />
 </Solution>

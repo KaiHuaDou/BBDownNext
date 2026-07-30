@@ -245,6 +245,15 @@ Entity 全 record             // 去 Equals/GetHashCode 样板，行为在模块
 - **可控泄露点**：测试直接调用纯函数，不依赖容器/ mock。
 - **验收**：`dotnet test` 全绿。
 
+#### Phase I 执行记录（已落地）
+- 新增 `BBDown.Core.Tests`（xUnit，net9.0，已加入 BBDown.slnx），28 个测试全绿，覆盖：
+  - `BilibiliBvConverter`：已知映射对（av626497566↔BV1qt4y1X7TW 为本仓库线上实测值、av170001↔BV17x411w7KC）、4 组往返、非法输入抛异常。
+  - `FileNameUtil.GetValidFileName`：非法字符替换、自定义替换符、正反斜杠、控制字符。
+  - `Entity`：Page 仅按 aid/cid/epid 判等、`CopyWith` 语义（desc/points 不复制）、`bvid` 计算属性、Video/Audio 子集等值（排除 baseUrl/size，护住 Phase F 的"不转 record"决策）、`Audio.shortCodecs`。
+  - `Parser.BuildUrlList`（backup_url 缺失/null/合并三态）与 `Parser.PickBaseUrl`（跳过带端口 url、全带端口回退首个）——两函数由 `private` 提为 `internal`，Core 加 `InternalsVisibleTo("BBDown.Core.Tests")`。
+- **主动收敛范围**：`ParseEncodingPriority`/`SortTracks` 在主程序（private static，测它们需再开测试项目+改可见性），`ParseInputId` 在 Phase D 已决策不建（avid 前缀即真源）；按"不追求全量覆盖"原则不为此扩面。
+- **验收状态**：`dotnet test` 28/28 通过；`dotnet build`（含测试项目）0 错误 0 警告。
+
 ### Phase J — 收尾：.editorconfig 增强 + 最终验证
 - **目标**：固化风格，最终交付。
 - **改动**：
