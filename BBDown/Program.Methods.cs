@@ -210,7 +210,7 @@ internal sealed partial class Program
     /// <param name="vInfo"></param>
     /// <param name="input"></param>
     /// <returns></returns>
-    private static List<string>? GetSelectedPages(MyOption myOption, VInfo vInfo, string input)
+    internal static List<string>? GetSelectedPages(MyOption myOption, VInfo vInfo, string input)
     {
         List<string>? selectedPages = null;
         var pagesInfo = vInfo.PagesInfo;

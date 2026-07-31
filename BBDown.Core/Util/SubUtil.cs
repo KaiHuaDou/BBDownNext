@@ -447,7 +447,7 @@ public static partial class SubUtil
         }
     }
 
-    private static string ConvertSubFromJson(string jsonString)
+    internal static string ConvertSubFromJson(string jsonString)
     {
         StringBuilder lines = new( );
         var json = JsonDocument.Parse(jsonString);

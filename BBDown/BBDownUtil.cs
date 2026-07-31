@@ -466,7 +466,7 @@ internal static partial class Utils
         return sub[..sub.LastIndexOf('.')];
     }
 
-    private static string GetMixinKey(string orig)
+    internal static string GetMixinKey(string orig)
     {
         byte[] mixinKeyEncTab =
         [

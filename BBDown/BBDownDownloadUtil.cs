@@ -168,7 +168,7 @@ internal static class BBDownDownloadUtil
     }
 
     //此函数主要是切片下载逻辑
-    private static List<Clip> GetAllClips(string url, long fileSize)
+    internal static List<Clip> GetAllClips(string url, long fileSize)
     {
         List<Clip> clips = [];
         var index = 0;
