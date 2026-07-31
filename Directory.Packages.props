@@ -1,0 +1,23 @@
+<Project>
+
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+        <!-- NU1507 要求配置单一包源或 source mapping；这里不塞仓库级 NuGet.config，以免覆盖使用者自己的镜像源 -->
+        <NoWarn>$(NoWarn);NU1507</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageVersion Include="Google.Protobuf" Version="3.35.1" />
+        <PackageVersion Include="Grpc.Tools" Version="2.82.0" />
+        <PackageVersion Include="QRCoder" Version="1.8.0" />
+        <PackageVersion Include="System.CommandLine" Version="2.0.10" />
+    </ItemGroup>
+
+    <ItemGroup Label="Test">
+        <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+        <PackageVersion Include="xunit.v3" Version="3.2.2" />
+        <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    </ItemGroup>
+
+</Project>

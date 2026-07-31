@@ -1,24 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>library</OutputType>
-        <TargetFramework>net9.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <LangVersion>latest</LangVersion>
-        <Version>2.0</Version>
-    </PropertyGroup>
-    <PropertyGroup>
-        <AnalysisLevel>latest-all</AnalysisLevel>
-        <WarningLevel>8</WarningLevel>
-    </PropertyGroup>
-    <PropertyGroup Condition="$(Configuration)==Debug">
-        <DebugType>full</DebugType>
-    </PropertyGroup>
-    <PropertyGroup Condition="$(Configuration)==Release">
-        <DebugType>none</DebugType>
+        <!-- 主项目的 AOT 配置在 BBDown/Directory.Build.props 里，不覆盖 Core；单独开启才能在编译 Core 时就跑 AOT/Trim 分析器 -->
+        <IsAotCompatible>true</IsAotCompatible>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="Google.Protobuf" Version="3.35.1" />
-        <PackageReference Include="Grpc.Tools" Version="2.82.0">
+        <PackageReference Include="Google.Protobuf" />
+        <PackageReference Include="Grpc.Tools">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>

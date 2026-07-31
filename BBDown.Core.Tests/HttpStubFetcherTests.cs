@@ -12,10 +12,10 @@ using BBDown.Core.Util;
 namespace BBDown.Core.Tests;
 
 // HTTP 桩测试必须串行：它们会替换进程级静态 AppHttpClient，并行会互相踩踏
-[CollectionDefinition("HttpStub")]
-public class HttpStubCollection { }
+[CollectionDefinition]
+public sealed class HttpStubCollectionDefinition;
 
-[Collection("HttpStub")]
+[Collection<HttpStubCollectionDefinition>]
 public class HttpStubFetcherTests
 {
     // 单页收藏夹（2 条视频，均为单 P），只触发一次 HTTP 调用，不依赖 NormalInfoFetcher
@@ -70,10 +70,12 @@ public class HttpStubFetcherTests
     private static async Task<T> WithStubClient<T>(HttpStatusCode status, string body, Func<Task<T>> act)
     {
         var original = HTTPUtil.AppHttpClient;
-        HTTPUtil.AppHttpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(status)
+        using var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(status)
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json")
-        }));
+        });
+        using var client = new HttpClient(handler, disposeHandler: false);
+        HTTPUtil.AppHttpClient = client;
         try
         {
             return await act( );
