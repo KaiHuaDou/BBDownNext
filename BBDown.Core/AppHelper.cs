@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Protobuf;
@@ -51,7 +52,7 @@ internal static class AppHelper
         };
     }
 
-    public static async Task<PlayViewReply> DoReqAsync(string aid, string cid, string epId, bool bangumi, string encoding, AppConfig cfg, string appkey = "")
+    public static async Task<PlayViewReply> DoReqAsync(string aid, string cid, string epId, bool bangumi, string encoding, AppConfig cfg, string appkey = "", CancellationToken ct = default)
     {
         var headers = GetHeader(appkey, cfg);
         LogDebug("App-Req-Headers: {0}", JsonSerializer.Serialize(headers, JsonContext.Default.DictionaryStringString));
@@ -65,12 +66,12 @@ internal static class AppHelper
             }
 
             var body = GetPayload(Convert.ToInt64(epId), Convert.ToInt64(cid), PlayViewReq.Types.CodeType.Code265);
-            data = await GetPostResponseAsync(API2, body, headers);
+            data = await GetPostResponseAsync(API2, body, headers, ct);
         }
         else
         {
             var body = GetPayload(Convert.ToInt64(aid), Convert.ToInt64(cid), GetVideoCodeType(encoding));
-            data = await GetPostResponseAsync(API, body, headers);
+            data = await GetPostResponseAsync(API, body, headers, ct);
         }
 
         return ReplyParser.ParseFrom(ReadMessage(data));

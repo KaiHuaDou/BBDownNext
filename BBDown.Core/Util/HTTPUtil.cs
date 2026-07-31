@@ -199,7 +199,7 @@ public static partial class HTTPUtil
             throw new HttpRequestException($"gRPC 请求失败: HTTP {(int) response.StatusCode} {response.ReasonPhrase}", null, response.StatusCode);
         }
 
-        var bytes = await response.Content.ReadAsByteArrayAsync( );
+        var bytes = await response.Content.ReadAsByteArrayAsync(ct);
 
         // grpc-status 可能出现在响应头, 也可能出现在读完 body 后的 trailer 中
         var status = ReadGrpcMeta(response, "grpc-status");

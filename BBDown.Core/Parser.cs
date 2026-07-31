@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
@@ -43,13 +44,13 @@ public static partial class Parser
         return $"{api}&w_rid=" + string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(api + cfg.Wbi)).Select(i => i.ToString("x2")).ToArray( ));
     }
 
-    private static async Task<string> GetPlayJsonAsync(PlayUrlRequest req, string qn = "0")
+    private static async Task<string> GetPlayJsonAsync(PlayUrlRequest req, string qn = "0", CancellationToken ct = default)
     {
         LogDebug("aid={0},cid={1},epId={2},tvApi={3},IntlApi={4},qn={5}", req.Aid, req.Cid, req.EpId, req.TvApi, req.IntlApi, qn);
 
         if (req.IntlApi)
         {
-            return await GetIntlPlayJsonAsync(req.Aid, req.Cid, req.EpId, qn, req.Cfg);
+            return await GetIntlPlayJsonAsync(req.Aid, req.Cid, req.EpId, qn, req.Cfg, ct: ct);
         }
 
         LogDebug("bangumi={0},cheese={1}", req.IsBangumi, req.IsCheese);
@@ -57,7 +58,7 @@ public static partial class Parser
         var api = BuildPlayUrlPrefix(req.TvApi, req.IsBangumi, req.IsCheese, req.Cfg.TvHost, req.Cfg.Host)
             + (req.TvApi ? BuildTvApiQuery(req, qn) : BuildWebApiQuery(req, qn));
 
-        var webJson = await GetWebSourceAsync(api, req.Cfg);
+        var webJson = await GetWebSourceAsync(api, req.Cfg, null, ct);
         if (!IsVipRestricted(webJson))
         {
             return webJson;
@@ -65,7 +66,7 @@ public static partial class Parser
 
         //大会员专享限制时从网页源代码尝试解析
         Log("此视频需要大会员，您大概率需要登录一个有大会员的账号才可以下载，尝试从网页源码解析。");
-        return await GetPlayJsonFromWebPageAsync(req);
+        return await GetPlayJsonFromWebPageAsync(req, ct);
     }
 
     // playurl 接口对大会员限制没有专用错误码，只能认 message 文案；不同端点分别用 message / msg
@@ -99,12 +100,12 @@ public static partial class Parser
     // 大会员专享限制时, 改从网页源码抠 window.__playinfo__。
     // 与正常 API 路径解耦为独立方法, 并按 cheese / 番剧构造正确的播放页地址,
     // 匹配失败时抛明确异常(而非返回空串导致后续 JSON 解析报莫名其妙的错)。
-    private static async Task<string> GetPlayJsonFromWebPageAsync(PlayUrlRequest req)
+    private static async Task<string> GetPlayJsonFromWebPageAsync(PlayUrlRequest req, CancellationToken ct = default)
     {
         var pageUrl = req.IsCheese
             ? $"{BiliApi.CheesePlayPage}/ep{req.EpId}"
             : $"{BiliApi.BangumiPlayPage}/ep{req.EpId}";
-        var webSource = await GetWebSourceAsync(pageUrl, req.Cfg);
+        var webSource = await GetWebSourceAsync(pageUrl, req.Cfg, null, ct);
         var match = PlayerJsonRegex( ).Match(webSource);
         if (!match.Success)
         {
@@ -170,7 +171,7 @@ public static partial class Parser
         return req.IsBangumi ? query.ToString( ) : WbiSign(query.ToString( ), req.Cfg);
     }
 
-    private static async Task<string> GetIntlPlayJsonAsync(string aid, string cid, string epId, string qn, AppConfig cfg, string code = "0")
+    private static async Task<string> GetIntlPlayJsonAsync(string aid, string cid, string epId, string qn, AppConfig cfg, string code = "0", CancellationToken ct = default)
     {
         var isBiliPlus = cfg.Host != BiliApi.MainHost;
         var api = $"https://{(isBiliPlus ? cfg.Host : BiliApi.IntlWebHost)}{BiliApi.IntlPlayUrlPath}?";
@@ -195,23 +196,23 @@ public static partial class Parser
 
         query.Append("&s_locale=zh_SG");
         var param = query.ToString( );
-        return await GetWebSourceAsync(api + (isBiliPlus ? $"{param}&sign={GetSign(param, true)}" : param), cfg);
+        return await GetWebSourceAsync(api + (isBiliPlus ? $"{param}&sign={GetSign(param, true)}" : param), cfg, null, ct);
     }
 
-    public static async Task<ParsedResult> ExtractTracksAsync(string aidOri, string aid, string cid, string epId, bool tvApi, bool intlApi, bool appApi, string encoding, AppConfig cfg, string qn = "0")
+    public static async Task<ParsedResult> ExtractTracksAsync(string aidOri, string aid, string cid, string epId, bool tvApi, bool intlApi, bool appApi, string encoding, AppConfig cfg, string qn = "0", CancellationToken ct = default)
     {
         PlayUrlRequest req = new(aidOri, aid, cid, epId, tvApi, intlApi, appApi, encoding, cfg);
 
         // intl 与 app 同时指定时沿用 intl, 与 GetPlayJsonAsync 的优先级保持一致
         if (req.AppApi && !req.IntlApi)
         {
-            return await ExtractAppTracksAsync(req);
+            return await ExtractAppTracksAsync(req, ct);
         }
 
         ParsedResult parsedResult = new( )
         {
             //调用解析
-            RawResponse = await GetPlayJsonAsync(req, qn)
+            RawResponse = await GetPlayJsonAsync(req, qn, ct)
         };
 
         LogDebug(parsedResult.RawResponse);
@@ -225,7 +226,7 @@ public static partial class Parser
             CollectIntlTracks(parsedResult, videoInfo);
             if (intlAttempt == 1) return parsedResult;
 
-            parsedResult.RawResponse = await GetIntlPlayJsonAsync(aid, cid, epId, qn, cfg, "1");
+            parsedResult.RawResponse = await GetIntlPlayJsonAsync(aid, cid, epId, qn, cfg, "1", ct);
         }
 
         using var doc = JsonDocument.Parse(parsedResult.RawResponse);
@@ -235,11 +236,11 @@ public static partial class Parser
 
         if (HasObject(root, "dash"))
         {
-            root = await ExtractDashTracksAsync(parsedResult, req, root, nodeName);
+            root = await ExtractDashTracksAsync(parsedResult, req, root, nodeName, ct);
         }
         else if (TryGetArray(root, "durl", out _))
         {
-            root = await ExtractFlvTracksAsync(parsedResult, req, nodeName);
+            root = await ExtractFlvTracksAsync(parsedResult, req, nodeName, ct);
         }
 
         if (req.IsEpisode)
@@ -322,14 +323,14 @@ public static partial class Parser
         }
     }
 
-    private static async Task<JsonElement> ExtractDashTracksAsync(ParsedResult parsedResult, PlayUrlRequest req, JsonElement root, string? nodeName)
+    private static async Task<JsonElement> ExtractDashTracksAsync(ParsedResult parsedResult, PlayUrlRequest req, JsonElement root, string? nodeName, CancellationToken ct = default)
     {
         var pDur = ReadDashDuration(root);
         CollectDashVideoTracks(parsedResult, root, pDur, req.TvApi);
 
         //此处处理免二压视频，需要单独再请求一次；视频轨取两次的并集，音轨只取重新请求后的结果
         var firstRoot = root;
-        parsedResult.RawResponse = await GetPlayJsonAsync(req, Config.MaxQn);
+        parsedResult.RawResponse = await GetPlayJsonAsync(req, Config.MaxQn, ct);
         using var maxQnDoc = JsonDocument.Parse(parsedResult.RawResponse);
         // Clone 后节点脱离 maxQnDoc 独立存活, 可以安全返回给调用方
         root = GetRootNode(maxQnDoc.RootElement, nodeName).Clone( );
@@ -423,10 +424,10 @@ public static partial class Parser
         }
     }
 
-    private static async Task<JsonElement> ExtractFlvTracksAsync(ParsedResult parsedResult, PlayUrlRequest req, string? nodeName)
+    private static async Task<JsonElement> ExtractFlvTracksAsync(ParsedResult parsedResult, PlayUrlRequest req, string? nodeName, CancellationToken ct = default)
     {
         //默认以最高清晰度解析
-        parsedResult.RawResponse = await GetPlayJsonAsync(req, Config.MaxQn);
+        parsedResult.RawResponse = await GetPlayJsonAsync(req, Config.MaxQn, ct);
         using var doc = JsonDocument.Parse(parsedResult.RawResponse);
         // Clone 后节点脱离 doc 独立存活, 可以安全返回给调用方
         var root = GetRootNode(doc.RootElement, nodeName).Clone( );
