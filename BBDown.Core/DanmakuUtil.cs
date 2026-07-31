@@ -128,7 +128,7 @@ public static class DanmakuUtil
         await File.WriteAllTextAsync(outputPath, sb.ToString( ), Encoding.UTF8);
     }
 
-    protected class PositionController
+    internal class PositionController
     {
         private readonly int maxLine = MONITOR_HEIGHT * PROTECT_LENGTH / FONT_SIZE / 100;    //总行数
         // 三个位置的弹幕队列，记录弹幕结束时间
@@ -215,12 +215,12 @@ public static class DanmakuUtil
             Timestamp = attrs[4];
             Content = content;
         }
-        private static string ComputeTime(double second)
+        internal static string ComputeTime(double second)
         {
-            var hour = (int) second / 3600;
-            var minute = (int) (second - hour * 3600) / 60;
-            second -= hour * 3600 + minute * 60;
-            return hour.ToString( ) + string.Format(":{0:D2}:", minute) + string.Format("{0:00.00}", second);
+            // 先量化到厘秒再拆分，否则末尾格式化的进位会溢出成 0:59:60.00 这种非法时间戳
+            var total = (long) Math.Round(second * 100, MidpointRounding.AwayFromZero);
+            if (total < 0) total = 0;
+            return $"{total / 360000}:{total % 360000 / 6000:D2}:{total % 6000 / 100.0:00.00}";
         }
         public string Content { get; set; } = "";
         // 弹幕内容
