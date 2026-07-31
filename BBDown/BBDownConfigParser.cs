@@ -30,7 +30,7 @@ internal static class BBDownConfigParser
             if (!File.Exists(configPath)) return cliArgs;
 
             Log($"加载配置文件：{configPath}");
-            var configResult = rootCommand.Parse(ReadTokens(configPath));
+            var configResult = rootCommand.Parse(TokenizeConfigLines(configPath));
             var specified = cliResult.CommandResult.Children
                 .OfType<OptionResult>( )
                 .Where(o => !o.Implicit)
@@ -65,12 +65,14 @@ internal static class BBDownConfigParser
         }
     }
 
-    private static string[] ReadTokens(string configPath)
+    // 配置行 → argv token 的纯函数：跳过空行与 # 注释；带空格的 `-x y` 拆成两项并去引号；
+    // 不带空格的 `-x` / 整行被引号包住的情况原样去引号返回
+    internal static string[] TokenizeConfigLines(string configPath)
     {
         return
         [
             .. File.ReadAllLines(configPath)
-                .Where(s => !string.IsNullOrEmpty(s) && !s.StartsWith('#'))
+                .Where(s => !string.IsNullOrWhiteSpace(s) && !s.TrimStart( ).StartsWith('#'))
                 .SelectMany(s =>
                 {
                     var trimLine = s.Trim( );
