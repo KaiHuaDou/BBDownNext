@@ -452,12 +452,18 @@ internal static partial class Utils
         return sb.ToString( );
     }
 
-    public static string? FindExecutable(string name)
+    /// <summary>
+    /// 按 APP_DIR → PATH 的顺序查找可执行文件。刻意不搜索当前工作目录，
+    /// 否则在下载目录里放一个同名程序即可劫持 ffmpeg/aria2c 调用。
+    /// </summary>
+    public static string? FindExecutable(params string[] names)
     {
         var fileExt = OperatingSystem.IsWindows( ) ? ".exe" : "";
-        var searchPath = new[] { Environment.CurrentDirectory, Program.APP_DIR };
         var envPath = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? [];
-        return searchPath.Concat(envPath).Select(p => Path.Combine(p, name + fileExt)).FirstOrDefault(File.Exists);
+        return new[] { Program.APP_DIR }.Concat(envPath)
+            .Where(dir => !string.IsNullOrWhiteSpace(dir))
+            .SelectMany(dir => names.Select(name => Path.Combine(dir, name + fileExt)))
+            .FirstOrDefault(File.Exists);
     }
 
     public static string RSubString(string sub)

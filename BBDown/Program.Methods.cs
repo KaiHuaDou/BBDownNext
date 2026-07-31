@@ -116,7 +116,7 @@ internal sealed partial class Program
 
             if (string.IsNullOrEmpty(BBDownMuxer.MP4BOX) || !File.Exists(BBDownMuxer.MP4BOX))
             {
-                var binPath = FindExecutable("mp4box") ?? FindExecutable("MP4box");
+                var binPath = FindExecutable("mp4box", "MP4Box", "MP4box");
                 if (!string.IsNullOrEmpty(binPath)) BBDownMuxer.MP4BOX = binPath;
             }
 
