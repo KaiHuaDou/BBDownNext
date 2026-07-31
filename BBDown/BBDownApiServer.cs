@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
@@ -23,8 +24,8 @@ namespace BBDown;
 public class BBDownApiServer
 {
     private WebApplication? app;
-    private readonly List<DownloadTask> runningTasks = [];
-    private readonly List<DownloadTask> finishedTasks = [];
+    private readonly ConcurrentDictionary<string, DownloadTask> runningTasks = new( );
+    private readonly ConcurrentDictionary<string, DownloadTask> finishedTasks = new( );
 
     public void SetUpServer( )
     {
@@ -44,15 +45,12 @@ public class BBDownApiServer
         app = builder.Build( );
         app.UseCors("AllowAnyOrigin");
         var taskStatusApi = app.MapGroup("/get-tasks");
-        taskStatusApi.MapGet("/", handler: ( ) => Results.Json(new DownloadTaskSnapshot(runningTasks, finishedTasks), AppJsonSerializerContext.Default.DownloadTaskSnapshot));
-        taskStatusApi.MapGet("/running", handler: ( ) => Results.Json(runningTasks, AppJsonSerializerContext.Default.ListDownloadTask));
-        taskStatusApi.MapGet("/finished", handler: ( ) => Results.Json(finishedTasks, AppJsonSerializerContext.Default.ListDownloadTask));
+        taskStatusApi.MapGet("/", handler: ( ) => Results.Json(new DownloadTaskSnapshot(Snapshot(runningTasks), Snapshot(finishedTasks)), AppJsonSerializerContext.Default.DownloadTaskSnapshot));
+        taskStatusApi.MapGet("/running", handler: ( ) => Results.Json(Snapshot(runningTasks), AppJsonSerializerContext.Default.ListDownloadTask));
+        taskStatusApi.MapGet("/finished", handler: ( ) => Results.Json(Snapshot(finishedTasks), AppJsonSerializerContext.Default.ListDownloadTask));
         taskStatusApi.MapGet("/{id}", (string id) =>
         {
-            var task = finishedTasks.FirstOrDefault(a => a.Aid == id);
-            var rtask = runningTasks.FirstOrDefault(a => a.Aid == id);
-            if (rtask is not null) task = rtask;
-            if (task is null)
+            if (!runningTasks.TryGetValue(id, out var task) && !finishedTasks.TryGetValue(id, out task))
             {
                 return Results.NotFound( );
             }
@@ -94,10 +92,20 @@ public class BBDownApiServer
             return Results.Ok( );
         });
         var finishedRemovalApi = app.MapGroup("remove-finished");
-        finishedRemovalApi.MapGet("/", ( ) => { finishedTasks.RemoveAll(t => true); return Results.Ok( ); });
-        finishedRemovalApi.MapGet("/failed", ( ) => { finishedTasks.RemoveAll(t => !t.IsSuccessful); return Results.Ok( ); });
-        finishedRemovalApi.MapGet("/{id}", (string id) => { finishedTasks.RemoveAll(t => t.Aid == id); return Results.Ok( ); });
+        finishedRemovalApi.MapGet("/", ( ) => { finishedTasks.Clear( ); return Results.Ok( ); });
+        finishedRemovalApi.MapGet("/failed", ( ) =>
+        {
+            foreach (var (aid, t) in finishedTasks)
+            {
+                if (!t.IsSuccessful) finishedTasks.TryRemove(aid, out _);
+            }
+
+            return Results.Ok( );
+        });
+        finishedRemovalApi.MapGet("/{id}", (string id) => { finishedTasks.TryRemove(id, out _); return Results.Ok( ); });
     }
+
+    private static List<DownloadTask> Snapshot(ConcurrentDictionary<string, DownloadTask> tasks) => [.. tasks.Values];
 
     public void Run(Uri url)
     {
@@ -129,15 +137,13 @@ public class BBDownApiServer
     {
         var (cookie, token) = CredentialStore.LoadAll(option.Cookie, option.AccessToken, option.UseTvApi, option.UseAppApi);
         var aid = await Utils.GetAvIdAsync(option.Url, new AppConfig(cookie, token, option.Host, option.EpHost, option.TvHost, option.Area, ""));
-        var runningTask = runningTasks.FirstOrDefault(task => task.Aid == aid);
-        if (runningTask is not null)
+        var task = new DownloadTask(aid, option.Url, DateTimeOffset.Now.ToUnixTimeMilliseconds( ));
+        var claimed = runningTasks.GetOrAdd(aid, task);
+        if (!ReferenceEquals(claimed, task))
         {
-            return runningTask;
+            return claimed;
         }
 
-        ;
-        var task = new DownloadTask(aid, option.Url, DateTimeOffset.Now.ToUnixTimeSeconds( ));
-        runningTasks.Add(task);
         try
         {
             var taskCtx = Program.BuildWorkContext(option);
@@ -159,15 +165,16 @@ public class BBDownApiServer
             Console.WriteLine( );
         }
 
-        task.TaskFinishTime = DateTimeOffset.Now.ToUnixTimeSeconds( );
+        task.TaskFinishTime = DateTimeOffset.Now.ToUnixTimeMilliseconds( );
         if (task.IsSuccessful)
         {
             task.Progress = 1f;
-            task.DownloadSpeed = (double) (task.TotalDownloadedBytes / (task.TaskFinishTime - task.TaskCreateTime));
+            var elapsedMs = task.TaskFinishTime.Value - task.TaskCreateTime;
+            task.DownloadSpeed = elapsedMs > 0 ? task.TotalDownloadedBytes * 1000 / elapsedMs : 0;
         }
 
-        runningTasks.Remove(task);
-        finishedTasks.Add(task);
+        runningTasks.TryRemove(aid, out _);
+        finishedTasks[aid] = task;
         return task;
     }
 }

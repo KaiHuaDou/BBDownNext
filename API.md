@@ -95,13 +95,13 @@
 `DownloadTask` 数据结构表示一个下载任务的信息。
 
 **属性：**
-- `Aid` `<string>`: 视频解析出的Aid，用作正在下载中的任务的唯一标识符，已完成任务中允许重复存在
+- `Aid` `<string>`: 视频解析出的Aid，用作任务的唯一标识符。同一 Aid 在运行中与已完成列表内各自唯一，重复提交同一 Aid 会直接返回已有的运行中任务。
 - `Url` `<string>`: 下载任务请求时的URL，不一定需要完整的URL，命令行支持的`av|bv|BV|ep|ss`都可以在这里使用。
-- `TaskCreateTime` `<long>`: 任务创建时间，Unix时间戳，精确到秒，本机时区。
+- `TaskCreateTime` `<long>`: 任务创建时间，Unix时间戳，**精确到毫秒**，本机时区。
 - `Title` `<string?>`: 视频的标题。
 - `Pic` `<string?>`: 视频的封面图片链接。
 - `VideoPubTime` `<long?>`: 视频发布时间，Unix时间戳，精确到秒。
-- `TaskFinishTime` `<long?>`: 任务完成时间，Unix时间戳，精确到秒，本机时区。
+- `TaskFinishTime` `<long?>`: 任务完成时间，Unix时间戳，**精确到毫秒**，本机时区。
 - `Progress` `<double>`: 任务的下载进度，为0-1区间范围的小数。
 - `DownloadSpeed` `<double>`: 下载速度, 单位为Byte/s。下载中时为最后一次更新的实时速度，下载完成后为平均速度。
 - `TotalDownloadedBytes` `<double>`: 总下载字节(Byte)数，完成后的数字比实际文件偏小。
