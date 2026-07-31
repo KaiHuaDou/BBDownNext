@@ -79,10 +79,14 @@ internal sealed partial class Program
         {
             new Option<string>("--listen", "-l")
             {
-                Description = "服务器监听地址"
+                Description = "服务器监听地址，默认 http://127.0.0.1:23333；该接口无任何认证，切勿暴露公网"
+            },
+            new Option<string>("--work-dir")
+            {
+                Description = "所有任务的工作目录，请求中的同名字段会被忽略"
             }
         };
-        serverCommand.SetAction(result => StartServer(result.GetValue<string>("--listen")));
+        serverCommand.SetAction(result => StartServer(result.GetValue<string>("--listen"), result.GetValue<string>("--work-dir")));
         rootCommand.Subcommands.Add(serverCommand);
 
         var parserConfiguration = new ParserConfiguration( )
@@ -131,11 +135,11 @@ internal sealed partial class Program
         return DoWorkAsync(myOption);
     }
 
-    private static void StartServer(string? listenUrl)
+    private static void StartServer(string? listenUrl, string? workDir)
     {
-        var defaultListenUrl = "http://0.0.0.0:23333";
+        var defaultListenUrl = "http://127.0.0.1:23333";
         var server = new BBDownApiServer( );
-        server.SetUpServer( );
+        server.SetUpServer(workDir);
 #pragma warning disable CA2234 // 保留 Run(string) 内的 URL 合法性校验与友好退出
         server.Run(string.IsNullOrEmpty(listenUrl) ? defaultListenUrl : listenUrl);
 #pragma warning restore CA2234

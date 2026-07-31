@@ -4,6 +4,9 @@
 
 如果以服务器模式启动BBDown，BBDown会在本地启动一个http server，该服务器有以下API：
 
+> **⚠️ 该接口没有任何认证机制，默认只监听 `http://127.0.0.1:23333`，切勿直接暴露到公网。**
+> 需要跨机器访问时请自行加反向代理与鉴权，并显式指定 `serve -l http://0.0.0.0:23333`。
+
 ### 获取任务列表
 **Endpoint:** `/get-tasks/`
 
@@ -51,6 +54,8 @@
 **Description:** 向任务列表中添加新任务。
 
 **Request Body:** JSON格式的任务信息，需要符合`MyOption`数据结构。并不要求带有MyOption中的每一个字段，只需要有`Url`字段就够了。
+
+出于安全考虑，以下字段会被**忽略**，一律以服务端启动时的配置为准：`FFmpegPath`、`Mp4boxPath`、`Aria2cPath`、`Aria2cArgs`、`WorkDir`。其中工作目录请在启动服务时用 `serve --work-dir` 指定，ffmpeg / mp4box / aria2c 请放在 BBDown 同目录或 `PATH` 中。
 
 **Response:**
 - 如果请求有效并成功添加任务，将返回200 OK。

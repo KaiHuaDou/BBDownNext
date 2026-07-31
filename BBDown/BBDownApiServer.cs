@@ -24,12 +24,27 @@ namespace BBDown;
 public class BBDownApiServer
 {
     private WebApplication? app;
+    private string serveWorkDir = "";
     private readonly ConcurrentDictionary<string, DownloadTask> runningTasks = new( );
     private readonly ConcurrentDictionary<string, DownloadTask> finishedTasks = new( );
 
-    public void SetUpServer( )
+    /// <summary>
+    /// serve 模式没有任何认证，这几个字段直接决定被拉起的进程及其参数与落盘位置，
+    /// 接受请求注入等同于把远程命令执行开放给任何能访问该端口的人，故一律以服务端配置为准
+    /// </summary>
+    private void OverrideHostControlledOptions(ServeRequestOptions option)
+    {
+        option.FFmpegPath = "";
+        option.Mp4boxPath = "";
+        option.Aria2cPath = "";
+        option.Aria2cArgs = "";
+        option.WorkDir = serveWorkDir;
+    }
+
+    public void SetUpServer(string? workDir = null)
     {
         if (app is not null) return;
+        serveWorkDir = workDir ?? "";
         var builder = WebApplication.CreateSlimBuilder( );
         builder.Services.ConfigureHttpJsonOptions((options) => options.SerializerOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(options.SerializerOptions.TypeInfoResolver, AppJsonSerializerContext.Default));
         builder.Services.AddCors((options) =>
@@ -66,6 +81,7 @@ public class BBDownApiServer
             }
 
             var req = bindingResult.Result!;
+            OverrideHostControlledOptions(req);
             _ = AddDownloadTaskAsync(req)
                 .ContinueWith(async task =>
                 {
