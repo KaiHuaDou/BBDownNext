@@ -17,485 +17,519 @@ namespace BBDown.Core;
 
 public static partial class Parser
 {
+    // 收拢 playurl 请求参数，避免在解析各分支间逐层透传 9 个形参
+    private readonly record struct PlayUrlRequest(
+        string AidOri,
+        string Aid,
+        string Cid,
+        string EpId,
+        bool TvApi,
+        bool IntlApi,
+        bool AppApi,
+        string Encoding,
+        AppConfig Cfg)
+    {
+        public bool IsCheese => AidOri.StartsWith("cheese:");
+
+        public bool IsEpisode => AidOri.StartsWith("ep:");
+
+        public bool IsBangumi => IsCheese || IsEpisode;
+    }
+
     // CA5351: MD5 由 B 站 wbi 签名协议规定，哈希值必须与服务端保持一致，不能替换为 SHA256
     public static string WbiSign(string api, AppConfig cfg)
     {
         return $"{api}&w_rid=" + string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(api + cfg.Wbi)).Select(i => i.ToString("x2")).ToArray( ));
     }
 
-    private static async Task<string> GetPlayJsonAsync(string encoding, string aidOri, string aid, string cid, string epId, bool tvApi, bool intl, bool appApi, AppConfig cfg, string qn = "0")
+    private static async Task<string> GetPlayJsonAsync(PlayUrlRequest req, string qn = "0")
     {
-        LogDebug("aid={0},cid={1},epId={2},tvApi={3},IntlApi={4},appApi={5},qn={6}", aid, cid, epId, tvApi, intl, appApi, qn);
+        LogDebug("aid={0},cid={1},epId={2},tvApi={3},IntlApi={4},appApi={5},qn={6}", req.Aid, req.Cid, req.EpId, req.TvApi, req.IntlApi, req.AppApi, qn);
 
-        if (intl)
+        if (req.IntlApi)
         {
-            return await GetPlayJsonAsync(aid, cid, epId, qn, cfg);
+            return await GetIntlPlayJsonAsync(req.Aid, req.Cid, req.EpId, qn, req.Cfg);
         }
 
-        var cheese = aidOri.StartsWith("cheese:");
-        var bangumi = cheese || aidOri.StartsWith("ep:");
-        LogDebug("bangumi={0},cheese={1}", bangumi, cheese);
+        LogDebug("bangumi={0},cheese={1}", req.IsBangumi, req.IsCheese);
 
-        if (appApi)
+        if (req.AppApi)
         {
-            return await AppHelper.DoReqAsync(aid, cid, epId, qn, bangumi, encoding, cfg);
+            return await AppHelper.DoReqAsync(req.Aid, req.Cid, req.EpId, qn, req.IsBangumi, req.Encoding, req.Cfg);
         }
 
-        var prefix = tvApi ? bangumi ? $"{cfg.TvHost}/pgc/player/api/playurltv" : $"{cfg.TvHost}/x/tv/playurl"
-            : bangumi ? $"{cfg.Host}/pgc/player/web/v2/playurl" : "api.bilibili.com/x/player/wbi/playurl";
-        prefix = $"https://{prefix}?";
-
-        string api;
-        if (tvApi)
-        {
-            StringBuilder apiBuilder = new( );
-            if (cfg.Token.Length != 0)
-            {
-                apiBuilder.Append($"access_key={cfg.Token}&");
-            }
-
-            apiBuilder.Append($"appkey=4409e2ce8ffd12b8&build=106500&cid={cid}&device=android");
-            if (bangumi)
-            {
-                apiBuilder.Append($"&ep_id={epId}&expire=0");
-            }
-
-            apiBuilder.Append("&fnval=4048&fnver=0&fourk=1&mid=0&mobi_app=android_tv_yst");
-            apiBuilder.Append($"&object_id={aid}&platform=android&playurl_type=1&qn={qn}&ts={GetTimeStamp(true)}");
-            api = $"{prefix}{apiBuilder}&sign={GetSign(apiBuilder.ToString( ), false)}";
-        }
-        else
-        {
-            // 尝试提高可读性
-            StringBuilder apiBuilder = new( );
-            apiBuilder.Append($"support_multi_audio=true&from_client=BROWSER&avid={aid}&cid={cid}&fnval=4048&fnver=0&fourk=1");
-            if (cfg.Area.Length != 0)
-            {
-                apiBuilder.Append($"&access_key={cfg.Token}&area={cfg.Area}");
-            }
-
-            apiBuilder.Append($"&otype=json&qn={qn}");
-            if (bangumi)
-            {
-                apiBuilder.Append($"&module=bangumi&ep_id={epId}&session=");
-            }
-
-            if (cfg.Cookie.Length == 0)
-            {
-                apiBuilder.Append("&try_look=1");
-            }
-
-            apiBuilder.Append($"&wts={GetTimeStamp(true)}");
-            api = prefix + (bangumi ? apiBuilder.ToString( ) : WbiSign(apiBuilder.ToString( ), cfg));
-        }
+        var api = BuildPlayUrlPrefix(req.TvApi, req.IsBangumi, req.Cfg.TvHost, req.Cfg.Host)
+            + (req.TvApi ? BuildTvApiQuery(req, qn) : BuildWebApiQuery(req, qn));
 
         //课程接口
-        if (cheese)
+        if (req.IsCheese)
         {
             api = api.Replace("/pgc/", "/pugv/");
         }
 
-        var webJson = await GetWebSourceAsync(api, cfg);
-        //以下情况从网页源代码尝试解析
-        if (webJson.Contains("\"大会员专享限制\""))
+        var webJson = await GetWebSourceAsync(api, req.Cfg);
+        if (!webJson.Contains("\"大会员专享限制\""))
         {
-            Log("此视频需要大会员，您大概率需要登录一个有大会员的账号才可以下载，尝试从网页源码解析");
-            var webUrl = "https://www.bilibili.com/bangumi/play/ep" + epId;
-            var webSource = await GetWebSourceAsync(webUrl, cfg);
-            webJson = PlayerJsonRegex( ).Match(webSource).Groups[1].Value;
+            return webJson;
         }
 
-        return webJson;
+        //大会员专享限制时从网页源代码尝试解析
+        Log("此视频需要大会员，您大概率需要登录一个有大会员的账号才可以下载，尝试从网页源码解析");
+        var webSource = await GetWebSourceAsync("https://www.bilibili.com/bangumi/play/ep" + req.EpId, req.Cfg);
+        return PlayerJsonRegex( ).Match(webSource).Groups[1].Value;
     }
 
-    private static async Task<string> GetPlayJsonAsync(string aid, string cid, string epId, string qn, AppConfig cfg, string code = "0")
+    internal static string BuildPlayUrlPrefix(bool tvApi, bool bangumi, string tvHost, string host)
+    {
+        var prefix = (tvApi, bangumi) switch
+        {
+            (true, true) => $"{tvHost}/pgc/player/api/playurltv",
+            (true, false) => $"{tvHost}/x/tv/playurl",
+            (false, true) => $"{host}/pgc/player/web/v2/playurl",
+            (false, false) => "api.bilibili.com/x/player/wbi/playurl"
+        };
+        return $"https://{prefix}?";
+    }
+
+    private static string BuildTvApiQuery(PlayUrlRequest req, string qn)
+    {
+        StringBuilder query = new( );
+        if (req.Cfg.Token.Length != 0)
+        {
+            query.Append($"access_key={req.Cfg.Token}&");
+        }
+
+        query.Append($"appkey=4409e2ce8ffd12b8&build=106500&cid={req.Cid}&device=android");
+        if (req.IsBangumi)
+        {
+            query.Append($"&ep_id={req.EpId}&expire=0");
+        }
+
+        query.Append("&fnval=4048&fnver=0&fourk=1&mid=0&mobi_app=android_tv_yst");
+        query.Append($"&object_id={req.Aid}&platform=android&playurl_type=1&qn={qn}&ts={GetTimeStamp(true)}");
+        return $"{query}&sign={GetSign(query.ToString( ), false)}";
+    }
+
+    private static string BuildWebApiQuery(PlayUrlRequest req, string qn)
+    {
+        StringBuilder query = new( );
+        query.Append($"support_multi_audio=true&from_client=BROWSER&avid={req.Aid}&cid={req.Cid}&fnval=4048&fnver=0&fourk=1");
+        if (req.Cfg.Area.Length != 0)
+        {
+            query.Append($"&access_key={req.Cfg.Token}&area={req.Cfg.Area}");
+        }
+
+        query.Append($"&otype=json&qn={qn}");
+        if (req.IsBangumi)
+        {
+            query.Append($"&module=bangumi&ep_id={req.EpId}&session=");
+        }
+
+        if (req.Cfg.Cookie.Length == 0)
+        {
+            query.Append("&try_look=1");
+        }
+
+        query.Append($"&wts={GetTimeStamp(true)}");
+        return req.IsBangumi ? query.ToString( ) : WbiSign(query.ToString( ), req.Cfg);
+    }
+
+    private static async Task<string> GetIntlPlayJsonAsync(string aid, string cid, string epId, string qn, AppConfig cfg, string code = "0")
     {
         var isBiliPlus = cfg.Host != "api.bilibili.com";
         var api = $"https://{(isBiliPlus ? cfg.Host : "api.biliintl.com")}/intl/gateway/v2/ogv/playurl?";
 
-        StringBuilder paramBuilder = new( );
+        StringBuilder query = new( );
         if (cfg.Token.Length != 0)
         {
-            paramBuilder.Append($"access_key={cfg.Token}&");
+            query.Append($"access_key={cfg.Token}&");
         }
 
-        paramBuilder.Append($"aid={aid}");
+        query.Append($"aid={aid}");
         if (isBiliPlus)
         {
-            paramBuilder.Append($"&appkey=7d089525d3611b1c&area={(cfg.Area.Length == 0 ? "th" : cfg.Area)}");
+            query.Append($"&appkey=7d089525d3611b1c&area={(cfg.Area.Length == 0 ? "th" : cfg.Area)}");
         }
 
-        paramBuilder.Append($"&cid={cid}&ep_id={epId}&platform=android&prefer_code_type={code}&qn={qn}");
+        query.Append($"&cid={cid}&ep_id={epId}&platform=android&prefer_code_type={code}&qn={qn}");
         if (isBiliPlus)
         {
-            paramBuilder.Append($"&ts={GetTimeStamp(true)}");
+            query.Append($"&ts={GetTimeStamp(true)}");
         }
 
-        paramBuilder.Append("&s_locale=zh_SG");
-        var param = paramBuilder.ToString( );
-        api += isBiliPlus ? $"{param}&sign={GetSign(param, true)}" : param;
-
-        var webJson = await GetWebSourceAsync(api, cfg);
-        return webJson;
+        query.Append("&s_locale=zh_SG");
+        var param = query.ToString( );
+        return await GetWebSourceAsync(api + (isBiliPlus ? $"{param}&sign={GetSign(param, true)}" : param), cfg);
     }
 
     public static async Task<ParsedResult> ExtractTracksAsync(string aidOri, string aid, string cid, string epId, bool tvApi, bool intlApi, bool appApi, string encoding, AppConfig cfg, string qn = "0")
     {
-        var intlCode = "0";
+        PlayUrlRequest req = new(aidOri, aid, cid, epId, tvApi, intlApi, appApi, encoding, cfg);
         ParsedResult parsedResult = new( )
         {
             //调用解析
-            WebJsonString = await GetPlayJsonAsync(encoding, aidOri, aid, cid, epId, tvApi, intlApi, appApi, cfg, qn)
+            WebJsonString = await GetPlayJsonAsync(req, qn)
         };
 
         LogDebug(parsedResult.WebJsonString);
 
-        while (true)
+        //intl接口: prefer_code_type 0/1 各请求一次, 合并两次拿到的轨道
+        var intlRetried = false;
+        while (parsedResult.WebJsonString.Contains("\"stream_list\""))
         {
-            var respJson = JsonDocument.Parse(parsedResult.WebJsonString);
-            var data = respJson.RootElement;
+            CollectIntlTracks(parsedResult, JsonDocument.Parse(parsedResult.WebJsonString).RootElement);
+            if (intlRetried) return parsedResult;
 
-            //intl接口
-            if (parsedResult.WebJsonString.Contains("\"stream_list\""))
-            {
-                var pDur = data.GetProperty("data").GetProperty("video_info").GetProperty("timelength").GetInt32( ) / 1000;
-                var audio = data.GetProperty("data").GetProperty("video_info").GetProperty("dash_audio").EnumerateArray( ).ToList( );
-                foreach (var stream in data.GetProperty("data").GetProperty("video_info").GetProperty("stream_list").EnumerateArray( ))
-                {
-                    if (stream.TryGetProperty("dash_video", out var dashVideo))
-                    {
-                        if (dashVideo.GetProperty("base_url").ToString( ).Length != 0)
-                        {
-                            var videoId = stream.GetProperty("stream_info").GetProperty("quality").ToString( );
-                            var urlList = BuildUrlList(dashVideo);
-                            Video v = new( )
-                            {
-                                dur = pDur,
-                                id = videoId,
-                                dfn = Config.qualitys[videoId],
-                                bandwidth = Convert.ToInt64(dashVideo.GetProperty("bandwidth").ToString( )) / 1000,
-                                baseUrl = PickBaseUrl(urlList),
-                                codecs = GetVideoCodec(dashVideo.GetProperty("codecid").ToString( )),
-                                size = dashVideo.TryGetProperty("size", out var sizeNode) ? Convert.ToDouble(sizeNode.ToString( )) : 0
-                            };
-                            if (!parsedResult.VideoTracks.Contains(v))
-                            {
-                                parsedResult.VideoTracks.Add(v);
-                            }
-                        }
-                    }
-                }
-
-                foreach (var node in audio)
-                {
-                    var urlList = BuildUrlList(node);
-                    Audio a = new( )
-                    {
-                        id = node.GetProperty("id").ToString( ),
-                        dfn = node.GetProperty("id").ToString( ),
-                        dur = pDur,
-                        bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-                        baseUrl = PickBaseUrl(urlList),
-                        codecs = "M4A"
-                    };
-                    if (!parsedResult.AudioTracks.Contains(a))
-                    {
-                        parsedResult.AudioTracks.Add(a);
-                    }
-                }
-
-                if (intlCode == "0")
-                {
-                    intlCode = "1";
-                    parsedResult.WebJsonString = await GetPlayJsonAsync(aid, cid, epId, qn, cfg, intlCode);
-                    continue;
-                }
-
-                return parsedResult;
-            }
-            // data节点一次性判断完
-            string? nodeName = null;
-            if (parsedResult.WebJsonString.Contains("\"result\":{"))
-            {
-                nodeName = "result";
-
-                // v2
-                if (parsedResult.WebJsonString.Contains("\"video_info\":{"))
-                {
-                    nodeName = "video_info";
-                }
-            }
-            else if (parsedResult.WebJsonString.Contains("\"data\":{"))
-            {
-                nodeName = "data";
-            }
-
-            var root = nodeName == null ? data : nodeName == "video_info" ? data.GetProperty("result").GetProperty(nodeName) : data.GetProperty(nodeName);
-
-            var bangumi = aidOri.StartsWith("ep:");
-
-            if (parsedResult.WebJsonString.Contains("\"dash\":{")) //dash
-            {
-                List<JsonElement>? audio = null;
-                List<JsonElement>? video = null;
-                List<JsonElement>? backgroundAudio = null;
-                List<JsonElement>? roleAudio = null;
-                var pDur = 0;
-
-                try { pDur = root.GetProperty("dash").GetProperty("duration").GetInt32( ); } catch { }
-
-                try { pDur = root.GetProperty("timelength").GetInt32( ) / 1000; } catch { }
-
-                var reParse = false;
-                while (true)
-                {
-                    if (reParse)
-                    {
-                        parsedResult.WebJsonString = await GetPlayJsonAsync(encoding, aidOri, aid, cid, epId, tvApi, intlApi, appApi, cfg, GetMaxQn( ));
-                        respJson = JsonDocument.Parse(parsedResult.WebJsonString);
-                        data = respJson.RootElement;
-                        root = nodeName == null ? data : nodeName == "video_info" ? data.GetProperty("result").GetProperty(nodeName) : data.GetProperty(nodeName);
-                    }
-
-                    try { video = root.GetProperty("dash").GetProperty("video").EnumerateArray( ).ToList( ); } catch { }
-
-                    try { audio = root.GetProperty("dash").GetProperty("audio").EnumerateArray( ).ToList( ); } catch { }
-
-                    if (appApi && bangumi)
-                    {
-                        try { backgroundAudio = data.GetProperty("dubbing_info").GetProperty("background_audio").EnumerateArray( ).ToList( ); } catch { }
-
-                        try { roleAudio = data.GetProperty("dubbing_info").GetProperty("role_audio_list").EnumerateArray( ).ToList( ); } catch { }
-                    }
-                    //处理杜比音频
-                    try
-                    {
-                        if (audio != null)
-                        {
-                            if (!tvApi && root.GetProperty("dash").TryGetProperty("dolby", out var dolby))
-                            {
-                                if (dolby.TryGetProperty("audio", out var db))
-                                {
-                                    audio.AddRange(db.EnumerateArray( ));
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex) { LogDebug("处理音轨扩展信息失败: {0}", ex.Message); }
-
-                    //处理Hi-Res无损
-                    try
-                    {
-                        if (audio != null)
-                        {
-                            if (!tvApi && root.GetProperty("dash").TryGetProperty("flac", out var hiRes))
-                            {
-                                if (hiRes.TryGetProperty("audio", out var db))
-                                {
-                                    if (db.ValueKind != JsonValueKind.Null)
-                                    {
-                                        audio.Add(db);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex) { LogDebug("处理音轨扩展信息失败: {0}", ex.Message); }
-
-                    if (video is not null)
-                    {
-                        foreach (var node in video)
-                        {
-                            var urlList = BuildUrlList(node);
-
-                            var videoId = node.GetProperty("id").ToString( );
-                            Video v = new( )
-                            {
-                                dur = pDur,
-                                id = videoId,
-                                dfn = Config.qualitys[videoId],
-                                bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-                                baseUrl = PickBaseUrl(urlList),
-                                codecs = GetVideoCodec(node.GetProperty("codecid").ToString( )),
-                                size = node.TryGetProperty("size", out var sizeNode) ? Convert.ToDouble(sizeNode.ToString( )) : 0
-                            };
-                            if (!tvApi && !appApi)
-                            {
-                                v.res = node.GetProperty("width").ToString( ) + "x" + node.GetProperty("height").ToString( );
-                                v.fps = node.GetProperty("frame_rate").ToString( );
-                            }
-
-                            if (!parsedResult.VideoTracks.Contains(v))
-                            {
-                                parsedResult.VideoTracks.Add(v);
-                            }
-                        }
-                    }
-
-                    //此处处理免二压视频，需要单独再请求一次
-                    if (!reParse && !appApi)
-                    {
-                        reParse = true;
-                        continue;
-                    }
-
-                    if (audio != null)
-                    {
-                        foreach (var node in audio)
-                        {
-                            var urlList = BuildUrlList(node);
-
-                            var audioId = node.GetProperty("id").ToString( );
-                            var codecs = node.GetProperty("codecs").ToString( );
-                            codecs = codecs switch
-                            {
-                                "mp4a.40.2" => "M4A",
-                                "mp4a.40.5" => "M4A",
-                                "ec-3" => "E-AC-3",
-                                "fLaC" => "FLAC",
-                                _ => codecs
-                            };
-
-                            parsedResult.AudioTracks.Add(new Audio( )
-                            {
-                                id = audioId,
-                                dfn = audioId,
-                                dur = pDur,
-                                bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-                                baseUrl = PickBaseUrl(urlList),
-                                codecs = codecs
-                            });
-                        }
-                    }
-
-                    if (backgroundAudio != null && roleAudio != null)
-                    {
-                        foreach (var node in backgroundAudio)
-                        {
-                            var audioId = node.GetProperty("id").ToString( );
-                            var urlList = BuildUrlList(node);
-                            parsedResult.BackgroundAudioTracks.Add(new Audio( )
-                            {
-                                id = audioId,
-                                dfn = audioId,
-                                dur = pDur,
-                                bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-                                baseUrl = PickBaseUrl(urlList),
-                                codecs = node.GetProperty("codecs").ToString( )
-                            });
-                        }
-
-                        foreach (var role in roleAudio)
-                        {
-                            List<Audio> roleAudioTracks = [];
-                            foreach (var node in role.GetProperty("audio").EnumerateArray( ))
-                            {
-                                var audioId = node.GetProperty("id").ToString( );
-                                var urlList = BuildUrlList(node);
-                                roleAudioTracks.Add(new Audio( )
-                                {
-                                    id = audioId,
-                                    dfn = audioId,
-                                    dur = pDur,
-                                    bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-                                    baseUrl = PickBaseUrl(urlList),
-                                    codecs = node.GetProperty("codecs").ToString( )
-                                });
-                            }
-
-                            parsedResult.RoleAudioList.Add(new AudioMaterialInfo( )
-                            {
-                                title = role.GetProperty("title").ToString( ),
-                                personName = role.GetProperty("person_name").ToString( ),
-                                path = $"{aid}/{aid}.{cid}.{role.GetProperty("audio_id")}.m4a",
-                                audio = roleAudioTracks
-                            });
-                        }
-
-                        break;
-                    }
-                }
-            }
-            else if (parsedResult.WebJsonString.Contains("\"durl\":[")) //flv
-            {
-                //默认以最高清晰度解析
-                parsedResult.WebJsonString = await GetPlayJsonAsync(encoding, aidOri, aid, cid, epId, tvApi, intlApi, appApi, cfg, GetMaxQn( ));
-                data = JsonDocument.Parse(parsedResult.WebJsonString).RootElement;
-                root = nodeName == null ? data : nodeName == "video_info" ? data.GetProperty("result").GetProperty(nodeName) : data.GetProperty(nodeName);
-                var quality = "";
-                var videoCodecid = "";
-                var url = "";
-                double size = 0;
-                double length = 0;
-
-                quality = root.GetProperty("quality").ToString( );
-                videoCodecid = root.GetProperty("video_codecid").ToString( );
-                //获取所有分段
-                foreach (var node in root.GetProperty("durl").EnumerateArray( ))
-                {
-                    parsedResult.Clips.Add(node.GetProperty("url").ToString( ));
-                    size += node.GetProperty("size").GetDouble( );
-                    length += node.GetProperty("length").GetDouble( );
-                }
-                //TV模式可用清晰度
-                if (root.TryGetProperty("qn_extras", out var qnExtras))
-                {
-                    parsedResult.Dfns.AddRange(qnExtras.EnumerateArray( ).Select(node => node.GetProperty("qn").ToString( )));
-                }
-                else if (root.TryGetProperty("accept_quality", out var acceptQuality)) //非tv模式可用清晰度
-                {
-                    parsedResult.Dfns.AddRange(acceptQuality.EnumerateArray( )
-                        .Select(node => node.ToString( ))
-                        .Where(_qn => !string.IsNullOrEmpty(_qn)));
-                }
-
-                Video v = new( )
-                {
-                    id = quality,
-                    dfn = Config.qualitys[quality],
-                    baseUrl = url,
-                    codecs = GetVideoCodec(videoCodecid),
-                    dur = (int) length / 1000,
-                    size = size
-                };
-                if (!parsedResult.VideoTracks.Contains(v))
-                {
-                    parsedResult.VideoTracks.Add(v);
-                }
-            }
-
-            // 番剧片头片尾转分段信息, 预计效果: 正片? -> 片头 -> 正片 -> 片尾
-            if (bangumi)
-            {
-                if (root.TryGetProperty("clip_info_list", out var clipList))
-                {
-                    parsedResult.ExtraPoints.AddRange(clipList.EnumerateArray( ).Select(clip => new ViewPoint( )
-                    {
-                        title = clip.GetProperty("toastText").ToString( ).Replace("即将跳过", ""),
-                        start = clip.GetProperty("start").GetInt32( ),
-                        end = clip.GetProperty("end").GetInt32( )
-                    })
-                    );
-                    parsedResult.ExtraPoints.Sort((p1, p2) => p1.start.CompareTo(p2.start));
-                    List<ViewPoint> newPoints = [];
-                    var lastEnd = 0;
-                    foreach (var point in parsedResult.ExtraPoints)
-                    {
-                        if (lastEnd < point.start)
-                        {
-                            newPoints.Add(new ViewPoint( ) { title = "正片", start = lastEnd, end = point.start });
-                        }
-
-                        newPoints.Add(point);
-                        lastEnd = point.end;
-                    }
-
-                    parsedResult.ExtraPoints = newPoints;
-                }
-            }
-
-            return parsedResult;
+            intlRetried = true;
+            parsedResult.WebJsonString = await GetIntlPlayJsonAsync(aid, cid, epId, qn, cfg, "1");
         }
+
+        var data = JsonDocument.Parse(parsedResult.WebJsonString).RootElement;
+        var nodeName = ResolveDataNodeName(parsedResult.WebJsonString);
+        var root = GetRootNode(data, nodeName);
+
+        if (parsedResult.WebJsonString.Contains("\"dash\":{"))
+        {
+            root = await ExtractDashTracksAsync(parsedResult, req, data, root, nodeName);
+        }
+        else if (parsedResult.WebJsonString.Contains("\"durl\":["))
+        {
+            root = await ExtractFlvTracksAsync(parsedResult, req, nodeName);
+        }
+
+        if (req.IsEpisode)
+        {
+            AppendBangumiViewPoints(parsedResult, root);
+        }
+
+        return parsedResult;
+    }
+
+    // data 节点一次性判断完；v2 接口把有效载荷藏在 result.video_info 下
+    internal static string? ResolveDataNodeName(string webJson)
+    {
+        if (webJson.Contains("\"result\":{"))
+        {
+            return webJson.Contains("\"video_info\":{") ? "video_info" : "result";
+        }
+
+        return webJson.Contains("\"data\":{") ? "data" : null;
+    }
+
+    internal static JsonElement GetRootNode(JsonElement data, string? nodeName)
+    {
+        return nodeName switch
+        {
+            null => data,
+            "video_info" => data.GetProperty("result").GetProperty("video_info"),
+            _ => data.GetProperty(nodeName)
+        };
+    }
+
+    private static void CollectIntlTracks(ParsedResult parsedResult, JsonElement data)
+    {
+        var videoInfo = data.GetProperty("data").GetProperty("video_info");
+        var pDur = videoInfo.GetProperty("timelength").GetInt32( ) / 1000;
+
+        foreach (var stream in videoInfo.GetProperty("stream_list").EnumerateArray( ))
+        {
+            if (!stream.TryGetProperty("dash_video", out var dashVideo)) continue;
+            if (dashVideo.GetProperty("base_url").ToString( ).Length == 0) continue;
+
+            var videoId = stream.GetProperty("stream_info").GetProperty("quality").ToString( );
+            Video v = new( )
+            {
+                dur = pDur,
+                id = videoId,
+                dfn = Config.qualitys[videoId],
+                bandwidth = Convert.ToInt64(dashVideo.GetProperty("bandwidth").ToString( )) / 1000,
+                baseUrl = PickBaseUrl(BuildUrlList(dashVideo)),
+                codecs = GetVideoCodec(dashVideo.GetProperty("codecid").ToString( )),
+                size = dashVideo.TryGetProperty("size", out var sizeNode) ? Convert.ToDouble(sizeNode.ToString( )) : 0
+            };
+            if (!parsedResult.VideoTracks.Contains(v))
+            {
+                parsedResult.VideoTracks.Add(v);
+            }
+        }
+
+        foreach (var node in videoInfo.GetProperty("dash_audio").EnumerateArray( ))
+        {
+            var a = BuildAudio(node, pDur, "M4A");
+            if (!parsedResult.AudioTracks.Contains(a))
+            {
+                parsedResult.AudioTracks.Add(a);
+            }
+        }
+    }
+
+    private static async Task<JsonElement> ExtractDashTracksAsync(ParsedResult parsedResult, PlayUrlRequest req, JsonElement data, JsonElement root, string? nodeName)
+    {
+        var pDur = ReadDashDuration(root);
+        CollectDashVideoTracks(parsedResult, root, pDur, req.TvApi, req.AppApi);
+
+        //此处处理免二压视频，需要单独再请求一次；视频轨取两次的并集，音轨只取重新请求后的结果
+        var audioRoot = root;
+        if (!req.AppApi)
+        {
+            parsedResult.WebJsonString = await GetPlayJsonAsync(req, GetMaxQn( ));
+            root = GetRootNode(JsonDocument.Parse(parsedResult.WebJsonString).RootElement, nodeName);
+            CollectDashVideoTracks(parsedResult, root, pDur, req.TvApi, req.AppApi);
+            // 二次请求偶尔返回降级响应(限流/无 dash 节点)，此时沿用首次结果的音轨而不是丢弃
+            if (TryEnumerateArray(root, "dash", "audio") != null)
+            {
+                audioRoot = root;
+            }
+        }
+
+        CollectDashAudioTracks(parsedResult, audioRoot, pDur, req.TvApi);
+
+        if (req.AppApi && req.IsEpisode)
+        {
+            CollectDubbingTracks(parsedResult, data, pDur, req.Aid, req.Cid);
+        }
+
+        return root;
+    }
+
+    internal static int ReadDashDuration(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object) return 0;
+
+        if (root.TryGetProperty("timelength", out var timelength) && timelength.TryGetInt32(out var ms))
+        {
+            return ms / 1000;
+        }
+
+        if (root.TryGetProperty("dash", out var dash) && dash.ValueKind == JsonValueKind.Object
+            && dash.TryGetProperty("duration", out var duration) && duration.TryGetInt32(out var seconds))
+        {
+            return seconds;
+        }
+
+        return 0;
+    }
+
+    private static void CollectDashVideoTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi, bool appApi)
+    {
+        var video = TryEnumerateArray(root, "dash", "video");
+        if (video == null) return;
+
+        foreach (var node in video)
+        {
+            var videoId = node.GetProperty("id").ToString( );
+            Video v = new( )
+            {
+                dur = pDur,
+                id = videoId,
+                dfn = Config.qualitys[videoId],
+                bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
+                baseUrl = PickBaseUrl(BuildUrlList(node)),
+                codecs = GetVideoCodec(node.GetProperty("codecid").ToString( )),
+                size = node.TryGetProperty("size", out var sizeNode) ? Convert.ToDouble(sizeNode.ToString( )) : 0
+            };
+            if (!tvApi && !appApi)
+            {
+                v.res = node.GetProperty("width").ToString( ) + "x" + node.GetProperty("height").ToString( );
+                v.fps = node.GetProperty("frame_rate").ToString( );
+            }
+
+            if (!parsedResult.VideoTracks.Contains(v))
+            {
+                parsedResult.VideoTracks.Add(v);
+            }
+        }
+    }
+
+    private static void CollectDashAudioTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi)
+    {
+        var audio = TryEnumerateArray(root, "dash", "audio");
+        if (audio == null) return;
+
+        AppendDolbyAndHiResAudio(audio, root, tvApi);
+        foreach (var node in audio)
+        {
+            parsedResult.AudioTracks.Add(BuildAudio(node, pDur, NormalizeAudioCodec(node.GetProperty("codecs").ToString( ))));
+        }
+    }
+
+    private static void AppendDolbyAndHiResAudio(List<JsonElement> audio, JsonElement root, bool tvApi)
+    {
+        if (tvApi || root.ValueKind != JsonValueKind.Object) return;
+        if (!root.TryGetProperty("dash", out var dash) || dash.ValueKind != JsonValueKind.Object) return;
+
+        //处理杜比音频
+        try
+        {
+            if (dash.TryGetProperty("dolby", out var dolby) && dolby.ValueKind == JsonValueKind.Object
+                && dolby.TryGetProperty("audio", out var dolbyAudio) && dolbyAudio.ValueKind == JsonValueKind.Array)
+            {
+                audio.AddRange(dolbyAudio.EnumerateArray( ));
+            }
+        }
+        catch (Exception ex) { LogDebug("处理音轨扩展信息失败: {0}", ex.Message); }
+
+        //处理Hi-Res无损
+        try
+        {
+            if (dash.TryGetProperty("flac", out var hiRes) && hiRes.ValueKind == JsonValueKind.Object
+                && hiRes.TryGetProperty("audio", out var hiResAudio) && hiResAudio.ValueKind != JsonValueKind.Null)
+            {
+                audio.Add(hiResAudio);
+            }
+        }
+        catch (Exception ex) { LogDebug("处理音轨扩展信息失败: {0}", ex.Message); }
+    }
+
+    private static void CollectDubbingTracks(ParsedResult parsedResult, JsonElement data, int pDur, string aid, string cid)
+    {
+        var backgroundAudio = TryEnumerateArray(data, "dubbing_info", "background_audio");
+        var roleAudio = TryEnumerateArray(data, "dubbing_info", "role_audio_list");
+        if (backgroundAudio == null || roleAudio == null) return;
+
+        foreach (var node in backgroundAudio)
+        {
+            parsedResult.BackgroundAudioTracks.Add(BuildAudio(node, pDur));
+        }
+
+        foreach (var role in roleAudio)
+        {
+            parsedResult.RoleAudioList.Add(new AudioMaterialInfo( )
+            {
+                title = role.GetProperty("title").ToString( ),
+                personName = role.GetProperty("person_name").ToString( ),
+                path = $"{aid}/{aid}.{cid}.{role.GetProperty("audio_id")}.m4a",
+                audio = [.. role.GetProperty("audio").EnumerateArray( ).Select(node => BuildAudio(node, pDur))]
+            });
+        }
+    }
+
+    private static async Task<JsonElement> ExtractFlvTracksAsync(ParsedResult parsedResult, PlayUrlRequest req, string? nodeName)
+    {
+        //默认以最高清晰度解析
+        parsedResult.WebJsonString = await GetPlayJsonAsync(req, GetMaxQn( ));
+        var root = GetRootNode(JsonDocument.Parse(parsedResult.WebJsonString).RootElement, nodeName);
+
+        double size = 0;
+        double length = 0;
+        //获取所有分段
+        foreach (var node in root.GetProperty("durl").EnumerateArray( ))
+        {
+            parsedResult.Clips.Add(node.GetProperty("url").ToString( ));
+            size += node.GetProperty("size").GetDouble( );
+            length += node.GetProperty("length").GetDouble( );
+        }
+
+        parsedResult.Dfns.AddRange(ReadAcceptedDfns(root));
+
+        var quality = root.GetProperty("quality").ToString( );
+        Video v = new( )
+        {
+            id = quality,
+            dfn = Config.qualitys[quality],
+            baseUrl = "",
+            codecs = GetVideoCodec(root.GetProperty("video_codecid").ToString( )),
+            dur = (int) length / 1000,
+            size = size
+        };
+        if (!parsedResult.VideoTracks.Contains(v))
+        {
+            parsedResult.VideoTracks.Add(v);
+        }
+
+        return root;
+    }
+
+    internal static IEnumerable<string> ReadAcceptedDfns(JsonElement root)
+    {
+        //TV模式可用清晰度
+        if (root.TryGetProperty("qn_extras", out var qnExtras))
+        {
+            return qnExtras.EnumerateArray( ).Select(node => node.GetProperty("qn").ToString( ));
+        }
+
+        //非tv模式可用清晰度
+        if (root.TryGetProperty("accept_quality", out var acceptQuality))
+        {
+            return acceptQuality.EnumerateArray( ).Select(node => node.ToString( )).Where(qn => !string.IsNullOrEmpty(qn));
+        }
+
+        return [];
+    }
+
+    private static void AppendBangumiViewPoints(ParsedResult parsedResult, JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("clip_info_list", out var clipList)) return;
+
+        parsedResult.ExtraPoints.AddRange(clipList.EnumerateArray( ).Select(clip => new ViewPoint( )
+        {
+            title = clip.GetProperty("toastText").ToString( ).Replace("即将跳过", ""),
+            start = clip.GetProperty("start").GetInt32( ),
+            end = clip.GetProperty("end").GetInt32( )
+        }));
+        parsedResult.ExtraPoints.Sort((p1, p2) => p1.start.CompareTo(p2.start));
+        parsedResult.ExtraPoints = FillGapsWithMainContent(parsedResult.ExtraPoints);
+    }
+
+    // 番剧片头片尾转分段信息, 预计效果: 正片? -> 片头 -> 正片 -> 片尾
+    internal static List<ViewPoint> FillGapsWithMainContent(List<ViewPoint> points)
+    {
+        List<ViewPoint> result = [];
+        var lastEnd = 0;
+        foreach (var point in points)
+        {
+            if (lastEnd < point.start)
+            {
+                result.Add(new ViewPoint( ) { title = "正片", start = lastEnd, end = point.start });
+            }
+
+            result.Add(point);
+            lastEnd = point.end;
+        }
+
+        return result;
+    }
+
+    private static Audio BuildAudio(JsonElement node, int pDur, string? codecs = null)
+    {
+        var audioId = node.GetProperty("id").ToString( );
+        return new Audio( )
+        {
+            id = audioId,
+            dfn = audioId,
+            dur = pDur,
+            bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
+            baseUrl = PickBaseUrl(BuildUrlList(node)),
+            codecs = codecs ?? node.GetProperty("codecs").ToString( )
+        };
+    }
+
+    private static List<JsonElement>? TryEnumerateArray(JsonElement parent, params string[] path)
+    {
+        var node = parent;
+        foreach (var name in path)
+        {
+            if (node.ValueKind != JsonValueKind.Object || !node.TryGetProperty(name, out var child))
+            {
+                return null;
+            }
+
+            node = child;
+        }
+
+        return node.ValueKind == JsonValueKind.Array ? [.. node.EnumerateArray( )] : null;
+    }
+
+    internal static string NormalizeAudioCodec(string codecs)
+    {
+        return codecs switch
+        {
+            "mp4a.40.2" => "M4A",
+            "mp4a.40.5" => "M4A",
+            "ec-3" => "E-AC-3",
+            "fLaC" => "FLAC",
+            _ => codecs
+        };
     }
 
     /// <summary>
@@ -503,7 +537,7 @@ public static partial class Parser
     /// </summary>
     /// <param name="code"></param>
     /// <returns></returns>
-    private static string GetVideoCodec(string code)
+    internal static string GetVideoCodec(string code)
     {
         return code switch
         {
