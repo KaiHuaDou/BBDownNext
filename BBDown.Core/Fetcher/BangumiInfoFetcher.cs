@@ -20,7 +20,10 @@ public static class BangumiInfoFetcher
         var api = $"https://{cfg.EpHost}/pgc/view/web/season?ep_id={id}";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
-        var result = infoJson.RootElement.GetProperty("result");
+        if (!infoJson.RootElement.TryGetProperty("result", out var result))
+        {
+            throw new BangumiNotFoundException($"未找到 EP/SS 对应的番剧信息：ep_id={id}");
+        }
         var cover = result.GetProperty("cover").ToString( );
         var title = result.GetProperty("title").ToString( );
         var desc = result.GetProperty("evaluate").ToString( );

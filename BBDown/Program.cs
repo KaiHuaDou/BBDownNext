@@ -262,33 +262,9 @@ internal sealed partial class Program
 
     private static async Task<(string aid, VInfo vInfo)> FetchVideoInfoAsync(string aid, AppConfig cfg, bool useIntlApi)
     {
-        VInfo? vInfo = null;
-
-        // 只输入 EP/SS 时优先按番剧查找，如果找不到则尝试按课程查找
-        try
-        {
-            vInfo = await FetcherRegistry.FetchAsync(aid, cfg, useIntlApi);
-        }
-        catch (KeyNotFoundException e)
-        {
-            if (e.Message != "Arg_KeyNotFound") throw; // 错误消息不符合预期，抛出异常
-            if (aid.StartsWith("cheese:")) throw; // 已经按课程查找过，不再重复尝试
-
-            LogWarn("未找到此 EP/SS 对应番剧信息，正在尝试按课程查找。");
-
-            aid = aid.Replace("ep", "cheese");
-            Log("新的 aid：" + aid);
-
-            if (string.IsNullOrEmpty(aid))
-            {
-                throw new ArgumentException("输入有误");
-            }
-
-            Log("获取视频信息...");
-            vInfo = await FetcherRegistry.FetchAsync(aid, cfg, useIntlApi);
-        }
-
-        return (aid, vInfo!);
+        // EP/SS 优先按番剧查找, 找不到时由 FetcherRegistry 内部回退到课程(cheese)查找
+        var vInfo = await FetcherRegistry.FetchAsync(aid, cfg, useIntlApi);
+        return (aid, vInfo);
     }
 
     private static void PrintVideoSummary(VInfo vInfo, MyOption myOption)

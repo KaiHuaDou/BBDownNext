@@ -23,7 +23,10 @@ public static partial class IntlBangumiInfoFetcher
                      $"/intl/gateway/v2/ogv/view/app/season?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a" + (cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "");
         var json = (await GetWebSourceAsync(api, cfg)).Replace("\\/", "/");
         using var infoJson = JsonDocument.Parse(json);
-        var result = infoJson.RootElement.GetProperty("result");
+        if (!infoJson.RootElement.TryGetProperty("result", out var result))
+        {
+            throw new BangumiNotFoundException($"未找到 EP/SS 对应的番剧信息：ep_id={id}");
+        }
         var seasonId = result.GetProperty("season_id").ToString( );
         var cover = result.GetProperty("cover").ToString( );
         var title = result.GetProperty("title").ToString( );
