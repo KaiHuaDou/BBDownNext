@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Specialized;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -16,118 +17,162 @@ namespace BBDown;
 
 internal static class Login
 {
-    private static async Task ShowQrCodeAsync(string url)
+    private enum QrState { Expired, WaitingScan, WaitingConfirm, Success }
+
+    /// <summary>
+    /// 扫码登录的通用编排参数：生成二维码、轮询状态、解释状态、落盘凭据。
+    /// Web 与 TV 仅这些环节不同，轮询循环本身完全一致。
+    /// </summary>
+    private record QrLoginPlan(
+        Func<Task<(string Url, string Key)>> Generate,
+        Func<string, Task<JsonElement>> Poll,
+        Func<JsonElement, (QrState State, string? Data)> Interpret,
+        Func<string, Task> Persist,
+        string ExpiredText);
+
+    private static async Task RunQrLoginAsync(QrLoginPlan plan, string qrPath)
+    {
+        var (url, key) = await plan.Generate();
+        await ShowQrCodeAsync(url, qrPath);
+        var confirmed = false;
+        while (true)
+        {
+            await Task.Delay(1000);
+            var (state, data) = plan.Interpret(await plan.Poll(key));
+            switch (state)
+            {
+                case QrState.Expired:
+                    LogColor(plan.ExpiredText);
+                    return;
+                case QrState.WaitingScan:
+                    break;
+                case QrState.WaitingConfirm:
+                    if (!confirmed)
+                    {
+                        Log("扫码成功，请确认...");
+                        confirmed = true;
+                    }
+                    break;
+                case QrState.Success:
+                    if (data is not null) await plan.Persist(data);
+                    return;
+            }
+        }
+    }
+
+    private static async Task ShowQrCodeAsync(string url, string qrPath)
     {
         Log("生成二维码...");
         using QRCodeGenerator qrGenerator = new( );
         using var qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
         using PngByteQRCode pngByteCode = new(qrCodeData);
-        await File.WriteAllBytesAsync("qrcode.png", pngByteCode.GetGraphic(7));
-        Log("生成二维码成功：qrcode.png，请打开并扫描，或扫描打印的二维码。");
+        await File.WriteAllBytesAsync(qrPath, pngByteCode.GetGraphic(7));
+        Log("生成二维码成功，请打开并扫描，或扫描打印的二维码。");
         new ConsoleQRCode(qrCodeData).GetGraphic( );
     }
 
-    private static async Task SaveCredentialAsync(string fileName, string content)
+    private static void DeleteQrCode(string path)
     {
-        await File.WriteAllTextAsync(Path.Combine(Program.APP_DIR, fileName), content);
-        File.Delete("qrcode.png");
-    }
-
-    public static async Task<string> GetLoginStatusAsync(string qrcodeKey)
-    {
-        var queryUrl = $"https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key={qrcodeKey}&source=main-fe-header";
-        return await HTTPUtil.GetWebSourceAsync(queryUrl, Core.AppConfig.Empty);
+        if (File.Exists(path)) File.Delete(path);
     }
 
     public static async Task Web( )
     {
+        var qrPath = Path.Combine(Path.GetTempPath( ), "BBDown_qrcode.png");
         try
         {
-            Log("获取登录地址...");
-            var loginUrl = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header";
-            var url = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(loginUrl, Core.AppConfig.Empty)).RootElement.GetProperty("data").GetProperty("url").ToString( );
-            var qrcodeKey = GetQueryString("qrcode_key", url);
-            var flag = false;
-            await ShowQrCodeAsync(url);
-
-            while (true)
-            {
-                await Task.Delay(1000);
-                var w = await GetLoginStatusAsync(qrcodeKey);
-                var code = JsonDocument.Parse(w).RootElement.GetProperty("data").GetProperty("code").GetInt32( );
-                if (code == 86038)
+            await RunQrLoginAsync(new QrLoginPlan(
+                Generate: async ( ) =>
                 {
-                    LogColor("二维码已过期，请重新执行登录指令。");
-                    break;
-                }
-                else if (code == 86101) //等待扫码
+                    Log("获取登录地址...");
+                    var loginUrl = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header";
+                    var root = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(loginUrl, Core.AppConfig.Empty)).RootElement;
+                    var url = root.GetProperty("data").GetProperty("url").GetString( )!;
+                    var key = GetQueryString("qrcode_key", url);
+                    return (url, key);
+                },
+                Poll: async key =>
                 {
-                    continue;
-                }
-                else if (code == 86090) //等待确认
+                    var pollUrl = $"https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key={key}&source=main-fe-header";
+                    return JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(pollUrl, Core.AppConfig.Empty)).RootElement;
+                },
+                Interpret: root =>
                 {
-                    if (!flag)
+                    var code = root.GetProperty("data").GetProperty("code").GetInt32( );
+                    var state = code switch
                     {
-                        Log("扫码成功，请确认...");
-                        flag = !flag;
-                    }
-                }
-                else
+                        86038 => QrState.Expired,
+                        86101 => QrState.WaitingScan,
+                        86090 => QrState.WaitingConfirm,
+                        _ => QrState.Success
+                    };
+                    var data = state == QrState.Success ? root.GetProperty("data").GetProperty("url").GetString( ) : null;
+                    return (state, data);
+                },
+                Persist: async data =>
                 {
-                    var cc = JsonDocument.Parse(w).RootElement.GetProperty("data").GetProperty("url").ToString( );
-                    Log("登录成功: SESSDATA=" + GetQueryString("SESSDATA", cc));
+                    Log("登录成功：SESSDATA=" + GetQueryString("SESSDATA", data));
                     //导出cookie, 转义英文逗号 否则部分场景会出问题
-                    await SaveCredentialAsync("BBDown.data", cc[(cc.IndexOf('?') + 1)..].Replace("&", ";").Replace(",", "%2C"));
-                    break;
-                }
-            }
+                    await CredentialStore.SaveWebCookie(data[(data.IndexOf('?') + 1)..].Replace("&", ";").Replace(",", "%2C"));
+                },
+                ExpiredText: "二维码已过期，请重新执行登录指令。"), qrPath);
         }
         catch (Exception e) { LogError(e.Message); }
+        finally { DeleteQrCode(qrPath); }
     }
 
     public static async Task TV( )
     {
+        var qrPath = Path.Combine(Path.GetTempPath( ), "BBDown_qrcode.png");
+        NameValueCollection? tvParms = null;
         try
         {
-            Uri loginUrl = new("https://passport.snm0516.aisee.tv/x/passport-tv-login/qrcode/auth_code");
-            Uri pollUrl = new("https://passport.bilibili.com/x/passport-tv-login/qrcode/poll");
-            var parms = GetTVLoginParms( );
-            Log("获取登录地址...");
-            using var loginContent = new FormUrlEncodedContent(parms.ToDictionary( ));
-            var responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(loginUrl, loginContent)).Content.ReadAsByteArrayAsync( );
-            var web = Encoding.UTF8.GetString(responseArray);
-            var url = JsonDocument.Parse(web).RootElement.GetProperty("data").GetProperty("url").ToString( );
-            var authCode = JsonDocument.Parse(web).RootElement.GetProperty("data").GetProperty("auth_code").ToString( );
-            await ShowQrCodeAsync(url);
-            parms.Set("auth_code", authCode);
-            parms.Set("ts", GetTimeStamp(true));
-            parms.Remove("sign");
-            parms.Add("sign", GetSign(ToQueryString(parms)));
-            while (true)
-            {
-                await Task.Delay(1000);
-                using var pollContent = new FormUrlEncodedContent(parms.ToDictionary( ));
-                responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(pollUrl, pollContent)).Content.ReadAsByteArrayAsync( );
-                web = Encoding.UTF8.GetString(responseArray);
-                var code = JsonDocument.Parse(web).RootElement.GetProperty("code").ToString( );
-                if (code == "86038")
+            await RunQrLoginAsync(new QrLoginPlan(
+                Generate: async ( ) =>
                 {
-                    LogColor("二维码已过期，请重新执行登录指令。");
-                    break;
-                }
-                else if (code == "86039") //等待扫码
+                    Log("获取登录地址...");
+                    Uri loginUrl = new("https://passport.snm0516.aisee.tv/x/passport-tv-login/qrcode/auth_code");
+                    var parms = GetTVLoginParms( );
+                    using var loginContent = new FormUrlEncodedContent(parms.ToDictionary( ));
+                    var responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(loginUrl, loginContent)).Content.ReadAsByteArrayAsync( );
+                    var web = Encoding.UTF8.GetString(responseArray);
+                    var root = JsonDocument.Parse(web).RootElement;
+                    var url = root.GetProperty("data").GetProperty("url").GetString( )!;
+                    var authCode = root.GetProperty("data").GetProperty("auth_code").GetString( )!;
+                    parms.Set("auth_code", authCode);
+                    parms.Set("ts", GetTimeStamp(true));
+                    parms.Remove("sign");
+                    parms.Add("sign", GetSign(ToQueryString(parms)));
+                    tvParms = parms;
+                    return (url, authCode);
+                },
+                Poll: async _ =>
                 {
-                    continue;
-                }
-                else
+                    Uri pollUrl = new("https://passport.bilibili.com/x/passport-tv-login/qrcode/poll");
+                    using var pollContent = new FormUrlEncodedContent(tvParms!.ToDictionary( ));
+                    var responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(pollUrl, pollContent)).Content.ReadAsByteArrayAsync( );
+                    return JsonDocument.Parse(Encoding.UTF8.GetString(responseArray)).RootElement;
+                },
+                Interpret: root =>
                 {
-                    var cc = JsonDocument.Parse(web).RootElement.GetProperty("data").GetProperty("access_token").ToString( );
-                    Log("登录成功：AccessToken=" + cc);
-                    await SaveCredentialAsync("BBDownTV.data", "access_token=" + cc);
-                    break;
-                }
-            }
+                    var code = root.GetProperty("code").GetString( )!;
+                    var state = code switch
+                    {
+                        "86038" => QrState.Expired,
+                        "86039" => QrState.WaitingScan,
+                        _ => QrState.Success
+                    };
+                    var data = state == QrState.Success ? root.GetProperty("data").GetProperty("access_token").GetString( ) : null;
+                    return (state, data);
+                },
+                Persist: async data =>
+                {
+                    Log("登录成功：AccessToken=" + data);
+                    await CredentialStore.SaveTvToken("access_token=" + data);
+                },
+                ExpiredText: "二维码已过期，请重新执行登录指令。"), qrPath);
         }
         catch (Exception e) { LogError(e.Message); }
+        finally { DeleteQrCode(qrPath); }
     }
 }
