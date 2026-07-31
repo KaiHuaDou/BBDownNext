@@ -8,7 +8,7 @@
     </PropertyGroup>
     <PropertyGroup>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <Version>1.6.4</Version>
+        <Version>2.0</Version>
         <Description>BBDown是一个免费且便捷高效的哔哩哔哩下载/解析软件.</Description>
         <PackageProjectUrl>https://github.com/nilaoda/BBDown</PackageProjectUrl>
         <PackAsTool>true</PackAsTool>
