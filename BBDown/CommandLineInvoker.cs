@@ -19,7 +19,7 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> Interactive = new("--interactive", ["-ia"]) { Description = "交互式选择清晰度" };
     private static readonly Option<bool> ShowAll = new("--all", []) { Description = "展示所有分 P 标题" };
     private static readonly Option<bool> UseAria2c = new("--aria2c", ["-aria2"]) { Description = "调用 aria2c 进行下载（你需要自行准备好二进制可执行文件）" };
-    private static readonly Option<string> Aria2cArgs = new("--aria2c-args", []) { Description = "调用 aria2c 的附加参数（默认参数包含 \"-x16 -s16 -j16 -k 5M\"，使用时注意字符串转义）" };
+    private static readonly Option<string> Aria2cArgs = new("--aria2c-args", []) { Description = "调用 aria2c 的附加参数（默认参数包含 \"-x16 -s16 -j16 -k 5M\"，含空格的参数用引号包裹即可）" };
     private static readonly Option<bool> MultiThread = new("--multi-thread", ["-mt"]) { Description = "使用多线程下载（默认开启）", DefaultValueFactory = _ => true };
     private static readonly Option<bool> SingleThread = new("--single-thread", ["-st"]) { Description = "使用单线程下载（默认关闭，等价于关闭 --multi-thread，用于不支持 Range 的服务器）" };
     private static readonly Option<string> SelectPage = new("--select-page", ["-p"]) { Description = "选择指定分 P 或分 P 范围：（-p 8 或 -p 1,2 或 -p 3-5 或 -p ALL 或 -p LAST 或 -p 3,5,LATEST）" };
