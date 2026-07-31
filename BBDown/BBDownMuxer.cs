@@ -22,13 +22,13 @@ internal static partial class BBDownMuxer
 
     private static int RunExe(string app, string parms)
     {
-        var code = 0;
-        Process p = new( );
+        using Process p = new( );
         p.StartInfo.FileName = app;
         p.StartInfo.Arguments = parms;
         p.StartInfo.UseShellExecute = false;
         p.StartInfo.RedirectStandardError = true;
-        p.StartInfo.CreateNoWindow = false;
+        p.StartInfo.CreateNoWindow = true;
+        p.StartInfo.StandardErrorEncoding = Encoding.UTF8;
         p.ErrorDataReceived += delegate (object sendProcess, DataReceivedEventArgs output)
         {
             if (!string.IsNullOrWhiteSpace(output.Data))
@@ -36,13 +36,10 @@ internal static partial class BBDownMuxer
                 Log(output.Data);
             }
         };
-        p.StartInfo.StandardErrorEncoding = Encoding.UTF8;
         p.Start( );
         p.BeginErrorReadLine( );
         p.WaitForExit( );
-        p.Close( );
-        p.Dispose( );
-        return code;
+        return p.ExitCode;
     }
 
     private static string EscapeString(string str)
@@ -135,10 +132,8 @@ internal static partial class BBDownMuxer
             return MuxByMp4box(url, videoPath, audioPath, outPath, desc, title, author, episodeId, pic, lang, subs, audioOnly, points);
         }
 
-        if (outPath.Contains('/') && !Directory.Exists(Path.GetDirectoryName(outPath)))
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
-        }
+        var outDir = Path.GetDirectoryName(outPath);
+        if (!string.IsNullOrEmpty(outDir)) Directory.CreateDirectory(outDir);
         //----分析并生成-i参数
         StringBuilder inputArg = new( );
         StringBuilder metaArg = new( );
@@ -243,7 +238,7 @@ internal static partial class BBDownMuxer
                 var tmpFile = Path.Combine(Path.GetDirectoryName(file)!, Path.GetFileNameWithoutExtension(file) + ".ts");
                 var arguments = $"-loglevel warning -y -i \"{file}\" -map 0 -c copy -f mpegts -bsf:v h264_mp4toannexb \"{tmpFile}\"";
                 LogDebug("ffmpeg命令: {0}", arguments);
-                RunExe("ffmpeg", arguments);
+                RunExe(FFMPEG, arguments);
                 File.Delete(file);
             }
 
