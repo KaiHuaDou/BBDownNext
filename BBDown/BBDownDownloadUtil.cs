@@ -106,7 +106,7 @@ internal static class BBDownDownloadUtil
         File.Move(tmpName, path, true);
     }
 
-    public static async Task MultiThreadDownloadFileAsync(string url, string path, DownloadConfig config, CancellationToken ct = default)
+    public static async Task<List<string>> MultiThreadDownloadFileAsync(string url, string path, DownloadConfig config, CancellationToken ct = default)
     {
         if (config.ForceHttp) url = ReplaceUrl(url);
         LogDebug("Start downloading: {0}", url);
@@ -119,7 +119,7 @@ internal static class BBDownDownloadUtil
             }
 
             Console.WriteLine( );
-            return;
+            return [];
         }
 
         var fileSize = await GetFileSizeAsync(url, config.Cookie, ct);
@@ -128,7 +128,7 @@ internal static class BBDownDownloadUtil
         if (File.Exists(path) && new FileInfo(path).Length == fileSize)
         {
             LogDebug("文件已下载过, 跳过下载");
-            return;
+            return [];
         }
 
         var allClips = GetAllClips(url, fileSize, config.ChunkSize);
@@ -136,6 +136,12 @@ internal static class BBDownDownloadUtil
         LogDebug("分段数量：{0}", total);
         ConcurrentDictionary<int, long> clipProgress = new( );
         foreach (var i in allClips) clipProgress[i.index] = 0;
+
+        var dir = Path.GetDirectoryName(path)!;
+        var nameWithoutExt = Path.GetFileNameWithoutExtension(path);
+        var clipExt = Path.GetExtension(path).EndsWith(".mp4") ? ".vclip" : ".aclip";
+        // 本次任务实际产出的分片清单，供合并/清理时精确使用，而非通配符扫目录
+        var createdClips = allClips.Select(clip => Path.Combine(dir, clip.index.ToString("00000") + "_" + nameWithoutExt + clipExt)).ToList( );
 
         using var progress = new ProgressBar(config.RelatedTask);
         progress.Report(0);
@@ -146,7 +152,7 @@ internal static class BBDownDownloadUtil
         };
         await Parallel.ForEachAsync(allClips, parallelOptions, async (clip, token) =>
         {
-            var tmp = Path.Combine(Path.GetDirectoryName(path)!, clip.index.ToString("00000") + "_" + Path.GetFileNameWithoutExtension(path) + (Path.GetExtension(path).EndsWith(".mp4") ? ".vclip" : ".aclip"));
+            var tmp = Path.Combine(dir, clip.index.ToString("00000") + "_" + nameWithoutExt + clipExt);
             try
             {
                 await RangeDownloadToTmpAsync(clip.index, url, tmp, clip.from, clip.to == -1 ? null : clip.to, (index, downloaded, _) =>
@@ -168,6 +174,8 @@ internal static class BBDownDownloadUtil
                 throw new InvalidOperationException($"分片 {clip.index} 下载失败: {ex.Message}", ex);
             }
         });
+
+        return createdClips;
     }
 
     //此函数主要是切片下载逻辑

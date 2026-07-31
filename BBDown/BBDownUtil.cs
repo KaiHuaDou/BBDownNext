@@ -227,6 +227,28 @@ internal static partial class Utils
     }
 
     /// <summary>
+    /// 带重试的文件删除：Windows 上杀软/资源管理器可能短暂持锁导致 IOException，
+    /// 用短暂退避重试替代 Thread.Sleep 硬等。删除失败仅记录，不抛出（避免掩盖主流程异常）。
+    /// </summary>
+    public static void SafeDelete(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                File.Delete(path);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt == 2) { LogDebug("删除失败（已忽略）: {0}", path); return; }
+                Thread.Sleep(50 * (attempt + 1));
+            }
+        }
+    }
+
+    /// <summary>
     /// 寻找指定目录下指定后缀的文件的详细路径 如".txt"
     /// </summary>
     /// <param name="dir"></param>

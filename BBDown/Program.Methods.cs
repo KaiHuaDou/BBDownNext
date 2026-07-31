@@ -429,11 +429,17 @@ internal sealed partial class Program
     {
         if (downloadConfig.MultiThread && !url.Contains("-cmcc-"))
         {
-            await MultiThreadDownloadFileAsync(url, destPath, downloadConfig, ct);
-            Log($"合并 {(video ? "视频" : "音频")} 分片...");
-            CombineMultipleFilesIntoSingleFile(GetFiles(Path.GetDirectoryName(destPath)!, $".{(video ? "v" : "a")}clip"), destPath);
-            Log("清理分片...");
-            foreach (var file in new DirectoryInfo(Path.GetDirectoryName(destPath)!).EnumerateFiles("*.?clip")) file.Delete( );
+            var clipPaths = await MultiThreadDownloadFileAsync(url, destPath, downloadConfig, ct);
+            try
+            {
+                Log($"合并 {(video ? "视频" : "音频")} 分片...");
+                CombineMultipleFilesIntoSingleFile([.. clipPaths], destPath);
+            }
+            finally
+            {
+                Log("清理分片...");
+                foreach (var file in clipPaths) SafeDelete(file);
+            }
         }
         else
         {
