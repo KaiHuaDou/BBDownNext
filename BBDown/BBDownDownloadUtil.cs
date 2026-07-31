@@ -10,12 +10,6 @@ using System.Threading.Tasks;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
-using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using System.Threading;
-
 
 namespace BBDown;
 
@@ -45,7 +39,7 @@ internal static class BBDownDownloadUtil
 
         var downloadedBytes = fromPosition + fileStream.Position;
 
-        using HttpResponseMessage response = await GetWithRangeAsync(url, downloadedBytes, toPosition, cookie, lastTime);
+        using var response = await GetWithRangeAsync(url, downloadedBytes, toPosition, cookie, lastTime);
 
         if (response.StatusCode == HttpStatusCode.OK) // server doesn't response a partial content
         {
@@ -212,7 +206,7 @@ internal static class BBDownDownloadUtil
     {
         using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         AddDownloadHeaders(httpRequestMessage, url, cookie);
-        HttpResponseMessage response = (await SendRawAsync(httpRequestMessage)).EnsureSuccessStatusCode( );
+        var response = (await SendRawAsync(httpRequestMessage)).EnsureSuccessStatusCode( );
         return response.Content.Headers.ContentLength ?? 0;
     }
 

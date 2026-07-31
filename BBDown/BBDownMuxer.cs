@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -12,12 +12,6 @@ using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.SubUtil;
 using static BBDown.Utils;
-using System.Net.Http;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-
 
 namespace BBDown;
 
@@ -95,6 +89,7 @@ internal static partial class BBDownMuxer
         {
             metaArg.Append($":title=\"{title}\"");
         }
+
         metaArg.Append($":sdesc=\"{desc}\"");
         metaArg.Append($":comment=\"{url}\"");
         metaArg.Append($":artist=\"{author}\"");
@@ -129,6 +124,7 @@ internal static partial class BBDownMuxer
         {
             audioPath = "";
         }
+
         desc = EscapeString(desc);
         title = EscapeString(title);
         episodeId = EscapeString(episodeId);

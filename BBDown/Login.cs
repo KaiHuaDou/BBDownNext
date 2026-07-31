@@ -11,12 +11,6 @@ using QRCoder;
 
 using static BBDown.Core.Logger;
 using static BBDown.Utils;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading;
-
 
 namespace BBDown;
 

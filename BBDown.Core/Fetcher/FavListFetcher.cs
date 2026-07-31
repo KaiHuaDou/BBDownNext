@@ -1,20 +1,13 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-
 
 namespace BBDown.Core.Fetcher;
 
@@ -63,7 +56,7 @@ public static class FavListFetcher
             medias.AddRange(data.GetProperty("medias").EnumerateArray( ).ToList( ));
         }
 
-        foreach (JsonElement m in medias)
+        foreach (var m in medias)
         {
             //只处理视频类型(可以直接在query param上指定type=2)
             //只处理未失效视频
@@ -72,12 +65,11 @@ public static class FavListFetcher
                 continue;
             }
 
-
             var pageCount = m.GetProperty("page").GetInt32( );
             if (pageCount > 1)
             {
-                VInfo tmpInfo = await NormalInfoFetcher.FetchAsync(m.GetProperty("id").ToString( ), cfg);
-                foreach (Page item in tmpInfo.PagesInfo)
+                var tmpInfo = await NormalInfoFetcher.FetchAsync(m.GetProperty("id").ToString( ), cfg);
+                foreach (var item in tmpInfo.PagesInfo)
                 {
                     var p = item.CopyWith(index++);
                     p.title = m.GetProperty("title").ToString( ) + $"_P{item.index}_{item.title}";

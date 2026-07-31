@@ -12,11 +12,6 @@ using BBDown.Core.Entity;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
-using System.Diagnostics;
-using System.IO;
-using System.Net.Http;
-using System.Threading;
-
 
 namespace BBDown.Core;
 
@@ -45,7 +40,6 @@ public static partial class Parser
         {
             return await AppHelper.DoReqAsync(aid, cid, epId, qn, bangumi, encoding, cfg);
         }
-
 
         var prefix = tvApi ? bangumi ? $"{cfg.TvHost}/pgc/player/api/playurltv" : $"{cfg.TvHost}/x/tv/playurl"
             : bangumi ? $"{cfg.Host}/pgc/player/web/v2/playurl" : "api.bilibili.com/x/player/wbi/playurl";
@@ -101,7 +95,6 @@ public static partial class Parser
             api = api.Replace("/pgc/", "/pugv/");
         }
 
-
         var webJson = await GetWebSourceAsync(api, cfg);
         //以下情况从网页源代码尝试解析
         if (webJson.Contains("\"大会员专享限制\""))
@@ -137,7 +130,6 @@ public static partial class Parser
         {
             paramBuilder.Append($"&ts={GetTimeStamp(true)}");
         }
-
 
         paramBuilder.Append("&s_locale=zh_SG");
         var param = paramBuilder.ToString( );
@@ -194,7 +186,7 @@ public static partial class Parser
                     }
                 }
 
-                foreach (JsonElement node in audio)
+                foreach (var node in audio)
                 {
                     var urlList = BuildUrlList(node);
                     Audio a = new( )
@@ -312,7 +304,7 @@ public static partial class Parser
 
                     if (video is not null)
                     {
-                        foreach (JsonElement node in video)
+                        foreach (var node in video)
                         {
                             var urlList = BuildUrlList(node);
 
@@ -349,7 +341,7 @@ public static partial class Parser
 
                     if (audio != null)
                     {
-                        foreach (JsonElement node in audio)
+                        foreach (var node in audio)
                         {
                             var urlList = BuildUrlList(node);
 
@@ -378,7 +370,7 @@ public static partial class Parser
 
                     if (backgroundAudio != null && roleAudio != null)
                     {
-                        foreach (JsonElement node in backgroundAudio)
+                        foreach (var node in backgroundAudio)
                         {
                             var audioId = node.GetProperty("id").ToString( );
                             var urlList = BuildUrlList(node);
@@ -393,7 +385,7 @@ public static partial class Parser
                             });
                         }
 
-                        foreach (JsonElement role in roleAudio)
+                        foreach (var role in roleAudio)
                         {
                             List<Audio> roleAudioTracks = [];
                             foreach (var node in role.GetProperty("audio").EnumerateArray( ))
@@ -487,7 +479,7 @@ public static partial class Parser
                     parsedResult.ExtraPoints.Sort((p1, p2) => p1.start.CompareTo(p2.start));
                     List<ViewPoint> newPoints = [];
                     var lastEnd = 0;
-                    foreach (ViewPoint point in parsedResult.ExtraPoints)
+                    foreach (var point in parsedResult.ExtraPoints)
                     {
                         if (lastEnd < point.start)
                         {
@@ -529,7 +521,7 @@ public static partial class Parser
 
     private static string GetTimeStamp(bool bflag)
     {
-        DateTimeOffset ts = DateTimeOffset.Now;
+        var ts = DateTimeOffset.Now;
         return bflag ? ts.ToUnixTimeSeconds( ).ToString( ) : ts.ToUnixTimeMilliseconds( ).ToString( );
     }
 

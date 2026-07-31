@@ -1,21 +1,15 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Xml;
 
 using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
 
 namespace BBDown.Core.Fetcher;
 
@@ -44,7 +38,7 @@ public static partial class NormalInfoFetcher
         // 分p信息
         List<Page> pagesInfo = [];
         var pages = data.GetProperty("pages").EnumerateArray( ).ToList( );
-        foreach (JsonElement page in pages)
+        foreach (var page in pages)
         {
             Page p = new( )
             {
@@ -83,10 +77,10 @@ public static partial class NormalInfoFetcher
                 var questions = edgeInfoData.GetProperty("edges").GetProperty("questions").EnumerateArray( )
                     .ToList( );
                 var index = 2; // 互动视频分P索引从2开始
-                foreach (JsonElement question in questions)
+                foreach (var question in questions)
                 {
                     var choices = question.GetProperty("choices").EnumerateArray( ).ToList( );
-                    foreach (JsonElement page in choices)
+                    foreach (var page in choices)
                     {
                         Page p = new( )
                         {

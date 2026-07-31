@@ -13,10 +13,6 @@ using Google.Protobuf;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
-using System.Diagnostics;
-using System.Net.Http;
-using System.Threading;
-
 
 namespace BBDown.Core.Util;
 

@@ -1,15 +1,6 @@
 using System;
 using System.Text;
 using System.Threading;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-
 
 /**
  * From https://gist.github.com/DanielSWolf/0ab6a96899cc5377bf54

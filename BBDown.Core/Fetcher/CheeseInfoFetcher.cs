@@ -1,20 +1,11 @@
+using System.Collections.Generic;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-
 
 namespace BBDown.Core.Fetcher;
 

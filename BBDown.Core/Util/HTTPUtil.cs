@@ -1,19 +1,12 @@
-using System.Net;
-using System.Net.Http.Headers;
-using System.Text.Json;
-
-using static BBDown.Core.Logger;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
+using System.Net;
 using System.Net.Http;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
+using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Threading.Tasks;
 
+using static BBDown.Core.Logger;
 
 namespace BBDown.Core.Util;
 
@@ -72,7 +65,7 @@ public static class HTTPUtil
         webRequest.Headers.Connection.Clear( );
 
         LogDebug("获取网页内容: Url: {0}, Headers: {1}", url, webRequest.Headers);
-        HttpResponseMessage webResponse = (await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
+        var webResponse = (await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
 
         var htmlCode = await webResponse.Content.ReadAsStringAsync( );
         LogDebug("Response: {0}", htmlCode);
@@ -89,7 +82,7 @@ public static class HTTPUtil
         webRequest.Headers.Connection.Clear( );
 
         LogDebug("获取网页重定向地址: Url: {0}, Headers: {1}", url, webRequest.Headers);
-        HttpResponseMessage webResponse = (await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
+        var webResponse = (await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
         var location = webResponse.RequestMessage!.RequestUri!.AbsoluteUri;
         LogDebug("Location: {0}", location);
         return location;
@@ -144,7 +137,7 @@ public static class HTTPUtil
 
         if (headers != null)
         {
-            foreach (KeyValuePair<string, string> header in headers)
+            foreach (var header in headers)
             {
                 request.Headers.TryAddWithoutValidation(header.Key, header.Value);
             }
@@ -155,7 +148,7 @@ public static class HTTPUtil
             request.Headers.TryAddWithoutValidation("grpc-encoding", "gzip");
         }
 
-        HttpResponseMessage response = await AppHttpClient.SendAsync(request);
+        var response = await AppHttpClient.SendAsync(request);
         var bytes = await response.Content.ReadAsByteArrayAsync( );
 
         return bytes;

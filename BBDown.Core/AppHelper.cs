@@ -1,7 +1,12 @@
+using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 using BBDown.Core.Protobuf;
 
@@ -9,17 +14,6 @@ using Google.Protobuf;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-
 
 namespace BBDown.Core;
 

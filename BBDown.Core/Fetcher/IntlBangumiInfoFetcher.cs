@@ -1,20 +1,14 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
 
 namespace BBDown.Core.Fetcher;
 
@@ -94,7 +88,7 @@ public static partial class IntlBangumiInfoFetcher
             }
         }*/
 
-        foreach (JsonElement page in pages)
+        foreach (var page in pages)
         {
             //跳过预告
             if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告")
