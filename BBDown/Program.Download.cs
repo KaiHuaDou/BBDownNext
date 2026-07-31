@@ -212,7 +212,7 @@ internal sealed partial class Program
         foreach (var s in subtitleInfo)
         {
             s.path = Path.Combine(pageCtx.TempDir, Path.GetFileName(s.path));
-            Log($"下载字幕 {s.lan} => {SubUtil.GetSubtitleCode(s.lan).Item2}...");
+            Log($"下载字幕 {s.lan} => {SubUtil.GetSubtitleCode(s.lan).Name}...");
             LogDebug("下载：{0}", s.url);
             await SubUtil.SaveSubtitleAsync(s.url, s.path, ctx.Cfg);
             if (myOption.SubOnly && File.Exists(s.path) && File.ReadAllText(s.path).Length != 0)
