@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -71,7 +72,7 @@ public static partial class HTTPUtil
     [GeneratedRegex(@"^(ep|ss)\d+$")]
     private static partial Regex BangumiSegmentRegex( );
 
-    public static async Task<string> GetWebSourceAsync(string url, AppConfig cfg, string? userAgent = null)
+    public static async Task<string> GetWebSourceAsync(string url, AppConfig cfg, string? userAgent = null, CancellationToken ct = default)
     {
         using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
         webRequest.Headers.TryAddWithoutValidation("User-Agent", userAgent ?? UserAgent);
@@ -93,16 +94,16 @@ public static partial class HTTPUtil
         webRequest.Headers.Connection.Clear( );
 
         LogDebug("获取网页内容: Url: {0}, Headers: {1}", url, webRequest.Headers);
-        using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead);
+        using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         webResponse.EnsureSuccessStatusCode( );
 
-        var htmlCode = await webResponse.Content.ReadAsStringAsync( );
+        var htmlCode = await webResponse.Content.ReadAsStringAsync(ct);
         LogDebug("Response: {0}", htmlCode);
         return htmlCode;
     }
 
     // 重写重定向处理, 自动跟随多次重定向
-    public static async Task<string> GetWebLocationAsync(string url)
+    public static async Task<string> GetWebLocationAsync(string url, CancellationToken ct = default)
     {
         using var webRequest = new HttpRequestMessage(HttpMethod.Head, url);
         webRequest.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
@@ -111,7 +112,7 @@ public static partial class HTTPUtil
         webRequest.Headers.Connection.Clear( );
 
         LogDebug("获取网页重定向地址: Url: {0}, Headers: {1}", url, webRequest.Headers);
-        using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead);
+        using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         webResponse.EnsureSuccessStatusCode( );
         var location = webResponse.RequestMessage!.RequestUri!.AbsoluteUri;
         LogDebug("Location: {0}", location);
@@ -119,16 +120,16 @@ public static partial class HTTPUtil
     }
 
     // 逃生舱：需要自行控制 Header/Range/平台分支时直接构造 HttpRequestMessage 走这里
-    public static Task<HttpResponseMessage> SendRawAsync(HttpRequestMessage request)
+    public static Task<HttpResponseMessage> SendRawAsync(HttpRequestMessage request, CancellationToken ct = default)
     {
         LogDebug("发送请求: {0} {1}, Headers: {2}", request.Method, request.RequestUri?.AbsoluteUri ?? "", request.Headers);
-        return AppHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+        return AppHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
     }
 
     // 返回裸 JsonDocument，调用方自己取字段并负责 Dispose
-    public static async Task<JsonDocument> GetJsonAsync(string url, AppConfig cfg)
+    public static async Task<JsonDocument> GetJsonAsync(string url, AppConfig cfg, CancellationToken ct = default)
     {
-        return JsonDocument.Parse(await GetWebSourceAsync(url, cfg));
+        return JsonDocument.Parse(await GetWebSourceAsync(url, cfg, null, ct));
     }
 
     // 移动端下载地址带 Referer 会被拒；platform=android_tv_yst 也以 android 开头，一次判定即可
@@ -149,7 +150,7 @@ public static partial class HTTPUtil
         request.Headers.TryAddWithoutValidation("Cookie", cookie);
     }
 
-    public static async Task<HttpResponseMessage> GetWithRangeAsync(string url, long from, long? to, string cookie, DateTimeOffset? ifRange = null)
+    public static async Task<HttpResponseMessage> GetWithRangeAsync(string url, long from, long? to, string cookie, DateTimeOffset? ifRange = null, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         AddDownloadHeaders(request, url, cookie);
@@ -157,7 +158,7 @@ public static partial class HTTPUtil
         request.Headers.IfRange = ifRange != null ? new(ifRange.Value) : null;
 
         // 失败响应握着连接不放会拖垮重试, 这里先释放再抛
-        var response = await SendRawAsync(request);
+        var response = await SendRawAsync(request, ct);
         if (response.IsSuccessStatusCode) return response;
 
         var status = response.StatusCode;
@@ -165,7 +166,7 @@ public static partial class HTTPUtil
         throw new HttpRequestException($"下载请求失败: HTTP {(int) status} {status}", null, status);
     }
 
-    public static async Task<byte[]> GetPostResponseAsync(string Url, byte[] postData, Dictionary<string, string>? headers = null)
+    public static async Task<byte[]> GetPostResponseAsync(string Url, byte[] postData, Dictionary<string, string>? headers = null, CancellationToken ct = default)
     {
         LogDebug("Post to: {0}, data: {1}", Url, Convert.ToBase64String(postData));
 
@@ -192,7 +193,7 @@ public static partial class HTTPUtil
             request.Headers.TryAddWithoutValidation("grpc-encoding", "gzip");
         }
 
-        using var response = await AppHttpClient.SendAsync(request);
+        using var response = await AppHttpClient.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException($"gRPC 请求失败: HTTP {(int) response.StatusCode} {response.ReasonPhrase}", null, response.StatusCode);
