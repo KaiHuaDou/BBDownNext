@@ -24,7 +24,8 @@
         </PackageReference>
     </ItemGroup>
     <ItemGroup>
-        <Protobuf Include="APP\**\*.proto" GrpcServices="Client" />
+        <!-- 这些 proto 只有 message 没有 service，生成 gRPC 客户端桩会产出一批 0 字节文件 -->
+        <Protobuf Include="APP\**\*.proto" GrpcServices="None" />
     </ItemGroup>
     <ItemGroup>
         <InternalsVisibleTo Include="BBDown.Core.Tests" />

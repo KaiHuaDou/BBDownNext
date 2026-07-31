@@ -14,6 +14,7 @@ using static BBDown.BBDownDownloadUtil;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Parser;
+using static BBDown.Core.Util.FileNameUtil;
 using static BBDown.Utils;
 
 namespace BBDown;
@@ -644,14 +645,14 @@ internal sealed partial class Program
 
             var v = key switch
             {
-                "videoTitle" => GetValidFileName(title, filterSlash: true).Trim( ).TrimEnd('.').Trim( ),
+                "videoTitle" => GetValidFileName(title).Trim( ).TrimEnd('.').Trim( ),
                 "pageNumber" => p.index.ToString( ),
                 "pageNumberWithZero" => p.index.ToString( ).PadLeft(pagesCount.ToString( ).Length, '0'),
-                "pageTitle" => GetValidFileName(p.title, filterSlash: true).Trim( ).TrimEnd('.').Trim( ),
+                "pageTitle" => GetValidFileName(p.title).Trim( ).TrimEnd('.').Trim( ),
                 "bvid" => p.bvid,
                 "aid" => p.aid,
                 "cid" => p.cid,
-                "ownerName" => p.ownerName == null ? "" : GetValidFileName(p.ownerName, filterSlash: true).Trim( ).TrimEnd('.').Trim( ),
+                "ownerName" => p.ownerName == null ? "" : GetValidFileName(p.ownerName).Trim( ).TrimEnd('.').Trim( ),
                 "ownerMid" => p.ownerMid ?? "",
                 "dfn" => videoTrack == null ? "" : videoTrack.dfn,
                 "res" => videoTrack == null ? "" : videoTrack.res,

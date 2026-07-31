@@ -20,12 +20,11 @@ public class FileNameUtilTests
     }
 
     [Fact]
-    public void GetValidFileName_SlashAlwaysFiltered_BackslashOnlyWhenRequested( )
+    public void GetValidFileName_FiltersBothSlashes( )
     {
-        // 正斜杠/反斜杠都在 InvalidChars 内，默认即被替换
         Assert.Equal("a_b", FileNameUtil.GetValidFileName("a/b"));
         Assert.Equal("a_b", FileNameUtil.GetValidFileName("a\\b"));
-        Assert.Equal("a_b_c", FileNameUtil.GetValidFileName("a/b\\c", "_", true));
+        Assert.Equal("a_b_c", FileNameUtil.GetValidFileName("a/b\\c"));
     }
 
     [Fact]

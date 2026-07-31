@@ -55,7 +55,7 @@ public static partial class Parser
 
         if (req.AppApi)
         {
-            return await AppHelper.DoReqAsync(req.Aid, req.Cid, req.EpId, qn, req.IsBangumi, req.Encoding, req.Cfg);
+            return await AppHelper.DoReqAsync(req.Aid, req.Cid, req.EpId, req.IsBangumi, req.Encoding, req.Cfg);
         }
 
         var api = BuildPlayUrlPrefix(req.TvApi, req.IsBangumi, req.IsCheese, req.Cfg.TvHost, req.Cfg.Host)

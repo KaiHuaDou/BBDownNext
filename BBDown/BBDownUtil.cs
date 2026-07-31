@@ -247,11 +247,6 @@ internal static partial class Utils
         return res;
     }
 
-    public static string GetValidFileName(string input, string re = "_", bool filterSlash = false)
-    {
-        return Core.Util.FileNameUtil.GetValidFileName(input, re, filterSlash);
-    }
-
     /// <summary>
     /// 获取url字符串参数, 返回参数值字符串
     /// </summary>

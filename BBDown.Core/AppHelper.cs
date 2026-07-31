@@ -57,10 +57,9 @@ internal static class AppHelper
     /// </summary>
     /// <param name="epId"></param>
     /// <param name="cid"></param>
-    /// <param name="qn"></param>
     /// <param name="appkey"></param>
     /// <returns></returns>
-    public static async Task<string> DoReqAsync(string aid, string cid, string epId, string qn, bool bangumi, string encoding, AppConfig cfg, string appkey = "")
+    public static async Task<string> DoReqAsync(string aid, string cid, string epId, bool bangumi, string encoding, AppConfig cfg, string appkey = "")
     {
 
         var headers = GetHeader(appkey, cfg);
@@ -74,12 +73,12 @@ internal static class AppHelper
                 LogWarn("APP 的番剧不支持 HEVC 以外的编码。");
             }
 
-            var body = GetPayload(Convert.ToInt64(epId), Convert.ToInt64(cid), Convert.ToInt64(qn), PlayViewReq.Types.CodeType.Code265);
+            var body = GetPayload(Convert.ToInt64(epId), Convert.ToInt64(cid), PlayViewReq.Types.CodeType.Code265);
             data = await GetPostResponseAsync(API2, body, headers);
         }
         else
         {
-            var body = GetPayload(Convert.ToInt64(aid), Convert.ToInt64(cid), Convert.ToInt64(qn), GetVideoCodeType(encoding));
+            var body = GetPayload(Convert.ToInt64(aid), Convert.ToInt64(cid), GetVideoCodeType(encoding));
             data = await GetPostResponseAsync(API, body, headers);
         }
 
@@ -217,13 +216,13 @@ internal static class AppHelper
         return JsonSerializer.Serialize(json, JsonContext.Default.DashJson);
     }
 
-    private static byte[] GetPayload(long aid, long cid, long qn, PlayViewReq.Types.CodeType codec)
+    private static byte[] GetPayload(long aid, long cid, PlayViewReq.Types.CodeType codec)
     {
         var obj = new PlayViewReq
         {
             EpId = aid,
             Cid = cid,
-            //obj.Qn = qn;
+            // 固定请求最高档，实际可用画质由响应决定；传入 qn 反而会被服务端限流到该档
             Qn = 127,
             Fnval = 4048,
             Fourk = true,

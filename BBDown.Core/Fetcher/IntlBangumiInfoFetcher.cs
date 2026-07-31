@@ -70,27 +70,6 @@ public static partial class IntlBangumiInfoFetcher
             }
         }
 
-        /*if (pages.Count == 0)
-        {
-            if (web != "")
-            {
-                string epApi = $"https://api.bilibili.com/pgc/web/season/section?season_id={seasonId}";
-                var _web = GetWebSource(epApi);
-                pages = JArray.Parse(JObject.Parse(_web)["result"]["main_section"]["episodes"].ToString());
-            }
-            else if (infoJson["data"]["modules"] != null)
-            {
-                foreach (JObject section in JArray.Parse(infoJson["data"]["modules"].ToString()))
-                {
-                    if (section.ToString().Contains($"ep_id={id}"))
-                    {
-                        pages = JArray.Parse(section["data"]["episodes"].ToString());
-                        break;
-                    }
-                }
-            }
-        }*/
-
         foreach (var page in pages)
         {
             //跳过预告
