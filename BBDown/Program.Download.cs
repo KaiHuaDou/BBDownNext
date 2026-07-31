@@ -15,20 +15,27 @@ using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Parser;
 using static BBDown.Utils;
-using System.Diagnostics;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
-
 
 namespace BBDown;
 
 internal sealed partial class Program
 {
-    public static async Task DownloadPagesAsync(MyOption myOption, VInfo vInfo, Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority,
-        string firstEncoding, bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, int delay, string apiType, AppConfig cfg, DownloadTask? relatedTask = null)
+    public static async Task DownloadPagesAsync(MyOption myOption, WorkContext ctx, DownloadTask? relatedTask = null)
     {
-        List<Page> pagesInfo = vInfo.PagesInfo;
+        var vInfo = ctx.VInfo!;
+        var encodingPriority = ctx.EncodingPriority;
+        var dfnPriority = ctx.DfnPriority;
+        var firstEncoding = ctx.FirstEncoding;
+        var downloadDanmaku = ctx.DownloadDanmaku;
+        var downloadDanmakuFormats = ctx.DownloadDanmakuFormats;
+        var input = ctx.Input;
+        var savePathFormat = ctx.SavePathFormat;
+        var lang = ctx.Lang;
+        var aidOri = ctx.FetchedAid;
+        var delay = ctx.Delay;
+        var apiType = ctx.ApiType;
+        var cfg = ctx.Cfg;
+        var pagesInfo = vInfo.PagesInfo;
         var bangumi = vInfo.IsBangumi;
         var cheese = vInfo.IsCheese;
         //获取已选择的分P列表
@@ -71,8 +78,7 @@ internal sealed partial class Program
                 }
             }
 
-            await DownloadPageAsync(p, myOption, vInfo, pagesInfo, encodingPriority, dfnPriority, firstEncoding,
-                downloadDanmaku, downloadDanmakuFormats, input, savePathFormat, lang, aidOri, apiType, cfg, relatedTask);
+            await DownloadPageAsync(p, myOption, ctx, pagesInfo, relatedTask);
 
             if (myOption.SaveArchivesToFile)
             {
@@ -83,9 +89,20 @@ internal sealed partial class Program
         Log("任务完成");
     }
 
-    private static async Task DownloadPageAsync(Page p, MyOption myOption, VInfo vInfo, List<Page> selectedPagesInfo, Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority,
-        string firstEncoding, bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, string apiType, AppConfig cfg, DownloadTask? relatedTask = null)
+    private static async Task DownloadPageAsync(Page p, MyOption myOption, WorkContext ctx, List<Page> selectedPagesInfo, DownloadTask? relatedTask = null)
     {
+        var vInfo = ctx.VInfo!;
+        var encodingPriority = ctx.EncodingPriority;
+        var dfnPriority = ctx.DfnPriority;
+        var firstEncoding = ctx.FirstEncoding;
+        var downloadDanmaku = ctx.DownloadDanmaku;
+        var downloadDanmakuFormats = ctx.DownloadDanmakuFormats;
+        var input = ctx.Input;
+        var savePathFormat = ctx.SavePathFormat;
+        var lang = ctx.Lang;
+        var aidOri = ctx.FetchedAid;
+        var apiType = ctx.ApiType;
+        var cfg = ctx.Cfg;
         var desc = string.IsNullOrEmpty(p.desc) ? vInfo.Desc : p.desc;
         var bangumi = vInfo.IsBangumi;
         var pagesCount = selectedPagesInfo.Count;
@@ -160,7 +177,7 @@ internal sealed partial class Program
                 }
 
                 //调用解析
-                ParsedResult parsedResult = await ExtractTracksAsync(aidOri, p.aid, p.cid, p.epid, myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, firstEncoding, cfg);
+                var parsedResult = await ExtractTracksAsync(aidOri, p.aid, p.cid, p.epid, myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, firstEncoding, cfg);
                 List<AudioMaterial> audioMaterial = [];
                 if (p.points.Count == 0)
                 {
@@ -215,7 +232,7 @@ internal sealed partial class Program
                     parsedResult.VideoTracks = SortTracks(parsedResult.VideoTracks, dfnPriority, encodingPriority, myOption.VideoAscending);
                     parsedResult.AudioTracks = SortTracks(parsedResult.AudioTracks, encodingPriority, myOption.AudioAscending);
                     parsedResult.BackgroundAudioTracks = SortTracks(parsedResult.BackgroundAudioTracks, encodingPriority, myOption.AudioAscending);
-                    foreach (AudioMaterialInfo role in parsedResult.RoleAudioList)
+                    foreach (var role in parsedResult.RoleAudioList)
                     {
                         role.audio = SortTracks(role.audio, encodingPriority, myOption.AudioAscending);
                     }
@@ -242,9 +259,9 @@ internal sealed partial class Program
                         selected = true;
                     }
 
-                    Video? selectedVideo = parsedResult.VideoTracks.ElementAtOrDefault(vIndex);
-                    Audio? selectedAudio = parsedResult.AudioTracks.ElementAtOrDefault(aIndex);
-                    Audio? selectedBackgroundAudio = parsedResult.BackgroundAudioTracks.ElementAtOrDefault(aIndex);
+                    var selectedVideo = parsedResult.VideoTracks.ElementAtOrDefault(vIndex);
+                    var selectedAudio = parsedResult.AudioTracks.ElementAtOrDefault(aIndex);
+                    var selectedBackgroundAudio = parsedResult.BackgroundAudioTracks.ElementAtOrDefault(aIndex);
 
                     LogDebug("Format Before: " + savePathFormat);
                     savePath = FormatSavePath(savePathFormat, title, selectedVideo, selectedAudio, p, pagesCount, apiType, pubTime);
@@ -354,7 +371,7 @@ internal sealed partial class Program
 
                     if (parsedResult.RoleAudioList.Count != 0)
                     {
-                        foreach (AudioMaterialInfo role in parsedResult.RoleAudioList)
+                        foreach (var role in parsedResult.RoleAudioList)
                         {
                             Log($"开始下载P{p.index}配音[{role.title}]...");
                             await DownloadTrackAsync(role.audio[aIndex].baseUrl, role.path, downloadConfig, video: false);
@@ -398,8 +415,8 @@ internal sealed partial class Program
                 else if (parsedResult.Clips.Count != 0 && parsedResult.Dfns.Count != 0)   //flv
                 {
                     var flag = false;
-                    List<string> clips = parsedResult.Clips;
-                    List<string> dfns = parsedResult.Dfns;
+                    var clips = parsedResult.Clips;
+                    var dfns = parsedResult.Dfns;
                     while (true)
                     {
                         //排序
@@ -426,7 +443,7 @@ internal sealed partial class Program
 
                         Log($"共计{parsedResult.VideoTracks.Count}条流(共有{clips.Count}个分段).");
                         var index = 0;
-                        foreach (Video v in parsedResult.VideoTracks)
+                        foreach (var v in parsedResult.VideoTracks)
                         {
                             LogColor($"{index++}. [{v.dfn}] [{v.res}] [{v.codecs}] [{v.fps}] [~{v.size / 1024 / v.dur * 8:00} kbps] [{FormatFileSize(v.size)}]".Replace("[] ", ""), false);
                             if (myOption.OnlyShowInfo)

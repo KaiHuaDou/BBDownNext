@@ -17,10 +17,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
-using System.Diagnostics;
-using System.IO;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace BBDown;
 
@@ -143,13 +139,12 @@ public class BBDownApiServer
         runningTasks.Add(task);
         try
         {
-            (var encodingPriority, var dfnPriority, var firstEncoding, var downloadDanmaku, var downloadDanmakuFormats, var input, var savePathFormat, var lang, var aidOri, var delay) = Program.SetUpWork(option);
-            (var fetchedAid, var vInfo, var apiType, var cfg) = await Program.GetVideoInfoAsync(option, aidOri, input);
-            task.Title = vInfo.Title;
-            task.Pic = vInfo.Pic;
-            task.VideoPubTime = vInfo.PubTime;
-            await Program.DownloadPagesAsync(option, vInfo, encodingPriority, dfnPriority, firstEncoding, downloadDanmaku, downloadDanmakuFormats,
-                        input, savePathFormat, lang, fetchedAid, delay, apiType, cfg, task);
+            var taskCtx = Program.BuildWorkContext(option);
+            taskCtx = await Program.GetVideoInfoAsync(option, taskCtx);
+            task.Title = taskCtx.VInfo!.Title;
+            task.Pic = taskCtx.VInfo.Pic;
+            task.VideoPubTime = taskCtx.VInfo.PubTime;
+            await Program.DownloadPagesAsync(option, taskCtx, task);
             task.IsSuccessful = true;
         }
         catch (Exception e)

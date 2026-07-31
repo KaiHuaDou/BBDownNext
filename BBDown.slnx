@@ -11,4 +11,5 @@
   <Project Path="BBDown.Core/BBDown.Core.csproj" />
   <Project Path="BBDown.Core.Tests/BBDown.Core.Tests.csproj" />
   <Project Path="BBDown/BBDown.csproj" />
+  <Project Path="BBDown.Tests/BBDown.Tests.csproj" />
 </Solution>

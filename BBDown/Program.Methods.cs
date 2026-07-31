@@ -12,12 +12,6 @@ using static BBDown.BBDownDownloadUtil;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Utils;
-using System.Diagnostics;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
-using System.Threading;
-
 
 namespace BBDown;
 
@@ -25,14 +19,12 @@ internal sealed partial class Program
 {
 
     /// <summary>
-    /// 解析用户指定的编码优先级
+    /// 解析用户指定的编码优先级，返回优先级表与首个编码
     /// </summary>
-    /// <param name="myOption"></param>
-    /// <returns></returns>
-    private static Dictionary<string, byte> ParseEncodingPriority(MyOption myOption, out string firstEncoding)
+    internal static (Dictionary<string, byte> EncodingPriority, string FirstEncoding) ParseEncodingPriority(MyOption myOption)
     {
         var encodingPriority = new Dictionary<string, byte>( );
-        firstEncoding = "";
+        var firstEncoding = "";
         if (myOption.EncodingPriority != null)
         {
             var encodingPriorityTemp = myOption.EncodingPriority
@@ -52,10 +44,10 @@ internal sealed partial class Program
             }
         }
 
-        return encodingPriority;
+        return (encodingPriority, firstEncoding);
     }
 
-    private static BBDownDanmakuFormat[] ParseDownloadDanmakuFormats(MyOption myOption)
+    internal static BBDownDanmakuFormat[] ParseDownloadDanmakuFormats(MyOption myOption)
     {
         if (string.IsNullOrEmpty(myOption.DownloadDanmakuFormats)) return BBDownDanmakuFormatInfo.DefaultFormats;
 
@@ -72,9 +64,7 @@ internal sealed partial class Program
     /// <summary>
     /// 解析用户输入的清晰度规格优先级
     /// </summary>
-    /// <param name="myOption"></param>
-    /// <returns></returns>
-    private static Dictionary<string, int> ParseDfnPriority(MyOption myOption)
+    internal static Dictionary<string, int> ParseDfnPriority(MyOption myOption)
     {
         var dfnPriority = new Dictionary<string, int>( );
         if (myOption.DfnPriority != null)
@@ -152,8 +142,7 @@ internal sealed partial class Program
     /// <summary>
     /// 处理有冲突的选项
     /// </summary>
-    /// <param name="myOption"></param>
-    private static void HandleConflictingOptions(MyOption myOption)
+    internal static void HandleConflictingOptions(MyOption myOption)
     {
         //手动选择时不能隐藏流
         if (myOption.Interactive)
@@ -259,7 +248,7 @@ internal sealed partial class Program
     private static List<string>? GetSelectedPages(MyOption myOption, VInfo vInfo, string input)
     {
         List<string>? selectedPages = null;
-        List<Page> pagesInfo = vInfo.PagesInfo;
+        var pagesInfo = vInfo.PagesInfo;
         var selectPage = myOption.SelectPage.ToUpper( ).Trim( ).Trim(',');
 
         if (string.IsNullOrEmpty(selectPage))
@@ -382,7 +371,7 @@ internal sealed partial class Program
         {
             Log($"共计{parsedResult.BackgroundAudioTracks.Count}条背景音频流.");
             var index = 0;
-            foreach (Audio a in parsedResult.BackgroundAudioTracks)
+            foreach (var a in parsedResult.BackgroundAudioTracks)
             {
                 var pDur = pageDur == 0 ? a.dur : pageDur;
                 LogColor($"{index++}. [{a.codecs}] [{a.bandwidth} kbps] [~{FormatFileSize(pDur * a.bandwidth * 1024 / 8)}]", false);
@@ -390,7 +379,7 @@ internal sealed partial class Program
 
             Log($"共计{parsedResult.RoleAudioList.Count}条配音, 每条包含{parsedResult.RoleAudioList[0].audio.Count}条配音流.");
             index = 0;
-            foreach (Audio a in parsedResult.RoleAudioList[0].audio)
+            foreach (var a in parsedResult.RoleAudioList[0].audio)
             {
                 var pDur = pageDur == 0 ? a.dur : pageDur;
                 LogColor($"{index++}. [{a.codecs}] [{a.bandwidth} kbps] [~{FormatFileSize(pDur * a.bandwidth * 1024 / 8)}]", false);
@@ -401,7 +390,7 @@ internal sealed partial class Program
         {
             Log($"共计{parsedResult.VideoTracks.Count}条视频流.");
             var index = 0;
-            foreach (Video v in parsedResult.VideoTracks)
+            foreach (var v in parsedResult.VideoTracks)
             {
                 var pDur = pageDur == 0 ? v.dur : pageDur;
                 var size = v.size > 0 ? v.size : pDur * v.bandwidth * 1024 / 8;
@@ -414,7 +403,7 @@ internal sealed partial class Program
         {
             Log($"共计{parsedResult.AudioTracks.Count}条音频流.");
             var index = 0;
-            foreach (Audio a in parsedResult.AudioTracks)
+            foreach (var a in parsedResult.AudioTracks)
             {
                 var pDur = pageDur == 0 ? a.dur : pageDur;
                 LogColor($"{index++}. [{a.codecs}] [{a.bandwidth} kbps] [~{FormatFileSize(pDur * a.bandwidth * 1024 / 8)}]", false);

@@ -14,14 +14,8 @@ using BBDown.Core.Entity;
 using BBDown.Core.Fetcher;
 using BBDown.Core.Util;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Utils;
-using System.Diagnostics;
-using System.Net.Http;
-using System.Text;
-using System.Text.RegularExpressions;
-
 
 namespace BBDown;
 
@@ -157,9 +151,7 @@ internal sealed partial class Program
 #pragma warning restore CA2234
     }
 
-    public static (Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority, string firstEncoding,
-        bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, int delay)
-        SetUpWork(MyOption myOption)
+    public static WorkContext BuildWorkContext(MyOption myOption)
     {
         //处理冲突选项
         HandleConflictingOptions(myOption);
@@ -171,7 +163,7 @@ internal sealed partial class Program
         ChangeWorkingDir(myOption);
 
         //解析优先级
-        var encodingPriority = ParseEncodingPriority(myOption, out var firstEncoding);
+        var (encodingPriority, firstEncoding) = ParseEncodingPriority(myOption);
         var dfnPriority = ParseDfnPriority(myOption);
 
         //优先使用用户设置的UA
@@ -183,16 +175,28 @@ internal sealed partial class Program
         var input = myOption.Url;
         var savePathFormat = myOption.FilePattern;
         var lang = myOption.Language;
-        var aidOri = ""; //原始aid
         var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
         Config.SetDebugLog(myOption.Debug);
 
         LogDebug("AppDirectory: {0}", APP_DIR);
         LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption, MyOptionJsonContext.Default.MyOption));
-        return (encodingPriority, dfnPriority, firstEncoding, downloadDanmaku, downloadDanmakuFormats, input, savePathFormat, lang, aidOri, delay);
+        return new WorkContext(
+            EncodingPriority: encodingPriority,
+            DfnPriority: dfnPriority,
+            FirstEncoding: firstEncoding,
+            DownloadDanmaku: downloadDanmaku,
+            DownloadDanmakuFormats: downloadDanmakuFormats,
+            Input: input,
+            SavePathFormat: savePathFormat,
+            Lang: lang,
+            Delay: delay,
+            FetchedAid: "",
+            VInfo: null,
+            ApiType: "",
+            Cfg: default);
     }
 
-    public static async Task<(string fetchedAid, VInfo vInfo, string apiType, AppConfig cfg)> GetVideoInfoAsync(MyOption myOption, string aidOri, string input)
+    public static async Task<WorkContext> GetVideoInfoAsync(MyOption myOption, WorkContext ctx)
     {
         // 加载认证信息
         var (cookie, token) = LoadCredentials(myOption);
@@ -212,41 +216,55 @@ internal sealed partial class Program
         }
 
         Log("获取aid...");
-        aidOri = await GetAvIdAsync(input, cfg);
-        Log($"获取aid结束: {aidOri}");
+        var aid = await GetAvIdAsync(ctx.Input, cfg);
+        Log($"获取aid结束: {aid}");
 
-        if (string.IsNullOrEmpty(aidOri))
+        if (string.IsNullOrEmpty(aid))
         {
             throw new ArgumentException("输入有误");
         }
 
-        Log("获取视频信息...");
+        (aid, var vInfo) = await FetchVideoInfoAsync(aid, cfg, myOption.UseIntlApi);
+        PrintVideoSummary(vInfo, myOption);
+        var apiType = DetermineApiType(myOption);
+        PrintPagesInfo(vInfo, myOption);
+
+        return ctx with { FetchedAid = aid, VInfo = vInfo, ApiType = apiType, Cfg = cfg };
+    }
+
+    private static async Task<(string aid, VInfo vInfo)> FetchVideoInfoAsync(string aid, AppConfig cfg, bool useIntlApi)
+    {
         VInfo? vInfo = null;
 
         // 只输入 EP/SS 时优先按番剧查找，如果找不到则尝试按课程查找
         try
         {
-            vInfo = await FetcherRegistry.FetchAsync(aidOri, cfg, myOption.UseIntlApi);
+            vInfo = await FetcherRegistry.FetchAsync(aid, cfg, useIntlApi);
         }
         catch (KeyNotFoundException e)
         {
             if (e.Message != "Arg_KeyNotFound") throw; // 错误消息不符合预期，抛出异常
-            if (aidOri.StartsWith("cheese:")) throw; // 已经按课程查找过，不再重复尝试
+            if (aid.StartsWith("cheese:")) throw; // 已经按课程查找过，不再重复尝试
 
             LogWarn("未找到此 EP/SS 对应番剧信息, 正在尝试按课程查找。");
 
-            aidOri = aidOri.Replace("ep", "cheese");
-            Log("新的 aid: " + aidOri);
+            aid = aid.Replace("ep", "cheese");
+            Log("新的 aid: " + aid);
 
-            if (string.IsNullOrEmpty(aidOri))
+            if (string.IsNullOrEmpty(aid))
             {
                 throw new ArgumentException("输入有误");
             }
 
             Log("获取视频信息...");
-            vInfo = await FetcherRegistry.FetchAsync(aidOri, cfg, myOption.UseIntlApi);
+            vInfo = await FetcherRegistry.FetchAsync(aid, cfg, useIntlApi);
         }
 
+        return (aid, vInfo!);
+    }
+
+    private static void PrintVideoSummary(VInfo vInfo, MyOption myOption)
+    {
         var title = vInfo.Title;
         var pubTime = vInfo.PubTime;
         LogColor("视频标题: " + title);
@@ -272,11 +290,15 @@ internal sealed partial class Program
             Log("视频为互动视频，暂时不支持tv下载，修改为默认下载");
             myOption.UseTvApi = false;
         }
+    }
 
-        var apiType = myOption.UseTvApi ? "TV" : (myOption.UseAppApi ? "APP" : (myOption.UseIntlApi ? "INTL" : "WEB"));
+    internal static string DetermineApiType(MyOption myOption)
+        => myOption.UseTvApi ? "TV" : (myOption.UseAppApi ? "APP" : (myOption.UseIntlApi ? "INTL" : "WEB"));
 
+    private static void PrintPagesInfo(VInfo vInfo, MyOption myOption)
+    {
         //打印分P信息
-        List<Page> pagesInfo = vInfo.PagesInfo;
+        var pagesInfo = vInfo.PagesInfo;
         var more = false;
         foreach (var p in pagesInfo)
         {
@@ -293,19 +315,15 @@ internal sealed partial class Program
 
             Log($"P{p.index}: [{p.cid}] [{p.title}] [{FormatTime(p.dur)}]");
         }
-
-        return (aidOri, vInfo, apiType, cfg);
     }
 
     private static async Task DoWorkAsync(MyOption myOption)
     {
         try
         {
-            (var encodingPriority, var dfnPriority, var firstEncoding, var downloadDanmaku, var downloadDanmakuFormats,
-                var input, var savePathFormat, var lang, var aidOri, var delay) = SetUpWork(myOption);
-            (var fetchedAid, var vInfo, var apiType, var cfg) = await GetVideoInfoAsync(myOption, aidOri, input);
-            await DownloadPagesAsync(myOption, vInfo, encodingPriority, dfnPriority, firstEncoding, downloadDanmaku, downloadDanmakuFormats,
-                input, savePathFormat, lang, fetchedAid, delay, apiType, cfg);
+            var ctx = BuildWorkContext(myOption);
+            ctx = await GetVideoInfoAsync(myOption, ctx);
+            await DownloadPagesAsync(myOption, ctx);
         }
         catch (Exception e)
         {

@@ -33,4 +33,7 @@
     <ItemGroup>
         <ProjectReference Include="..\BBDown.Core\BBDown.Core.csproj" />
     </ItemGroup>
+    <ItemGroup>
+        <InternalsVisibleTo Include="BBDown.Tests" />
+    </ItemGroup>
 </Project>
