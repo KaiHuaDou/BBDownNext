@@ -4,6 +4,9 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
+using BBDown.Core;
+using BBDown.Core.Util;
+
 namespace BBDown;
 
 internal static class BBDownAria2c
@@ -33,9 +36,9 @@ internal static class BBDownAria2c
             "--auto-file-renaming=false", "--download-result=hide", "--allow-overwrite=true",
             "--console-log-level=warn", "-x16", "-s16", "-j16", "-k5M"
         ];
-        if (!url.Contains("platform=android_tv_yst") && !url.Contains("platform=android"))
+        if (!HTTPUtil.IsAndroidPlatformUrl(url))
         {
-            args.Add("--header=Referer: https://www.bilibili.com");
+            args.Add($"--header=Referer: {BiliApi.Site}");
         }
 
         args.Add("--header=User-Agent: Mozilla/5.0");

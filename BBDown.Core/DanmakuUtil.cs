@@ -21,7 +21,7 @@ public static class DanmakuUtil
 
     /*public static async Task DownloadAsync(Page p, string xmlPath, bool aria2c, string aria2cProxy)
     {
-        string danmakuUrl = "https://comment.bilibili.com/" + p.cid + ".xml";
+        string danmakuUrl = $"{BiliApi.DanmakuXml}/{p.cid}.xml";
         await DownloadFile(danmakuUrl, xmlPath, aria2c, aria2cProxy);
     }*/
 

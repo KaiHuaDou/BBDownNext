@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
+using BBDown.Core;
 using BBDown.Core.Util;
 
 using QRCoder;
@@ -85,7 +86,7 @@ internal static class Login
                 Generate: async ( ) =>
                 {
                     Log("获取登录地址...");
-                    var loginUrl = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header";
+                    var loginUrl = $"{BiliApi.QrCodeGenerate}?source=main-fe-header";
                     var root = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(loginUrl, Core.AppConfig.Empty)).RootElement;
                     var url = root.GetProperty("data").GetProperty("url").GetString( )!;
                     var key = GetQueryString("qrcode_key", url);
@@ -93,7 +94,7 @@ internal static class Login
                 },
                 Poll: async key =>
                 {
-                    var pollUrl = $"https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key={key}&source=main-fe-header";
+                    var pollUrl = $"{BiliApi.QrCodePoll}?qrcode_key={key}&source=main-fe-header";
                     return JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(pollUrl, Core.AppConfig.Empty)).RootElement;
                 },
                 Interpret: root =>
@@ -131,7 +132,7 @@ internal static class Login
                 Generate: async ( ) =>
                 {
                     Log("获取登录地址...");
-                    Uri loginUrl = new("https://passport.snm0516.aisee.tv/x/passport-tv-login/qrcode/auth_code");
+                    Uri loginUrl = new(BiliApi.TvQrCodeAuth);
                     var parms = GetTVLoginParms( );
                     using var loginContent = new FormUrlEncodedContent(parms.ToDictionary( ));
                     var responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(loginUrl, loginContent)).Content.ReadAsByteArrayAsync( );
@@ -148,7 +149,7 @@ internal static class Login
                 },
                 Poll: async _ =>
                 {
-                    Uri pollUrl = new("https://passport.bilibili.com/x/passport-tv-login/qrcode/poll");
+                    Uri pollUrl = new(BiliApi.TvQrCodePoll);
                     using var pollContent = new FormUrlEncodedContent(tvParms!.ToDictionary( ));
                     var responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(pollUrl, pollContent)).Content.ReadAsByteArrayAsync( );
                     return JsonDocument.Parse(Encoding.UTF8.GetString(responseArray)).RootElement;

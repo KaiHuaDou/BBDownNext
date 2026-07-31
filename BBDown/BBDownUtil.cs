@@ -11,6 +11,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 
+using BBDown.Core;
+
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
@@ -153,7 +155,7 @@ internal static partial class Utils
     {
         if (!avid.All(char.IsDigit))
             return avid;
-        var api = $"https://www.bilibili.com/video/av{avid}/";
+        var api = $"{BiliApi.VideoPage}/av{avid}/";
         var location = await GetWebLocationAsync(api);
         return location.Contains("/ep") ? $"ep:{EpRegex( ).Match(location).Groups[1].Value}" : avid;
     }
@@ -166,7 +168,7 @@ internal static partial class Utils
 
     private static async Task<string> GetEpidBySSIdAsync(string ssid, Core.AppConfig cfg)
     {
-        var api = $"https://api.bilibili.com/pugv/view/web/season?season_id={ssid}";
+        var api = $"{BiliApi.SeasonPugv}?season_id={ssid}";
         var json = await GetWebSourceAsync(api, cfg);
         using var jDoc = JsonDocument.Parse(json);
         var epId = jDoc.RootElement.GetProperty("data").GetProperty("episodes").EnumerateArray( ).First( ).GetProperty("id").ToString( );
@@ -184,7 +186,7 @@ internal static partial class Utils
 
     private static async Task<string> GetEpIdByMDAsync(string mdId, Core.AppConfig cfg)
     {
-        var api = $"https://api.bilibili.com/pgc/review/user?media_id={mdId}";
+        var api = $"{BiliApi.ReviewUser}?media_id={mdId}";
         var json = await GetWebSourceAsync(api, cfg);
         using var jDoc = JsonDocument.Parse(json);
         var epId = jDoc.RootElement.GetProperty("result").GetProperty("media").GetProperty("new_ep").GetProperty("id").ToString( );
@@ -387,7 +389,7 @@ internal static partial class Utils
         List<ViewPoint> points = [];
         try
         {
-            var api = $"https://api.bilibili.com/x/player/wbi/v2?cid={cid}&aid={aid}";
+            var api = $"{BiliApi.PlayerWbiV2}?cid={cid}&aid={aid}";
             var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
             if (infoJson.RootElement.GetProperty("data").TryGetProperty("view_points", out var vPoint))
@@ -488,7 +490,7 @@ internal static partial class Utils
     {
         try
         {
-            var api = "https://api.bilibili.com/x/web-interface/nav";
+            var api = BiliApi.Nav;
             var source = await GetWebSourceAsync(api, cfg);
             var json = JsonDocument.Parse(source).RootElement;
             var info = ParseNav(json.GetProperty("data"));

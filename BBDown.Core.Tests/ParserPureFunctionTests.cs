@@ -49,11 +49,19 @@ public class ParserPureFunctionTests
     [InlineData(true, true, false, "https://tv.host/pgc/player/api/playurltv?")]
     [InlineData(true, false, false, "https://tv.host/x/tv/playurl?")]
     [InlineData(false, true, false, "https://web.host/pgc/player/web/v2/playurl?")]
-    [InlineData(false, false, false, "https://api.bilibili.com/x/player/wbi/playurl?")]
+    [InlineData(false, false, false, "https://web.host/x/player/wbi/playurl?")]
     [InlineData(false, true, true, "https://web.host/pugv/player/web/v2/playurl?")]
     public void BuildPlayUrlPrefix_CoversAllApiCombinations(bool tvApi, bool bangumi, bool cheese, string expected)
     {
         Assert.Equal(expected, Parser.BuildPlayUrlPrefix(tvApi, bangumi, cheese, "tv.host", "web.host"));
+    }
+
+    // --host 指定 BiliPlus 代理时，普通稿件的 playurl 也必须走代理，
+    // 否则代理只对番剧生效，普通稿件仍直连官方
+    [Fact]
+    public void BuildPlayUrlPrefix_WebPlayUrlHonorsCustomHost( )
+    {
+        Assert.StartsWith("https://biliplus.example/", Parser.BuildPlayUrlPrefix(false, false, false, BiliApi.TvHost, "biliplus.example"));
     }
 
     [Theory]

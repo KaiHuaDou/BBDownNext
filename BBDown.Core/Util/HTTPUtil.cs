@@ -7,6 +7,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
 
 using static BBDown.Core.Logger;
 
@@ -64,12 +65,14 @@ public static partial class HTTPUtil
         webRequest.Headers.TryAddWithoutValidation("User-Agent", userAgent ?? UserAgent);
         webRequest.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
         webRequest.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? cfg.Cookie + ";CURRENT_FNVAL=4048;" : cfg.Cookie);
-        if (url.Contains("api.bilibili.com"))
+
+        var host = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : "";
+        if (host == BiliApi.MainHost)
         {
-            webRequest.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com/");
+            webRequest.Headers.TryAddWithoutValidation("Referer", BiliApi.Site + "/");
         }
 
-        if (url.Contains("api.bilibili.tv"))
+        if (host == BiliApi.IntlAppHost)
         {
             webRequest.Headers.TryAddWithoutValidation("sec-ch-ua", "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"");
         }
@@ -114,11 +117,18 @@ public static partial class HTTPUtil
         return JsonDocument.Parse(await GetWebSourceAsync(url, cfg));
     }
 
+    // 移动端下载地址带 Referer 会被拒；platform=android_tv_yst 也以 android 开头，一次判定即可
+    public static bool IsAndroidPlatformUrl(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+               && HttpUtility.ParseQueryString(uri.Query)["platform"]?.StartsWith("android", StringComparison.Ordinal) == true;
+    }
+
     public static void AddDownloadHeaders(HttpRequestMessage request, string url, string cookie)
     {
-        if (!url.Contains("platform=android_tv_yst") && !url.Contains("platform=android"))
+        if (!IsAndroidPlatformUrl(url))
         {
-            request.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com");
+            request.Headers.TryAddWithoutValidation("Referer", BiliApi.Site);
         }
 
         request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");

@@ -20,7 +20,7 @@ public static class MediaListFetcher
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[10..];
-        var api = $"https://api.bilibili.com/x/v1/medialist/info?type=8&biz_id={id}&tid=0";
+        var api = $"{BiliApi.MediaListInfo}?type=8&biz_id={id}&tid=0";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
         var root = infoJson.RootElement;
@@ -55,7 +55,7 @@ public static class MediaListFetcher
         var index = 1;
         while (hasMore)
         {
-            var listApi = $"https://api.bilibili.com/x/v2/medialist/resource/list?type=8&oid={oid}&otype=2&biz_id={id}&with_current=true&mobi_app=web&ps=20&direction=false&sort_field=1&tid=0&desc=false";
+            var listApi = $"{BiliApi.MediaListResource}?type=8&oid={oid}&otype=2&biz_id={id}&with_current=true&mobi_app=web&ps=20&direction=false&sort_field=1&tid=0&desc=false";
             json = await GetWebSourceAsync(listApi, cfg);
             using var listJson = JsonDocument.Parse(json);
             var listRoot = listJson.RootElement;

@@ -19,8 +19,8 @@ namespace BBDown.Core;
 
 internal static class AppHelper
 {
-    private const string API = "https://grpc.biliapi.net/bilibili.app.playurl.v1.PlayURL/PlayView";
-    private const string API2 = "https://app.bilibili.com/bilibili.pgc.gateway.player.v2.PlayURL/PlayView";
+    private const string API = BiliApi.GrpcPlayView;
+    private const string API2 = BiliApi.GrpcPgcPlayView;
     private const string dalvikVer = "2.1.0";
     private const string osVer = "11";
     private const string brand = "M2012K11AC";

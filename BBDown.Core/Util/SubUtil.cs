@@ -224,7 +224,7 @@ public static partial class SubUtil
 
         async Task<List<Subtitle>> FromAppAsync( )
         {
-            const string api = "https://app.biliapi.net/bilibili.community.service.dm.v1.DM/DmView";
+            const string api = BiliApi.GrpcDmView;
             var payload = AppHelper.PackMessage(new DmViewReq
             {
                 Pid = Convert.ToInt64(aid),
@@ -239,17 +239,17 @@ public static partial class SubUtil
                 .ToList( ) ?? [];
         }
 
-        var intlWebHost = cfg.EpHost == "api.bilibili.com" ? "api.biliintl.com" : cfg.EpHost;
-        var intlAppHost = cfg.Host == "api.bilibili.com" ? "api.bilibili.tv" : cfg.Host;
+        var intlWebHost = cfg.EpHost == BiliApi.MainHost ? BiliApi.IntlWebHost : cfg.EpHost;
+        var intlAppHost = cfg.Host == BiliApi.MainHost ? BiliApi.IntlAppHost : cfg.Host;
         var accessKey = cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "";
 
         // 候选接口按优先级排列，第一个成功返回的结果生效
         Func<Task<List<Subtitle>>>[] candidates = intl
             ?
             [
-                ( ) => FromJsonAsync($"https://{intlWebHost}/intl/gateway/web/v2/subtitle?episode_id={epId}",
+                ( ) => FromJsonAsync($"https://{intlWebHost}{BiliApi.IntlSubtitleWebPath}?episode_id={epId}",
                     root => root.GetProperty("data").GetProperty("subtitles"), "lang_key", "url"),
-                ( ) => FromJsonAsync($"https://{intlAppHost}/intl/gateway/v2/ogv/view/app/season?ep_id={epId}&platform=android&s_locale=zh_SG{accessKey}",
+                ( ) => FromJsonAsync($"https://{intlAppHost}{BiliApi.IntlSeasonAppPath}?ep_id={epId}&platform=android&s_locale=zh_SG{accessKey}",
                     root => root.GetProperty("result").GetProperty("modules")[0].GetProperty("data").GetProperty("episodes")[index - 1].GetProperty("subtitles"),
                     "key", "url"),
             ]
@@ -258,9 +258,9 @@ public static partial class SubUtil
                 ? [FromAppAsync]
                 :
                 [
-                    ( ) => FromJsonAsync($"https://api.bilibili.com/x/player/wbi/v2?cid={cid}&aid={aid}",
+                    ( ) => FromJsonAsync($"{BiliApi.PlayerWbiV2}?cid={cid}&aid={aid}",
                         root => root.GetProperty("data").GetProperty("subtitle").GetProperty("subtitles"), "lan", "subtitle_url"),
-                    ( ) => FromJsonAsync($"https://api.bilibili.com/x/web-interface/view?aid={aid}&cid={cid}",
+                    ( ) => FromJsonAsync($"{BiliApi.View}?aid={aid}&cid={cid}",
                         root => root.GetProperty("data").GetProperty("subtitle").GetProperty("list"), "lan", "subtitle_url"),
                     FromAppAsync,
                 ];

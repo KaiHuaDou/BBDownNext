@@ -26,4 +26,17 @@ public class HTTPUtilTests
     {
         Assert.False(HTTPUtil.IsBangumiPlayPage(url));
     }
+
+    [Theory]
+    [InlineData("https://cn-cdn.bilivideo.com/v.m4s?platform=android", true)]
+    [InlineData("https://cn-cdn.bilivideo.com/v.m4s?platform=android_tv_yst", true)]
+    [InlineData("https://cn-cdn.bilivideo.com/v.m4s?deadline=1&platform=android&os=upos", true)]
+    [InlineData("https://cn-cdn.bilivideo.com/v.m4s?platform=pc", false)]
+    [InlineData("https://cn-cdn.bilivideo.com/v.m4s", false)]
+    // 参数值里出现 platform=android 字样不算，必须是 platform 参数本身
+    [InlineData("https://cn-cdn.bilivideo.com/v.m4s?trace=platform%3Dandroid", false)]
+    public void IsAndroidPlatformUrl_ReadsPlatformQueryParam(string url, bool expected)
+    {
+        Assert.Equal(expected, HTTPUtil.IsAndroidPlatformUrl(url));
+    }
 }

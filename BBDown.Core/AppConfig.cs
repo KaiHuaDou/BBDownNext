@@ -18,5 +18,5 @@ public readonly record struct AppConfig(
     /// <summary>
     /// 空配置，用于登录等尚未持有凭据的独立命令（这些接口不需要 cookie）。
     /// </summary>
-    public static readonly AppConfig Empty = new("", "", "api.bilibili.com", "api.bilibili.com", "api.snm0516.aisee.tv", "", "");
+    public static readonly AppConfig Empty = new("", "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "");
 }

@@ -278,13 +278,13 @@ internal sealed partial class Program
         var bvid = vInfo.PagesInfo.FirstOrDefault( )?.bvid;
         if (!string.IsNullOrEmpty(bvid) && !myOption.UseIntlApi)
         {
-            Log($"视频 URL：https://www.bilibili.com/video/{bvid}/");
+            Log($"视频 URL：{BiliApi.VideoPage}/{bvid}/");
         }
 
         var mid = vInfo.PagesInfo.FirstOrDefault(p => !string.IsNullOrEmpty(p.ownerMid))?.ownerMid;
         if (!string.IsNullOrEmpty(mid))
         {
-            Log($"UP 主页：https://space.bilibili.com/{mid}");
+            Log($"UP 主页：{BiliApi.SpacePage}/{mid}");
         }
     }
 

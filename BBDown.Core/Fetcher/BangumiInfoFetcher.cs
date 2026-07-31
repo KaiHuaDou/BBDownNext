@@ -17,7 +17,7 @@ public static class BangumiInfoFetcher
     {
         id = id[3..];
         var index = "";
-        var api = $"https://{cfg.EpHost}/pgc/view/web/season?ep_id={id}";
+        var api = $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?ep_id={id}";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
         if (!infoJson.RootElement.TryGetProperty("result", out var result))

@@ -18,9 +18,9 @@ public static partial class IntlBangumiInfoFetcher
     {
         id = id[3..];
         var index = "";
-        //string api = $"https://api.global.bilibili.com/intl/gateway/ogv/m/view?ep_id={id}";
-        var api = "https://" + (cfg.Host == "api.bilibili.com" ? "api.bilibili.tv" : cfg.Host) +
-                     $"/intl/gateway/v2/ogv/view/app/season?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a" + (cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "");
+        var host = cfg.Host == BiliApi.MainHost ? BiliApi.IntlAppHost : cfg.Host;
+        var accessKey = cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "";
+        var api = $"https://{host}{BiliApi.IntlSeasonAppPath}?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a{accessKey}";
         var json = (await GetWebSourceAsync(api, cfg)).Replace("\\/", "/");
         using var infoJson = JsonDocument.Parse(json);
         if (!infoJson.RootElement.TryGetProperty("result", out var result))
@@ -34,7 +34,7 @@ public static partial class IntlBangumiInfoFetcher
 
         if (cover.Length == 0)
         {
-            var animeUrl = $"https://bangumi.bilibili.com/anime/{seasonId}";
+            var animeUrl = $"{BiliApi.AnimePage}/{seasonId}";
             var web = await GetWebSourceAsync(animeUrl, cfg);
             if (web.Length != 0)
             {

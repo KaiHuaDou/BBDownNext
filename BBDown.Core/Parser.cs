@@ -107,8 +107,8 @@ public static partial class Parser
     private static async Task<string> GetPlayJsonFromWebPageAsync(PlayUrlRequest req)
     {
         var pageUrl = req.IsCheese
-            ? $"https://www.bilibili.com/cheese/play/ep{req.EpId}"
-            : $"https://www.bilibili.com/bangumi/play/ep{req.EpId}";
+            ? $"{BiliApi.CheesePlayPage}/ep{req.EpId}"
+            : $"{BiliApi.BangumiPlayPage}/ep{req.EpId}";
         var webSource = await GetWebSourceAsync(pageUrl, req.Cfg);
         var match = PlayerJsonRegex( ).Match(webSource);
         if (!match.Success)
@@ -123,10 +123,10 @@ public static partial class Parser
     {
         var prefix = (tvApi, bangumi) switch
         {
-            (true, true) => $"{tvHost}/pgc/player/api/playurltv",
-            (true, false) => $"{tvHost}/x/tv/playurl",
-            (false, true) => $"{host}/pgc/player/web/v2/playurl",
-            (false, false) => "api.bilibili.com/x/player/wbi/playurl"
+            (true, true) => tvHost + BiliApi.PlayUrlPgcTvPath,
+            (true, false) => tvHost + BiliApi.PlayUrlTvPath,
+            (false, true) => host + BiliApi.PlayUrlPgcPath,
+            (false, false) => host + BiliApi.PlayUrlWebPath
         };
         if (cheese) prefix = prefix.Replace("/pgc/", "/pugv/");
         return $"https://{prefix}?";
@@ -177,8 +177,8 @@ public static partial class Parser
 
     private static async Task<string> GetIntlPlayJsonAsync(string aid, string cid, string epId, string qn, AppConfig cfg, string code = "0")
     {
-        var isBiliPlus = cfg.Host != "api.bilibili.com";
-        var api = $"https://{(isBiliPlus ? cfg.Host : "api.biliintl.com")}/intl/gateway/v2/ogv/playurl?";
+        var isBiliPlus = cfg.Host != BiliApi.MainHost;
+        var api = $"https://{(isBiliPlus ? cfg.Host : BiliApi.IntlWebHost)}{BiliApi.IntlPlayUrlPath}?";
 
         StringBuilder query = new( );
         if (cfg.Token.Length != 0)

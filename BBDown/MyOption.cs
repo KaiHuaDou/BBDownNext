@@ -1,3 +1,5 @@
+using BBDown.Core;
+
 namespace BBDown;
 
 internal class MyOption
@@ -51,9 +53,9 @@ internal class MyOption
     public string Aria2cPath { get; set; } = "";
     public string UposHost { get; set; } = "";
     public string DelayPerPage { get; set; } = "0";
-    public string Host { get; set; } = "api.bilibili.com";
-    public string EpHost { get; set; } = "api.bilibili.com";
-    public string TvHost { get; set; } = "api.snm0516.aisee.tv";
+    public string Host { get; set; } = BiliApi.MainHost;
+    public string EpHost { get; set; } = BiliApi.MainHost;
+    public string TvHost { get; set; } = BiliApi.TvHost;
     public string Area { get; set; } = "";
     public string? ConfigFile { get; set; }
 }

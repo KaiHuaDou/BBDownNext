@@ -26,7 +26,7 @@ public static class FavListFetcher
         //查找默认收藏夹
         if (favId.Length == 0)
         {
-            var favListApi = $"https://api.bilibili.com/x/v3/fav/folder/created/list-all?up_mid={mid}";
+            var favListApi = $"{BiliApi.FavFolderList}?up_mid={mid}";
             using var favJson = await GetJsonAsync(favListApi, cfg);
             favId = favJson.RootElement.GetProperty("data").GetProperty("list").EnumerateArray( ).First( ).GetProperty("id").ToString( );
         }
@@ -35,7 +35,7 @@ public static class FavListFetcher
         var index = 1;
         List<Page> pagesInfo = [];
 
-        var api = $"https://api.bilibili.com/x/v3/fav/resource/list?media_id={favId}&pn=1&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
+        var api = $"{BiliApi.FavResourceList}?media_id={favId}&pn=1&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
         var data = infoJson.RootElement.GetProperty("data");
@@ -49,7 +49,7 @@ public static class FavListFetcher
 
         for (var page = 2; page <= totalPage; page++)
         {
-            api = $"https://api.bilibili.com/x/v3/fav/resource/list?media_id={favId}&pn={page}&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
+            api = $"{BiliApi.FavResourceList}?media_id={favId}&pn={page}&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
             json = await GetWebSourceAsync(api, cfg);
             var jsonDoc = JsonDocument.Parse(json);
             data = jsonDoc.RootElement.GetProperty("data");

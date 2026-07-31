@@ -176,7 +176,7 @@ internal static class BBDownMuxer
             audioPath = "";
         }
 
-        var url = $"https://www.bilibili.com/video/{bvid}/";
+        var url = $"{BiliApi.VideoPage}/{bvid}/";
         var validSubs = subs?.Where(s => File.Exists(s.path) && File.ReadAllText(s.path).Length != 0).ToList( ) ?? [];
 
         var outDir = Path.GetDirectoryName(outPath);

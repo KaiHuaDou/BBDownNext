@@ -17,7 +17,7 @@ public static partial class NormalInfoFetcher
 {
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
-        var api = $"https://api.bilibili.com/x/web-interface/view?aid={id}";
+        var api = $"{BiliApi.View}?aid={id}";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
         var data = infoJson.RootElement.GetProperty("data");
@@ -60,7 +60,7 @@ public static partial class NormalInfoFetcher
 
         if (isSteinGate == 1) // 互动视频获取分P信息
         {
-            var playerSoApi = $"https://api.bilibili.com/x/player.so?bvid={bvid}&id=cid:{cid}";
+            var playerSoApi = $"{BiliApi.PlayerSo}?bvid={bvid}&id=cid:{cid}";
             var playerSoText = await GetWebSourceAsync(playerSoApi, cfg);
             var playerSoXml = new XmlDocument( );
             playerSoXml.LoadXml($"<root>{playerSoText}</root>");
@@ -71,7 +71,7 @@ public static partial class NormalInfoFetcher
             {
                 var graphVersion = JsonDocument.Parse(interactionNode.InnerText).RootElement
                     .GetProperty("graph_version").GetInt64( );
-                var edgeInfoApi = $"https://api.bilibili.com/x/stein/edgeinfo_v2?graph_version={graphVersion}&bvid={bvid}";
+                var edgeInfoApi = $"{BiliApi.EdgeInfo}?graph_version={graphVersion}&bvid={bvid}";
                 var edgeInfoJson = await GetWebSourceAsync(edgeInfoApi, cfg);
                 var edgeInfoData = JsonDocument.Parse(edgeInfoJson).RootElement.GetProperty("data");
                 var questions = edgeInfoData.GetProperty("edges").GetProperty("questions").EnumerateArray( )

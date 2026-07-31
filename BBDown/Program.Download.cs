@@ -537,7 +537,7 @@ internal sealed partial class Program
         var danmakuXmlPath = Path.ChangeExtension(savePath, ".xml");
         var danmakuAssPath = Path.ChangeExtension(savePath, ".ass");
         Log("正在下载弹幕 XML 文件。");
-        await DownloadFileAsync($"https://comment.bilibili.com/{p.cid}.xml", danmakuXmlPath, downloadConfig);
+        await DownloadFileAsync($"{BiliApi.DanmakuXml}/{p.cid}.xml", danmakuXmlPath, downloadConfig);
         var danmakus = DanmakuUtil.ParseXml(danmakuXmlPath);
         if (danmakus == null)
         {

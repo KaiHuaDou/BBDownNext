@@ -3,6 +3,8 @@ using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Threading.Tasks;
 
+using BBDown.Core;
+
 namespace BBDown;
 
 internal static class CommandLineInvoker
@@ -77,9 +79,9 @@ internal static class CommandLineInvoker
         $"默认为：{Program.SinglePageDefaultSavePath}\r\n"
     };
     private static readonly Option<string> MultiFilePattern = new("--multi-file-pattern", ["-M"]) { Description = $"使用内置变量自定义多 P 存储文件名：\r\n\r\n默认为：{Program.MultiPageDefaultSavePath}\r\n" };
-    private static readonly Option<string> Host = new("--host", []) { Description = "指定 BiliPlus host（使用 BiliPlus 需要 access_token，不需要 cookie，解析服务器能够获取你账号的大部分权限！）", DefaultValueFactory = _ => "api.bilibili.com" };
-    private static readonly Option<string> EpHost = new("--ep-host", []) { Description = "指定 BiliPlus EP host（用于代理 api.bilibili.com/pgc/view/web/season，大部分解析服务器不支持代理该接口）", DefaultValueFactory = _ => "api.bilibili.com" };
-    private static readonly Option<string> TvHost = new("--tv-host", []) { Description = "自定义 TV 端接口请求 Host（用于代理 api.snm0516.aisee.tv）", DefaultValueFactory = _ => "api.snm0516.aisee.tv" };
+    private static readonly Option<string> Host = new("--host", []) { Description = "指定 BiliPlus host（使用 BiliPlus 需要 access_token，不需要 cookie，解析服务器能够获取你账号的大部分权限！）", DefaultValueFactory = _ => BiliApi.MainHost };
+    private static readonly Option<string> EpHost = new("--ep-host", []) { Description = "指定 BiliPlus EP host（用于代理 api.bilibili.com/pgc/view/web/season，大部分解析服务器不支持代理该接口）", DefaultValueFactory = _ => BiliApi.MainHost };
+    private static readonly Option<string> TvHost = new("--tv-host", []) { Description = "自定义 TV 端接口请求 Host（用于代理 api.snm0516.aisee.tv）", DefaultValueFactory = _ => BiliApi.TvHost };
     private static readonly Option<string> Area = new("--area", []) { Description = "（hk|tw|th）使用 BiliPlus 时必选，指定 BiliPlus area" };
     private static readonly Option<string> ConfigFile = new("--config", []) { Description = "读取指定的 BBDown 本地配置文件（默认为：BBDown.config）" };
 

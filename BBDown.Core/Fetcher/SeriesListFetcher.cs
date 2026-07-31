@@ -20,7 +20,7 @@ public static class SeriesListFetcher
         //套用BBDownMediaListFetcher.cs的代码
         //只修改id = id.Substring(12);以及api地址的type=5
         id = id[12..];
-        var api = $"https://api.bilibili.com/x/v1/medialist/info?type=5&biz_id={id}&tid=0";
+        var api = $"{BiliApi.MediaListInfo}?type=5&biz_id={id}&tid=0";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
         var data = infoJson.RootElement.GetProperty("data");
@@ -34,7 +34,7 @@ public static class SeriesListFetcher
         var index = 1;
         while (hasMore)
         {
-            var listApi = $"https://api.bilibili.com/x/v2/medialist/resource/list?type=5&oid={oid}&otype=2&biz_id={id}&bvid=&with_current=true&mobi_app=web&ps=20&direction=false&sort_field=1&tid=0&desc=true";
+            var listApi = $"{BiliApi.MediaListResource}?type=5&oid={oid}&otype=2&biz_id={id}&bvid=&with_current=true&mobi_app=web&ps=20&direction=false&sort_field=1&tid=0&desc=true";
             json = await GetWebSourceAsync(listApi, cfg);
             using var listJson = JsonDocument.Parse(json);
             data = listJson.RootElement.GetProperty("data");

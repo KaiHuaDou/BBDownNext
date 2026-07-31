@@ -15,7 +15,7 @@ public static class CheeseInfoFetcher
     {
         id = id[7..];
         var index = "";
-        var api = $"https://api.bilibili.com/pugv/view/web/season?ep_id={id}";
+        var api = $"{BiliApi.SeasonPugv}?ep_id={id}";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
         var data = infoJson.RootElement.GetProperty("data");
