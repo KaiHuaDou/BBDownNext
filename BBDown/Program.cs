@@ -22,8 +22,8 @@ namespace BBDown;
 internal sealed partial class Program
 {
     private const string BACKUP_HOST = "upos-sz-mirrorcoso1.bilivideo.com";
-    public static string SinglePageDefaultSavePath { get; set; } = "<videoTitle>";
-    public static string MultiPageDefaultSavePath { get; set; } = "<videoTitle>/[P<pageNumberWithZero>]<pageTitle>";
+    public static string SinglePageDefaultSavePath { get; } = "<videoTitle>";
+    public static string MultiPageDefaultSavePath { get; } = "<videoTitle>/[P<pageNumberWithZero>]<pageTitle>";
 
     public static readonly string APP_DIR = Path.GetDirectoryName(Environment.ProcessPath)!;
 
@@ -163,7 +163,10 @@ internal sealed partial class Program
         var dfnPriority = ParseDfnPriority(myOption);
 
         //优先使用用户设置的 UA
-        HTTPUtil.UserAgent = string.IsNullOrEmpty(myOption.UserAgent) ? HTTPUtil.UserAgent : myOption.UserAgent;
+        if (!string.IsNullOrEmpty(myOption.UserAgent))
+        {
+            HTTPUtil.SetUserAgent(myOption.UserAgent);
+        }
 
         var downloadDanmaku = myOption.DownloadDanmaku || myOption.DanmakuOnly;
         var downloadDanmakuFormats = ParseDownloadDanmakuFormats(myOption);

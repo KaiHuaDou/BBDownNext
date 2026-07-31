@@ -19,7 +19,10 @@ namespace BBDown.Core.Util;
 public static partial class HTTPUtil
 {
 
-    public static readonly HttpClient AppHttpClient = new(new HttpClientHandler
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
+
+    // 可替换：测试经 InternalsVisibleTo 注入带 stub handler 的实例，解锁 8 个 Fetcher 的离线单测
+    public static HttpClient AppHttpClient { get; internal set; } = new(new HttpClientHandler
     {
         AllowAutoRedirect = true,
         AutomaticDecompression = DecompressionMethods.All,
@@ -28,25 +31,34 @@ public static partial class HTTPUtil
             Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1"
     })
     {
-        Timeout = TimeSpan.FromMinutes(2)
+        Timeout = DefaultTimeout
     };
 
-    private static readonly Random random = new( );
+    // 大文件下载需要更长的超时；进程级配置，运行时经此属性调整（不在热路径上改动 HttpClient 本身）
+    internal static TimeSpan RequestTimeout
+    {
+        get => AppHttpClient.Timeout;
+        set => AppHttpClient.Timeout = value;
+    }
+
     private static readonly string[] platforms = ["Windows NT 10.0; Win64", "Macintosh; Intel Mac OS X 10_15", "X11; Linux x86_64"];
 
     private static string RandomVersion(int min, int max)
     {
-        var version = random.NextDouble( ) * (max - min) + min;
+        var version = Random.Shared.NextDouble( ) * (max - min) + min;
         return version.ToString("F3");
     }
 
     private static string GetRandomUserAgent( )
     {
         string[] browsers = [$"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{RandomVersion(80, 110)} Safari/537.36", $"Gecko/20100101 Firefox/{RandomVersion(80, 110)}"];
-        return $"Mozilla/5.0 ({platforms[random.Next(platforms.Length)]}) {browsers[random.Next(browsers.Length)]}";
+        return $"Mozilla/5.0 ({platforms[Random.Shared.Next(platforms.Length)]}) {browsers[Random.Shared.Next(browsers.Length)]}";
     }
 
-    public static string UserAgent { get; set; } = GetRandomUserAgent( );
+    public static string UserAgent { get; private set; } = GetRandomUserAgent( );
+
+    // 仅允许在启动装配阶段设置 UA（构造期一次性设定），避免任意代码点改动全局状态
+    public static void SetUserAgent(string ua) => UserAgent = ua;
 
     // 番剧播放页要带 CURRENT_FNVAL 才会吐出 dash 源。只认 /ep123 /ss123 这样完整的路径段，
     // 裸 Contains("/ep") 会把 /episodes、/ssl 之类一并命中
