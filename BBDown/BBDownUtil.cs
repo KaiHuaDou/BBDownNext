@@ -59,7 +59,7 @@ internal static partial class Utils
         if (input.Contains("/space.bilibili.com/") && input.Contains("/favlist"))
             return $"favId:{GetQueryString("fid", input)}:{UidRegex( ).Match(input).Groups[1].Value}";
         if (input.Contains("/space.bilibili.com/"))
-            return $"mid:{UidRegex( ).Match(input).Groups[1].Value}";
+            throw new NotSupportedException("目前下载器不支持下载用户空间的全部投稿视频，请逐条传入具体视频链接进行下载。");
         if (input.Contains("ep_id="))
             return $"ep:{GetQueryString("ep_id", input)}";
         if (GlobalEpRegex( ).Match(input) is { Success: true } globalEp)
