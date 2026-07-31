@@ -4,6 +4,17 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core.Fetcher;
 
@@ -20,8 +31,8 @@ public static class MediaListFetcher
         var api = $"https://api.bilibili.com/x/v1/medialist/info?type=8&biz_id={id}&tid=0";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
-        JsonElement root = infoJson.RootElement;
-        JsonElement data = root.GetProperty("data");
+        var root = infoJson.RootElement;
+        var data = root.GetProperty("data");
         if (data.ValueKind != JsonValueKind.Object)
         {
             // 部分情况下（合集被删除、设为私密或无权访问）data 会是 null
@@ -32,10 +43,10 @@ public static class MediaListFetcher
             }
             catch
             {
-                var code = root.TryGetProperty("code", out JsonElement codeElem) && codeElem.ValueKind == JsonValueKind.Number
+                var code = root.TryGetProperty("code", out var codeElem) && codeElem.ValueKind == JsonValueKind.Number
                     ? codeElem.GetInt32( )
                     : 0;
-                var message = root.TryGetProperty("message", out JsonElement msgElem) && msgElem.ValueKind == JsonValueKind.String
+                var message = root.TryGetProperty("message", out var msgElem) && msgElem.ValueKind == JsonValueKind.String
                     ? msgElem.GetString( )
                     : "未知错误";
                 throw new Exception($"获取合集信息失败(code={code}): {message}");
@@ -55,31 +66,31 @@ public static class MediaListFetcher
             var listApi = $"https://api.bilibili.com/x/v2/medialist/resource/list?type=8&oid={oid}&otype=2&biz_id={id}&with_current=true&mobi_app=web&ps=20&direction=false&sort_field=1&tid=0&desc=false";
             json = await GetWebSourceAsync(listApi, cfg);
             using var listJson = JsonDocument.Parse(json);
-            JsonElement listRoot = listJson.RootElement;
+            var listRoot = listJson.RootElement;
             data = listRoot.GetProperty("data");
             if (data.ValueKind != JsonValueKind.Object)
             {
-                var code = listRoot.TryGetProperty("code", out JsonElement codeElem) && codeElem.ValueKind == JsonValueKind.Number
+                var code = listRoot.TryGetProperty("code", out var codeElem) && codeElem.ValueKind == JsonValueKind.Number
                     ? codeElem.GetInt32( )
                     : 0;
-                var message = listRoot.TryGetProperty("message", out JsonElement msgElem) && msgElem.ValueKind == JsonValueKind.String
+                var message = listRoot.TryGetProperty("message", out var msgElem) && msgElem.ValueKind == JsonValueKind.String
                     ? msgElem.GetString( )
                     : "未知错误";
                 throw new Exception($"获取合集视频列表失败(code={code}): {message}");
             }
 
             hasMore = data.GetProperty("has_more").GetBoolean( );
-            foreach (JsonElement m in data.GetProperty("media_list").EnumerateArray( ))
+            foreach (var m in data.GetProperty("media_list").EnumerateArray( ))
             {
                 // 只处理未失效的视频条目（与收藏夹解析逻辑保持一致）
-                if (m.TryGetProperty("attr", out JsonElement attrElem) && attrElem.GetInt32( ) != 0)
+                if (m.TryGetProperty("attr", out var attrElem) && attrElem.GetInt32( ) != 0)
                     continue;
 
                 var pageCount = m.GetProperty("page").GetInt32( );
                 var desc = m.GetProperty("intro").GetString( )!;
                 var ownerName = m.GetProperty("upper").GetProperty("name").ToString( );
                 var ownerMid = m.GetProperty("upper").GetProperty("mid").ToString( );
-                foreach (JsonElement page in m.GetProperty("pages").EnumerateArray( ))
+                foreach (var page in m.GetProperty("pages").EnumerateArray( ))
                 {
                     Page p = new( )
                     {

@@ -6,6 +6,16 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core.Fetcher;
 
@@ -16,11 +26,11 @@ public static partial class NormalInfoFetcher
         var api = $"https://api.bilibili.com/x/web-interface/view?aid={id}";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
-        JsonElement data = infoJson.RootElement.GetProperty("data");
+        var data = infoJson.RootElement.GetProperty("data");
         var title = data.GetProperty("title").ToString( );
         var desc = data.GetProperty("desc").ToString( );
         var pic = data.GetProperty("pic").ToString( );
-        JsonElement owner = data.GetProperty("owner");
+        var owner = data.GetProperty("owner");
         var ownerMid = owner.GetProperty("mid").ToString( );
         var ownerName = owner.GetProperty("name").ToString( );
         var pubTime = data.GetProperty("pubdate").GetInt64( );
@@ -61,7 +71,7 @@ public static partial class NormalInfoFetcher
             var playerSoXml = new XmlDocument( );
             playerSoXml.LoadXml($"<root>{playerSoText}</root>");
 
-            XmlNode? interactionNode = playerSoXml.SelectSingleNode("//interaction");
+            var interactionNode = playerSoXml.SelectSingleNode("//interaction");
 
             if (interactionNode is { InnerText.Length: > 0 })
             {
@@ -69,7 +79,7 @@ public static partial class NormalInfoFetcher
                     .GetProperty("graph_version").GetInt64( );
                 var edgeInfoApi = $"https://api.bilibili.com/x/stein/edgeinfo_v2?graph_version={graphVersion}&bvid={bvid}";
                 var edgeInfoJson = await GetWebSourceAsync(edgeInfoApi, cfg);
-                JsonElement edgeInfoData = JsonDocument.Parse(edgeInfoJson).RootElement.GetProperty("data");
+                var edgeInfoData = JsonDocument.Parse(edgeInfoJson).RootElement.GetProperty("data");
                 var questions = edgeInfoData.GetProperty("edges").GetProperty("questions").EnumerateArray( )
                     .ToList( );
                 var index = 2; // 互动视频分P索引从2开始

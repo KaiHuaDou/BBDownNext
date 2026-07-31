@@ -1,6 +1,17 @@
 using System;
 
 using QRCoder;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown;
 
@@ -17,8 +28,8 @@ public class ConsoleQRCode : AbstractQRCode
 
     public void GetGraphic(ConsoleColor darkColor, ConsoleColor lightColor)
     {
-        ConsoleColor previousBackColor = Console.BackgroundColor;
-        ConsoleColor previousForeColor = Console.ForegroundColor;
+        var previousBackColor = Console.BackgroundColor;
+        var previousForeColor = Console.ForegroundColor;
         Console.ForegroundColor = ConsoleColor.White;
         for (var y = 0; y < QrCodeData.ModuleMatrix.Count; y++)
         {

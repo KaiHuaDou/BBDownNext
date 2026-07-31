@@ -1,6 +1,16 @@
 using System;
 using System.CommandLine;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+
 
 namespace BBDown;
 
@@ -50,7 +60,9 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> ForceReplaceHost = new("--force-replace-host", []) { Description = "强制替换下载服务器host(默认开启)" };
     private static readonly Option<bool> SaveArchivesToFile = new("--save-archives-to-file", []) { Description = "将下载过的视频记录到本地文件中, 用于后续跳过下载同个视频" };
     private static readonly Option<string> DelayPerPage = new("--delay-per-page", []) { Description = "设置下载合集分P之间的下载间隔时间(单位: 秒, 默认无间隔)" };
-    private static readonly Option<string> FilePattern = new("--file-pattern", ["-F"]) { Description = $"使用内置变量自定义单P存储文件名:\r\n\r\n" +
+    private static readonly Option<string> FilePattern = new("--file-pattern", ["-F"])
+    {
+        Description = $"使用内置变量自定义单P存储文件名:\r\n\r\n" +
         $"<videoTitle>: 视频主标题\r\n" +
         $"<pageNumber>: 视频分P序号\r\n" +
         $"<pageNumberWithZero>: 视频分P序号(前缀补零)\r\n" +
@@ -70,7 +82,8 @@ internal static class CommandLineInvoker
         $"<publishDate>: 收藏夹/番剧/合集发布时间\r\n" +
         $"<videoDate>: 视频发布时间(分p视频发布时间与<publishDate>相同)\r\n" +
         $"<apiType>: API类型(TV/APP/INTL/WEB)\r\n\r\n" +
-        $"默认为: {Program.SinglePageDefaultSavePath}\r\n" };
+        $"默认为: {Program.SinglePageDefaultSavePath}\r\n"
+    };
     private static readonly Option<string> MultiFilePattern = new("--multi-file-pattern", ["-M"]) { Description = $"使用内置变量自定义多P存储文件名:\r\n\r\n默认为: {Program.MultiPageDefaultSavePath}\r\n" };
     private static readonly Option<string> Host = new("--host", []) { Description = "指定BiliPlus host(使用BiliPlus需要access_token, 不需要cookie, 解析服务器能够获取你账号的大部分权限!)" };
     private static readonly Option<string> EpHost = new("--ep-host", []) { Description = "指定BiliPlus EP host(用于代理api.bilibili.com/pgc/view/web/season, 大部分解析服务器不支持代理该接口)" };
@@ -84,7 +97,6 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> AddDfnSubfix = new("--add-dfn-subfix", []) { Description = "为文件加入清晰度后缀, 如XXX[1080P 高码率]", Hidden = true };
     private static readonly Option<bool> NoPaddingPageNum = new("--no-padding-page-num", []) { Description = "不给分P序号补零", Hidden = true };
     private static readonly Option<bool> BandwidthAscending = new("--bandwith-ascending", []) { Description = "比特率升序(最小体积优先)", Hidden = true };
-
 
     public static RootCommand GetRootCommand(Func<MyOption, Task> action)
     {
@@ -153,66 +165,65 @@ internal static class CommandLineInvoker
         {
             var option = new MyOption
             {
-                UseTvApi = parseResult.GetValue(UseTvApi)!
+                UseTvApi = parseResult.GetValue(UseTvApi)!,
+                Url = parseResult.GetValue(Url) ?? "",
+                UseAppApi = parseResult.GetValue(UseAppApi)!,
+                UseIntlApi = parseResult.GetValue(UseIntlApi)!,
+                UseMP4box = parseResult.GetValue(UseMP4box)!,
+                EncodingPriority = parseResult.GetValue(EncodingPriority) ?? "",
+                DfnPriority = parseResult.GetValue(DfnPriority) ?? "",
+                OnlyShowInfo = parseResult.GetValue(OnlyShowInfo)!,
+                ShowAll = parseResult.GetValue(ShowAll)!,
+                UseAria2c = parseResult.GetValue(UseAria2c)!,
+                Interactive = parseResult.GetValue(Interactive)!,
+                HideStreams = parseResult.GetValue(HideStreams)!,
+                MultiThread = parseResult.GetValue(MultiThread)!,
+                SimplyMux = parseResult.GetValue(SimplyMux)!,
+                VideoOnly = parseResult.GetValue(VideoOnly)!,
+                AudioOnly = parseResult.GetValue(AudioOnly)!,
+                DanmakuOnly = parseResult.GetValue(DanmakuOnly)!,
+                CoverOnly = parseResult.GetValue(CoverOnly)!,
+                SubOnly = parseResult.GetValue(SubOnly)!,
+                Debug = parseResult.GetValue(Debug)!,
+                SkipMux = parseResult.GetValue(SkipMux)!,
+                SkipSubtitle = parseResult.GetValue(SkipSubtitle)!,
+                SkipCover = parseResult.GetValue(SkipCover)!,
+                ForceHttp = parseResult.GetValue(ForceHttp)!,
+                DownloadDanmaku = parseResult.GetValue(DownloadDanmaku)!,
+                DownloadDanmakuFormats = parseResult.GetValue(DownloadDanmakuFormats) ?? "",
+                SkipAi = parseResult.GetValue(SkipAi)!,
+                VideoAscending = parseResult.GetValue(VideoAscending)!,
+                AudioAscending = parseResult.GetValue(AudioAscending)!,
+                AllowPcdn = parseResult.GetValue(AllowPcdn)!,
+                FilePattern = parseResult.GetValue(FilePattern) ?? "",
+                MultiFilePattern = parseResult.GetValue(MultiFilePattern) ?? "",
+                SelectPage = parseResult.GetValue(SelectPage) ?? "",
+                Language = parseResult.GetValue(Language) ?? "",
+                UserAgent = parseResult.GetValue(UserAgent) ?? "",
+                Cookie = parseResult.GetValue(Cookie) ?? "",
+                AccessToken = parseResult.GetValue(AccessToken) ?? "",
+                Aria2cArgs = parseResult.GetValue(Aria2cArgs) ?? "",
+                WorkDir = parseResult.GetValue(WorkDir) ?? "",
+                FFmpegPath = parseResult.GetValue(FFmpegPath) ?? "",
+                Mp4boxPath = parseResult.GetValue(Mp4boxPath) ?? "",
+                Aria2cPath = parseResult.GetValue(Aria2cPath) ?? "",
+                UposHost = parseResult.GetValue(UposHost) ?? "",
+                ForceReplaceHost = parseResult.GetValue(ForceReplaceHost)!,
+                SaveArchivesToFile = parseResult.GetValue(SaveArchivesToFile)!,
+                DelayPerPage = parseResult.GetValue(DelayPerPage) ?? "",
+                Host = parseResult.GetValue(Host) ?? "",
+                EpHost = parseResult.GetValue(EpHost) ?? "",
+                TvHost = parseResult.GetValue(TvHost) ?? "",
+                Area = parseResult.GetValue(Area) ?? "",
+                ConfigFile = parseResult.GetValue(ConfigFile) ?? "",
+                Aria2cProxy = parseResult.GetValue(Aria2cProxy) ?? "",
+                OnlyHevc = parseResult.GetValue(OnlyHevc)!,
+                OnlyAvc = parseResult.GetValue(OnlyAvc)!,
+                OnlyAv1 = parseResult.GetValue(OnlyAv1)!,
+                AddDfnSubfix = parseResult.GetValue(AddDfnSubfix)!,
+                NoPaddingPageNum = parseResult.GetValue(NoPaddingPageNum)!,
+                BandwidthAscending = parseResult.GetValue(BandwidthAscending)!
             };
-
-            option.Url = parseResult.GetValue(Url) ?? "";
-            option.UseAppApi = parseResult.GetValue(UseAppApi)!;
-            option.UseIntlApi = parseResult.GetValue(UseIntlApi)!;
-            option.UseMP4box = parseResult.GetValue(UseMP4box)!;
-            option.EncodingPriority = parseResult.GetValue(EncodingPriority) ?? "";
-            option.DfnPriority = parseResult.GetValue(DfnPriority) ?? "";
-            option.OnlyShowInfo = parseResult.GetValue(OnlyShowInfo)!;
-            option.ShowAll = parseResult.GetValue(ShowAll)!;
-            option.UseAria2c = parseResult.GetValue(UseAria2c)!;
-            option.Interactive = parseResult.GetValue(Interactive)!;
-            option.HideStreams = parseResult.GetValue(HideStreams)!;
-            option.MultiThread = parseResult.GetValue(MultiThread)!;
-            option.SimplyMux = parseResult.GetValue(SimplyMux)!;
-            option.VideoOnly = parseResult.GetValue(VideoOnly)!;
-            option.AudioOnly = parseResult.GetValue(AudioOnly)!;
-            option.DanmakuOnly = parseResult.GetValue(DanmakuOnly)!;
-            option.CoverOnly = parseResult.GetValue(CoverOnly)!;
-            option.SubOnly = parseResult.GetValue(SubOnly)!;
-            option.Debug = parseResult.GetValue(Debug)!;
-            option.SkipMux = parseResult.GetValue(SkipMux)!;
-            option.SkipSubtitle = parseResult.GetValue(SkipSubtitle)!;
-            option.SkipCover = parseResult.GetValue(SkipCover)!;
-            option.ForceHttp = parseResult.GetValue(ForceHttp)!;
-            option.DownloadDanmaku = parseResult.GetValue(DownloadDanmaku)!;
-            option.DownloadDanmakuFormats = parseResult.GetValue(DownloadDanmakuFormats) ?? "";
-            option.SkipAi = parseResult.GetValue(SkipAi)!;
-            option.VideoAscending = parseResult.GetValue(VideoAscending)!;
-            option.AudioAscending = parseResult.GetValue(AudioAscending)!;
-            option.AllowPcdn = parseResult.GetValue(AllowPcdn)!;
-            option.FilePattern = parseResult.GetValue(FilePattern) ?? "";
-            option.MultiFilePattern = parseResult.GetValue(MultiFilePattern) ?? "";
-            option.SelectPage = parseResult.GetValue(SelectPage) ?? "";
-            option.Language = parseResult.GetValue(Language) ?? "";
-            option.UserAgent = parseResult.GetValue(UserAgent) ?? "";
-            option.Cookie = parseResult.GetValue(Cookie) ?? "";
-            option.AccessToken = parseResult.GetValue(AccessToken) ?? "";
-            option.Aria2cArgs = parseResult.GetValue(Aria2cArgs) ?? "";
-            option.WorkDir = parseResult.GetValue(WorkDir) ?? "";
-            option.FFmpegPath = parseResult.GetValue(FFmpegPath) ?? "";
-            option.Mp4boxPath = parseResult.GetValue(Mp4boxPath) ?? "";
-            option.Aria2cPath = parseResult.GetValue(Aria2cPath) ?? "";
-            option.UposHost = parseResult.GetValue(UposHost) ?? "";
-            option.ForceReplaceHost = parseResult.GetValue(ForceReplaceHost)!;
-            option.SaveArchivesToFile = parseResult.GetValue(SaveArchivesToFile)!;
-            option.DelayPerPage = parseResult.GetValue(DelayPerPage) ?? "";
-            option.Host = parseResult.GetValue(Host) ?? "";
-            option.EpHost = parseResult.GetValue(EpHost) ?? "";
-            option.TvHost = parseResult.GetValue(TvHost) ?? "";
-            option.Area = parseResult.GetValue(Area) ?? "";
-            option.ConfigFile = parseResult.GetValue(ConfigFile) ?? "";
-            option.Aria2cProxy = parseResult.GetValue(Aria2cProxy) ?? "";
-            option.OnlyHevc = parseResult.GetValue(OnlyHevc)!;
-            option.OnlyAvc = parseResult.GetValue(OnlyAvc)!;
-            option.OnlyAv1 = parseResult.GetValue(OnlyAv1)!;
-            option.AddDfnSubfix = parseResult.GetValue(AddDfnSubfix)!;
-            option.NoPaddingPageNum = parseResult.GetValue(NoPaddingPageNum)!;
-            option.BandwidthAscending = parseResult.GetValue(BandwidthAscending)!;
             await action(option);
         });
 

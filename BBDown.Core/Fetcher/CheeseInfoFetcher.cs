@@ -4,6 +4,17 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core.Fetcher;
 
@@ -16,15 +27,15 @@ public static class CheeseInfoFetcher
         var api = $"https://api.bilibili.com/pugv/view/web/season?ep_id={id}";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
-        JsonElement data = infoJson.RootElement.GetProperty("data");
+        var data = infoJson.RootElement.GetProperty("data");
         var cover = data.GetProperty("cover").ToString( );
         var title = data.GetProperty("title").ToString( );
         var desc = data.GetProperty("subtitle").ToString( );
         var ownerName = data.GetProperty("up_info").GetProperty("uname").ToString( );
         var ownerMid = data.GetProperty("up_info").GetProperty("mid").ToString( );
-        JsonElement.ArrayEnumerator pages = data.GetProperty("episodes").EnumerateArray( );
+        var pages = data.GetProperty("episodes").EnumerateArray( );
         List<Page> pagesInfo = [];
-        foreach (JsonElement page in pages)
+        foreach (var page in pages)
         {
             Page p = new( )
             {

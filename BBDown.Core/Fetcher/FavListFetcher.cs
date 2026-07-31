@@ -4,6 +4,17 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core.Fetcher;
 
@@ -34,7 +45,7 @@ public static class FavListFetcher
         var api = $"https://api.bilibili.com/x/v3/fav/resource/list?media_id={favId}&pn=1&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
-        JsonElement data = infoJson.RootElement.GetProperty("data");
+        var data = infoJson.RootElement.GetProperty("data");
         var totalCount = data.GetProperty("info").GetProperty("media_count").GetInt32( );
         var totalPage = (int) Math.Ceiling((double) totalCount / pageSize);
         var title = data.GetProperty("info").GetProperty("title").GetString( )!;
@@ -64,7 +75,7 @@ public static class FavListFetcher
                 VInfo tmpInfo = await NormalInfoFetcher.FetchAsync(m.GetProperty("id").ToString( ), cfg);
                 foreach (Page item in tmpInfo.PagesInfo)
                 {
-                    Page p = item.CopyWith(index++);
+                    var p = item.CopyWith(index++);
                     p.title = m.GetProperty("title").ToString( ) + $"_P{item.index}_{item.title}";
                     p.cover = tmpInfo.Pic;
                     p.desc = m.GetProperty("intro").ToString( );

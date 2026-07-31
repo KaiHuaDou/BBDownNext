@@ -14,6 +14,9 @@ using System.Web;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
+using System.Net.Http;
+using System.Threading;
+
 
 namespace BBDown;
 
@@ -210,12 +213,12 @@ internal static partial class Utils
             Directory.CreateDirectory(Path.GetDirectoryName(outputFilePath)!);
 
         var inputFilePaths = files;
-        using FileStream outputStream = File.Create(outputFilePath);
+        using var outputStream = File.Create(outputFilePath);
         foreach (var inputFilePath in inputFilePaths)
         {
             if (inputFilePath == "")
                 continue;
-            using FileStream inputStream = File.OpenRead(inputFilePath);
+            using var inputStream = File.OpenRead(inputFilePath);
             // Buffer size can be passed as the second argument.
             inputStream.CopyTo(outputStream);
         }
@@ -232,7 +235,7 @@ internal static partial class Utils
         List<string> al = [];
         StringBuilder sb = new( );
         DirectoryInfo d = new(dir);
-        foreach (FileInfo fi in d.GetFiles( ))
+        foreach (var fi in d.GetFiles( ))
         {
             if (fi.Extension.ToUpper( ) == ext.ToUpper( ))
             {
@@ -258,9 +261,9 @@ internal static partial class Utils
     /// <returns></returns>
     public static string GetQueryString(string name, string url)
     {
-        Regex re = QueryRegex( );
-        MatchCollection mc = re.Matches(url);
-        foreach (Match m in mc.Cast<Match>( ))
+        var re = QueryRegex( );
+        var mc = re.Matches(url);
+        foreach (var m in mc.Cast<Match>( ))
         {
             if (m.Result("$2").Equals(name))
             {
@@ -279,7 +282,7 @@ internal static partial class Utils
 
     public static string GetTimeStamp(bool bflag)
     {
-        DateTimeOffset ts = DateTimeOffset.Now;
+        var ts = DateTimeOffset.Now;
         return (bflag ? ts.ToUnixTimeSeconds( ) : ts.ToUnixTimeMilliseconds( )).ToString( );
     }
 
@@ -295,7 +298,7 @@ internal static partial class Utils
     //https://stackoverflow.com/a/45088333
     public static string ToQueryString(NameValueCollection nameValueCollection)
     {
-        NameValueCollection httpValueCollection = HttpUtility.ParseQueryString(string.Empty);
+        var httpValueCollection = HttpUtility.ParseQueryString(string.Empty);
         httpValueCollection.Add(nameValueCollection);
         return httpValueCollection.ToString( )!;
     }
@@ -314,7 +317,7 @@ internal static partial class Utils
     public static NameValueCollection GetTVLoginParms( )
     {
         NameValueCollection sb = [];
-        DateTime now = DateTime.Now;
+        var now = DateTime.Now;
         var deviceId = GetRandomString(20);
         var buvid = GetRandomString(37);
         var fingerprint = $"{now:yyyyMMddHHmmssfff}{GetRandomString(45)}";
@@ -365,7 +368,7 @@ internal static partial class Utils
             process.Start( );
             var info = process.StandardOutput.ReadToEnd( ) + Environment.NewLine + process.StandardError.ReadToEnd( );
             process.WaitForExit( );
-            Match match = LibavutilRegex( ).Match(info);
+            var match = LibavutilRegex( ).Match(info);
             if (!match.Success) return false;
             if (Convert.ToInt32(match.Groups[1].Value) is (57 and >= 17) or > 57)
             {
@@ -393,9 +396,9 @@ internal static partial class Utils
             var api = $"https://api.bilibili.com/x/player/wbi/v2?cid={cid}&aid={aid}";
             var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
-            if (infoJson.RootElement.GetProperty("data").TryGetProperty("view_points", out JsonElement vPoint))
+            if (infoJson.RootElement.GetProperty("data").TryGetProperty("view_points", out var vPoint))
             {
-                foreach (JsonElement point in vPoint.EnumerateArray( ))
+                foreach (var point in vPoint.EnumerateArray( ))
                 {
                     points.Add(new ViewPoint( )
                     {
@@ -420,7 +423,7 @@ internal static partial class Utils
     {
         StringBuilder sb = new( );
         sb.AppendLine(";FFMETADATA");
-        foreach (ViewPoint p in points)
+        foreach (var p in points)
         {
             var time = 1000; //固定 1000
             sb.AppendLine("[CHAPTER]");
@@ -442,7 +445,7 @@ internal static partial class Utils
     public static string GetMp4boxMetaString(List<ViewPoint> points)
     {
         StringBuilder sb = new( );
-        foreach (ViewPoint p in points)
+        foreach (var p in points)
         {
             sb.AppendLine($"{FormatTime(p.start, true)} {p.title}");
         }
@@ -487,9 +490,9 @@ internal static partial class Utils
         {
             var api = "https://api.bilibili.com/x/web-interface/nav";
             var source = await GetWebSourceAsync(api, cfg);
-            JsonElement json = JsonDocument.Parse(source).RootElement;
+            var json = JsonDocument.Parse(source).RootElement;
             var is_login = json.GetProperty("data").GetProperty("isLogin").GetBoolean( );
-            JsonElement wbi_img = json.GetProperty("data").GetProperty("wbi_img");
+            var wbi_img = json.GetProperty("data").GetProperty("wbi_img");
             var wbi = GetMixinKey(RSubString(wbi_img.GetProperty("img_url").GetString( )!) + RSubString(wbi_img.GetProperty("sub_url").GetString( )!));
             LogDebug("wbi: {0}", wbi);
             return (is_login, wbi);

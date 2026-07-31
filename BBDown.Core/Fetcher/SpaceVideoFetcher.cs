@@ -4,6 +4,17 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core.Fetcher;
 
@@ -23,8 +34,8 @@ public static class SpaceVideoFetcher
         api = $"https://api.bilibili.com/x/space/wbi/arc/search?{api}";
         var json = await GetWebSourceAsync(api, cfg);
         var infoJson = JsonDocument.Parse(json);
-        JsonElement.ArrayEnumerator pages = infoJson.RootElement.GetProperty("data").GetProperty("list").GetProperty("vlist").EnumerateArray( );
-        foreach (JsonElement page in pages)
+        var pages = infoJson.RootElement.GetProperty("data").GetProperty("list").GetProperty("vlist").EnumerateArray( );
+        foreach (var page in pages)
         {
             urls.Add($"https://www.bilibili.com/video/av{page.GetProperty("aid")}");
         }
@@ -54,8 +65,8 @@ pause");
         api = $"https://api.bilibili.com/x/space/wbi/arc/search?{api}";
         var json = await GetWebSourceAsync(api, cfg);
         var infoJson = JsonDocument.Parse(json);
-        JsonElement.ArrayEnumerator pages = infoJson.RootElement.GetProperty("data").GetProperty("list").GetProperty("vlist").EnumerateArray( );
-        foreach (JsonElement page in pages)
+        var pages = infoJson.RootElement.GetProperty("data").GetProperty("list").GetProperty("vlist").EnumerateArray( );
+        foreach (var page in pages)
         {
             urls.Add($"https://www.bilibili.com/video/av{page.GetProperty("aid")}");
         }

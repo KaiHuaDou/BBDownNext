@@ -1,4 +1,16 @@
 using BBDown.Core.Util;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core.Entity;
 
@@ -22,20 +34,23 @@ public static class Entity
         public List<ViewPoint> points = [];
 
         // 沿用原拷贝构造语义：desc/points 不随源 Page 复制
-        public Page CopyWith(int index) => new( )
+        public Page CopyWith(int index)
         {
-            index = index,
-            aid = aid,
-            cid = cid,
-            epid = epid,
-            title = title,
-            dur = dur,
-            res = res,
-            pubTime = pubTime,
-            cover = cover,
-            ownerName = ownerName,
-            ownerMid = ownerMid,
-        };
+            return new( )
+            {
+                index = index,
+                aid = aid,
+                cid = cid,
+                epid = epid,
+                title = title,
+                dur = dur,
+                res = res,
+                pubTime = pubTime,
+                cover = cover,
+                ownerName = ownerName,
+                ownerMid = ownerMid,
+            };
+        }
 
         // 等值仅看 aid/cid/epid（跨列表去重用），勿改为 record 全成员等值
         public override bool Equals(object? obj)

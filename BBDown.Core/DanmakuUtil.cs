@@ -2,6 +2,17 @@ using System.Text;
 using System.Xml;
 
 using static BBDown.Core.Logger;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core;
 
@@ -43,11 +54,11 @@ public static class DanmakuUtil
             }
         }
 
-        XmlNode? rootNode = xmlFile.SelectSingleNode("i");
+        var rootNode = xmlFile.SelectSingleNode("i");
         if (rootNode != null)
         {
             var rootElement = (XmlElement) rootNode;
-            XmlNodeList? dNodeList = rootElement.SelectNodes("d");
+            var dNodeList = rootElement.SelectNodes("d");
             if (dNodeList != null)
             {
                 foreach (XmlNode node in dNodeList)
@@ -98,7 +109,7 @@ public static class DanmakuUtil
 
         PositionController controller = new( );   // 弹幕位置控制器
         Array.Sort(danmakus, comparer);
-        foreach (DanmakuItem danmaku in danmakus)
+        foreach (var danmaku in danmakus)
         {
             var height = controller.UpdatePosition(danmaku.DanmakuMode, danmaku.Second, danmaku.Content.Length);
             if (height == -1) continue;

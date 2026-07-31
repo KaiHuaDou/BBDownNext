@@ -16,6 +16,11 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
+
 namespace BBDown;
 
 public class BBDownApiServer
@@ -27,7 +32,7 @@ public class BBDownApiServer
     public void SetUpServer( )
     {
         if (app is not null) return;
-        WebApplicationBuilder builder = WebApplication.CreateSlimBuilder( );
+        var builder = WebApplication.CreateSlimBuilder( );
         builder.Services.ConfigureHttpJsonOptions((options) => options.SerializerOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(options.SerializerOptions.TypeInfoResolver, AppJsonSerializerContext.Default));
         builder.Services.AddCors((options) =>
         {
@@ -41,14 +46,14 @@ public class BBDownApiServer
         });
         app = builder.Build( );
         app.UseCors("AllowAnyOrigin");
-        Microsoft.AspNetCore.Routing.RouteGroupBuilder taskStatusApi = app.MapGroup("/get-tasks");
+        var taskStatusApi = app.MapGroup("/get-tasks");
         taskStatusApi.MapGet("/", handler: ( ) => Results.Json(new DownloadTaskCollection(runningTasks, finishedTasks), AppJsonSerializerContext.Default.DownloadTaskCollection));
         taskStatusApi.MapGet("/running", handler: ( ) => Results.Json(runningTasks, AppJsonSerializerContext.Default.ListDownloadTask));
         taskStatusApi.MapGet("/finished", handler: ( ) => Results.Json(finishedTasks, AppJsonSerializerContext.Default.ListDownloadTask));
         taskStatusApi.MapGet("/{id}", (string id) =>
         {
-            DownloadTask? task = finishedTasks.FirstOrDefault(a => a.Aid == id);
-            DownloadTask? rtask = runningTasks.FirstOrDefault(a => a.Aid == id);
+            var task = finishedTasks.FirstOrDefault(a => a.Aid == id);
+            var rtask = runningTasks.FirstOrDefault(a => a.Aid == id);
             if (rtask is not null) task = rtask;
             if (task is null)
             {
@@ -65,7 +70,7 @@ public class BBDownApiServer
                 return Results.BadRequest("输入有误");
             }
 
-            ServeRequestOptions req = bindingResult.Result!;
+            var req = bindingResult.Result!;
             _ = AddDownloadTaskAsync(req)
                 .ContinueWith(async task =>
                 {
@@ -77,7 +82,7 @@ public class BBDownApiServer
 
                     var callback = req.CallBackWebHook;
                     var client = new HttpClient( );
-                    DownloadTask downloadTask = await task;
+                    var downloadTask = await task;
                     var jsonContent = JsonSerializer.Serialize(downloadTask, AppJsonSerializerContext.Default.DownloadTask);
                     try
                     {
@@ -90,7 +95,7 @@ public class BBDownApiServer
                 });
             return Results.Ok( );
         });
-        Microsoft.AspNetCore.Routing.RouteGroupBuilder finishedRemovalApi = app.MapGroup("remove-finished");
+        var finishedRemovalApi = app.MapGroup("remove-finished");
         finishedRemovalApi.MapGet("/", ( ) => { finishedTasks.RemoveAll(t => true); return Results.Ok( ); });
         finishedRemovalApi.MapGet("/failed", ( ) => { finishedTasks.RemoveAll(t => !t.IsSuccessful); return Results.Ok( ); });
         finishedRemovalApi.MapGet("/{id}", (string id) => { finishedTasks.RemoveAll(t => t.Aid == id); return Results.Ok( ); });
@@ -99,7 +104,7 @@ public class BBDownApiServer
     public void Run(string url)
     {
         if (app is null) return;
-        var result = Uri.TryCreate(url, UriKind.Absolute, out Uri? uriResult)
+        var result = Uri.TryCreate(url, UriKind.Absolute, out var uriResult)
             && uriResult.Scheme == Uri.UriSchemeHttp;
         if (!result)
         {
@@ -119,7 +124,7 @@ public class BBDownApiServer
     private async Task<DownloadTask> AddDownloadTaskAsync(MyOption option)
     {
         var aid = await Utils.GetAvIdAsync(option.Url, new AppConfig(option.Cookie ?? "", option.AccessToken?.Replace("access_token=", "") ?? "", option.Host, option.EpHost, option.TvHost, option.Area, ""));
-        DownloadTask? runningTask = runningTasks.FirstOrDefault(task => task.Aid == aid);
+        var runningTask = runningTasks.FirstOrDefault(task => task.Aid == aid);
         if (runningTask is not null)
         {
             return runningTask;
@@ -130,8 +135,8 @@ public class BBDownApiServer
         runningTasks.Add(task);
         try
         {
-            (Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority, var firstEncoding, var downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, var input, var savePathFormat, var lang, var aidOri, var delay) = Program.SetUpWork(option);
-            (var fetchedAid, Core.Entity.VInfo vInfo, var apiType, AppConfig cfg) = await Program.GetVideoInfoAsync(option, aidOri, input);
+            (var encodingPriority, var dfnPriority, var firstEncoding, var downloadDanmaku, var downloadDanmakuFormats, var input, var savePathFormat, var lang, var aidOri, var delay) = Program.SetUpWork(option);
+            (var fetchedAid, var vInfo, var apiType, var cfg) = await Program.GetVideoInfoAsync(option, aidOri, input);
             task.Title = vInfo.Title;
             task.Pic = vInfo.Pic;
             task.VideoPubTime = vInfo.PubTime;
@@ -195,7 +200,7 @@ internal record struct MyOptionBindingResult<T>(T? Result, Exception? Exception)
     {
         try
         {
-            JsonTypeInfo? jsonTypeInfo = SourceGenerationContext.Default.GetTypeInfo(typeof(T));
+            var jsonTypeInfo = SourceGenerationContext.Default.GetTypeInfo(typeof(T));
             if (jsonTypeInfo is null)
             {
                 return new(default, new InvalidOperationException($"Cannot find TypeInfo for type {typeof(T)}"));

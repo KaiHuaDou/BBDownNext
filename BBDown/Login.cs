@@ -9,8 +9,14 @@ using BBDown.Core.Util;
 
 using QRCoder;
 
-using static BBDown.Utils;
 using static BBDown.Core.Logger;
+using static BBDown.Utils;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading;
+
 
 namespace BBDown;
 
@@ -20,7 +26,7 @@ internal static class Login
     {
         Log("生成二维码...");
         QRCodeGenerator qrGenerator = new( );
-        QRCodeData qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+        var qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
         PngByteQRCode pngByteCode = new(qrCodeData);
         await File.WriteAllBytesAsync("qrcode.png", pngByteCode.GetGraphic(7));
         Log("生成二维码成功: qrcode.png, 请打开并扫描, 或扫描打印的二维码");
@@ -91,7 +97,7 @@ internal static class Login
         {
             var loginUrl = "https://passport.snm0516.aisee.tv/x/passport-tv-login/qrcode/auth_code";
             var pollUrl = "https://passport.bilibili.com/x/passport-tv-login/qrcode/poll";
-            System.Collections.Specialized.NameValueCollection parms = GetTVLoginParms( );
+            var parms = GetTVLoginParms( );
             Log("获取登录地址...");
             var responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(loginUrl, new FormUrlEncodedContent(parms.ToDictionary( )))).Content.ReadAsByteArrayAsync( );
             var web = Encoding.UTF8.GetString(responseArray);

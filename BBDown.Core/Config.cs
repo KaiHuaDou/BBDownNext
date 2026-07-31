@@ -1,3 +1,15 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace BBDown.Core;
 
 public static class Config
@@ -14,5 +26,8 @@ public static class Config
     };
 
     //设置一次日志级别（仅允许在启动装配阶段调用，避免任意代码点改动全局状态）
-    public static void SetDebugLog(bool on) => DEBUG_LOG = on;
+    public static void SetDebugLog(bool on)
+    {
+        DEBUG_LOG = on;
+    }
 }

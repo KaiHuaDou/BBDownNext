@@ -9,9 +9,15 @@ using BBDown.Core;
 using BBDown.Core.Entity;
 
 using static BBDown.BBDownDownloadUtil;
-using static BBDown.Utils;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
+using static BBDown.Utils;
+using System.Diagnostics;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+
 
 namespace BBDown;
 
@@ -132,7 +138,7 @@ internal partial class Program
         var dfnPriority = new Dictionary<string, int>( );
         if (myOption.DfnPriority != null)
         {
-            IEnumerable<string> dfnPriorityTemp = myOption.DfnPriority.Replace("，", ",").Split(',').Select(s => s.ToUpper( ).Trim( )).Where(s => !string.IsNullOrEmpty(s));
+            var dfnPriorityTemp = myOption.DfnPriority.Replace("，", ",").Split(',').Select(s => s.ToUpper( ).Trim( )).Where(s => !string.IsNullOrEmpty(s));
             var index = 0;
             foreach (var dfn in dfnPriorityTemp)
             {
@@ -381,7 +387,7 @@ internal partial class Program
             //处理PCDN
             if (!myOption.AllowPcdn)
             {
-                Regex pcdnReg = PcdnRegex( );
+                var pcdnReg = PcdnRegex( );
                 if (selectedVideo != null && pcdnReg.IsMatch(selectedVideo.baseUrl))
                 {
                     LogWarn($"检测到视频流为PCDN, 尝试强制替换为{BACKUP_HOST}……");
@@ -395,7 +401,7 @@ internal partial class Program
                 }
             }
 
-            Regex akamReg = AkamRegex( );
+            var akamReg = AkamRegex( );
             if (selectedVideo != null && cfg.Area != "" && selectedVideo.baseUrl.Contains("akamaized.net"))
             {
                 LogWarn($"检测到视频流为外国源, 尝试强制替换为{BACKUP_HOST}……");
@@ -531,7 +537,7 @@ internal partial class Program
             Log($"合并{(video ? "视频" : "音频")}分片...");
             CombineMultipleFilesIntoSingleFile(GetFiles(Path.GetDirectoryName(destPath)!, $".{(video ? "v" : "a")}clip"), destPath);
             Log("清理分片...");
-            foreach (FileInfo file in new DirectoryInfo(Path.GetDirectoryName(destPath)!).EnumerateFiles("*.?clip")) file.Delete( );
+            foreach (var file in new DirectoryInfo(Path.GetDirectoryName(destPath)!).EnumerateFiles("*.?clip")) file.Delete( );
         }
         else
         {

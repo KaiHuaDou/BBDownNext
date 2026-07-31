@@ -4,6 +4,17 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core.Fetcher;
 
@@ -21,7 +32,7 @@ public static class SeriesListFetcher
         var api = $"https://api.bilibili.com/x/v1/medialist/info?type=5&biz_id={id}&tid=0";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
-        JsonElement data = infoJson.RootElement.GetProperty("data");
+        var data = infoJson.RootElement.GetProperty("data");
         var listTitle = data.GetProperty("title").GetString( )!;
         var intro = data.GetProperty("intro").GetString( )!;
         var pubTime = data.GetProperty("ctime").GetInt64( );
@@ -37,17 +48,17 @@ public static class SeriesListFetcher
             using var listJson = JsonDocument.Parse(json);
             data = listJson.RootElement.GetProperty("data");
             hasMore = data.GetProperty("has_more").GetBoolean( );
-            foreach (JsonElement m in data.GetProperty("media_list").EnumerateArray( ))
+            foreach (var m in data.GetProperty("media_list").EnumerateArray( ))
             {
                 // 只处理未失效的视频条目（与收藏夹解析逻辑保持一致）
-                if (m.TryGetProperty("attr", out JsonElement attrElem) && attrElem.GetInt32( ) != 0)
+                if (m.TryGetProperty("attr", out var attrElem) && attrElem.GetInt32( ) != 0)
                     continue;
 
                 var pageCount = m.GetProperty("page").GetInt32( );
                 var desc = m.GetProperty("intro").GetString( )!;
                 var ownerName = m.GetProperty("upper").GetProperty("name").ToString( );
                 var ownerMid = m.GetProperty("upper").GetProperty("mid").ToString( );
-                foreach (JsonElement page in m.GetProperty("pages").EnumerateArray( ))
+                foreach (var page in m.GetProperty("pages").EnumerateArray( ))
                 {
                     Page p = new( )
                     {

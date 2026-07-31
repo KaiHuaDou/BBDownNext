@@ -1,20 +1,35 @@
 using static BBDown.Core.Entity.Entity;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core.Tests;
 
 public class EntityTests
 {
-    private static Page MakePage(string aid = "1", string cid = "2", string epid = "3") => new( )
+    private static Page MakePage(string aid = "1", string cid = "2", string epid = "3")
     {
-        index = 1,
-        aid = aid,
-        cid = cid,
-        epid = epid,
-        title = "t",
-        dur = 10,
-        res = "1920x1080",
-        pubTime = 123,
-    };
+        return new( )
+        {
+            index = 1,
+            aid = aid,
+            cid = cid,
+            epid = epid,
+            title = "t",
+            dur = 10,
+            res = "1920x1080",
+            pubTime = 123,
+        };
+    }
 
     [Fact]
     public void Page_Equality_OnlyByAidCidEpid( )
@@ -40,7 +55,7 @@ public class EntityTests
         src.ownerMid = "42";
         src.points.Add(new ViewPoint { title = "p", start = 0, end = 1 });
 
-        Page copy = src.CopyWith(7);
+        var copy = src.CopyWith(7);
 
         Assert.Equal(7, copy.index);
         Assert.Equal(src.aid, copy.aid);

@@ -8,10 +8,16 @@ using System.Text;
 
 using BBDown.Core;
 
-using static BBDown.Utils;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.SubUtil;
+using static BBDown.Utils;
+using System.Net.Http;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown;
 
@@ -138,7 +144,7 @@ internal static partial class BBDownMuxer
         {
             byte audioCount = 0;
             metaArg.Append("-metadata:s:a:0 title=\"原音频\" ");
-            foreach (AudioMaterial audio in audioMaterial)
+            foreach (var audio in audioMaterial)
             {
                 inputCount++;
                 audioCount++;

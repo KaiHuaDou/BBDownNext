@@ -9,6 +9,17 @@ using Google.Protobuf;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core;
 
@@ -58,7 +69,7 @@ internal static class AppHelper
     public static async Task<string> DoReqAsync(string aid, string cid, string epId, string qn, bool bangumi, string encoding, AppConfig cfg, string appkey = "")
     {
 
-        Dictionary<string, string> headers = GetHeader(appkey, cfg);
+        var headers = GetHeader(appkey, cfg);
         LogDebug("App-Req-Headers: {0}", JsonSerializer.Serialize(headers, JsonContext.Default.DictionaryStringString));
         byte[] data;
         // 只有pgc接口才有配音和片头尾信息
@@ -75,7 +86,7 @@ internal static class AppHelper
             data = await GetPostResponseAsync(API, body, headers);
         }
 
-        PlayViewReply resp = new MessageParser<PlayViewReply>(( ) => new PlayViewReply( )).ParseFrom(ReadMessage(data));
+        var resp = new MessageParser<PlayViewReply>(( ) => new PlayViewReply( )).ParseFrom(ReadMessage(data));
 
         LogDebug("PlayViewReplyPlain: {0}", JsonSerializer.Serialize(resp, JsonContext.Default.PlayViewReply));
         return ConvertToDashJson(resp);
@@ -95,7 +106,7 @@ internal static class AppHelper
 
         if (resp.VideoInfo.StreamList != null)
         {
-            foreach (StreamItem? item in resp.VideoInfo.StreamList)
+            foreach (var item in resp.VideoInfo.StreamList)
             {
                 if (item.DashVideo != null)
                 {
@@ -156,7 +167,7 @@ internal static class AppHelper
         var roles = new List<object>( );
         if (resp.PlayExtInfo != null && resp.PlayExtInfo.PlayDubbingInfo != null && resp.PlayExtInfo.PlayDubbingInfo.BackgroundAudio != null)
         {
-            PlayDubbingInfo dubInfo = resp.PlayExtInfo.PlayDubbingInfo;
+            var dubInfo = resp.PlayExtInfo.PlayDubbingInfo;
 
             backgroundAudios.AddRange(dubInfo.BackgroundAudio.Audio.Select(item => new AudioInfoWithCodecName(
                 item.Id,
@@ -166,9 +177,9 @@ internal static class AppHelper
                 "M4A"
             )));
 
-            foreach (RoleAudioProto? item in dubInfo.RoleAudioList)
+            foreach (var item in dubInfo.RoleAudioList)
             {
-                foreach (AudioMaterialProto? role in item.AudioMaterialList)
+                foreach (var role in item.AudioMaterialList)
                 {
                     var roleAudios = role.Audio.Select(item => new AudioInfoWithCodecName(
                         item.Id,

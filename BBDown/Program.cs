@@ -4,10 +4,8 @@ using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,11 +14,14 @@ using BBDown.Core.Entity;
 using BBDown.Core.Fetcher;
 using BBDown.Core.Util;
 
-using static BBDown.BBDownDownloadUtil;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
-using static BBDown.Core.Parser;
 using static BBDown.Utils;
+using System.Diagnostics;
+using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
+
 
 namespace BBDown;
 
@@ -68,7 +69,7 @@ internal partial class Program
     {
         Console.CancelKeyPress += Console_CancelKeyPress;
 
-        RootCommand rootCommand = CommandLineInvoker.GetRootCommand(RunApp);
+        var rootCommand = CommandLineInvoker.GetRootCommand(RunApp);
         rootCommand.Description = "BBDown是一个免费且便捷高效的哔哩哔哩下载/解析软件.";
         rootCommand.TreatUnmatchedTokensAsErrors = false;
 
@@ -90,7 +91,7 @@ internal partial class Program
         serverCommand.SetAction(result => StartServer(result.GetValue<string>("--listen")));
         rootCommand.Subcommands.Add(serverCommand);
 
-        ParseResult rootResult = rootCommand.Parse(args, new ParserConfiguration( )
+        var rootResult = rootCommand.Parse(args, new ParserConfiguration( )
         {
             EnablePosixBundling = true,
         });
@@ -107,7 +108,7 @@ internal partial class Program
 
         var argsList = new List<string>( );
 
-        foreach (SymbolResult item in rootResult.CommandResult.Children)
+        foreach (var item in rootResult.CommandResult.Children)
         {
             if (item is ArgumentResult a)
             {
@@ -130,7 +131,7 @@ internal partial class Program
 
         Console.BackgroundColor = ConsoleColor.DarkBlue;
         Console.ForegroundColor = ConsoleColor.White;
-        Version ver = System.Reflection.Assembly.GetExecutingAssembly( ).GetName( ).Version!;
+        var ver = System.Reflection.Assembly.GetExecutingAssembly( ).GetName( ).Version!;
         Console.Write($"BBDown version {ver.Major}.{ver.Minor}.{ver.Build}, Bilibili Downloader.\r\n");
         Console.ResetColor( );
         Console.WriteLine( );
@@ -171,14 +172,14 @@ internal partial class Program
         ChangeWorkingDir(myOption);
 
         //解析优先级
-        Dictionary<string, byte> encodingPriority = ParseEncodingPriority(myOption, out var firstEncoding);
-        Dictionary<string, int> dfnPriority = ParseDfnPriority(myOption);
+        var encodingPriority = ParseEncodingPriority(myOption, out var firstEncoding);
+        var dfnPriority = ParseDfnPriority(myOption);
 
         //优先使用用户设置的UA
         HTTPUtil.UserAgent = string.IsNullOrEmpty(myOption.UserAgent) ? HTTPUtil.UserAgent : myOption.UserAgent;
 
         var downloadDanmaku = myOption.DownloadDanmaku || myOption.DanmakuOnly;
-        BBDownDanmakuFormat[] downloadDanmakuFormats = ParseDownloadDanmakuFormats(myOption);
+        var downloadDanmakuFormats = ParseDownloadDanmakuFormats(myOption);
 
         var input = myOption.Url;
         var savePathFormat = myOption.FilePattern;
@@ -278,7 +279,7 @@ internal partial class Program
         //打印分P信息
         List<Page> pagesInfo = vInfo.PagesInfo;
         var more = false;
-        foreach (Page p in pagesInfo)
+        foreach (var p in pagesInfo)
         {
             if (!myOption.ShowAll)
             {
@@ -297,14 +298,13 @@ internal partial class Program
         return (aidOri, vInfo, apiType, cfg);
     }
 
-
     private static async Task DoWorkAsync(MyOption myOption)
     {
         try
         {
-            (Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority, var firstEncoding, var downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats,
+            (var encodingPriority, var dfnPriority, var firstEncoding, var downloadDanmaku, var downloadDanmakuFormats,
                 var input, var savePathFormat, var lang, var aidOri, var delay) = SetUpWork(myOption);
-            (var fetchedAid, VInfo vInfo, var apiType, AppConfig cfg) = await GetVideoInfoAsync(myOption, aidOri, input);
+            (var fetchedAid, var vInfo, var apiType, var cfg) = await GetVideoInfoAsync(myOption, aidOri, input);
             await DownloadPagesAsync(myOption, vInfo, encodingPriority, dfnPriority, firstEncoding, downloadDanmaku, downloadDanmakuFormats,
                 input, savePathFormat, lang, fetchedAid, delay, apiType, cfg);
         }
@@ -320,5 +320,4 @@ internal partial class Program
             Environment.Exit(1);
         }
     }
-
 }

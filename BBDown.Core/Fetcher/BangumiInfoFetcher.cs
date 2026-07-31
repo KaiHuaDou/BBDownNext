@@ -4,6 +4,17 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core.Fetcher;
 
@@ -16,22 +27,22 @@ public static class BangumiInfoFetcher
         var api = $"https://{cfg.EpHost}/pgc/view/web/season?ep_id={id}";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
-        JsonElement result = infoJson.RootElement.GetProperty("result");
+        var result = infoJson.RootElement.GetProperty("result");
         var cover = result.GetProperty("cover").ToString( );
         var title = result.GetProperty("title").ToString( );
         var desc = result.GetProperty("evaluate").ToString( );
         var pubTimeStr = result.GetProperty("publish").GetProperty("pub_time").ToString( );
         var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", null).ToUnixTimeSeconds( );
-        JsonElement.ArrayEnumerator pages = result.GetProperty("episodes").EnumerateArray( );
+        var pages = result.GetProperty("episodes").EnumerateArray( );
         List<Page> pagesInfo = [];
         var i = 1;
 
         //episodes为空; 或者未包含对应epid，番外/花絮什么的
         if (!(pages.Any( ) && result.GetProperty("episodes").ToString( ).Contains($"/ep{id}")))
         {
-            if (result.TryGetProperty("section", out JsonElement sections))
+            if (result.TryGetProperty("section", out var sections))
             {
-                foreach (JsonElement section in sections.EnumerateArray( ))
+                foreach (var section in sections.EnumerateArray( ))
                 {
                     if (section.ToString( ).Contains($"/ep{id}"))
                     {
@@ -43,10 +54,10 @@ public static class BangumiInfoFetcher
             }
         }
 
-        foreach (JsonElement page in pages)
+        foreach (var page in pages)
         {
             //跳过预告
-            if (page.TryGetProperty("badge", out JsonElement badge) && badge.ToString( ) == "预告") continue;
+            if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告") continue;
             var res = "";
             try
             {

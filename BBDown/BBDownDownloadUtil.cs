@@ -10,6 +10,12 @@ using System.Threading.Tasks;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
+using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+
 
 namespace BBDown;
 
@@ -48,7 +54,7 @@ internal static class BBDownDownloadUtil
             fileStream.Seek(0, SeekOrigin.Begin);
         }
 
-        using Stream stream = await response.Content.ReadAsStreamAsync( );
+        using var stream = await response.Content.ReadAsStreamAsync( );
         var totalBytes = downloadedBytes + (response.Content.Headers.ContentLength ?? long.MaxValue - downloadedBytes);
 
         const int blockSize = 1048576 / 4;
@@ -124,11 +130,11 @@ internal static class BBDownDownloadUtil
             return;
         }
 
-        List<Clip> allClips = GetAllClips(url, fileSize);
+        var allClips = GetAllClips(url, fileSize);
         var total = allClips.Count;
         LogDebug("分段数量：{0}", total);
         ConcurrentDictionary<int, long> clipProgress = new( );
-        foreach (Clip i in allClips) clipProgress[i.index] = 0;
+        foreach (var i in allClips) clipProgress[i.index] = 0;
 
         using var progress = new ProgressBar(config.RelatedTask);
         progress.Report(0);

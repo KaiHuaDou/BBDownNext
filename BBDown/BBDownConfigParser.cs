@@ -6,6 +6,14 @@ using System.IO;
 using System.Linq;
 
 using static BBDown.Core.Logger;
+using System.Diagnostics;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown;
 
@@ -21,7 +29,7 @@ internal static class BBDownConfigParser
             if (File.Exists(configPath))
             {
                 Log($"加载配置文件: {configPath}");
-                IEnumerable<string> configArgs = File
+                var configArgs = File
                     .ReadAllLines(configPath)
                     .Where(s => !string.IsNullOrEmpty(s) && !s.StartsWith('#'))
                     .SelectMany(s =>
@@ -37,8 +45,8 @@ internal static class BBDownConfigParser
                             return [trimLine.Trim('\"')];
                         }
                     );
-                ParseResult configArgsResult = rootCommand.Parse(configArgs.ToArray( ));
-                foreach (SymbolResult item in configArgsResult.CommandResult.Children)
+                var configArgsResult = rootCommand.Parse(configArgs.ToArray( ));
+                foreach (var item in configArgsResult.CommandResult.Children)
                 {
                     if (item is OptionResult o)
                     {

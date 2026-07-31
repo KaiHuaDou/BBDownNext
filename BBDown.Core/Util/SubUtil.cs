@@ -1,6 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 using BBDown.Core.Protobuf;
 
@@ -8,6 +13,10 @@ using Google.Protobuf;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using System.Diagnostics;
+using System.Net.Http;
+using System.Threading;
+
 
 namespace BBDown.Core.Util;
 
@@ -227,8 +236,8 @@ public static partial class SubUtil
             var api = "https://" + (cfg.EpHost == "api.bilibili.com" ? "api.biliintl.com" : cfg.EpHost) + $"/intl/gateway/web/v2/subtitle?episode_id={epId}";
             var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
-            JsonElement.ArrayEnumerator subs = infoJson.RootElement.GetProperty("data").GetProperty("subtitles").EnumerateArray( );
-            foreach (JsonElement sub in subs)
+            var subs = infoJson.RootElement.GetProperty("data").GetProperty("subtitles").EnumerateArray( );
+            foreach (var sub in subs)
             {
                 var lan = sub.GetProperty("lang_key").ToString( );
                 var url = sub.GetProperty("url").ToString( );
@@ -254,9 +263,9 @@ public static partial class SubUtil
                          $"/intl/gateway/v2/ogv/view/app/season?ep_id={epId}&platform=android&s_locale=zh_SG" + (cfg.Token != "" ? $"&access_key={cfg.Token}" : "");
             var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
-            JsonElement.ArrayEnumerator subs = infoJson.RootElement.GetProperty("result").GetProperty("modules")[0].GetProperty("data")
+            var subs = infoJson.RootElement.GetProperty("result").GetProperty("modules")[0].GetProperty("data")
                 .GetProperty("episodes")[index - 1].GetProperty("subtitles").EnumerateArray( );
-            foreach (JsonElement sub in subs)
+            foreach (var sub in subs)
             {
                 var lan = sub.GetProperty("key").ToString( );
                 var url = sub.GetProperty("url").ToString( ).Replace("\\\\/", "/");
@@ -281,8 +290,8 @@ public static partial class SubUtil
             var api = $"https://api.bilibili.com/x/web-interface/view?aid={aid}&cid={cid}";
             var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
-            JsonElement.ArrayEnumerator subs = infoJson.RootElement.GetProperty("data").GetProperty("subtitle").GetProperty("list").EnumerateArray( );
-            foreach (JsonElement sub in subs)
+            var subs = infoJson.RootElement.GetProperty("data").GetProperty("subtitle").GetProperty("list").EnumerateArray( );
+            foreach (var sub in subs)
             {
                 var lan = sub.GetProperty("lan").ToString( );
                 subtitles.Add(BuildSubtitle(aid, cid, lan, sub.GetProperty("subtitle_url").ToString( ), false));
@@ -306,8 +315,8 @@ public static partial class SubUtil
             var api = $"https://api.bilibili.com/x/player/wbi/v2?cid={cid}&aid={aid}";
             var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
-            JsonElement.ArrayEnumerator subs = infoJson.RootElement.GetProperty("data").GetProperty("subtitle").GetProperty("subtitles").EnumerateArray( );
-            foreach (JsonElement sub in subs)
+            var subs = infoJson.RootElement.GetProperty("data").GetProperty("subtitle").GetProperty("subtitles").EnumerateArray( );
+            foreach (var sub in subs)
             {
                 var lan = sub.GetProperty("lan").ToString( );
                 subtitles.Add(BuildSubtitle(aid, cid, lan, sub.GetProperty("subtitle_url").ToString( ), false));
@@ -346,7 +355,7 @@ public static partial class SubUtil
             var data = GetPayload(Convert.ToInt64(aid), Convert.ToInt64(cid));
 
             var t = AppHelper.ReadMessage(await GetPostResponseAsync(api, data));
-            DmViewReply resp = new MessageParser<DmViewReply>(( ) => new DmViewReply( )).ParseFrom(t);
+            var resp = new MessageParser<DmViewReply>(( ) => new DmViewReply( )).ParseFrom(t);
 
             if (resp.Subtitle != null && resp.Subtitle.Subtitles != null)
             {
@@ -357,6 +366,7 @@ public static partial class SubUtil
                     path = $"{aid}/{aid}.{cid}.{item.Lan}.srt"
                 }));
             }
+
             EnsureValidUrls(subtitles);
 
             return subtitles;
@@ -414,7 +424,7 @@ public static partial class SubUtil
         }
 
         //修正 url 协议
-        foreach (Subtitle item in subtitles)
+        foreach (var item in subtitles)
         {
             if (item.url.StartsWith("//")) item.url = "https:" + item.url;
         }
@@ -437,9 +447,9 @@ public static partial class SubUtil
         var sub = json.RootElement.GetProperty("body").EnumerateArray( ).ToList( );
         for (var i = 0; i < sub.Count; i++)
         {
-            JsonElement line = sub[i];
+            var line = sub[i];
             lines.AppendLine((i + 1).ToString( ));
-            if (line.TryGetProperty("from", out JsonElement from))
+            if (line.TryGetProperty("from", out var from))
             {
                 lines.AppendLine($"{FormatTime(from.GetDouble( ))} --> {FormatTime(line.GetProperty("to").GetDouble( ))}");
             }
@@ -448,7 +458,7 @@ public static partial class SubUtil
                 lines.AppendLine($"{FormatTime(0.0)} --> {FormatTime(line.GetProperty("to").GetDouble( ))}");
             }
             //有的没有内容
-            if (line.TryGetProperty("content", out JsonElement content))
+            if (line.TryGetProperty("content", out var content))
                 lines.AppendLine(content.ToString( ));
             lines.AppendLine( );
         }

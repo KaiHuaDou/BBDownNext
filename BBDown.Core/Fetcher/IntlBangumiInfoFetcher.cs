@@ -5,6 +5,16 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace BBDown.Core.Fetcher;
 
@@ -19,7 +29,7 @@ public static partial class IntlBangumiInfoFetcher
                      $"/intl/gateway/v2/ogv/view/app/season?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a" + (cfg.Token != "" ? $"&access_key={cfg.Token}" : "");
         var json = (await GetWebSourceAsync(api, cfg)).Replace("\\/", "/");
         using var infoJson = JsonDocument.Parse(json);
-        JsonElement result = infoJson.RootElement.GetProperty("result");
+        var result = infoJson.RootElement.GetProperty("result");
         var seasonId = result.GetProperty("season_id").ToString( );
         var cover = result.GetProperty("cover").ToString( );
         var title = result.GetProperty("title").ToString( );
@@ -31,7 +41,7 @@ public static partial class IntlBangumiInfoFetcher
             var web = await GetWebSourceAsync(animeUrl, cfg);
             if (web != "")
             {
-                Regex regex = StateRegex( );
+                var regex = StateRegex( );
                 var _json = regex.Match(web).Groups[1].Value;
                 using var _tempJson = JsonDocument.Parse(_json);
                 cover = _tempJson.RootElement.GetProperty("mediaInfo").GetProperty("cover").ToString( );
@@ -43,7 +53,7 @@ public static partial class IntlBangumiInfoFetcher
         var pubTimeStr = result.GetProperty("publish").GetProperty("pub_time").ToString( );
         var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", null).ToUnixTimeSeconds( );
         var pages = new List<JsonElement>( );
-        if (result.TryGetProperty("episodes", out JsonElement episodes))
+        if (result.TryGetProperty("episodes", out var episodes))
         {
             pages = episodes.EnumerateArray( ).ToList( );
         }
@@ -51,9 +61,9 @@ public static partial class IntlBangumiInfoFetcher
         List<Page> pagesInfo = [];
         var i = 1;
 
-        if (result.TryGetProperty("modules", out JsonElement modules))
+        if (result.TryGetProperty("modules", out var modules))
         {
-            foreach (JsonElement section in modules.EnumerateArray( ))
+            foreach (var section in modules.EnumerateArray( ))
             {
                 if (section.ToString( ).Contains($"/{id}"))
                 {
@@ -87,7 +97,7 @@ public static partial class IntlBangumiInfoFetcher
         foreach (JsonElement page in pages)
         {
             //跳过预告
-            if (page.TryGetProperty("badge", out JsonElement badge) && badge.ToString( ) == "预告") continue;
+            if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告") continue;
             var res = "";
             try
             {
@@ -106,7 +116,7 @@ public static partial class IntlBangumiInfoFetcher
                 title = _title,
                 dur = 0,
                 res = res,
-                pubTime = page.TryGetProperty("pub_time", out JsonElement pub_time) ? pub_time.GetInt64( ) : 0,
+                pubTime = page.TryGetProperty("pub_time", out var pub_time) ? pub_time.GetInt64( ) : 0,
             };
             if (p.epid == id) index = p.index.ToString( );
             pagesInfo.Add(p);
