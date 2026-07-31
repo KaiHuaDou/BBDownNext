@@ -1,10 +1,16 @@
 name: Build Latest
 
-on: [push,workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   DOTNET_SDK_VERSION: "9.0.306"
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
 jobs:
   set-date:
@@ -16,15 +22,36 @@ jobs:
         id: get_date
         run: echo "date=$(date -u -d '8 hours' +'%Y%m%d')" >> "$GITHUB_OUTPUT"
 
-  build-win-x64-arm64:
-    runs-on: windows-latest
-    needs: set-date
-
+  test:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
 
       - name: Set up dotnet
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+          cache: true
+
+      - name: Run tests with coverage
+        run: dotnet test --configuration Release --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/TestResults/*.trx"
+
+  build-win-x64-arm64:
+    runs-on: windows-latest
+    needs: [set-date, test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up dotnet
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
@@ -57,10 +84,10 @@ jobs:
 
   build-linux-x64-arm64:
     runs-on: ubuntu-latest
-    needs: set-date
+    needs: [set-date, test]
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       
       - name: Build x64 in Ubuntu 18.04 container (for glibc 2.27 compatibility)
         run: |
@@ -131,13 +158,13 @@ jobs:
 
   build-mac-x64-arm64:
     runs-on: macos-latest
-    needs: set-date
+    needs: [set-date, test]
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
 
       - name: Set up dotnet
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
