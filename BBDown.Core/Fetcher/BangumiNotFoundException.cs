@@ -9,5 +9,9 @@ namespace BBDown.Core.Fetcher;
 /// </summary>
 public sealed class BangumiNotFoundException : Exception
 {
+    public BangumiNotFoundException( ) { }
+
     public BangumiNotFoundException(string message) : base(message) { }
+
+    public BangumiNotFoundException(string message, Exception innerException) : base(message, innerException) { }
 }
