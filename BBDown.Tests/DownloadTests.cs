@@ -35,12 +35,6 @@ public class DownloadTests
         return new Audio { id = id, dfn = "", baseUrl = "", codecs = codecs, bandwidth = bandwidth, dur = 100 };
     }
 
-    [Fact]
-    public void SanitizeTitle_PrefixesLeadingDot()
-    {
-        Assert.Equal("_.hidden", Program.SanitizeTitle(".hidden"));
-    }
-
     // 服务器不支持 Range 时不应该再退避重试，Parallel.ForEachAsync 会把分片异常裹一层
     [Fact]
     public void IsRangeUnsupported_SeesThroughAggregateException()
@@ -49,31 +43,6 @@ public class DownloadTests
         Assert.True(Program.IsRangeUnsupported(new AggregateException(new IOException(), new NotSupportedException())));
         Assert.False(Program.IsRangeUnsupported(new IOException()));
         Assert.False(Program.IsRangeUnsupported(new AggregateException(new IOException())));
-    }
-
-    [Fact]
-    public void SanitizeTitle_AppendsFixOnTrailingDot()
-    {
-        Assert.Equal("title._fix", Program.SanitizeTitle("title."));
-    }
-
-    [Fact]
-    public void SanitizeTitle_HandlesBothEnds()
-    {
-        Assert.Equal("_.title._fix", Program.SanitizeTitle(".title."));
-    }
-
-    [Fact]
-    public void SanitizeTitle_LeavesNormalTitleUntouched()
-    {
-        Assert.Equal("普通标题", Program.SanitizeTitle("普通标题"));
-    }
-
-    [Fact]
-    public void SanitizeTitle_IsIdempotent()
-    {
-        var once = Program.SanitizeTitle(".title.");
-        Assert.Equal(once, Program.SanitizeTitle(once));
     }
 
     [Fact]
@@ -168,6 +137,14 @@ public class DownloadTests
     }
 
     [Fact]
+    public void ToAudioOnlyPath_DoesNotAssumeFourCharExtension()
+    {
+        Assert.Equal("out/video.m4a", Program.ToAudioOnlyPath("out/video.MP4"));
+        Assert.Equal("out/video.m4a", Program.ToAudioOnlyPath("out/video.mkv"));
+        Assert.Equal("out/v.1.0.m4a", Program.ToAudioOnlyPath("out/v.1.0.mp4"));
+    }
+
+    [Fact]
     public void BuildDownloadConfig_CopiesOptionsAndCookie()
     {
         var o = new MyOption
@@ -259,6 +236,30 @@ public class DownloadTests
         var p = MakePage();
         var result = Program.FormatSavePath("<videoTitle>", "a/b", null, null, p, 1, "WEB", 0);
         Assert.DoesNotContain('/', result);
+    }
+
+    // 替换值本身长得像占位符时，按位置替换才不会被后续迭代二次展开
+    [Fact]
+    public void FormatSavePath_DoesNotReexpandSubstitutedValues()
+    {
+        var p = MakePage();
+        var v = MakeVideo("120", "<aid>", "AVC", 1000);
+        var result = Program.FormatSavePath("<dfn>-<aid>", "t", v, null, p, 1, "WEB", 0);
+        Assert.Equal("<aid>-114514.mp4", result);
+    }
+
+    [Fact]
+    public void FormatSavePath_KeepsUppercaseExtension()
+    {
+        var p = MakePage();
+        Assert.Equal("114514.MP4", Program.FormatSavePath("<aid>.MP4", "t", null, null, p, 1, "WEB", 0));
+    }
+
+    [Fact]
+    public void FormatSavePath_EscapesWindowsReservedTitle()
+    {
+        var p = MakePage();
+        Assert.Equal("_CON.mp4", Program.FormatSavePath("<videoTitle>", "CON", null, null, p, 1, "WEB", 0));
     }
 
     [Fact]

@@ -96,7 +96,7 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
 
             var progressBlockCount = (int) (currentProgress * blockCount);
             var percent = currentProgress * 100;
-            var text = string.Format("                            [{0}{1}] {2,3:0.00}% {3}{4}",
+            var text = string.Format("             [{0}{1}] {2,3:0.00}% {3}{4}",
                 new string('#', progressBlockCount), new string('-', blockCount - progressBlockCount), percent,
                 animation[animationIndex++ % animation.Length],
                 speedString);

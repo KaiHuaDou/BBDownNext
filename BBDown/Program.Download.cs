@@ -157,8 +157,8 @@ internal sealed partial class Program
         var tempDir = Path.Combine(ctx.WorkDir, p.aid);
         return new PageContext(
             Page: p,
-            //处理文件夹以.开头/结尾导致的异常情况
-            Title: SanitizeTitle(vInfo.Title),
+            // 原始标题，落盘前统一交给 GetValidFileName 清洗；这里保持原样是因为它还要写进容器元数据
+            Title: vInfo.Title,
             Desc: string.IsNullOrEmpty(p.desc) ? vInfo.Desc : p.desc,
             EpisodeTitle: BuildEpisodeTitle(p, pagesCount, vInfo.IsBangumi, vInfo.IsBangumiEnd),
             TempDir: tempDir,
@@ -650,7 +650,9 @@ internal sealed partial class Program
     {
         var result = savePathFormat.Replace('\\', '/');
         var regex = InfoRegex( );
-        foreach (var m in regex.Matches(result).Cast<Match>( ))
+        var matches = regex.Matches(result).Cast<Match>( ).ToList( );
+        var replacements = new List<(int Index, int Length, string Value)>(matches.Count);
+        foreach (var m in matches)
         {
             var key = m.Groups[1].Value;
 
@@ -669,14 +671,14 @@ internal sealed partial class Program
 
             var v = key switch
             {
-                "videoTitle" => GetValidFileName(title).Trim( ).TrimEnd('.').Trim( ),
+                "videoTitle" => GetValidFileName(title),
                 "pageNumber" => p.index.ToString( ),
                 "pageNumberWithZero" => p.index.ToString( ).PadLeft(pagesCount.ToString( ).Length, '0'),
-                "pageTitle" => GetValidFileName(p.title).Trim( ).TrimEnd('.').Trim( ),
+                "pageTitle" => GetValidFileName(p.title),
                 "bvid" => p.bvid,
                 "aid" => p.aid,
                 "cid" => p.cid,
-                "ownerName" => p.ownerName == null ? "" : GetValidFileName(p.ownerName).Trim( ).TrimEnd('.').Trim( ),
+                "ownerName" => p.ownerName == null ? "" : GetValidFileName(p.ownerName),
                 "ownerMid" => p.ownerMid ?? "",
                 "dfn" => videoTrack == null ? "" : videoTrack.dfn,
                 "res" => videoTrack == null ? "" : videoTrack.res,
@@ -688,29 +690,34 @@ internal sealed partial class Program
                 "publishDate" => FormatTimeStamp(pubTime, defaultDateFormat),
                 "videoDate" => FormatTimeStamp(p.pubTime, defaultDateFormat),
                 "apiType" => apiType,
-                _ => $"<{key}>"
+                _ => UnknownPlaceholder(key)
             };
-            result = result.Replace(m.Value, v);
+            replacements.Add((m.Index, m.Length, v ?? ""));
         }
 
-        if (!result.EndsWith(".mp4")) { result += ".mp4"; }
+        for (var i = replacements.Count - 1; i >= 0; i--)
+        {
+            var (index, length, value) = replacements[i];
+            result = result.Remove(index, length).Insert(index, value);
+        }
+
+        if (!result.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase)) { result += ".mp4"; }
 
         return result;
     }
 
-    internal static string ToAudioOnlyPath(string savePath) => savePath[..^4] + ".m4a";
+    private static string UnknownPlaceholder(string key)
+    {
+        LogWarn($"未知的文件名变量 <{key}>，已原样保留");
+        return $"<{key}>";
+    }
+
+    internal static string ToAudioOnlyPath(string savePath) => Path.ChangeExtension(savePath, ".m4a");
 
     private static void TryDeleteEmptyDir(string path)
     {
         if (Directory.Exists(path) && Directory.GetFiles(path).Length == 0)
             Directory.Delete(path, true);
-    }
-
-    internal static string SanitizeTitle(string title)
-    {
-        if (title.EndsWith('.')) title += "_fix";
-        if (title.StartsWith('.')) title = "_" + title;
-        return title;
     }
 
     [GeneratedRegex("<([\\w:\\-.]+?)>")]
