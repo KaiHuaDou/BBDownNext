@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 
 using BBDown.Core;
 
@@ -37,6 +39,16 @@ public class DownloadTests
     public void SanitizeTitle_PrefixesLeadingDot()
     {
         Assert.Equal("_.hidden", Program.SanitizeTitle(".hidden"));
+    }
+
+    // 服务器不支持 Range 时不应该再退避重试，Parallel.ForEachAsync 会把分片异常裹一层
+    [Fact]
+    public void IsRangeUnsupported_SeesThroughAggregateException()
+    {
+        Assert.True(Program.IsRangeUnsupported(new NotSupportedException()));
+        Assert.True(Program.IsRangeUnsupported(new AggregateException(new IOException(), new NotSupportedException())));
+        Assert.False(Program.IsRangeUnsupported(new IOException()));
+        Assert.False(Program.IsRangeUnsupported(new AggregateException(new IOException())));
     }
 
     [Fact]

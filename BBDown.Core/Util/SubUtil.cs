@@ -13,6 +13,7 @@ using BBDown.Core.Protobuf;
 using Google.Protobuf;
 
 using static BBDown.Core.Entity.Entity;
+using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
 
 namespace BBDown.Core.Util;
@@ -192,8 +193,10 @@ public static partial class SubUtil
             var subtitles = await fetch( );
             return subtitles.Exists(s => string.IsNullOrEmpty(s.url)) ? null : subtitles;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // 网络故障与"该源确实没有字幕"在这里被压平成同一个结果，至少让 debug 日志能区分
+            LogDebug("字幕候选接口不可用: {0}", ex.Message);
             return null;
         }
     }

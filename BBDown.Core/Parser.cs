@@ -416,26 +416,18 @@ public static partial class Parser
         if (!root.TryGetProperty("dash", out var dash) || dash.ValueKind != JsonValueKind.Object) return;
 
         //处理杜比音频
-        try
+        if (dash.TryGetProperty("dolby", out var dolby) && dolby.ValueKind == JsonValueKind.Object
+            && dolby.TryGetProperty("audio", out var dolbyAudio) && dolbyAudio.ValueKind == JsonValueKind.Array)
         {
-            if (dash.TryGetProperty("dolby", out var dolby) && dolby.ValueKind == JsonValueKind.Object
-                && dolby.TryGetProperty("audio", out var dolbyAudio) && dolbyAudio.ValueKind == JsonValueKind.Array)
-            {
-                audio.AddRange(dolbyAudio.EnumerateArray( ));
-            }
+            audio.AddRange(dolbyAudio.EnumerateArray( ));
         }
-        catch (Exception ex) { LogDebug("处理音轨扩展信息失败: {0}", ex.Message); }
 
         //处理Hi-Res无损
-        try
+        if (dash.TryGetProperty("flac", out var hiRes) && hiRes.ValueKind == JsonValueKind.Object
+            && hiRes.TryGetProperty("audio", out var hiResAudio) && hiResAudio.ValueKind != JsonValueKind.Null)
         {
-            if (dash.TryGetProperty("flac", out var hiRes) && hiRes.ValueKind == JsonValueKind.Object
-                && hiRes.TryGetProperty("audio", out var hiResAudio) && hiResAudio.ValueKind != JsonValueKind.Null)
-            {
-                audio.Add(hiResAudio);
-            }
+            audio.Add(hiResAudio);
         }
-        catch (Exception ex) { LogDebug("处理音轨扩展信息失败: {0}", ex.Message); }
     }
 
     private static void CollectDubbingTracks(ParsedResult parsedResult, JsonElement data, int pDur, string aid, string cid)

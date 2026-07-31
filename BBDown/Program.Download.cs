@@ -128,17 +128,26 @@ internal sealed partial class Program
                     relatedTask?.SavePaths.Add(outcome.SavePath);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!IsRangeUnsupported(ex))
             {
                 if (++retryCount > 2) throw;
                 LogError(ex.Message);
-                LogWarn("下载出现异常，3 秒后将进行自动重试...");
-                await Task.Delay(3000);
+                var backoff = TimeSpan.FromSeconds(1 << retryCount);
+                LogWarn($"下载出现异常，{backoff.TotalSeconds:0} 秒后将进行自动重试...");
+                await Task.Delay(backoff);
                 continue;
             }
 
             break;
         }
+    }
+
+    // 服务器不支持 Range 时重试多少次都是同样结果，直接放行让用户看到换单线程的提示
+    // Parallel.ForEachAsync 会把分片异常裹进 AggregateException
+    internal static bool IsRangeUnsupported(Exception ex)
+    {
+        return ex is NotSupportedException
+               || (ex is AggregateException agg && agg.InnerExceptions.Any(e => e is NotSupportedException));
     }
 
     private static PageContext BuildPageContext(Page p, WorkContext ctx, List<Page> selectedPagesInfo)

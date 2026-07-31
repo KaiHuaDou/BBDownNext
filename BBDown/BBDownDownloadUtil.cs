@@ -89,22 +89,11 @@ internal static class BBDownDownloadUtil
             return;
         }
 
-        var retry = 0;
+        // 重试与退避统一由调用方（DownloadPageAsync）负责，.tmp 续传保证重试不会丢已下载的字节
         var tmpName = Path.Combine(desDir, Path.GetFileName(path) + ".tmp");
-        while (true)
-        {
-            try
-            {
-                using var progress = new ProgressBar(config.RelatedTask);
-                await RangeDownloadToTmpAsync(0, url, tmpName, 0, null, (_, downloaded, total) => progress.Report((double) downloaded / total, downloaded), config.Cookie);
-                File.Move(tmpName, path, true);
-                break;
-            }
-            catch (Exception)
-            {
-                if (++retry == 3) throw;
-            }
-        }
+        using var progress = new ProgressBar(config.RelatedTask);
+        await RangeDownloadToTmpAsync(0, url, tmpName, 0, null, (_, downloaded, total) => progress.Report((double) downloaded / total, downloaded), config.Cookie);
+        File.Move(tmpName, path, true);
     }
 
     public static async Task MultiThreadDownloadFileAsync(string url, string path, DownloadConfig config)
@@ -142,27 +131,22 @@ internal static class BBDownDownloadUtil
         progress.Report(0);
         await Parallel.ForEachAsync(allClips, async (clip, _) =>
         {
-            var retry = 0;
             var tmp = Path.Combine(Path.GetDirectoryName(path)!, clip.index.ToString("00000") + "_" + Path.GetFileNameWithoutExtension(path) + (Path.GetExtension(path).EndsWith(".mp4") ? ".vclip" : ".aclip"));
-            while (true)
+            try
             {
-                try
+                await RangeDownloadToTmpAsync(clip.index, url, tmp, clip.from, clip.to == -1 ? null : clip.to, (index, downloaded, _) =>
                 {
-                    await RangeDownloadToTmpAsync(clip.index, url, tmp, clip.from, clip.to == -1 ? null : clip.to, (index, downloaded, _) =>
-                    {
-                        clipProgress[index] = downloaded;
-                        progress.Report((double) clipProgress.Values.Sum( ) / fileSize, clipProgress.Values.Sum( ));
-                    }, config.Cookie, true);
-                    break;
-                }
-                catch (NotSupportedException)
-                {
-                    if (++retry == 3) throw new NotSupportedException("服务器可能并不支持多线程/Range 下载, 请使用 --single-thread 关闭多线程");
-                }
-                catch (Exception)
-                {
-                    if (++retry == 3) throw new InvalidOperationException($"Failed to download clip {clip.index}");
-                }
+                    clipProgress[index] = downloaded;
+                    progress.Report((double) clipProgress.Values.Sum( ) / fileSize, clipProgress.Values.Sum( ));
+                }, config.Cookie, true);
+            }
+            catch (NotSupportedException ex)
+            {
+                throw new NotSupportedException("服务器可能并不支持多线程/Range 下载, 请使用 --single-thread 关闭多线程", ex);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"分片 {clip.index} 下载失败: {ex.Message}", ex);
             }
         });
     }

@@ -371,8 +371,9 @@ internal static partial class Utils
                 return true;
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            LogDebug("探测 ffmpeg 杜比视界支持失败: {0}", ex.Message);
         }
 
         return false;
@@ -405,7 +406,10 @@ internal static partial class Utils
                 }
             }
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            LogDebug("解析章节信息失败: {0}", ex.Message);
+        }
 
         return points;
     }
@@ -499,8 +503,9 @@ internal static partial class Utils
             LogDebug("wbi: {0}", wbi);
             return (info, wbi);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            LogDebug("获取账号信息失败: {0}", ex.Message);
             return (new AccountInfo(false, "", 0, false, ""), "");
         }
     }
