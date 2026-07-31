@@ -220,12 +220,13 @@ internal sealed partial class Program
         if (myOption is { UseIntlApi: false, UseTvApi: false } && cfg.Area is { Length: 0 })
         {
             Log("检测账号登录...");
-            var (isLogin, wbi) = await CheckLogin(cfg);
+            var (info, wbi) = await ProbeAccountAsync(cfg);
             cfg = cfg with { Wbi = wbi };
-            if (!isLogin)
-            {
-                LogWarn("你尚未登录 B 站账号，解析可能受到限制");
-            }
+            PrintAccountStatus(info);
+        }
+        else if (!string.IsNullOrEmpty(token))
+        {
+            Log($"已使用 {DetermineApiType(myOption)} 凭据");
         }
 
         Log("获取 aid...");
@@ -244,6 +245,19 @@ internal sealed partial class Program
         PrintPagesInfo(vInfo, myOption);
 
         return ctx with { FetchedAid = aid, VInfo = vInfo, ApiType = apiType, Cfg = cfg };
+    }
+
+    private static void PrintAccountStatus(AccountInfo info)
+    {
+        if (info.IsLogin)
+        {
+            var vip = info.IsVip ? $" · {info.VipLabel}" : "";
+            Log($"已登录：{info.UserName}（LV{info.Level}{vip}）");
+        }
+        else
+        {
+            LogWarn("你尚未登录 B 站账号，解析可能受到限制");
+        }
     }
 
     /// <summary>

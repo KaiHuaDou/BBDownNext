@@ -483,23 +483,43 @@ internal static partial class Utils
         return tmp.ToString( );
     }
 
-    public static async Task<(bool isLogin, string wbi)> CheckLogin(Core.AppConfig cfg)
+    public static async Task<(AccountInfo Info, string Wbi)> ProbeAccountAsync(Core.AppConfig cfg)
     {
         try
         {
             var api = "https://api.bilibili.com/x/web-interface/nav";
             var source = await GetWebSourceAsync(api, cfg);
             var json = JsonDocument.Parse(source).RootElement;
-            var is_login = json.GetProperty("data").GetProperty("isLogin").GetBoolean( );
+            var info = ParseNav(json.GetProperty("data"));
             var wbi_img = json.GetProperty("data").GetProperty("wbi_img");
             var wbi = GetMixinKey(RSubString(wbi_img.GetProperty("img_url").GetString( )!) + RSubString(wbi_img.GetProperty("sub_url").GetString( )!));
             LogDebug("wbi: {0}", wbi);
-            return (is_login, wbi);
+            return (info, wbi);
         }
         catch (Exception)
         {
-            return (false, "");
+            return (new AccountInfo(false, "", 0, false, ""), "");
         }
+    }
+
+    /// <summary>
+    /// 从 nav 接口的 data 节点解析账号信息（昵称/等级/大会员等）。
+    /// 各字段均做了缺失保护，避免接口结构变动导致整体解析失败。
+    /// </summary>
+    internal static AccountInfo ParseNav(JsonElement data)
+    {
+        var isLogin = data.TryGetProperty("isLogin", out var il) && il.GetBoolean( );
+        var uname = data.TryGetProperty("uname", out var u) ? (u.GetString( ) ?? "") : "";
+        var level = data.TryGetProperty("level_info", out var li) && li.TryGetProperty("current_level", out var cl) ? cl.GetInt32( ) : 0;
+        var isVip = false;
+        var vipLabel = "";
+        if (data.TryGetProperty("vip", out var vip))
+        {
+            isVip = vip.TryGetProperty("vipStatus", out var vs) && vs.GetInt32( ) == 1;
+            if (vip.TryGetProperty("label", out var label) && label.TryGetProperty("text", out var lt))
+                vipLabel = lt.GetString( ) ?? "";
+        }
+        return new AccountInfo(isLogin, uname, level, isVip, vipLabel);
     }
 
     [GeneratedRegex("av(\\d+)")]
