@@ -16,11 +16,11 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> OnlyShowInfo = new("--show-info", ["-info"]) { Description = "仅解析而不进行下载" };
     private static readonly Option<bool> HideStreams = new("--hide-streams", ["-hs"]) { Description = "不要显示所有可用音视频流" };
     private static readonly Option<bool> Interactive = new("--interactive", ["-ia"]) { Description = "交互式选择清晰度" };
-    private static readonly Option<bool> ShowAll = new("--all", []) { Description = "展示所有分P标题" };
+    private static readonly Option<bool> ShowAll = new("--all", []) { Description = "展示所有分 P 标题" };
     private static readonly Option<bool> UseAria2c = new("--aria2c", ["-aria2"]) { Description = "调用 aria2c 进行下载（你需要自行准备好二进制可执行文件）" };
     private static readonly Option<string> Aria2cArgs = new("--aria2c-args", []) { Description = "调用 aria2c 的附加参数（默认参数包含 \"-x16 -s16 -j16 -k 5M\"，使用时注意字符串转义）" };
     private static readonly Option<bool> MultiThread = new("--multi-thread", ["-mt"]) { Description = "使用多线程下载（默认开启）" };
-    private static readonly Option<string> SelectPage = new("--select-page", ["-p"]) { Description = "选择指定分P或分P范围：（-p 8 或 -p 1,2 或 -p 3-5 或 -p ALL 或 -p LAST 或 -p 3,5,LATEST）" };
+    private static readonly Option<string> SelectPage = new("--select-page", ["-p"]) { Description = "选择指定分 P 或分 P 范围：（-p 8 或 -p 1,2 或 -p 3-5 或 -p ALL 或 -p LAST 或 -p 3,5,LATEST）" };
     private static readonly Option<bool> SimplyMux = new("--simply-mux", []) { Description = "精简混流，不增加描述、作者等信息" };
     private static readonly Option<bool> AudioOnly = new("--audio-only", ["-a"]) { Description = "仅下载音频" };
     private static readonly Option<bool> VideoOnly = new("--video-only", ["-v"]) { Description = "仅下载视频" };
@@ -49,14 +49,14 @@ internal static class CommandLineInvoker
     private static readonly Option<string> UposHost = new("--upos-host", []) { Description = "自定义 upos 服务器" };
     private static readonly Option<bool> ForceReplaceHost = new("--force-replace-host", []) { Description = "强制替换下载服务器 host（默认开启）" };
     private static readonly Option<bool> SaveArchivesToFile = new("--save-archives-to-file", []) { Description = "将下载过的视频记录到本地文件中，用于后续跳过下载同个视频" };
-    private static readonly Option<string> DelayPerPage = new("--delay-per-page", []) { Description = "设置下载合集分P之间的下载间隔时间（单位：秒，默认无间隔）" };
+    private static readonly Option<string> DelayPerPage = new("--delay-per-page", []) { Description = "设置下载合集分 P 之间的下载间隔时间（单位：秒，默认无间隔）" };
     private static readonly Option<string> FilePattern = new("--file-pattern", ["-F"])
     {
-        Description = $"使用内置变量自定义单P存储文件名：\r\n\r\n" +
+        Description = $"使用内置变量自定义单 P 存储文件名：\r\n\r\n" +
         $"<videoTitle>：视频主标题\r\n" +
-        $"<pageNumber>：视频分P序号\r\n" +
-        $"<pageNumberWithZero>：视频分P序号（前缀补零）\r\n" +
-        $"<pageTitle>：视频分P标题\r\n" +
+        $"<pageNumber>：视频分 P 序号\r\n" +
+        $"<pageNumberWithZero>：视频分 P 序号（前缀补零）\r\n" +
+        $"<pageTitle>：视频分 P 标题\r\n" +
         $"<bvid>：视频 BV 号\r\n" +
         $"<aid>：视频 aid\r\n" +
         $"<cid>：视频 cid\r\n" +
@@ -70,14 +70,14 @@ internal static class CommandLineInvoker
         $"<ownerName>：上传者名称\r\n" +
         $"<ownerMid>：上传者 mid\r\n" +
         $"<publishDate>：收藏夹/番剧/合集发布时间\r\n" +
-        $"<videoDate>：视频发布时间（分P视频发布时间与 <publishDate> 相同）\r\n" +
+        $"<videoDate>：视频发布时间（分 P 视频发布时间与 <publishDate> 相同）\r\n" +
         $"<apiType>：API 类型（TV/APP/INTL/WEB）\r\n\r\n" +
         $"默认为：{Program.SinglePageDefaultSavePath}\r\n"
     };
-    private static readonly Option<string> MultiFilePattern = new("--multi-file-pattern", ["-M"]) { Description = $"使用内置变量自定义多P存储文件名：\r\n\r\n默认为：{Program.MultiPageDefaultSavePath}\r\n" };
-    private static readonly Option<string> Host = new("--host", []) { Description = "指定 BiliPlus host（使用 BiliPlus 需要 access_token，不需要 cookie，解析服务器能够获取你账号的大部分权限！）" };
-    private static readonly Option<string> EpHost = new("--ep-host", []) { Description = "指定 BiliPlus EP host（用于代理 api.bilibili.com/pgc/view/web/season，大部分解析服务器不支持代理该接口）" };
-    private static readonly Option<string> TvHost = new("--tv-host", []) { Description = "自定义 TV 端接口请求 Host（用于代理 api.snm0516.aisee.tv）" };
+    private static readonly Option<string> MultiFilePattern = new("--multi-file-pattern", ["-M"]) { Description = $"使用内置变量自定义多 P 存储文件名：\r\n\r\n默认为：{Program.MultiPageDefaultSavePath}\r\n" };
+    private static readonly Option<string> Host = new("--host", []) { Description = "指定 BiliPlus host（使用 BiliPlus 需要 access_token，不需要 cookie，解析服务器能够获取你账号的大部分权限！）", DefaultValueFactory = _ => "api.bilibili.com" };
+    private static readonly Option<string> EpHost = new("--ep-host", []) { Description = "指定 BiliPlus EP host（用于代理 api.bilibili.com/pgc/view/web/season，大部分解析服务器不支持代理该接口）", DefaultValueFactory = _ => "api.bilibili.com" };
+    private static readonly Option<string> TvHost = new("--tv-host", []) { Description = "自定义 TV 端接口请求 Host（用于代理 api.snm0516.aisee.tv）", DefaultValueFactory = _ => "api.snm0516.aisee.tv" };
     private static readonly Option<string> Area = new("--area", []) { Description = "（hk|tw|th）使用 BiliPlus 时必选，指定 BiliPlus area" };
     private static readonly Option<string> ConfigFile = new("--config", []) { Description = "读取指定的 BBDown 本地配置文件（默认为：BBDown.config）" };
 
