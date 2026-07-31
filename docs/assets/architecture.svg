@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#64748b"/>
+    </marker>
+    <style>
+      .box { fill:#ffffff; stroke:#cbd5e1; stroke-width:1.5; rx:10; }
+      .title { fill:#0f172a; font-size:16px; font-weight:700; }
+      .sub { fill:#475569; font-size:11px; }
+      .stage { fill:#1d4ed8; font-size:12px; font-weight:600; }
+      .side { fill:#fff7ed; stroke:#fdba74; }
+      .side-t { fill:#9a3412; font-size:12px; font-weight:600; }
+      .caption { fill:#64748b; font-size:12px; }
+    </style>
+  </defs>
+
+  <rect width="720" height="300" fill="#f8fafc"/>
+  <text x="360" y="34" text-anchor="middle" class="title">BBDown 2.0 下载流程</text>
+
+  <!-- 主流程 5 阶段 -->
+  <g>
+    <rect class="box" x="20"  y="90" width="120" height="64"/>
+    <text x="80"  y="118" text-anchor="middle" class="stage">输入</text>
+    <text x="80"  y="138" text-anchor="middle" class="sub">URL / BV / av / ep / ss</text>
+
+    <rect class="box" x="170" y="90" width="120" height="64"/>
+    <text x="230" y="118" text-anchor="middle" class="stage">解析</text>
+    <text x="230" y="138" text-anchor="middle" class="sub">playurl / Parser</text>
+
+    <rect class="box" x="320" y="90" width="120" height="64"/>
+    <text x="380" y="118" text-anchor="middle" class="stage">选流</text>
+    <text x="380" y="138" text-anchor="middle" class="sub">清晰度 / 编码优先级</text>
+
+    <rect class="box" x="470" y="90" width="120" height="64"/>
+    <text x="530" y="118" text-anchor="middle" class="stage">下载</text>
+    <text x="530" y="138" text-anchor="middle" class="sub">ffmpeg / aria2c</text>
+
+    <rect class="box" x="620" y="90" width="80"  height="64"/>
+    <text x="660" y="118" text-anchor="middle" class="stage">输出</text>
+    <text x="660" y="138" text-anchor="middle" class="sub">混流</text>
+
+    <line x1="140" y1="122" x2="166" y2="122" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="290" y1="122" x2="316" y2="122" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="440" y1="122" x2="466" y2="122" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="590" y1="122" x2="616" y2="122" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- 侧边支撑 -->
+  <g>
+    <rect class="side" x="170" y="200" width="120" height="56"/>
+    <text x="230" y="224" text-anchor="middle" class="side-t">登录态</text>
+    <text x="230" y="242" text-anchor="middle" class="sub">cookie / token</text>
+    <line x1="230" y1="200" x2="230" y2="156" stroke="#fdba74" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect class="side" x="320" y="200" width="120" height="56"/>
+    <text x="380" y="224" text-anchor="middle" class="side-t">配置文件</text>
+    <text x="380" y="242" text-anchor="middle" class="sub">--config</text>
+    <line x1="380" y1="200" x2="380" y2="156" stroke="#fdba74" stroke-width="1.5" marker-end="url(#arrow)"/>
+  </g>
+
+  <text x="20" y="288" class="caption">解析阶段按 TV / APP / INTL / WEB 四种 API 类型切换；选流后支持 DASH / FLV 两种封装。</text>
+</svg>
