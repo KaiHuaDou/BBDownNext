@@ -21,13 +21,13 @@ namespace BBDown;
 
 internal static class BBDownDownloadUtil
 {
-    public class DownloadConfig
+    public sealed class DownloadConfig
     {
-        public bool UseAria2c { get; set; } = false;
+        public bool UseAria2c { get; set; }
         public string Aria2cArgs { get; set; } = string.Empty;
-        public bool ForceHttp { get; set; } = false;
-        public bool MultiThread { get; set; } = false;
-        public DownloadTask? RelatedTask { get; set; } = null;
+        public bool ForceHttp { get; set; }
+        public bool MultiThread { get; set; }
+        public DownloadTask? RelatedTask { get; set; }
         public string Cookie { get; set; } = string.Empty;
     }
 
@@ -71,7 +71,9 @@ internal static class BBDownDownloadUtil
         }
 
         if (response.Content.Headers.ContentLength != null && (response.Content.Headers.ContentLength != new FileInfo(tmpName).Length))
-            throw new Exception("Retry...");
+        {
+            throw new IOException("Retry...");
+        }
     }
 
     public static async Task DownloadFileAsync(string url, string path, DownloadConfig config)
@@ -85,7 +87,10 @@ internal static class BBDownDownloadUtil
         {
             await BBDownAria2c.DownloadFileByAria2cAsync(url, path, config.Aria2cArgs, config.Cookie);
             if (File.Exists(path + ".aria2") || !File.Exists(path))
-                throw new Exception("aria2下载可能存在错误");
+            {
+                throw new InvalidOperationException("aria2下载可能存在错误");
+            }
+
             Console.WriteLine( );
             return;
         }
@@ -116,7 +121,10 @@ internal static class BBDownDownloadUtil
         {
             await BBDownAria2c.DownloadFileByAria2cAsync(url, path, config.Aria2cArgs, config.Cookie);
             if (File.Exists(path + ".aria2") || !File.Exists(path))
-                throw new Exception("aria2下载可能存在错误");
+            {
+                throw new InvalidOperationException("aria2下载可能存在错误");
+            }
+
             Console.WriteLine( );
             return;
         }
@@ -155,11 +163,11 @@ internal static class BBDownDownloadUtil
                 }
                 catch (NotSupportedException)
                 {
-                    if (++retry == 3) throw new Exception($"服务器可能并不支持多线程下载, 请使用 --multi-thread false 关闭多线程");
+                    if (++retry == 3) throw new NotSupportedException("服务器可能并不支持多线程下载, 请使用 --multi-thread false 关闭多线程");
                 }
                 catch (Exception)
                 {
-                    if (++retry == 3) throw new Exception($"Failed to download clip {clip.index}");
+                    if (++retry == 3) throw new InvalidOperationException($"Failed to download clip {clip.index}");
                 }
             }
         });

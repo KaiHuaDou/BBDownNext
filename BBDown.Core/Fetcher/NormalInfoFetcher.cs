@@ -109,7 +109,7 @@ public static partial class NormalInfoFetcher
             }
             else
             {
-                throw new Exception("互动视频获取分P信息失败");
+                throw new InvalidOperationException("互动视频获取分P信息失败");
             }
         }
 

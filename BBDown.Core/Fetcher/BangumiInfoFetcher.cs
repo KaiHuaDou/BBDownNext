@@ -57,7 +57,11 @@ public static class BangumiInfoFetcher
         foreach (var page in pages)
         {
             //跳过预告
-            if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告") continue;
+            if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告")
+            {
+                continue;
+            }
+
             var res = "";
             try
             {
@@ -78,7 +82,11 @@ public static class BangumiInfoFetcher
                 res = res,
                 pubTime = page.GetProperty("pub_time").GetInt64( ),
             };
-            if (p.epid == id) index = p.index.ToString( );
+            if (p.epid == id)
+            {
+                index = p.index.ToString( );
+            }
+
             pagesInfo.Add(p);
         }
 

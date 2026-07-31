@@ -31,7 +31,7 @@ public static class FavListFetcher
         var favId = id.Split(':')[0];
         var mid = id.Split(':')[1];
         //查找默认收藏夹
-        if (favId == "")
+        if (favId.Length == 0)
         {
             var favListApi = $"https://api.bilibili.com/x/v3/fav/folder/created/list-all?up_mid={mid}";
             using var favJson = await GetJsonAsync(favListApi, cfg);
@@ -67,7 +67,11 @@ public static class FavListFetcher
         {
             //只处理视频类型(可以直接在query param上指定type=2)
             //只处理未失效视频
-            if (m.GetProperty("attr").GetInt32( ) != 0) continue;
+            if (m.GetProperty("attr").GetInt32( ) != 0)
+            {
+                continue;
+            }
+
 
             var pageCount = m.GetProperty("page").GetInt32( );
             if (pageCount > 1)
@@ -79,7 +83,10 @@ public static class FavListFetcher
                     p.title = m.GetProperty("title").ToString( ) + $"_P{item.index}_{item.title}";
                     p.cover = tmpInfo.Pic;
                     p.desc = m.GetProperty("intro").ToString( );
-                    if (!pagesInfo.Contains(p)) pagesInfo.Add(p);
+                    if (!pagesInfo.Contains(p))
+                    {
+                        pagesInfo.Add(p);
+                    }
                 }
             }
             else
@@ -99,7 +106,10 @@ public static class FavListFetcher
                     ownerName = m.GetProperty("upper").GetProperty("name").ToString( ),
                     ownerMid = m.GetProperty("upper").GetProperty("mid").ToString( ),
                 };
-                if (!pagesInfo.Contains(p)) pagesInfo.Add(p);
+                if (!pagesInfo.Contains(p))
+                {
+                    pagesInfo.Add(p);
+                }
             }
         }
 

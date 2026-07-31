@@ -25,9 +25,9 @@ internal static class Login
     private static async Task ShowQrCodeAsync(string url)
     {
         Log("生成二维码...");
-        QRCodeGenerator qrGenerator = new( );
-        var qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
-        PngByteQRCode pngByteCode = new(qrCodeData);
+        using QRCodeGenerator qrGenerator = new( );
+        using var qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+        using PngByteQRCode pngByteCode = new(qrCodeData);
         await File.WriteAllBytesAsync("qrcode.png", pngByteCode.GetGraphic(7));
         Log("生成二维码成功: qrcode.png, 请打开并扫描, 或扫描打印的二维码");
         new ConsoleQRCode(qrCodeData).GetGraphic( );
@@ -95,11 +95,12 @@ internal static class Login
     {
         try
         {
-            var loginUrl = "https://passport.snm0516.aisee.tv/x/passport-tv-login/qrcode/auth_code";
-            var pollUrl = "https://passport.bilibili.com/x/passport-tv-login/qrcode/poll";
+            Uri loginUrl = new("https://passport.snm0516.aisee.tv/x/passport-tv-login/qrcode/auth_code");
+            Uri pollUrl = new("https://passport.bilibili.com/x/passport-tv-login/qrcode/poll");
             var parms = GetTVLoginParms( );
             Log("获取登录地址...");
-            var responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(loginUrl, new FormUrlEncodedContent(parms.ToDictionary( )))).Content.ReadAsByteArrayAsync( );
+            using var loginContent = new FormUrlEncodedContent(parms.ToDictionary( ));
+            var responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(loginUrl, loginContent)).Content.ReadAsByteArrayAsync( );
             var web = Encoding.UTF8.GetString(responseArray);
             var url = JsonDocument.Parse(web).RootElement.GetProperty("data").GetProperty("url").ToString( );
             var authCode = JsonDocument.Parse(web).RootElement.GetProperty("data").GetProperty("auth_code").ToString( );
@@ -111,7 +112,8 @@ internal static class Login
             while (true)
             {
                 await Task.Delay(1000);
-                responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(pollUrl, new FormUrlEncodedContent(parms.ToDictionary( )))).Content.ReadAsByteArrayAsync( );
+                using var pollContent = new FormUrlEncodedContent(parms.ToDictionary( ));
+                responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(pollUrl, pollContent)).Content.ReadAsByteArrayAsync( );
                 web = Encoding.UTF8.GetString(responseArray);
                 var code = JsonDocument.Parse(web).RootElement.GetProperty("code").ToString( );
                 if (code == "86038")

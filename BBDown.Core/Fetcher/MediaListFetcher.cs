@@ -49,7 +49,7 @@ public static class MediaListFetcher
                 var message = root.TryGetProperty("message", out var msgElem) && msgElem.ValueKind == JsonValueKind.String
                     ? msgElem.GetString( )
                     : "未知错误";
-                throw new Exception($"获取合集信息失败(code={code}): {message}");
+                throw new InvalidOperationException($"获取合集信息失败(code={code}): {message}");
             }
         }
 
@@ -76,7 +76,7 @@ public static class MediaListFetcher
                 var message = listRoot.TryGetProperty("message", out var msgElem) && msgElem.ValueKind == JsonValueKind.String
                     ? msgElem.GetString( )
                     : "未知错误";
-                throw new Exception($"获取合集视频列表失败(code={code}): {message}");
+                throw new InvalidOperationException($"获取合集视频列表失败(code={code}): {message}");
             }
 
             hasMore = data.GetProperty("has_more").GetBoolean( );
@@ -84,7 +84,9 @@ public static class MediaListFetcher
             {
                 // 只处理未失效的视频条目（与收藏夹解析逻辑保持一致）
                 if (m.TryGetProperty("attr", out var attrElem) && attrElem.GetInt32( ) != 0)
+                {
                     continue;
+                }
 
                 var pageCount = m.GetProperty("page").GetInt32( );
                 var desc = m.GetProperty("intro").GetString( )!;
@@ -107,8 +109,14 @@ public static class MediaListFetcher
                         ownerName = ownerName,
                         ownerMid = ownerMid,
                     };
-                    if (!pagesInfo.Contains(p)) pagesInfo.Add(p);
-                    else index--;
+                    if (!pagesInfo.Contains(p))
+                    {
+                        pagesInfo.Add(p);
+                    }
+                    else
+                    {
+                        index--;
+                    }
                 }
 
                 oid = m.GetProperty("id").ToString( );

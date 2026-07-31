@@ -22,6 +22,7 @@ namespace BBDown.Core;
 
 public static partial class Parser
 {
+    // CA5351: MD5 由 B 站 wbi 签名协议规定，哈希值必须与服务端保持一致，不能替换为 SHA256
     public static string WbiSign(string api, AppConfig cfg)
     {
         return $"{api}&w_rid=" + string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(api + cfg.Wbi)).Select(i => i.ToString("x2")).ToArray( ));
@@ -31,13 +32,20 @@ public static partial class Parser
     {
         LogDebug("aid={0},cid={1},epId={2},tvApi={3},IntlApi={4},appApi={5},qn={6}", aid, cid, epId, tvApi, intl, appApi, qn);
 
-        if (intl) return await GetPlayJsonAsync(aid, cid, epId, qn, cfg);
+        if (intl)
+        {
+            return await GetPlayJsonAsync(aid, cid, epId, qn, cfg);
+        }
 
         var cheese = aidOri.StartsWith("cheese:");
         var bangumi = cheese || aidOri.StartsWith("ep:");
         LogDebug("bangumi={0},cheese={1}", bangumi, cheese);
 
-        if (appApi) return await AppHelper.DoReqAsync(aid, cid, epId, qn, bangumi, encoding, cfg);
+        if (appApi)
+        {
+            return await AppHelper.DoReqAsync(aid, cid, epId, qn, bangumi, encoding, cfg);
+        }
+
 
         var prefix = tvApi ? bangumi ? $"{cfg.TvHost}/pgc/player/api/playurltv" : $"{cfg.TvHost}/x/tv/playurl"
             : bangumi ? $"{cfg.Host}/pgc/player/web/v2/playurl" : "api.bilibili.com/x/player/wbi/playurl";
@@ -47,10 +55,18 @@ public static partial class Parser
         if (tvApi)
         {
             StringBuilder apiBuilder = new( );
-            if (cfg.Token != "") apiBuilder.Append($"access_key={cfg.Token}&");
+            if (cfg.Token.Length != 0)
+            {
+                apiBuilder.Append($"access_key={cfg.Token}&");
+            }
+
             apiBuilder.Append($"appkey=4409e2ce8ffd12b8&build=106500&cid={cid}&device=android");
-            if (bangumi) apiBuilder.Append($"&ep_id={epId}&expire=0");
-            apiBuilder.Append($"&fnval=4048&fnver=0&fourk=1&mid=0&mobi_app=android_tv_yst");
+            if (bangumi)
+            {
+                apiBuilder.Append($"&ep_id={epId}&expire=0");
+            }
+
+            apiBuilder.Append("&fnval=4048&fnver=0&fourk=1&mid=0&mobi_app=android_tv_yst");
             apiBuilder.Append($"&object_id={aid}&platform=android&playurl_type=1&qn={qn}&ts={GetTimeStamp(true)}");
             api = $"{prefix}{apiBuilder}&sign={GetSign(apiBuilder.ToString( ), false)}";
         }
@@ -59,16 +75,32 @@ public static partial class Parser
             // 尝试提高可读性
             StringBuilder apiBuilder = new( );
             apiBuilder.Append($"support_multi_audio=true&from_client=BROWSER&avid={aid}&cid={cid}&fnval=4048&fnver=0&fourk=1");
-            if (cfg.Area != "") apiBuilder.Append($"&access_key={cfg.Token}&area={cfg.Area}");
+            if (cfg.Area.Length != 0)
+            {
+                apiBuilder.Append($"&access_key={cfg.Token}&area={cfg.Area}");
+            }
+
             apiBuilder.Append($"&otype=json&qn={qn}");
-            if (bangumi) apiBuilder.Append($"&module=bangumi&ep_id={epId}&session=");
-            if (cfg.Cookie == "") apiBuilder.Append("&try_look=1");
+            if (bangumi)
+            {
+                apiBuilder.Append($"&module=bangumi&ep_id={epId}&session=");
+            }
+
+            if (cfg.Cookie.Length == 0)
+            {
+                apiBuilder.Append("&try_look=1");
+            }
+
             apiBuilder.Append($"&wts={GetTimeStamp(true)}");
             api = prefix + (bangumi ? apiBuilder.ToString( ) : WbiSign(apiBuilder.ToString( ), cfg));
         }
 
         //课程接口
-        if (cheese) api = api.Replace("/pgc/", "/pugv/");
+        if (cheese)
+        {
+            api = api.Replace("/pgc/", "/pugv/");
+        }
+
 
         var webJson = await GetWebSourceAsync(api, cfg);
         //以下情况从网页源代码尝试解析
@@ -89,11 +121,23 @@ public static partial class Parser
         var api = $"https://{(isBiliPlus ? cfg.Host : "api.biliintl.com")}/intl/gateway/v2/ogv/playurl?";
 
         StringBuilder paramBuilder = new( );
-        if (cfg.Token != "") paramBuilder.Append($"access_key={cfg.Token}&");
+        if (cfg.Token.Length != 0)
+        {
+            paramBuilder.Append($"access_key={cfg.Token}&");
+        }
+
         paramBuilder.Append($"aid={aid}");
-        if (isBiliPlus) paramBuilder.Append($"&appkey=7d089525d3611b1c&area={(cfg.Area == "" ? "th" : cfg.Area)}");
+        if (isBiliPlus)
+        {
+            paramBuilder.Append($"&appkey=7d089525d3611b1c&area={(cfg.Area.Length == 0 ? "th" : cfg.Area)}");
+        }
+
         paramBuilder.Append($"&cid={cid}&ep_id={epId}&platform=android&prefer_code_type={code}&qn={qn}");
-        if (isBiliPlus) paramBuilder.Append($"&ts={GetTimeStamp(true)}");
+        if (isBiliPlus)
+        {
+            paramBuilder.Append($"&ts={GetTimeStamp(true)}");
+        }
+
 
         paramBuilder.Append("&s_locale=zh_SG");
         var param = paramBuilder.ToString( );
@@ -128,7 +172,7 @@ public static partial class Parser
                 {
                     if (stream.TryGetProperty("dash_video", out var dashVideo))
                     {
-                        if (dashVideo.GetProperty("base_url").ToString( ) != "")
+                        if (dashVideo.GetProperty("base_url").ToString( ).Length != 0)
                         {
                             var videoId = stream.GetProperty("stream_info").GetProperty("quality").ToString( );
                             var urlList = BuildUrlList(dashVideo);
@@ -142,7 +186,10 @@ public static partial class Parser
                                 codecs = GetVideoCodec(dashVideo.GetProperty("codecid").ToString( )),
                                 size = dashVideo.TryGetProperty("size", out var sizeNode) ? Convert.ToDouble(sizeNode.ToString( )) : 0
                             };
-                            if (!parsedResult.VideoTracks.Contains(v)) parsedResult.VideoTracks.Add(v);
+                            if (!parsedResult.VideoTracks.Contains(v))
+                            {
+                                parsedResult.VideoTracks.Add(v);
+                            }
                         }
                     }
                 }
@@ -159,7 +206,10 @@ public static partial class Parser
                         baseUrl = PickBaseUrl(urlList),
                         codecs = "M4A"
                     };
-                    if (!parsedResult.AudioTracks.Contains(a)) parsedResult.AudioTracks.Add(a);
+                    if (!parsedResult.AudioTracks.Contains(a))
+                    {
+                        parsedResult.AudioTracks.Add(a);
+                    }
                 }
 
                 if (intlCode == "0")
@@ -183,7 +233,11 @@ public static partial class Parser
                     nodeName = "video_info";
                 }
             }
-            else if (parsedResult.WebJsonString.Contains("\"data\":{")) nodeName = "data";
+            else if (parsedResult.WebJsonString.Contains("\"data\":{"))
+            {
+                nodeName = "data";
+            }
+
             var root = nodeName == null ? data : nodeName == "video_info" ? data.GetProperty("result").GetProperty(nodeName) : data.GetProperty(nodeName);
 
             var bangumi = aidOri.StartsWith("ep:");
@@ -247,7 +301,9 @@ public static partial class Parser
                                 if (hiRes.TryGetProperty("audio", out var db))
                                 {
                                     if (db.ValueKind != JsonValueKind.Null)
+                                    {
                                         audio.Add(db);
+                                    }
                                 }
                             }
                         }
@@ -277,7 +333,10 @@ public static partial class Parser
                                 v.fps = node.GetProperty("frame_rate").ToString( );
                             }
 
-                            if (!parsedResult.VideoTracks.Contains(v)) parsedResult.VideoTracks.Add(v);
+                            if (!parsedResult.VideoTracks.Contains(v))
+                            {
+                                parsedResult.VideoTracks.Add(v);
+                            }
                         }
                     }
 
@@ -336,7 +395,7 @@ public static partial class Parser
 
                         foreach (JsonElement role in roleAudio)
                         {
-                            var roleAudioTracks = new List<Audio>( );
+                            List<Audio> roleAudioTracks = [];
                             foreach (var node in role.GetProperty("audio").EnumerateArray( ))
                             {
                                 var audioId = node.GetProperty("id").ToString( );
@@ -407,7 +466,10 @@ public static partial class Parser
                     dur = (int) length / 1000,
                     size = size
                 };
-                if (!parsedResult.VideoTracks.Contains(v)) parsedResult.VideoTracks.Add(v);
+                if (!parsedResult.VideoTracks.Contains(v))
+                {
+                    parsedResult.VideoTracks.Add(v);
+                }
             }
 
             // 番剧片头片尾转分段信息, 预计效果: 正片? -> 片头 -> 正片 -> 片尾
@@ -423,12 +485,15 @@ public static partial class Parser
                     })
                     );
                     parsedResult.ExtraPoints.Sort((p1, p2) => p1.start.CompareTo(p2.start));
-                    var newPoints = new List<ViewPoint>( );
+                    List<ViewPoint> newPoints = [];
                     var lastEnd = 0;
                     foreach (ViewPoint point in parsedResult.ExtraPoints)
                     {
                         if (lastEnd < point.start)
+                        {
                             newPoints.Add(new ViewPoint( ) { title = "正片", start = lastEnd, end = point.start });
+                        }
+
                         newPoints.Add(point);
                         lastEnd = point.end;
                     }
@@ -468,6 +533,7 @@ public static partial class Parser
         return bflag ? ts.ToUnixTimeSeconds( ).ToString( ) : ts.ToUnixTimeMilliseconds( ).ToString( );
     }
 
+    // CA5351: MD5 由 B 站 appkey 签名协议规定，哈希值必须与服务端保持一致，不能替换为 SHA256
     private static string GetSign(string parms, bool isBiliPlus)
     {
         var toEncode = parms + (isBiliPlus ? "acd495b248ec528c2eed1e862d393126" : "59b43e04ad6965f34319062b478f83dd");
@@ -476,9 +542,12 @@ public static partial class Parser
 
     internal static List<string> BuildUrlList(JsonElement node)
     {
-        var urlList = new List<string> { node.GetProperty("base_url").ToString( ) };
+        List<string> urlList = [node.GetProperty("base_url").ToString( )];
         if (node.TryGetProperty("backup_url", out var element) && element.ValueKind != JsonValueKind.Null)
+        {
             urlList.AddRange(element.EnumerateArray( ).Select(i => i.ToString( )));
+        }
+
         return urlList;
     }
 

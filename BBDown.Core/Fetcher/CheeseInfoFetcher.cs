@@ -52,11 +52,15 @@ public static class CheeseInfoFetcher
                 ownerName = ownerName,
                 ownerMid = ownerMid,
             };
-            if (p.epid == id) index = p.index.ToString( );
+            if (p.epid == id)
+            {
+                index = p.index.ToString( );
+            }
+
             pagesInfo.Add(p);
         }
 
-        var pubTime = pagesInfo.Any( ) ? pagesInfo[0].pubTime : 0;
+        var pubTime = pagesInfo.Count != 0 ? pagesInfo[0].pubTime : 0;
 
         var info = new VInfo
         {

@@ -26,7 +26,7 @@ public static partial class IntlBangumiInfoFetcher
         var index = "";
         //string api = $"https://api.global.bilibili.com/intl/gateway/ogv/m/view?ep_id={id}";
         var api = "https://" + (cfg.Host == "api.bilibili.com" ? "api.bilibili.tv" : cfg.Host) +
-                     $"/intl/gateway/v2/ogv/view/app/season?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a" + (cfg.Token != "" ? $"&access_key={cfg.Token}" : "");
+                     $"/intl/gateway/v2/ogv/view/app/season?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a" + (cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "");
         var json = (await GetWebSourceAsync(api, cfg)).Replace("\\/", "/");
         using var infoJson = JsonDocument.Parse(json);
         var result = infoJson.RootElement.GetProperty("result");
@@ -35,11 +35,11 @@ public static partial class IntlBangumiInfoFetcher
         var title = result.GetProperty("title").ToString( );
         var desc = result.GetProperty("evaluate").ToString( );
 
-        if (cover == "")
+        if (cover.Length == 0)
         {
             var animeUrl = $"https://bangumi.bilibili.com/anime/{seasonId}";
             var web = await GetWebSourceAsync(animeUrl, cfg);
-            if (web != "")
+            if (web.Length != 0)
             {
                 var regex = StateRegex( );
                 var _json = regex.Match(web).Groups[1].Value;
@@ -52,7 +52,7 @@ public static partial class IntlBangumiInfoFetcher
 
         var pubTimeStr = result.GetProperty("publish").GetProperty("pub_time").ToString( );
         var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", null).ToUnixTimeSeconds( );
-        var pages = new List<JsonElement>( );
+        List<JsonElement> pages = [];
         if (result.TryGetProperty("episodes", out var episodes))
         {
             pages = episodes.EnumerateArray( ).ToList( );
@@ -97,7 +97,11 @@ public static partial class IntlBangumiInfoFetcher
         foreach (JsonElement page in pages)
         {
             //跳过预告
-            if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告") continue;
+            if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告")
+            {
+                continue;
+            }
+
             var res = "";
             try
             {
@@ -118,7 +122,11 @@ public static partial class IntlBangumiInfoFetcher
                 res = res,
                 pubTime = page.TryGetProperty("pub_time", out var pub_time) ? pub_time.GetInt64( ) : 0,
             };
-            if (p.epid == id) index = p.index.ToString( );
+            if (p.epid == id)
+            {
+                index = p.index.ToString( );
+            }
+
             pagesInfo.Add(p);
         }
 

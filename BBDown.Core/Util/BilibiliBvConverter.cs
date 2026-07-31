@@ -41,12 +41,12 @@ public static class BilibiliBvConverter
     {
         if (avid < MIN_AID)
         {
-            throw new Exception($"Av {avid} is smaller than {MIN_AID}");
+            throw new InvalidOperationException($"Av {avid} is smaller than {MIN_AID}");
         }
 
         if (avid >= MAX_AID)
         {
-            throw new Exception($"Av {avid} is bigger than {MAX_AID}");
+            throw new InvalidOperationException($"Av {avid} is bigger than {MAX_AID}");
         }
 
         var bvid = new byte[BV_LEN];
@@ -64,14 +64,14 @@ public static class BilibiliBvConverter
         return "BV1" + Encoding.ASCII.GetString(bvid);
     }
 
-    public static long Decode(string bvid_str)
+    public static long Decode(string bvidStr)
     {
-        if (bvid_str.Length != BV_LEN)
+        if (bvidStr.Length != BV_LEN)
         {
-            throw new Exception($"Bv BV1{bvid_str} must to be 12 char");
+            throw new InvalidOperationException($"Bv BV1{bvidStr} must to be 12 char");
         }
 
-        var bvid = Encoding.ASCII.GetBytes(bvid_str);
+        var bvid = Encoding.ASCII.GetBytes(bvidStr);
         (bvid[0], bvid[6]) = (bvid[6], bvid[0]);
         (bvid[1], bvid[4]) = (bvid[4], bvid[1]);
 

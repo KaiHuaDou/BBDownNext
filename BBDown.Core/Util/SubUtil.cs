@@ -228,7 +228,7 @@ public static partial class SubUtil
 
     #region 字幕接口
 
-    private static async Task<List<Subtitle>?> GetIntlSubtitlesFromApi1Async(string aid, string cid, string epId, int index, AppConfig cfg)
+    private static async Task<List<Subtitle>?> GetIntlSubtitlesFromApi1Async(string aid, string cid, string epId, AppConfig cfg)
     {
         try
         {
@@ -260,7 +260,7 @@ public static partial class SubUtil
         {
             List<Subtitle> subtitles = [];
             var api = "https://" + (cfg.Host == "api.bilibili.com" ? "api.bilibili.tv" : cfg.Host) +
-                         $"/intl/gateway/v2/ogv/view/app/season?ep_id={epId}&platform=android&s_locale=zh_SG" + (cfg.Token != "" ? $"&access_key={cfg.Token}" : "");
+                         $"/intl/gateway/v2/ogv/view/app/season?ep_id={epId}&platform=android&s_locale=zh_SG" + (cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "");
             var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
             var subs = infoJson.RootElement.GetProperty("result").GetProperty("modules")[0].GetProperty("data")
@@ -282,7 +282,7 @@ public static partial class SubUtil
         }
     }
 
-    private static async Task<List<Subtitle>?> GetSubtitlesFromApi1Async(string aid, string cid, string epId, int index, AppConfig cfg)
+    private static async Task<List<Subtitle>?> GetSubtitlesFromApi1Async(string aid, string cid, AppConfig cfg)
     {
         try
         {
@@ -307,7 +307,7 @@ public static partial class SubUtil
         }
     }
 
-    private static async Task<List<Subtitle>?> GetSubtitlesFromApi2Async(string aid, string cid, string epId, int index, AppConfig cfg)
+    private static async Task<List<Subtitle>?> GetSubtitlesFromApi2Async(string aid, string cid, AppConfig cfg)
     {
         try
         {
@@ -344,7 +344,7 @@ public static partial class SubUtil
         return AppHelper.PackMessage(obj.ToByteArray( ));
     }
 
-    private static async Task<List<Subtitle>?> GetSubtitlesFromApi3Async(string aid, string cid, string epId, int index)
+    private static async Task<List<Subtitle>?> GetSubtitlesFromApi3Async(string aid, string cid)
     {
         try
         {
@@ -392,7 +392,9 @@ public static partial class SubUtil
     {
         // 有空的URL 不合法
         if (subtitles.Any(s => string.IsNullOrEmpty(s.url)))
-            throw new Exception("Bad url");
+        {
+            throw new InvalidOperationException("Bad url");
+        }
     }
 
     #endregion
@@ -402,19 +404,19 @@ public static partial class SubUtil
         List<Subtitle>? subtitles = [];
         if (intl)
         {
-            subtitles = await GetIntlSubtitlesFromApi1Async(aid, cid, epId, index, cfg) ?? await GetIntlSubtitlesFromApi2Async(aid, cid, epId, index, cfg);
+            subtitles = await GetIntlSubtitlesFromApi1Async(aid, cid, epId, cfg) ?? await GetIntlSubtitlesFromApi2Async(aid, cid, epId, index, cfg);
         }
         else
         {
-            if (cfg.Cookie == "")
+            if (cfg.Cookie.Length == 0)
             {
-                subtitles = await GetSubtitlesFromApi3Async(aid, cid, epId, index); // 未登录只有APP可以拿到字幕了
+                subtitles = await GetSubtitlesFromApi3Async(aid, cid); // 未登录只有APP可以拿到字幕了
             }
             else
             {
-                subtitles = await GetSubtitlesFromApi2Async(aid, cid, epId, index, cfg)
-                            ?? await GetSubtitlesFromApi1Async(aid, cid, epId, index, cfg)
-                            ?? await GetSubtitlesFromApi3Async(aid, cid, epId, index);
+                subtitles = await GetSubtitlesFromApi2Async(aid, cid, cfg)
+                            ?? await GetSubtitlesFromApi1Async(aid, cid, cfg)
+                            ?? await GetSubtitlesFromApi3Async(aid, cid);
             }
         }
 
@@ -426,18 +428,27 @@ public static partial class SubUtil
         //修正 url 协议
         foreach (var item in subtitles)
         {
-            if (item.url.StartsWith("//")) item.url = "https:" + item.url;
+            if (item.url.StartsWith("//"))
+            {
+                item.url = "https:" + item.url;
+            }
         }
 
         return subtitles;
     }
 
+    // CA1054: url 保持 string —— 该方法被 BBDown 主项目直接调用（传入 Subtitle.url 字符串），
+    // 改为 System.Uri 属于跨项目破坏性变更（本次改动范围仅限 BBDown.Core）
     public static async Task SaveSubtitleAsync(string url, string path, AppConfig cfg)
     {
         if (path.EndsWith(".srt"))
+        {
             await File.WriteAllTextAsync(path, ConvertSubFromJson(await GetWebSourceAsync(url, cfg)), Encoding.UTF8);
+        }
         else
+        {
             await File.WriteAllTextAsync(path, await GetWebSourceAsync(url, cfg), Encoding.UTF8);
+        }
     }
 
     private static string ConvertSubFromJson(string jsonString)
@@ -459,7 +470,10 @@ public static partial class SubUtil
             }
             //有的没有内容
             if (line.TryGetProperty("content", out var content))
+            {
                 lines.AppendLine(content.ToString( ));
+            }
+
             lines.AppendLine( );
         }
 

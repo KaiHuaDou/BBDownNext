@@ -25,27 +25,27 @@ namespace BBDown.Core;
 
 internal static class AppHelper
 {
-    private static readonly string API = "https://grpc.biliapi.net/bilibili.app.playurl.v1.PlayURL/PlayView";
-    private static readonly string API2 = "https://app.bilibili.com/bilibili.pgc.gateway.player.v2.PlayURL/PlayView";
-    private static readonly string dalvikVer = "2.1.0";
-    private static readonly string osVer = "11";
-    private static readonly string brand = "M2012K11AC";
-    private static readonly string model = "Build/RKQ1.200826.002";
-    private static readonly string appVer = "7.32.0";
-    private static readonly int build = 7320200; // 新版才能抓到配音
-    private static readonly string channel = "xiaomi_cn_tv.danmaku.bili_zm20200902";
-    private static readonly Network.Types.TYPE networkType = Network.Types.TYPE.Wifi;
-    private static readonly string networkOid = "46007";
-    private static readonly string cronet = "1.36.1";
-    private static readonly string buvid = "";
-    private static readonly string mobiApp = "android";
-    private static readonly string appKey = "android64";
-    private static readonly string sessionId = "dedf8669";
-    private static readonly string platform = "android";
-    private static readonly string env = "prod";
-    private static readonly int appId = 1;
-    private static readonly string region = "CN";
-    private static readonly string language = "zh";
+    private const string API = "https://grpc.biliapi.net/bilibili.app.playurl.v1.PlayURL/PlayView";
+    private const string API2 = "https://app.bilibili.com/bilibili.pgc.gateway.player.v2.PlayURL/PlayView";
+    private const string dalvikVer = "2.1.0";
+    private const string osVer = "11";
+    private const string brand = "M2012K11AC";
+    private const string model = "Build/RKQ1.200826.002";
+    private const string appVer = "7.32.0";
+    private const int build = 7320200; // 新版才能抓到配音
+    private const string channel = "xiaomi_cn_tv.danmaku.bili_zm20200902";
+    private const Network.Types.TYPE networkType = Network.Types.TYPE.Wifi;
+    private const string networkOid = "46007";
+    private const string cronet = "1.36.1";
+    private const string buvid = "";
+    private const string mobiApp = "android";
+    private const string appKey = "android64";
+    private const string sessionId = "dedf8669";
+    private const string platform = "android";
+    private const string env = "prod";
+    private const int appId = 1;
+    private const string region = "CN";
+    private const string language = "zh";
 
     private static PlayViewReq.Types.CodeType GetVideoCodeType(string code)
     {
@@ -76,7 +76,10 @@ internal static class AppHelper
         if (bangumi)
         {
             if (!(string.IsNullOrEmpty(encoding) || encoding == "HEVC"))
+            {
                 LogWarn("APP的番剧不支持 HEVC 以外的编码");
+            }
+
             var body = GetPayload(Convert.ToInt64(epId), Convert.ToInt64(cid), Convert.ToInt64(qn), PlayViewReq.Types.CodeType.Code265);
             data = await GetPostResponseAsync(API2, body, headers);
         }
@@ -100,9 +103,9 @@ internal static class AppHelper
     private static string ConvertToDashJson(object data)
     {
         var resp = (PlayViewReply) data;
-        var videos = new List<object>( );
-        var audios = new List<object>( );
-        var clips = new List<object>( );
+        List<object> videos = [];
+        List<object> audios = [];
+        List<object> clips = [];
 
         if (resp.VideoInfo.StreamList != null)
         {
@@ -163,8 +166,8 @@ internal static class AppHelper
             )));
         }
 
-        var backgroundAudios = new List<object>( );
-        var roles = new List<object>( );
+        List<object> backgroundAudios = [];
+        List<object> roles = [];
         if (resp.PlayExtInfo != null && resp.PlayExtInfo.PlayDubbingInfo != null && resp.PlayExtInfo.PlayDubbingInfo.BackgroundAudio != null)
         {
             var dubInfo = resp.PlayExtInfo.PlayDubbingInfo;
@@ -422,24 +425,16 @@ internal static class AppHelper
 [JsonSerializable(typeof(Dictionary<string, string>))]
 internal partial class JsonContext : JsonSerializerContext { }
 
-internal class AudioMaterial
+internal class AudioMaterial(string audioId, string title, string personName, List<object> audio)
 {
     [JsonPropertyName("audio_id")]
-    public string AudioId { get; }
+    public string AudioId { get; } = audioId;
     [JsonPropertyName("title")]
-    public string Title { get; }
+    public string Title { get; } = title;
     [JsonPropertyName("person_name")]
-    public string PersonName { get; }
+    public string PersonName { get; } = personName;
     [JsonPropertyName("audio")]
-    public List<object> Audio { get; }
-
-    public AudioMaterial(string audio_id, string title, string person_name, List<object> audio)
-    {
-        AudioId = audio_id;
-        Title = title;
-        PersonName = person_name;
-        Audio = audio;
-    }
+    public List<object> Audio { get; } = audio;
 
     public override bool Equals(object? obj)
     {
@@ -452,18 +447,12 @@ internal class AudioMaterial
     }
 }
 
-internal class DubbingInfo
+internal class DubbingInfo(List<object> backgroundAudio, List<object> roleAudioList)
 {
     [JsonPropertyName("background_audio")]
-    public List<object> BackgroundAudio { get; }
+    public List<object> BackgroundAudio { get; } = backgroundAudio;
     [JsonPropertyName("role_audio_list")]
-    public List<object> RoleAudioList { get; }
-
-    public DubbingInfo(List<object> background_audio, List<object> role_audio_list)
-    {
-        BackgroundAudio = background_audio;
-        RoleAudioList = role_audio_list;
-    }
+    public List<object> RoleAudioList { get; } = roleAudioList;
 
     public override bool Equals(object? obj)
     {
@@ -476,21 +465,14 @@ internal class DubbingInfo
     }
 }
 
-internal class DashClip
+internal class DashClip(int start, int end, string toastText)
 {
     [JsonPropertyName("start")]
-    public int Start { get; }
+    public int Start { get; } = start;
     [JsonPropertyName("end")]
-    public int End { get; }
+    public int End { get; } = end;
     [JsonPropertyName("toastText")]
-    public string ToastText { get; }
-
-    public DashClip(int start, int end, string toastText)
-    {
-        Start = start;
-        End = end;
-        ToastText = toastText;
-    }
+    public string ToastText { get; } = toastText;
 
     public override bool Equals(object? obj)
     {
@@ -503,27 +485,18 @@ internal class DashClip
     }
 }
 
-internal class AudioInfoWithCodecName
+internal class AudioInfoWithCodecName(uint id, string baseUrl, List<string> backupUrl, uint bandwidth, string codecs)
 {
     [JsonPropertyName("id")]
-    public uint Id { get; }
+    public uint Id { get; } = id;
     [JsonPropertyName("base_url")]
-    public string BaseUrl { get; }
+    public string BaseUrl { get; } = baseUrl;
     [JsonPropertyName("backup_url")]
-    public List<string> BackupUrl { get; }
+    public List<string> BackupUrl { get; } = backupUrl;
     [JsonPropertyName("bandwidth")]
-    public uint Bandwidth { get; }
+    public uint Bandwidth { get; } = bandwidth;
     [JsonPropertyName("codecs")]
-    public string Codecs { get; }
-
-    public AudioInfoWithCodecName(uint id, string base_url, List<string> backup_url, uint bandwidth, string codecs)
-    {
-        Id = id;
-        BaseUrl = base_url;
-        BackupUrl = backup_url;
-        Bandwidth = bandwidth;
-        Codecs = codecs;
-    }
+    public string Codecs { get; } = codecs;
 
     public override bool Equals(object? obj)
     {
@@ -536,27 +509,18 @@ internal class AudioInfoWithCodecName
     }
 }
 
-internal class AudioInfoWitCodecId
+internal class AudioInfoWitCodecId(uint id, string baseUrl, List<string> backupUrl, uint bandwidth, uint codecid)
 {
     [JsonPropertyName("id")]
-    public uint Id { get; }
+    public uint Id { get; } = id;
     [JsonPropertyName("base_url")]
-    public string BaseUrl { get; }
+    public string BaseUrl { get; } = baseUrl;
     [JsonPropertyName("backup_url")]
-    public List<string> BackupUrl { get; }
+    public List<string> BackupUrl { get; } = backupUrl;
     [JsonPropertyName("bandwidth")]
-    public uint Bandwidth { get; }
+    public uint Bandwidth { get; } = bandwidth;
     [JsonPropertyName("codecid")]
-    public uint Codecid { get; }
-
-    public AudioInfoWitCodecId(uint id, string base_url, List<string> backup_url, uint bandwidth, uint codecid)
-    {
-        Id = id;
-        BaseUrl = base_url;
-        BackupUrl = backup_url;
-        Bandwidth = bandwidth;
-        Codecid = codecid;
-    }
+    public uint Codecid { get; } = codecid;
 
     public override bool Equals(object? obj)
     {
@@ -569,18 +533,12 @@ internal class AudioInfoWitCodecId
     }
 }
 
-internal class DashInfo
+internal class DashInfo(List<object> video, List<object> audio)
 {
     [JsonPropertyName("video")]
-    public List<object> Video { get; }
+    public List<object> Video { get; } = video;
     [JsonPropertyName("audio")]
-    public List<object> Audio { get; }
-
-    public DashInfo(List<object> video, List<object> audio)
-    {
-        Video = video;
-        Audio = audio;
-    }
+    public List<object> Audio { get; } = audio;
 
     public override bool Equals(object? obj)
     {
@@ -593,21 +551,14 @@ internal class DashInfo
     }
 }
 
-internal class DashData
+internal class DashData(ulong timelength, DashInfo dash, List<object> clipList)
 {
     [JsonPropertyName("timelength")]
-    public ulong TimeLength { get; }
+    public ulong TimeLength { get; } = timelength;
     [JsonPropertyName("dash")]
-    public DashInfo Dash { get; }
+    public DashInfo Dash { get; } = dash;
     [JsonPropertyName("clip_info_list")]
-    public List<object> ClipList { get; }
-
-    public DashData(ulong timelength, DashInfo dash, List<object> clipList)
-    {
-        TimeLength = timelength;
-        Dash = dash;
-        ClipList = clipList;
-    }
+    public List<object> ClipList { get; } = clipList;
 
     public override bool Equals(object? obj)
     {
@@ -620,27 +571,18 @@ internal class DashData
     }
 }
 
-internal class DashJson
+internal class DashJson(int code, string message, int ttl, DashData data, DubbingInfo dubbingInfo)
 {
     [JsonPropertyName("code")]
-    public int Code { get; }
+    public int Code { get; } = code;
     [JsonPropertyName("message")]
-    public string Message { get; }
+    public string Message { get; } = message;
     [JsonPropertyName("ttl")]
-    public int Ttl { get; }
+    public int Ttl { get; } = ttl;
     [JsonPropertyName("data")]
-    public DashData Data { get; }
+    public DashData Data { get; } = data;
     [JsonPropertyName("dubbing_info")]
-    public DubbingInfo DubbingInfo { get; }
-
-    public DashJson(int code, string message, int ttl, DashData data, DubbingInfo dubbingInfo)
-    {
-        Code = code;
-        Message = message;
-        Ttl = ttl;
-        Data = data;
-        DubbingInfo = dubbingInfo;
-    }
+    public DubbingInfo DubbingInfo { get; } = dubbingInfo;
 
     public override bool Equals(object? obj)
     {

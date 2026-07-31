@@ -21,7 +21,7 @@ using System.Threading;
 
 namespace BBDown;
 
-internal partial class Program
+internal sealed partial class Program
 {
 
     /// <summary>
@@ -123,7 +123,7 @@ internal partial class Program
                 {
                     var binPath = FindExecutable("mp4box") ?? FindExecutable("MP4box");
                     if (string.IsNullOrEmpty(binPath))
-                        throw new Exception("找不到可执行的mp4box文件");
+                        throw new InvalidOperationException("找不到可执行的mp4box文件");
                     BBDownMuxer.MP4BOX = binPath;
                 }
             }
@@ -131,7 +131,7 @@ internal partial class Program
             {
                 var binPath = FindExecutable("ffmpeg");
                 if (string.IsNullOrEmpty(binPath))
-                    throw new Exception("找不到可执行的ffmpeg文件");
+                    throw new InvalidOperationException("找不到可执行的ffmpeg文件");
                 BBDownMuxer.FFMPEG = binPath;
             }
         }
@@ -143,7 +143,7 @@ internal partial class Program
             {
                 var binPath = FindExecutable("aria2c");
                 if (string.IsNullOrEmpty(binPath))
-                    throw new Exception("找不到可执行的aria2c文件");
+                    throw new InvalidOperationException("找不到可执行的aria2c文件");
                 BBDownAria2c.ARIA2C = binPath;
             }
         }
@@ -323,7 +323,7 @@ internal partial class Program
     /// <param name="audio"></param>
     private static void HandlePcdn(MyOption myOption, Video? selectedVideo, Audio? selectedAudio, AppConfig cfg)
     {
-        if (myOption.UposHost == "")
+        if (myOption.UposHost is { Length: 0 })
         {
             //处理PCDN
             if (!myOption.AllowPcdn)
@@ -343,13 +343,13 @@ internal partial class Program
             }
 
             var akamReg = AkamRegex( );
-            if (selectedVideo != null && cfg.Area != "" && selectedVideo.baseUrl.Contains("akamaized.net"))
+            if (selectedVideo != null && cfg.Area is not { Length: 0 } && selectedVideo.baseUrl.Contains("akamaized.net"))
             {
                 LogWarn($"检测到视频流为外国源, 尝试强制替换为{BACKUP_HOST}……");
                 selectedVideo.baseUrl = akamReg.Replace(selectedVideo.baseUrl, $"://{BACKUP_HOST}/");
             }
 
-            if (selectedAudio != null && cfg.Area != "" && selectedAudio.baseUrl.Contains("akamaized.net"))
+            if (selectedAudio != null && cfg.Area is not { Length: 0 } && selectedAudio.baseUrl.Contains("akamaized.net"))
             {
                 LogWarn($"检测到音频流为外国源, 尝试强制替换为{BACKUP_HOST}……");
                 selectedAudio.baseUrl = akamReg.Replace(selectedAudio.baseUrl, $"://{BACKUP_HOST}/");
@@ -378,7 +378,7 @@ internal partial class Program
     /// <param name="pageDur"></param>
     private static void PrintAllTracksInfo(ParsedResult parsedResult, int pageDur, bool onlyShowInfo)
     {
-        if (parsedResult.BackgroundAudioTracks.Any( ) && parsedResult.RoleAudioList.Any( ))
+        if (parsedResult.BackgroundAudioTracks.Count != 0 && parsedResult.RoleAudioList.Count != 0)
         {
             Log($"共计{parsedResult.BackgroundAudioTracks.Count}条背景音频流.");
             var index = 0;
@@ -397,7 +397,7 @@ internal partial class Program
             }
         }
         //展示所有的音视频流信息
-        if (parsedResult.VideoTracks.Any( ))
+        if (parsedResult.VideoTracks.Count != 0)
         {
             Log($"共计{parsedResult.VideoTracks.Count}条视频流.");
             var index = 0;
@@ -410,7 +410,7 @@ internal partial class Program
             }
         }
 
-        if (parsedResult.AudioTracks.Any( ))
+        if (parsedResult.AudioTracks.Count != 0)
         {
             Log($"共计{parsedResult.AudioTracks.Count}条音频流.");
             var index = 0;
@@ -447,7 +447,7 @@ internal partial class Program
     /// <param name="aIndex"></param>
     private static void SelectTrackManually(ParsedResult parsedResult, ref int vIndex, ref int aIndex)
     {
-        if (parsedResult.VideoTracks.Any( ))
+        if (parsedResult.VideoTracks.Count != 0)
         {
             Log("请选择一条视频流(输入序号): ", false);
             Console.ForegroundColor = ConsoleColor.Cyan;
@@ -456,7 +456,7 @@ internal partial class Program
             Console.ResetColor( );
         }
 
-        if (parsedResult.AudioTracks.Any( ))
+        if (parsedResult.AudioTracks.Count != 0)
         {
             Log("请选择一条音频流(输入序号): ", false);
             Console.ForegroundColor = ConsoleColor.Cyan;

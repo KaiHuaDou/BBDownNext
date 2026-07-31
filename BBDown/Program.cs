@@ -25,7 +25,7 @@ using System.Text.RegularExpressions;
 
 namespace BBDown;
 
-internal partial class Program
+internal sealed partial class Program
 {
     private const string BACKUP_HOST = "upos-sz-mirrorcoso1.bilivideo.com";
     public static string SinglePageDefaultSavePath { get; set; } = "<videoTitle>";
@@ -48,7 +48,7 @@ internal partial class Program
 
     [JsonSerializable(typeof(MyOption))]
     [JsonSerializable(typeof(ServeRequestOptions))]
-    private partial class MyOptionJsonContext : JsonSerializerContext { }
+    private sealed partial class MyOptionJsonContext : JsonSerializerContext { }
 
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
@@ -97,7 +97,7 @@ internal partial class Program
         });
 
         // 显式抛出异常
-        if (rootResult.Errors.Any( ))
+        if (rootResult.Errors.Count != 0)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.Error.WriteLine(rootResult.Errors[0].Message);
@@ -152,7 +152,9 @@ internal partial class Program
         var defaultListenUrl = "http://0.0.0.0:23333";
         var server = new BBDownApiServer( );
         server.SetUpServer( );
+#pragma warning disable CA2234 // 保留 Run(string) 内的 URL 合法性校验与友好退出
         server.Run(string.IsNullOrEmpty(listenUrl) ? defaultListenUrl : listenUrl);
+#pragma warning restore CA2234
     }
 
     public static (Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority, string firstEncoding,
@@ -198,7 +200,7 @@ internal partial class Program
         var cfg = new AppConfig(cookie, token, myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
 
         // 检测是否登录了账号
-        if (myOption is { UseIntlApi: false, UseTvApi: false } && cfg.Area == "")
+        if (myOption is { UseIntlApi: false, UseTvApi: false } && cfg.Area is { Length: 0 })
         {
             Log("检测账号登录...");
             var (isLogin, wbi) = await CheckLogin(cfg);
@@ -215,7 +217,7 @@ internal partial class Program
 
         if (string.IsNullOrEmpty(aidOri))
         {
-            throw new Exception("输入有误");
+            throw new ArgumentException("输入有误");
         }
 
         Log("获取视频信息...");
@@ -238,7 +240,7 @@ internal partial class Program
 
             if (string.IsNullOrEmpty(aidOri))
             {
-                throw new Exception("输入有误");
+                throw new ArgumentException("输入有误");
             }
 
             Log("获取视频信息...");
@@ -309,7 +311,7 @@ internal partial class Program
         {
             Console.BackgroundColor = ConsoleColor.Red;
             Console.ForegroundColor = ConsoleColor.White;
-            var msg = Config.DEBUG_LOG ? e.ToString( ) : e.Message;
+            var msg = Config.DebugLog ? e.ToString( ) : e.Message;
             Console.Write($"{msg}{Environment.NewLine}请尝试升级到最新版本后重试!");
             Console.ResetColor( );
             Console.WriteLine( );

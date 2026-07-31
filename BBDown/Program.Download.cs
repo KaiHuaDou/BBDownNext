@@ -23,7 +23,7 @@ using System.Text.Json;
 
 namespace BBDown;
 
-internal partial class Program
+internal sealed partial class Program
 {
     public static async Task DownloadPagesAsync(MyOption myOption, VInfo vInfo, Dictionary<string, byte> encodingPriority, Dictionary<string, int> dfnPriority,
         string firstEncoding, bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, int delay, string apiType, AppConfig cfg, DownloadTask? relatedTask = null)
@@ -119,14 +119,14 @@ internal partial class Program
 
                     if (!myOption.SkipCover && !myOption.SubOnly && !File.Exists(coverPath) && !myOption.DanmakuOnly && !myOption.CoverOnly)
                     {
-                        await DownloadFileAsync(pic == "" ? p.cover! : pic, coverPath, new DownloadConfig( ) { Cookie = cfg.Cookie });
+                        await DownloadFileAsync(pic is { Length: 0 } ? p.cover! : pic, coverPath, new DownloadConfig( ) { Cookie = cfg.Cookie });
                     }
 
                     if (!myOption.SkipSubtitle && !myOption.DanmakuOnly && !myOption.CoverOnly)
                     {
                         LogDebug("获取字幕...");
                         subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.UseIntlApi, cfg);
-                        if (myOption.SkipAi && subtitleInfo.Any( ))
+                        if (myOption.SkipAi && subtitleInfo.Count != 0)
                         {
                             Log($"跳过下载AI字幕");
                             subtitleInfo = subtitleInfo.Where(s => !s.lan.StartsWith("ai-")).ToList( );
@@ -137,7 +137,7 @@ internal partial class Program
                             Log($"下载字幕 {s.lan} => {SubUtil.GetSubtitleCode(s.lan).Item2}...");
                             LogDebug("下载：{0}", s.url);
                             await SubUtil.SaveSubtitleAsync(s.url, s.path, cfg);
-                            if (myOption.SubOnly && File.Exists(s.path) && File.ReadAllText(s.path) != "")
+                            if (myOption.SubOnly && File.Exists(s.path) && File.ReadAllText(s.path).Length != 0)
                             {
                                 var _outSubPath = FormatSavePath(savePathFormat, title, null, null, p, pagesCount, apiType, pubTime);
                                 if (_outSubPath.Contains('/'))
@@ -162,12 +162,12 @@ internal partial class Program
                 //调用解析
                 ParsedResult parsedResult = await ExtractTracksAsync(aidOri, p.aid, p.cid, p.epid, myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, firstEncoding, cfg);
                 List<AudioMaterial> audioMaterial = [];
-                if (!p.points.Any( ))
+                if (p.points.Count == 0)
                 {
                     p.points = parsedResult.ExtraPoints;
                 }
 
-                if (Config.DEBUG_LOG)
+                if (Config.DebugLog)
                 {
                     File.WriteAllText($"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json", parsedResult.WebJsonString);
                 }
@@ -185,7 +185,7 @@ internal partial class Program
                 };
 
                 //此处代码简直灾难, 后续优化吧
-                if ((parsedResult.VideoTracks.Any( ) || parsedResult.AudioTracks.Any( )) && !parsedResult.Clips.Any( ))   //dash
+                if ((parsedResult.VideoTracks.Count != 0 || parsedResult.AudioTracks.Count != 0) && parsedResult.Clips.Count == 0)   //dash
                 {
                     if (parsedResult.VideoTracks.Count == 0)
                     {
@@ -293,7 +293,7 @@ internal partial class Program
 
                     if (myOption.CoverOnly)
                     {
-                        var coverUrl = pic == "" ? p.cover! : pic;
+                        var coverUrl = pic is { Length: 0 } ? p.cover! : pic;
                         var newCoverPath = Path.ChangeExtension(savePath, Path.GetExtension(coverUrl));
                         await DownloadFileAsync(coverUrl, newCoverPath, downloadConfig);
                         TryDeleteEmptyDir(p.aid);
@@ -352,7 +352,7 @@ internal partial class Program
                         audioMaterial.Add(new AudioMaterial { title = "背景音频", personName = "", path = backgroundPath });
                     }
 
-                    if (parsedResult.RoleAudioList.Any( ))
+                    if (parsedResult.RoleAudioList.Count != 0)
                     {
                         foreach (AudioMaterialInfo role in parsedResult.RoleAudioList)
                         {
@@ -363,10 +363,10 @@ internal partial class Program
                     }
 
                     Log($"下载P{p.index}完毕");
-                    if (!parsedResult.VideoTracks.Any( )) videoPath = "";
-                    if (!parsedResult.AudioTracks.Any( )) audioPath = "";
+                    if (parsedResult.VideoTracks.Count == 0) videoPath = "";
+                    if (parsedResult.AudioTracks.Count == 0) audioPath = "";
                     if (myOption.SkipMux) return;
-                    Log($"开始合并音视频{(subtitleInfo.Any( ) ? "和字幕" : "")}...");
+                    Log($"开始合并音视频{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
                     if (myOption.AudioOnly)
                         savePath = savePath[..^4] + ".m4a";
 
@@ -386,16 +386,16 @@ internal partial class Program
 
                     Log("清理临时文件...");
                     Thread.Sleep(200);
-                    if (parsedResult.VideoTracks.Any( )) File.Delete(videoPath);
-                    if (parsedResult.AudioTracks.Any( )) File.Delete(audioPath);
-                    if (p.points.Any( )) File.Delete(Path.Combine(Path.GetDirectoryName(string.IsNullOrEmpty(videoPath) ? audioPath : videoPath)!, "chapters"));
+                    if (parsedResult.VideoTracks.Count != 0) File.Delete(videoPath);
+                    if (parsedResult.AudioTracks.Count != 0) File.Delete(audioPath);
+                    if (p.points.Count != 0) File.Delete(Path.Combine(Path.GetDirectoryName(string.IsNullOrEmpty(videoPath) ? audioPath : videoPath)!, "chapters"));
                     foreach (var s in subtitleInfo) File.Delete(s.path);
                     foreach (var a in audioMaterial) File.Delete(a.path);
                     if (selectedPagesInfo.Count == 1 || p.index == selectedPagesInfo.Last( ).index || p.aid != selectedPagesInfo.Last( ).aid)
                         File.Delete(coverPath);
                     TryDeleteEmptyDir(p.aid);
                 }
-                else if (parsedResult.Clips.Any( ) && parsedResult.Dfns.Any( ))   //flv
+                else if (parsedResult.Clips.Count != 0 && parsedResult.Dfns.Count != 0)   //flv
                 {
                     var flag = false;
                     List<string> clips = parsedResult.Clips;
@@ -418,7 +418,7 @@ internal partial class Program
                             //重新解析
                             parsedResult.VideoTracks.Clear( );
                             parsedResult = await ExtractTracksAsync(aidOri, p.aid, p.cid, p.epid, myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, firstEncoding, cfg, dfns[vIndex]);
-                            if (!p.points.Any( )) p.points = parsedResult.ExtraPoints;
+                            if (p.points.Count == 0) p.points = parsedResult.ExtraPoints;
                             flag = true;
                             selected = true;
                             continue;
@@ -464,7 +464,7 @@ internal partial class Program
                         videoPath = $"{p.aid}/{p.aid}.P{p.index}.{p.cid}.mp4";
                         BBDownMuxer.MergeFLV(files, videoPath);
                         if (myOption.SkipMux) return;
-                        Log($"开始混流视频{(subtitleInfo.Any( ) ? "和字幕" : "")}...");
+                        Log($"开始混流视频{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
                         if (myOption.AudioOnly)
                             savePath = savePath[..^4] + ".m4a";
                         var code = BBDownMuxer.MuxAV(false, p.bvid, videoPath, "", audioMaterial, savePath,
@@ -485,7 +485,7 @@ internal partial class Program
                         if (parsedResult.VideoTracks.Count != 0) File.Delete(videoPath);
                         foreach (var s in subtitleInfo) File.Delete(s.path);
                         foreach (var a in audioMaterial) File.Delete(a.path);
-                        if (p.points.Any( )) File.Delete(Path.Combine(Path.GetDirectoryName(string.IsNullOrEmpty(videoPath) ? audioPath : videoPath)!, "chapters"));
+                        if (p.points.Count != 0) File.Delete(Path.Combine(Path.GetDirectoryName(string.IsNullOrEmpty(videoPath) ? audioPath : videoPath)!, "chapters"));
                         if (selectedPagesInfo.Count == 1 || p.index == selectedPagesInfo.Last( ).index || p.aid != selectedPagesInfo.Last( ).aid)
                             File.Delete(coverPath);
                         TryDeleteEmptyDir(p.aid);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Linq;
 using System.Net.Http;
@@ -47,7 +48,7 @@ public class BBDownApiServer
         app = builder.Build( );
         app.UseCors("AllowAnyOrigin");
         var taskStatusApi = app.MapGroup("/get-tasks");
-        taskStatusApi.MapGet("/", handler: ( ) => Results.Json(new DownloadTaskCollection(runningTasks, finishedTasks), AppJsonSerializerContext.Default.DownloadTaskCollection));
+        taskStatusApi.MapGet("/", handler: ( ) => Results.Json(new DownloadTaskSnapshot(runningTasks, finishedTasks), AppJsonSerializerContext.Default.DownloadTaskSnapshot));
         taskStatusApi.MapGet("/running", handler: ( ) => Results.Json(runningTasks, AppJsonSerializerContext.Default.ListDownloadTask));
         taskStatusApi.MapGet("/finished", handler: ( ) => Results.Json(finishedTasks, AppJsonSerializerContext.Default.ListDownloadTask));
         taskStatusApi.MapGet("/{id}", (string id) =>
@@ -81,12 +82,13 @@ public class BBDownApiServer
                     }
 
                     var callback = req.CallBackWebHook;
-                    var client = new HttpClient( );
+                    using var client = new HttpClient( );
                     var downloadTask = await task;
                     var jsonContent = JsonSerializer.Serialize(downloadTask, AppJsonSerializerContext.Default.DownloadTask);
                     try
                     {
-                        await client.PostAsync(callback, new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json"));
+                        using var content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
+                        await client.PostAsync(new Uri(callback), content);
                     }
                     catch (System.Exception e)
                     {
@@ -99,6 +101,12 @@ public class BBDownApiServer
         finishedRemovalApi.MapGet("/", ( ) => { finishedTasks.RemoveAll(t => true); return Results.Ok( ); });
         finishedRemovalApi.MapGet("/failed", ( ) => { finishedTasks.RemoveAll(t => !t.IsSuccessful); return Results.Ok( ); });
         finishedRemovalApi.MapGet("/{id}", (string id) => { finishedTasks.RemoveAll(t => t.Aid == id); return Results.Ok( ); });
+    }
+
+    public void Run(Uri url)
+    {
+        ArgumentNullException.ThrowIfNull(url);
+        Run(url.ToString( ));
     }
 
     public void Run(string url)
@@ -149,7 +157,7 @@ public class BBDownApiServer
             Console.BackgroundColor = ConsoleColor.Red;
             Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine($"{aid}下载失败");
-            var msg = Config.DEBUG_LOG ? e.ToString( ) : e.Message;
+            var msg = Config.DebugLog ? e.ToString( ) : e.Message;
             Console.Write($"{msg}{Environment.NewLine}请尝试升级到最新版本后重试!");
             Console.ResetColor( );
             Console.WriteLine( );
@@ -170,27 +178,18 @@ public class BBDownApiServer
 
 public record DownloadTask(string Aid, string Url, long TaskCreateTime)
 {
-    [JsonInclude]
-    public string? Title = null;
-    [JsonInclude]
-    public string? Pic = null;
-    [JsonInclude]
-    public long? VideoPubTime = null;
-    [JsonInclude]
-    public long? TaskFinishTime = null;
-    [JsonInclude]
-    public double Progress = 0f;
-    [JsonInclude]
-    public double DownloadSpeed = 0f;
-    [JsonInclude]
-    public double TotalDownloadedBytes = 0f;
-    [JsonInclude]
-    public bool IsSuccessful = false;
+    public string? Title { get; set; }
+    public string? Pic { get; set; }
+    public long? VideoPubTime { get; set; }
+    public long? TaskFinishTime { get; set; }
+    public double Progress { get; set; }
+    public double DownloadSpeed { get; set; }
+    public double TotalDownloadedBytes { get; set; }
+    public bool IsSuccessful { get; set; }
 
-    [JsonInclude]
-    public List<string> SavePaths = [];
+    public Collection<string> SavePaths { get; } = [];
 };
-public record DownloadTaskCollection(List<DownloadTask> Running, List<DownloadTask> Finished);
+public record DownloadTaskSnapshot(IReadOnlyList<DownloadTask> Running, IReadOnlyList<DownloadTask> Finished);
 
 internal record struct MyOptionBindingResult<T>(T? Result, Exception? Exception)
 {
@@ -224,7 +223,7 @@ internal record struct MyOptionBindingResult<T>(T? Result, Exception? Exception)
 [JsonSerializable(typeof(HttpValidationProblemDetails))]
 [JsonSerializable(typeof(DownloadTask))]
 [JsonSerializable(typeof(List<DownloadTask>))]
-[JsonSerializable(typeof(DownloadTaskCollection))]
+[JsonSerializable(typeof(DownloadTaskSnapshot))]
 public partial class AppJsonSerializerContext : JsonSerializerContext
 {
 
@@ -232,7 +231,7 @@ public partial class AppJsonSerializerContext : JsonSerializerContext
 
 [JsonSerializable(typeof(MyOption))]
 [JsonSerializable(typeof(ServeRequestOptions))]
-internal partial class SourceGenerationContext : JsonSerializerContext
+internal sealed partial class SourceGenerationContext : JsonSerializerContext
 {
 
 }

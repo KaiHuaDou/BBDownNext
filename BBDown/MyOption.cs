@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -27,7 +27,7 @@ internal class MyOption
     public bool Interactive { get; set; }
     public bool HideStreams { get; set; }
     public bool MultiThread { get; set; } = true;
-    public bool SimplyMux { get; set; } = false;
+    public bool SimplyMux { get; set; }
     public bool VideoOnly { get; set; }
     public bool AudioOnly { get; set; }
     public bool DanmakuOnly { get; set; }
@@ -38,14 +38,14 @@ internal class MyOption
     public bool SkipSubtitle { get; set; }
     public bool SkipCover { get; set; }
     public bool ForceHttp { get; set; } = true;
-    public bool DownloadDanmaku { get; set; } = false;
+    public bool DownloadDanmaku { get; set; }
     public string? DownloadDanmakuFormats { get; set; }
     public bool SkipAi { get; set; } = true;
-    public bool VideoAscending { get; set; } = false;
-    public bool AudioAscending { get; set; } = false;
-    public bool AllowPcdn { get; set; } = false;
+    public bool VideoAscending { get; set; }
+    public bool AudioAscending { get; set; }
+    public bool AllowPcdn { get; set; }
     public bool ForceReplaceHost { get; set; } = true;
-    public bool SaveArchivesToFile { get; set; } = false;
+    public bool SaveArchivesToFile { get; set; }
     public string FilePattern { get; set; } = "";
     public string MultiFilePattern { get; set; } = "";
     public string SelectPage { get; set; } = "";

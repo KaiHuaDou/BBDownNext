@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
@@ -35,7 +35,7 @@ internal static partial class Utils
         if (input.Contains("b23.tv"))
         {
             var tmp = await GetWebLocationAsync(input);
-            if (tmp == input) throw new Exception("无限重定向");
+            if (tmp == input) throw new InvalidOperationException("无限重定向");
             input = tmp;
         }
 
@@ -86,7 +86,7 @@ internal static partial class Utils
             return $"ep:{await GetEpIdByBangumiSSIdAsync(input[2..], cfg)}";
         if (input.StartsWith("md"))
             return $"ep:{await GetEpIdByMDAsync(MdRegex( ).Match(input).Groups[1].Value, cfg)}";
-        throw new Exception("输入有误");
+        throw new ArgumentException("输入有误", nameof(input));
     }
 
     private static async Task<string> ResolveCheeseAsync(string input, Core.AppConfig cfg)
@@ -201,7 +201,7 @@ internal static partial class Utils
     /// <param name="outputFilePath"></param>
     public static void CombineMultipleFilesIntoSingleFile(string[] files, string outputFilePath)
     {
-        if (!files.Any( )) return;
+        if (files.Length == 0) return;
         if (files.Length == 1)
         {
             FileInfo fi = new(files[0]);
@@ -210,13 +210,15 @@ internal static partial class Utils
         }
 
         if (!Directory.Exists(Path.GetDirectoryName(outputFilePath)))
+        {
             Directory.CreateDirectory(Path.GetDirectoryName(outputFilePath)!);
+        }
 
         var inputFilePaths = files;
         using var outputStream = File.Create(outputFilePath);
         foreach (var inputFilePath in inputFilePaths)
         {
-            if (inputFilePath == "")
+            if (inputFilePath.Length == 0)
                 continue;
             using var inputStream = File.OpenRead(inputFilePath);
             // Buffer size can be passed as the second argument.
@@ -305,7 +307,7 @@ internal static partial class Utils
 
     public static Dictionary<string, string> ToDictionary(this NameValueCollection nameValueCollection)
     {
-        var dict = new Dictionary<string, string>( );
+        Dictionary<string, string> dict = [];
         foreach (var key in nameValueCollection.AllKeys)
         {
             dict[key!] = nameValueCollection[key]!;
@@ -328,19 +330,19 @@ internal static partial class Utils
         sb.Add("buvid", buvid);
         sb.Add("channel", "master");
         sb.Add("device", "OnePlus");
-        sb.Add($"device_id", deviceId);
+        sb.Add("device_id", deviceId);
         sb.Add("device_name", "OnePlus7TPro");
         sb.Add("device_platform", "Android10OnePlusHD1910");
-        sb.Add($"fingerprint", fingerprint);
-        sb.Add($"guid", buvid);
-        sb.Add($"local_fingerprint", fingerprint);
-        sb.Add($"local_id", buvid);
+        sb.Add("fingerprint", fingerprint);
+        sb.Add("guid", buvid);
+        sb.Add("local_fingerprint", fingerprint);
+        sb.Add("local_id", buvid);
         sb.Add("mobi_app", "android_tv_yst");
         sb.Add("networkstate", "wifi");
         sb.Add("platform", "android");
         sb.Add("sys_ver", "29");
-        sb.Add($"ts", GetTimeStamp(true));
-        sb.Add($"sign", GetSign(ToQueryString(sb)));
+        sb.Add("ts", GetTimeStamp(true));
+        sb.Add("sign", GetSign(ToQueryString(sb)));
 
         return sb;
     }
@@ -353,7 +355,7 @@ internal static partial class Utils
     {
         try
         {
-            var process = new Process
+            using var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
@@ -390,7 +392,7 @@ internal static partial class Utils
     /// <returns></returns>
     public static async Task<List<ViewPoint>> FetchPointsAsync(string cid, string aid, Core.AppConfig cfg)
     {
-        var points = new List<ViewPoint>( );
+        List<ViewPoint> points = [];
         try
         {
             var api = $"https://api.bilibili.com/x/player/wbi/v2?cid={cid}&aid={aid}";

@@ -40,7 +40,7 @@ public static class DanmakuUtil
         {
             IgnoreComments = true//忽略文档里面的注释
         };
-        var danmakus = new List<DanmakuItem>( );
+        List<DanmakuItem> danmakus = [];
         using (var reader = XmlReader.Create(xmlPath, settings))
         {
             try
@@ -112,7 +112,11 @@ public static class DanmakuUtil
         foreach (var danmaku in danmakus)
         {
             var height = controller.UpdatePosition(danmaku.DanmakuMode, danmaku.Second, danmaku.Content.Length);
-            if (height == -1) continue;
+            if (height == -1)
+            {
+                continue;
+            }
+
             var effect = "";
             effect += danmaku.DanmakuMode switch
             {
@@ -229,7 +233,7 @@ public static class DanmakuUtil
         // 弹幕内容
         public string StartTime { get; set; } = "";
         // 出现时间
-        public double Second { get; set; } = 0.00;
+        public double Second { get; set; }
         // 出现时间（秒为单位）
         public string EndTime { get; set; } = "";
         // 消失时间

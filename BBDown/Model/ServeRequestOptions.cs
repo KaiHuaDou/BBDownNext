@@ -12,7 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 
-internal class ServeRequestOptions : MyOption
+internal sealed class ServeRequestOptions : MyOption
 {
 
     /// <summary>

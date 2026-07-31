@@ -17,6 +17,9 @@ using System.Threading.Tasks;
 
 namespace BBDown.Core.Util;
 
+// CA1054/CA2234: 本类中以 string 接收 url 的公开方法（GetWebSourceAsync / GetWebLocationAsync /
+// GetJsonAsync / AddDownloadHeaders / GetWithRangeAsync / GetPostResponseAsync）均被 BBDown 主项目
+// 直接调用，改为 System.Uri 会造成跨项目破坏性变更（本次改动范围仅限 BBDown.Core），故保留 string。
 public static class HTTPUtil
 {
 
@@ -33,7 +36,7 @@ public static class HTTPUtil
     };
 
     private static readonly Random random = new( );
-    private static readonly string[] platforms = { "Windows NT 10.0; Win64", "Macintosh; Intel Mac OS X 10_15", "X11; Linux x86_64" };
+    private static readonly string[] platforms = ["Windows NT 10.0; Win64", "Macintosh; Intel Mac OS X 10_15", "X11; Linux x86_64"];
 
     private static string RandomVersion(int min, int max)
     {
@@ -43,7 +46,7 @@ public static class HTTPUtil
 
     private static string GetRandomUserAgent( )
     {
-        string[] browsers = { $"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{RandomVersion(80, 110)} Safari/537.36", $"Gecko/20100101 Firefox/{RandomVersion(80, 110)}" };
+        string[] browsers = [$"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{RandomVersion(80, 110)} Safari/537.36", $"Gecko/20100101 Firefox/{RandomVersion(80, 110)}"];
         return $"Mozilla/5.0 ({platforms[random.Next(platforms.Length)]}) {browsers[random.Next(browsers.Length)]}";
     }
 
@@ -56,9 +59,15 @@ public static class HTTPUtil
         webRequest.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
         webRequest.Headers.TryAddWithoutValidation("Cookie", (url.Contains("/ep") || url.Contains("/ss")) ? cfg.Cookie + ";CURRENT_FNVAL=4048;" : cfg.Cookie);
         if (url.Contains("api.bilibili.com"))
+        {
             webRequest.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com/");
+        }
+
         if (url.Contains("api.bilibili.tv"))
+        {
             webRequest.Headers.TryAddWithoutValidation("sec-ch-ua", "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"");
+        }
+
         webRequest.Headers.CacheControl = CacheControlHeaderValue.Parse("no-cache");
         webRequest.Headers.Connection.Clear( );
 
@@ -102,7 +111,10 @@ public static class HTTPUtil
     public static void AddDownloadHeaders(HttpRequestMessage request, string url, string cookie)
     {
         if (!url.Contains("platform=android_tv_yst") && !url.Contains("platform=android"))
+        {
             request.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com");
+        }
+
         request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
         request.Headers.TryAddWithoutValidation("Cookie", cookie);
     }
@@ -123,7 +135,7 @@ public static class HTTPUtil
         ByteArrayContent content = new(postData);
         content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/grpc");
 
-        HttpRequestMessage request = new( )
+        using HttpRequestMessage request = new( )
         {
             RequestUri = new Uri(Url),
             Method = HttpMethod.Post,
@@ -133,7 +145,9 @@ public static class HTTPUtil
         if (headers != null)
         {
             foreach (KeyValuePair<string, string> header in headers)
+            {
                 request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
         }
         else
         {

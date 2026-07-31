@@ -52,7 +52,9 @@ public static class SeriesListFetcher
             {
                 // 只处理未失效的视频条目（与收藏夹解析逻辑保持一致）
                 if (m.TryGetProperty("attr", out var attrElem) && attrElem.GetInt32( ) != 0)
+                {
                     continue;
+                }
 
                 var pageCount = m.GetProperty("page").GetInt32( );
                 var desc = m.GetProperty("intro").GetString( )!;
@@ -75,8 +77,14 @@ public static class SeriesListFetcher
                         ownerName = ownerName,
                         ownerMid = ownerMid,
                     };
-                    if (!pagesInfo.Contains(p)) pagesInfo.Add(p);
-                    else index--;
+                    if (!pagesInfo.Contains(p))
+                    {
+                        pagesInfo.Add(p);
+                    }
+                    else
+                    {
+                        index--;
+                    }
                 }
 
                 oid = m.GetProperty("id").ToString( );

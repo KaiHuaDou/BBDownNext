@@ -49,12 +49,12 @@ public class BilibiliBvConverterTests
     [InlineData(-5L)]
     public void Encode_InvalidAvid_Throws(long avid)
     {
-        Assert.Throws<Exception>(( ) => BilibiliBvConverter.Encode(avid));
+        Assert.Throws<InvalidOperationException>(() => BilibiliBvConverter.Encode(avid));
     }
 
     [Fact]
-    public void Decode_WrongLength_Throws( )
+    public void Decode_WrongLength_Throws()
     {
-        Assert.Throws<Exception>(( ) => BilibiliBvConverter.Decode("short"));
+        Assert.Throws<InvalidOperationException>(() => BilibiliBvConverter.Decode("short"));
     }
 }

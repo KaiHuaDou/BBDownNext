@@ -18,20 +18,21 @@ public static class Entity
 {
     public class Page
     {
-        public required int index;
-        public required string aid;
-        public required string cid;
-        public required string epid;
-        public required string title;
-        public required int dur;
-        public required string res;
-        public required long pubTime;
-        public string? cover;
-        public string? desc;
-        public string? ownerName;
-        public string? ownerMid;
+        public required int index { get; set; }
+        public required string aid { get; set; }
+        public required string cid { get; set; }
+        public required string epid { get; set; }
+        public required string title { get; set; }
+        public required int dur { get; set; }
+        public required string res { get; set; }
+        public required long pubTime { get; set; }
+        public string? cover { get; set; }
+        public string? desc { get; set; }
+        public string? ownerName { get; set; }
+        public string? ownerMid { get; set; }
         public string bvid => BilibiliBvConverter.Encode(long.Parse(aid));
-        public List<ViewPoint> points = [];
+        // CA1002: 保持 List<T>，调用方（BBDown 主项目）会对该集合执行 Add/整体替换
+        public List<ViewPoint> points { get; set; } = [];
 
         // 沿用原拷贝构造语义：desc/points 不随源 Page 复制
         public Page CopyWith(int index)
@@ -67,24 +68,24 @@ public static class Entity
         }
     }
 
-    public class ViewPoint
+    public record class ViewPoint
     {
-        public required string title;
-        public required int start;
-        public required int end;
+        public required string title { get; set; }
+        public required int start { get; set; }
+        public required int end { get; set; }
     }
 
     public class Video
     {
-        public required string id;
-        public required string dfn;
-        public required string baseUrl;
-        public string? res;
-        public string? fps;
-        public required string codecs;
-        public long bandwidth;
-        public int dur;
-        public double size;
+        public required string id { get; set; }
+        public required string dfn { get; set; }
+        public required string baseUrl { get; set; }
+        public string? res { get; set; }
+        public string? fps { get; set; }
+        public required string codecs { get; set; }
+        public long bandwidth { get; set; }
+        public int dur { get; set; }
+        public double size { get; set; }
 
         public override bool Equals(object? obj)
         {
@@ -106,12 +107,12 @@ public static class Entity
 
     public class Audio
     {
-        public required string id;
-        public required string dfn;
-        public required string baseUrl;
-        public required string codecs;
-        public required long bandwidth;
-        public required int dur;
+        public required string id { get; set; }
+        public required string dfn { get; set; }
+        public required string baseUrl { get; set; }
+        public required string codecs { get; set; }
+        public required long bandwidth { get; set; }
+        public required int dur { get; set; }
 
         // E-AC-3 => EAC3
         public string shortCodecs => codecs.ToUpper( ).Replace("-", string.Empty);
@@ -132,32 +133,33 @@ public static class Entity
         }
     }
 
-    public class Subtitle
+    public record class Subtitle
     {
-        public required string lan;
-        public required string url;
-        public required string path;
+        public required string lan { get; set; }
+        public required string url { get; set; }
+        public required string path { get; set; }
     }
 
-    public class Clip
+    public record class Clip
     {
-        public required int index;
-        public required long from;
-        public required long to;
+        public required int index { get; set; }
+        public required long from { get; set; }
+        public required long to { get; set; }
     }
 
-    public class AudioMaterial
+    public record class AudioMaterial
     {
-        public required string title;
-        public required string personName;
-        public required string path;
+        public required string title { get; set; }
+        public required string personName { get; set; }
+        public required string path { get; set; }
     }
 
-    public class AudioMaterialInfo
+    public record class AudioMaterialInfo
     {
-        public required string title;
-        public required string personName;
-        public required string path;
-        public required List<Audio> audio;
+        public required string title { get; set; }
+        public required string personName { get; set; }
+        public required string path { get; set; }
+        // CA1002: 保持 List<T>，调用方（BBDown 主项目）会整体替换该集合（排序后回写）
+        public required List<Audio> audio { get; set; }
     }
 }
