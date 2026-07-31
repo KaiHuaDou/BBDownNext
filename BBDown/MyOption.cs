@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 using BBDown.Core;
 
 namespace BBDown;
@@ -59,3 +61,7 @@ internal class MyOption
     public string Area { get; set; } = "";
     public string? ConfigFile { get; set; }
 }
+
+[JsonSerializable(typeof(MyOption))]
+[JsonSerializable(typeof(ServeRequestOptions))]
+internal sealed partial class MyOptionJsonContext : JsonSerializerContext;

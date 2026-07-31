@@ -5,7 +5,6 @@ using System.CommandLine.Parsing;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,10 +42,6 @@ internal sealed partial class Program
             return ts.ToString( );
         }
     }
-
-    [JsonSerializable(typeof(MyOption))]
-    [JsonSerializable(typeof(ServeRequestOptions))]
-    private sealed partial class MyOptionJsonContext : JsonSerializerContext { }
 
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {

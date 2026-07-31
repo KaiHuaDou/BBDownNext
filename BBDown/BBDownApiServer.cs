@@ -6,10 +6,10 @@ using System.Data;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core;
@@ -83,29 +83,7 @@ public class BBDownApiServer
 
             var req = bindingResult.Result!;
             OverrideHostControlledOptions(req);
-            _ = AddDownloadTaskAsync(req)
-                .ContinueWith(async task =>
-                {
-                    // send request to callback webhook
-                    if (string.IsNullOrEmpty(req.CallBackWebHook))
-                    {
-                        return;
-                    }
-
-                    var callback = req.CallBackWebHook;
-                    var downloadTask = await task;
-                    var jsonContent = JsonSerializer.Serialize(downloadTask, AppJsonSerializerContext.Default.DownloadTask);
-                    try
-                    {
-                        // 每次回调新建 HttpClient 会耗尽连接, 统一走共享实例
-                        using var content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
-                        using var response = await HTTPUtil.AppHttpClient.PostAsync(new Uri(callback), content);
-                    }
-                    catch (System.Exception e)
-                    {
-                        Logger.LogDebug("回调失败: {0}", e.Message);
-                    }
-                });
+            _ = RunTaskAndCallBackAsync(req);
             return Results.Ok( );
         });
         var finishedRemovalApi = app.MapGroup("remove-finished");
@@ -123,6 +101,34 @@ public class BBDownApiServer
     }
 
     private static List<DownloadTask> Snapshot(ConcurrentDictionary<string, DownloadTask> tasks) => [.. tasks.Values];
+
+    // 请求线程不等待下载完成，因此这里必须自己兜住所有异常，否则会变成 UnobservedTaskException
+    private async Task RunTaskAndCallBackAsync(ServeRequestOptions req)
+    {
+        DownloadTask? downloadTask;
+        try
+        {
+            downloadTask = await AddDownloadTaskAsync(req);
+        }
+        catch (Exception e)
+        {
+            Logger.LogError($"任务创建失败: {e.Message}");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(req.CallBackWebHook)) return;
+
+        try
+        {
+            var jsonContent = JsonSerializer.Serialize(downloadTask, AppJsonSerializerContext.Default.DownloadTask);
+            using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+            using var response = await HTTPUtil.AppHttpClient.PostAsync(new Uri(req.CallBackWebHook), content, Program.CancellationToken);
+        }
+        catch (Exception e)
+        {
+            Logger.LogDebug("回调失败: {0}", e.Message);
+        }
+    }
 
     public void Run(Uri url)
     {
@@ -143,7 +149,6 @@ public class BBDownApiServer
             Console.WriteLine("如果您需要 https，请额外配置反向代理");
             Console.ResetColor( );
             Console.WriteLine( );
-            Thread.Sleep(1);
             Environment.Exit(1);
         }
 
@@ -219,7 +224,7 @@ internal record struct MyOptionBindingResult<T>(T? Result, Exception? Exception)
     {
         try
         {
-            var jsonTypeInfo = SourceGenerationContext.Default.GetTypeInfo(typeof(T));
+            var jsonTypeInfo = MyOptionJsonContext.Default.GetTypeInfo(typeof(T));
             if (jsonTypeInfo is null)
             {
                 return new(default, new InvalidOperationException($"Cannot find TypeInfo for type {typeof(T)}"));
@@ -245,13 +250,6 @@ internal record struct MyOptionBindingResult<T>(T? Result, Exception? Exception)
 [JsonSerializable(typeof(List<DownloadTask>))]
 [JsonSerializable(typeof(DownloadTaskSnapshot))]
 public partial class AppJsonSerializerContext : JsonSerializerContext
-{
-
-}
-
-[JsonSerializable(typeof(MyOption))]
-[JsonSerializable(typeof(ServeRequestOptions))]
-internal sealed partial class SourceGenerationContext : JsonSerializerContext
 {
 
 }
