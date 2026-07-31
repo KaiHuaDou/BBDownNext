@@ -427,3 +427,9 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# BBDown 本地凭据与二维码（含账号 cookie / token，禁止提交）
+BBDown.data
+BBDownTV.data
+BBDownApp.data
+qrcode.png
