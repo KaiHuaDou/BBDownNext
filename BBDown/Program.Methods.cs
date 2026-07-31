@@ -107,22 +107,22 @@ internal sealed partial class Program
         //寻找ffmpeg或mp4box
         if (!myOption.SkipMux)
         {
-            if (myOption.UseMP4box)
-            {
-                if (string.IsNullOrEmpty(BBDownMuxer.MP4BOX) || !File.Exists(BBDownMuxer.MP4BOX))
-                {
-                    var binPath = FindExecutable("mp4box") ?? FindExecutable("MP4box");
-                    if (string.IsNullOrEmpty(binPath))
-                        throw new InvalidOperationException("找不到可执行的mp4box文件");
-                    BBDownMuxer.MP4BOX = binPath;
-                }
-            }
-            else if (string.IsNullOrEmpty(BBDownMuxer.FFMPEG) || !File.Exists(BBDownMuxer.FFMPEG))
+            //ffmpeg 与 mp4box 都探测, 以便下载时按需选择(杜比视界可能临时改用 mp4box)
+            if (string.IsNullOrEmpty(BBDownMuxer.FFMPEG) || !File.Exists(BBDownMuxer.FFMPEG))
             {
                 var binPath = FindExecutable("ffmpeg");
-                if (string.IsNullOrEmpty(binPath))
-                    throw new InvalidOperationException("找不到可执行的ffmpeg文件");
-                BBDownMuxer.FFMPEG = binPath;
+                if (!string.IsNullOrEmpty(binPath)) BBDownMuxer.FFMPEG = binPath;
+            }
+
+            if (string.IsNullOrEmpty(BBDownMuxer.MP4BOX) || !File.Exists(BBDownMuxer.MP4BOX))
+            {
+                var binPath = FindExecutable("mp4box") ?? FindExecutable("MP4box");
+                if (!string.IsNullOrEmpty(binPath)) BBDownMuxer.MP4BOX = binPath;
+            }
+
+            if (string.IsNullOrEmpty(BBDownMuxer.FFMPEG) || !File.Exists(BBDownMuxer.FFMPEG))
+            {
+                throw new InvalidOperationException("找不到可执行的 ffmpeg 文件");
             }
         }
 
