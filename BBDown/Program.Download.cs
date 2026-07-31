@@ -506,7 +506,7 @@ internal sealed partial class Program
     private static int SelectDfnManually(List<string> dfns)
     {
         var i = 0;
-        dfns.ForEach(key => LogColor($"{i++}.{Config.qualitys[key]}"));
+        dfns.ForEach(key => LogColor($"{i++}.{Config.GetQualityName(key)}"));
         Log("请选择最想要的清晰度（输入序号）：", false);
         Console.ForegroundColor = ConsoleColor.Cyan;
         var vIndex = Convert.ToInt32(Console.ReadLine( ));

@@ -253,7 +253,7 @@ public static partial class Parser
             {
                 dur = pDur,
                 id = videoId,
-                dfn = Config.qualitys[videoId],
+                dfn = Config.GetQualityName(videoId),
                 bandwidth = Convert.ToInt64(dashVideo.GetProperty("bandwidth").ToString( )) / 1000,
                 baseUrl = PickBaseUrl(BuildUrlList(dashVideo)),
                 codecs = GetVideoCodec(dashVideo.GetProperty("codecid").ToString( )),
@@ -284,7 +284,7 @@ public static partial class Parser
         var audioRoot = root;
         if (!req.AppApi)
         {
-            parsedResult.WebJsonString = await GetPlayJsonAsync(req, GetMaxQn( ));
+            parsedResult.WebJsonString = await GetPlayJsonAsync(req, Config.MaxQn);
             root = GetRootNode(JsonDocument.Parse(parsedResult.WebJsonString).RootElement, nodeName);
             CollectDashVideoTracks(parsedResult, root, pDur, req.TvApi, req.AppApi);
             // 二次请求偶尔返回降级响应(限流/无 dash 节点)，此时沿用首次结果的音轨而不是丢弃
@@ -334,7 +334,7 @@ public static partial class Parser
             {
                 dur = pDur,
                 id = videoId,
-                dfn = Config.qualitys[videoId],
+                dfn = Config.GetQualityName(videoId),
                 bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
                 baseUrl = PickBaseUrl(BuildUrlList(node)),
                 codecs = GetVideoCodec(node.GetProperty("codecid").ToString( )),
@@ -419,7 +419,7 @@ public static partial class Parser
     private static async Task<JsonElement> ExtractFlvTracksAsync(ParsedResult parsedResult, PlayUrlRequest req, string? nodeName)
     {
         //默认以最高清晰度解析
-        parsedResult.WebJsonString = await GetPlayJsonAsync(req, GetMaxQn( ));
+        parsedResult.WebJsonString = await GetPlayJsonAsync(req, Config.MaxQn);
         var root = GetRootNode(JsonDocument.Parse(parsedResult.WebJsonString).RootElement, nodeName);
 
         double size = 0;
@@ -438,7 +438,7 @@ public static partial class Parser
         Video v = new( )
         {
             id = quality,
-            dfn = Config.qualitys[quality],
+            dfn = Config.GetQualityName(quality),
             baseUrl = "",
             codecs = GetVideoCodec(root.GetProperty("video_codecid").ToString( )),
             dur = (int) length / 1000,
@@ -558,11 +558,6 @@ public static partial class Parser
             "7" => "AVC",
             _ => "UNKNOWN"
         };
-    }
-
-    private static string GetMaxQn( )
-    {
-        return Config.qualitys.Keys.First( );
     }
 
     private static string GetTimeStamp(bool bflag)
