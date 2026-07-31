@@ -99,7 +99,7 @@ internal sealed partial class Program
                     subtitleInfo = await PrepareCoverAndSubtitlesAsync(myOption, ctx, pageCtx);
                     if (myOption.SubOnly)
                     {
-                        TryDeleteEmptyDir(p.aid);
+                        TryDeleteEmptyDir(pageCtx.TempDir);
                         return;
                     }
                 }
@@ -114,7 +114,7 @@ internal sealed partial class Program
 
                 if (Config.DebugLog)
                 {
-                    File.WriteAllText($"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json", parsedResult.WebJsonString);
+                    File.WriteAllText(Path.Combine(ctx.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.WebJsonString);
                 }
 
                 var downloadConfig = BuildDownloadConfig(myOption, ctx.Cfg, relatedTask);
@@ -144,15 +144,17 @@ internal sealed partial class Program
     {
         var vInfo = ctx.VInfo!;
         var pagesCount = selectedPagesInfo.Count;
+        var tempDir = Path.Combine(ctx.WorkDir, p.aid);
         return new PageContext(
             Page: p,
             //处理文件夹以.开头/结尾导致的异常情况
             Title: SanitizeTitle(vInfo.Title),
             Desc: string.IsNullOrEmpty(p.desc) ? vInfo.Desc : p.desc,
             EpisodeTitle: BuildEpisodeTitle(p, pagesCount, vInfo.IsBangumi, vInfo.IsBangumiEnd),
-            VideoPath: $"{p.aid}/{p.aid}.P{p.index}.{p.cid}.mp4",
-            AudioPath: $"{p.aid}/{p.aid}.P{p.index}.{p.cid}.m4a",
-            CoverPath: $"{p.aid}/{p.aid}.jpg",
+            TempDir: tempDir,
+            VideoPath: Path.Combine(tempDir, $"{p.aid}.P{p.index}.{p.cid}.mp4"),
+            AudioPath: Path.Combine(tempDir, $"{p.aid}.P{p.index}.{p.cid}.m4a"),
+            CoverPath: Path.Combine(tempDir, $"{p.aid}.jpg"),
             CoverUrl: vInfo.Pic is { Length: 0 } ? p.cover! : vInfo.Pic,
             PubTime: vInfo.PubTime,
             PagesCount: pagesCount,
@@ -187,10 +189,7 @@ internal sealed partial class Program
     private static async Task<List<Subtitle>> PrepareCoverAndSubtitlesAsync(MyOption myOption, WorkContext ctx, PageContext pageCtx)
     {
         var p = pageCtx.Page;
-        if (!Directory.Exists(p.aid))
-        {
-            Directory.CreateDirectory(p.aid);
-        }
+        Directory.CreateDirectory(pageCtx.TempDir);
 
         if (!myOption.SkipCover && !myOption.SubOnly && !File.Exists(pageCtx.CoverPath) && !myOption.DanmakuOnly && !myOption.CoverOnly)
         {
@@ -212,6 +211,7 @@ internal sealed partial class Program
 
         foreach (var s in subtitleInfo)
         {
+            s.path = Path.Combine(pageCtx.TempDir, Path.GetFileName(s.path));
             Log($"下载字幕 {s.lan} => {SubUtil.GetSubtitleCode(s.lan).Item2}...");
             LogDebug("下载：{0}", s.url);
             await SubUtil.SaveSubtitleAsync(s.url, s.path, ctx.Cfg);
@@ -227,12 +227,8 @@ internal sealed partial class Program
     private static void MoveSubtitleToOutput(Subtitle s, WorkContext ctx, PageContext pageCtx)
     {
         var outSubPath = FormatSavePath(ctx, pageCtx, null, null);
-        if (outSubPath.Contains('/'))
-        {
-            var dir = outSubPath.Split('/').First( );
-            if (!Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-        }
+        var outDir = Path.GetDirectoryName(outSubPath);
+        if (!string.IsNullOrEmpty(outDir)) Directory.CreateDirectory(outDir);
 
         outSubPath = Path.ChangeExtension(outSubPath, $".{s.lan}.srt");
         File.Move(s.path, outSubPath, true);
@@ -328,7 +324,7 @@ internal sealed partial class Program
         {
             var newCoverPath = Path.ChangeExtension(savePath, Path.GetExtension(pageCtx.CoverUrl));
             await DownloadFileAsync(pageCtx.CoverUrl, newCoverPath, downloadConfig);
-            TryDeleteEmptyDir(p.aid);
+            TryDeleteEmptyDir(pageCtx.TempDir);
             relatedTask?.SavePaths.Add(newCoverPath);
         }
 
@@ -349,7 +345,7 @@ internal sealed partial class Program
             Log($"{savePath} 已存在，跳过下载...");
             relatedTask?.SavePaths.Add(savePath);
             File.Delete(pageCtx.CoverPath);
-            TryDeleteEmptyDir(p.aid);
+            TryDeleteEmptyDir(pageCtx.TempDir);
             return PageOutcome.Abort(selected);
         }
 
@@ -379,7 +375,7 @@ internal sealed partial class Program
 
         if (selectedBackgroundAudio != null)
         {
-            var backgroundPath = $"{p.aid}/{p.aid}.{p.cid}.P{p.index}.back_ground.m4a";
+            var backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.aid}.{p.cid}.P{p.index}.back_ground.m4a");
             Log($"开始下载 P{p.index} 背景配音...");
             await DownloadTrackAsync(selectedBackgroundAudio.baseUrl, backgroundPath, downloadConfig, video: false);
             audioMaterial.Add(new AudioMaterial { title = "背景音频", personName = "", path = backgroundPath });
@@ -387,6 +383,7 @@ internal sealed partial class Program
 
         foreach (var role in parsedResult.RoleAudioList)
         {
+            role.path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.path));
             Log($"开始下载 P{p.index} 配音 [{role.title}]...");
             await DownloadTrackAsync(role.audio[aIndex].baseUrl, role.path, downloadConfig, video: false);
             audioMaterial.Add(new AudioMaterial { title = role.title, personName = role.personName, path = role.path });
@@ -465,9 +462,9 @@ internal sealed partial class Program
             {
                 Log($"{savePath} 已存在，跳过下载...");
                 relatedTask?.SavePaths.Add(savePath);
-                if (pageCtx.PagesCount == 1 && Directory.Exists(p.aid))
+                if (pageCtx.PagesCount == 1 && Directory.Exists(pageCtx.TempDir))
                 {
-                    Directory.Delete(p.aid, true);
+                    Directory.Delete(pageCtx.TempDir, true);
                 }
 
                 return PageOutcome.Abort(selected);
@@ -524,7 +521,7 @@ internal sealed partial class Program
         var clipPath = pageCtx.VideoPath;
         for (var i = 0; i < clips.Count; i++)
         {
-            clipPath = $"{p.aid}/{p.aid}.P{p.index}.{p.cid}.{i.ToString(pad)}.mp4";
+            clipPath = Path.Combine(pageCtx.TempDir, $"{p.aid}.P{p.index}.{p.cid}.{i.ToString(pad)}.mp4");
             Log($"开始下载 P{p.index} 视频，片段（{(i + 1).ToString(pad)} / {clips.Count}）...");
             await DownloadTrackAsync(clips[i], clipPath, downloadConfig, video: true);
         }
@@ -564,10 +561,7 @@ internal sealed partial class Program
 
         if (!myOption.DanmakuOnly) return false;
 
-        if (Directory.Exists(p.aid))
-        {
-            Directory.Delete(p.aid);
-        }
+        TryDeleteEmptyDir(pageCtx.TempDir);
 
         return true;
     }
@@ -589,12 +583,13 @@ internal sealed partial class Program
         Thread.Sleep(200);
         if (!string.IsNullOrEmpty(videoPath)) File.Delete(videoPath);
         if (!string.IsNullOrEmpty(audioPath)) File.Delete(audioPath);
-        if (pageCtx.Page.points.Count != 0)
-            File.Delete(Path.Combine(Path.GetDirectoryName(string.IsNullOrEmpty(videoPath) ? audioPath : videoPath)!, "chapters"));
+        var trackPath = string.IsNullOrEmpty(videoPath) ? audioPath : videoPath;
+        if (pageCtx.Page.points.Count != 0 && !string.IsNullOrEmpty(trackPath))
+            File.Delete(Path.Combine(Path.GetDirectoryName(trackPath) ?? "", "chapters"));
         foreach (var s in subtitleInfo) File.Delete(s.path);
         foreach (var a in audioMaterial) File.Delete(a.path);
         if (pageCtx.DeleteCoverAfterMux) File.Delete(pageCtx.CoverPath);
-        TryDeleteEmptyDir(pageCtx.Page.aid);
+        TryDeleteEmptyDir(pageCtx.TempDir);
     }
 
     internal static List<Video> SortTracks(List<Video> videoTracks, Dictionary<string, int> dfnPriority, Dictionary<string, byte> encodingPriority, bool videoAscending, bool encodingFirst)
@@ -622,7 +617,8 @@ internal sealed partial class Program
 
     private static string FormatSavePath(WorkContext ctx, PageContext pageCtx, Video? videoTrack, Audio? audioTrack)
     {
-        return FormatSavePath(ctx.SavePathFormat, pageCtx.Title, videoTrack, audioTrack, pageCtx.Page, pageCtx.PagesCount, ctx.ApiType, pageCtx.PubTime);
+        var relative = FormatSavePath(ctx.SavePathFormat, pageCtx.Title, videoTrack, audioTrack, pageCtx.Page, pageCtx.PagesCount, ctx.ApiType, pageCtx.PubTime);
+        return Path.Combine(ctx.WorkDir, relative);
     }
 
     internal static string FormatSavePath(string savePathFormat, string title, Video? videoTrack, Audio? audioTrack, Page p, int pagesCount, string apiType, long pubTime)

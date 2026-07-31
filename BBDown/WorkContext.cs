@@ -24,4 +24,5 @@ internal sealed record WorkContext(
     string FetchedAid,
     VInfo? VInfo,
     string ApiType,
-    AppConfig Cfg);
+    AppConfig Cfg,
+    string WorkDir);

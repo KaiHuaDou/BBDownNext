@@ -163,24 +163,21 @@ internal sealed partial class Program
     }
 
     /// <summary>
-    /// 设置用户输入的自定义工作目录
+    /// 解析用户输入的自定义工作目录，返回绝对路径。未指定时回落到进程当前目录。
     /// </summary>
-    /// <param name="myOption"></param>
-    private static void ChangeWorkingDir(MyOption myOption)
+    private static string ResolveWorkDir(MyOption myOption)
     {
-        if (!string.IsNullOrEmpty(myOption.WorkDir))
+        if (string.IsNullOrEmpty(myOption.WorkDir)) return Environment.CurrentDirectory;
+
+        myOption.WorkDir = Environment.ExpandEnvironmentVariables(myOption.WorkDir);
+        var dir = Path.GetFullPath(myOption.WorkDir);
+        if (!Directory.Exists(dir))
         {
-            //解释环境变量
-            myOption.WorkDir = Environment.ExpandEnvironmentVariables(myOption.WorkDir);
-            var dir = Path.GetFullPath(myOption.WorkDir);
-            if (!Directory.Exists(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-            //设置工作目录
-            Environment.CurrentDirectory = dir;
-            LogDebug("切换工作目录至：{0}", dir);
+            Directory.CreateDirectory(dir);
         }
+
+        LogDebug("本次任务工作目录：{0}", dir);
+        return dir;
     }
 
     private static readonly object fileLock = new( );
