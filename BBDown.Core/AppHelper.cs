@@ -93,9 +93,8 @@ internal static class AppHelper
     /// </summary>
     /// <param name="data"></param>
     /// <returns></returns>
-    private static string ConvertToDashJson(object data)
+    internal static string ConvertToDashJson(PlayViewReply resp)
     {
-        var resp = (PlayViewReply) data;
         List<object> videos = [];
         List<object> audios = [];
         List<object> clips = [];

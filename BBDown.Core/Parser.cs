@@ -369,7 +369,7 @@ public static partial class Parser
         return 0;
     }
 
-    private static void CollectDashVideoTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi, bool appApi)
+    internal static void CollectDashVideoTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi, bool appApi)
     {
         var video = TryEnumerateArray(root, "dash", "video");
         if (video == null) return;
@@ -400,7 +400,7 @@ public static partial class Parser
         }
     }
 
-    private static void CollectDashAudioTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi)
+    internal static void CollectDashAudioTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi)
     {
         var audio = TryEnumerateArray(root, "dash", "audio");
         if (audio == null) return;
@@ -432,7 +432,7 @@ public static partial class Parser
         }
     }
 
-    private static void CollectDubbingTracks(ParsedResult parsedResult, JsonElement data, int pDur, string aid, string cid)
+    internal static void CollectDubbingTracks(ParsedResult parsedResult, JsonElement data, int pDur, string aid, string cid)
     {
         var backgroundAudio = TryEnumerateArray(data, "dubbing_info", "background_audio");
         var roleAudio = TryEnumerateArray(data, "dubbing_info", "role_audio_list");
@@ -510,7 +510,7 @@ public static partial class Parser
         return [];
     }
 
-    private static void AppendBangumiViewPoints(ParsedResult parsedResult, JsonElement root)
+    internal static void AppendBangumiViewPoints(ParsedResult parsedResult, JsonElement root)
     {
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("clip_info_list", out var clipList)) return;
 
