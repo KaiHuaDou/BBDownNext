@@ -15,16 +15,21 @@ using static BBDown.Utils;
 
 namespace BBDown;
 
-internal static partial class BBDownMuxer
+internal static class BBDownMuxer
 {
     public static string FFMPEG = "ffmpeg";
     public static string MP4BOX = "mp4box";
 
-    private static int RunExe(string app, string parms)
+    private static int RunExe(string app, List<string> args)
     {
+        LogDebug("{0}命令: {1}", Path.GetFileNameWithoutExtension(app), FormatArgs(args));
         using Process p = new( );
         p.StartInfo.FileName = app;
-        p.StartInfo.Arguments = parms;
+        foreach (var arg in args)
+        {
+            p.StartInfo.ArgumentList.Add(arg);
+        }
+
         p.StartInfo.UseShellExecute = false;
         p.StartInfo.RedirectStandardError = true;
         p.StartInfo.CreateNoWindow = true;
@@ -42,72 +47,121 @@ internal static partial class BBDownMuxer
         return p.ExitCode;
     }
 
-    private static string EscapeString(string str)
+    private static string FormatArgs(List<string> args)
+        => string.Join(' ', args.Select(a => a.Length == 0 || a.Contains(' ') ? $"\"{a}\"" : a));
+
+    internal static List<string> BuildMp4boxArgs(string url, string videoPath, string audioPath, string outPath, string desc, string title, string author, string episodeId, string pic, string lang, List<Subtitle> subs, bool audioOnly, string? chapterFile, bool debugLog)
     {
-        return string.IsNullOrEmpty(str) ? str : str.Replace("\"", "'").Replace("\\", "\\\\");
+        List<string> args = [];
+        if (debugLog) args.Add("-v");
+        args.AddRange(["-inter", "500", "-noprog"]);
+
+        var trackId = 0;
+        if (videoPath.Length != 0)
+        {
+            args.AddRange(["-add", $"{videoPath}#trackID={(audioOnly && audioPath.Length == 0 ? 2 : 1)}:name="]);
+            trackId++;
+        }
+
+        if (audioPath.Length != 0)
+        {
+            args.AddRange(["-add", $"{audioPath}:lang={(lang.Length == 0 ? "und" : lang)}"]);
+            trackId++;
+        }
+
+        if (chapterFile != null) args.AddRange(["-chap", chapterFile]);
+
+        foreach (var sub in subs)
+        {
+            trackId++;
+            var (code, name) = GetSubtitleCode(sub.lan);
+            args.AddRange(["-add", $"{sub.path}#trackID=1:name=:hdlr=sbtl:lang={code}"]);
+            args.AddRange(["-udta", $"{trackId}:type=name:str={name}"]);
+        }
+
+        var tags = new StringBuilder("tool=");
+        if (pic.Length != 0) tags.Append($":cover={pic}");
+        if (episodeId.Length != 0) tags.Append($":album={title}:title={episodeId}");
+        else tags.Append($":title={title}");
+        tags.Append($":sdesc={desc}");
+        tags.Append($":comment={url}");
+        tags.Append($":artist={author}");
+        args.AddRange(["-itags", tags.ToString( )]);
+
+        args.AddRange(["-new", "--", outPath]);
+        return args;
     }
 
-    private static int MuxByMp4box(string url, string videoPath, string audioPath, string outPath, string desc, string title, string author, string episodeId, string pic, string lang, List<Subtitle>? subs, bool audioOnly, List<ViewPoint>? points)
+    internal static List<string> BuildFFmpegArgs(string url, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, string desc, string title, string author, string episodeId, string pic, string lang, List<Subtitle> subs, bool audioOnly, string? chapterFile, long pubTime, bool simplyMux, bool tagHvc1, bool debugLog)
     {
-        StringBuilder inputArg = new( );
-        StringBuilder metaArg = new( );
-        var nowId = 0;
-        inputArg.Append(" -inter 500 -noprog ");
-        if (!string.IsNullOrEmpty(videoPath))
+        List<string> args = ["-loglevel", debugLog ? "verbose" : "warning", "-y"];
+        List<string> meta = [];
+        var inputCount = 0;
+
+        foreach (var path in new[] { videoPath, audioPath })
         {
-            inputArg.Append($" -add \"{videoPath}#trackID={(audioOnly && audioPath.Length == 0 ? "2" : "1")}:name=\" ");
-            nowId++;
+            if (path.Length == 0) continue;
+            inputCount++;
+            args.AddRange(["-i", path]);
         }
 
-        if (!string.IsNullOrEmpty(audioPath))
+        if (audioMaterial.Count != 0)
         {
-            inputArg.Append($" -add \"{audioPath}:lang={(lang.Length == 0 ? "und" : lang)}\" ");
-            nowId++;
-        }
-
-        if (points != null && points.Count != 0)
-        {
-            var meta = GetMp4boxMetaString(points);
-            var metaFile = Path.Combine(Path.GetDirectoryName(string.IsNullOrEmpty(videoPath) ? audioPath : videoPath)!, "chapters");
-            File.WriteAllText(metaFile, meta);
-            inputArg.Append($" -chap  \"{metaFile}\"  ");
-        }
-
-        if (!string.IsNullOrEmpty(pic))
-        {
-            metaArg.Append($":cover=\"{pic}\"");
-        }
-
-        if (!string.IsNullOrEmpty(episodeId))
-        {
-            metaArg.Append($":album=\"{title}\":title=\"{episodeId}\"");
-        }
-        else
-        {
-            metaArg.Append($":title=\"{title}\"");
-        }
-
-        metaArg.Append($":sdesc=\"{desc}\"");
-        metaArg.Append($":comment=\"{url}\"");
-        metaArg.Append($":artist=\"{author}\"");
-
-        if (subs != null)
-        {
-            for (var i = 0; i < subs.Count; i++)
+            var audioIndex = 0;
+            meta.AddRange(["-metadata:s:a:0", "title=原音频"]);
+            foreach (var audio in audioMaterial)
             {
-                if (File.Exists(subs[i].path) && File.ReadAllText(subs[i].path!).Length != 0)
-                {
-                    nowId++;
-                    inputArg.Append($" -add \"{subs[i].path}#trackID=1:name=:hdlr=sbtl:lang={GetSubtitleCode(subs[i].lan).Item1}\" ");
-                    inputArg.Append($" -udta {nowId}:type=name:str=\"{GetSubtitleCode(subs[i].lan).Item2}\" ");
-                }
+                inputCount++;
+                audioIndex++;
+                args.AddRange(["-i", audio.path]);
+                if (!string.IsNullOrWhiteSpace(audio.title)) meta.AddRange([$"-metadata:s:a:{audioIndex}", $"title={audio.title}"]);
+                if (!string.IsNullOrWhiteSpace(audio.personName)) meta.AddRange([$"-metadata:s:a:{audioIndex}", $"artist={audio.personName}"]);
             }
         }
 
-        //----分析完毕
-        var arguments = (Config.DebugLog ? " -v " : "") + inputArg + (metaArg.Length == 0 ? "" : " -itags tool=" + metaArg) + $" -new -- \"{outPath}\"";
-        LogDebug("mp4box命令: {0}", arguments);
-        return RunExe(MP4BOX, arguments);
+        if (pic.Length != 0)
+        {
+            inputCount++;
+            args.AddRange(["-i", pic]);
+        }
+
+        for (var i = 0; i < subs.Count; i++)
+        {
+            inputCount++;
+            var (code, name) = GetSubtitleCode(subs[i].lan);
+            args.AddRange(["-i", subs[i].path]);
+            meta.AddRange([$"-metadata:s:s:{i}", $"title={name}", $"-metadata:s:s:{i}", $"language={code}"]);
+        }
+
+        if (pic.Length != 0) meta.AddRange([$"-disposition:v:{(audioOnly ? 0 : 1)}", "attached_pic"]);
+
+        if (chapterFile != null) args.AddRange(["-i", chapterFile, "-map_chapters", inputCount.ToString( )]);
+
+        for (var i = 0; i < inputCount; i++)
+        {
+            args.AddRange(["-map", i.ToString( )]);
+        }
+
+        args.AddRange(meta);
+
+        if (!simplyMux)
+        {
+            args.AddRange(["-metadata", $"title={(episodeId.Length == 0 ? title : episodeId)}"]);
+            args.AddRange(["-metadata", $"comment={url}"]);
+            if (lang.Length != 0) args.AddRange(["-metadata:s:a:0", $"language={lang}"]);
+            if (!string.IsNullOrWhiteSpace(desc)) args.AddRange(["-metadata", $"description={desc}"]);
+            if (author.Length != 0) args.AddRange(["-metadata", $"artist={author}"]);
+            if (episodeId.Length != 0) args.AddRange(["-metadata", $"album={title}"]);
+            if (pubTime != 0) args.AddRange(["-metadata", $"creation_time={DateTimeOffset.FromUnixTimeSeconds(pubTime):yyyy-MM-ddTHH:mm:ss.ffffffZ}"]);
+        }
+
+        args.AddRange(["-c:v", "copy", "-c:a", "copy"]);
+        if (audioOnly && audioPath.Length == 0) args.Add("-vn");
+        if (subs.Count != 0) args.AddRange(["-c:s", "mov_text"]);
+        // fix macOS hev1, see https://discussions.apple.com/thread/253081863?sortBy=rank
+        if (tagHvc1) args.AddRange(["-tag:v:0", "hvc1"]);
+        args.AddRange(["-movflags", "faststart", "-strict", "unofficial", "-strict", "-2", "-f", "mp4", "--", outPath]);
+        return args;
     }
 
     public static int MuxAV(bool useMp4box, string bvid, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, string desc = "", string title = "", string author = "", string episodeId = "", string pic = "", string lang = "", List<Subtitle>? subs = null, bool audioOnly = false, bool videoOnly = false, List<ViewPoint>? points = null, long pubTime = 0, bool simplyMux = false, bool isHevc = false)
@@ -122,107 +176,22 @@ internal static partial class BBDownMuxer
             audioPath = "";
         }
 
-        desc = EscapeString(desc);
-        title = EscapeString(title);
-        episodeId = EscapeString(episodeId);
         var url = $"https://www.bilibili.com/video/{bvid}/";
-
-        if (useMp4box)
-        {
-            return MuxByMp4box(url, videoPath, audioPath, outPath, desc, title, author, episodeId, pic, lang, subs, audioOnly, points);
-        }
+        var validSubs = subs?.Where(s => File.Exists(s.path) && File.ReadAllText(s.path).Length != 0).ToList( ) ?? [];
 
         var outDir = Path.GetDirectoryName(outPath);
         if (!string.IsNullOrEmpty(outDir)) Directory.CreateDirectory(outDir);
-        //----分析并生成-i参数
-        StringBuilder inputArg = new( );
-        StringBuilder metaArg = new( );
-        byte inputCount = 0;
-        foreach (var path in new[] { videoPath, audioPath })
-        {
-            if (!string.IsNullOrEmpty(path))
-            {
-                inputCount++;
-                inputArg.Append($"-i \"{path}\" ");
-            }
-        }
 
-        if (audioMaterial.Count != 0)
-        {
-            byte audioCount = 0;
-            metaArg.Append("-metadata:s:a:0 title=\"原音频\" ");
-            foreach (var audio in audioMaterial)
-            {
-                inputCount++;
-                audioCount++;
-                inputArg.Append($"-i \"{audio.path}\" ");
-                if (!string.IsNullOrWhiteSpace(audio.title)) metaArg.Append($"-metadata:s:a:{audioCount} title=\"{audio.title}\" ");
-                if (!string.IsNullOrWhiteSpace(audio.personName)) metaArg.Append($"-metadata:s:a:{audioCount} artist=\"{audio.personName}\" ");
-            }
-        }
-
-        if (!string.IsNullOrEmpty(pic))
-        {
-            inputCount++;
-            inputArg.Append($"-i \"{pic}\" ");
-        }
-
-        if (subs != null)
-        {
-            for (var i = 0; i < subs.Count; i++)
-            {
-                if (File.Exists(subs[i].path) && File.ReadAllText(subs[i].path!).Length != 0)
-                {
-                    inputCount++;
-                    inputArg.Append($"-i \"{subs[i].path}\" ");
-                    metaArg.Append($"-metadata:s:s:{i} title=\"{GetSubtitleCode(subs[i].lan).Item2}\" -metadata:s:s:{i} language={GetSubtitleCode(subs[i].lan).Item1} ");
-                }
-            }
-        }
-
-        if (!string.IsNullOrEmpty(pic))
-        {
-            metaArg.Append($"-disposition:v:{(audioOnly ? "0" : "1")} attached_pic ");
-        }
-        // var inputCount = InputRegex().Matches(inputArg.ToString()).Count;
-
+        string? chapterFile = null;
         if (points != null && points.Count != 0)
         {
-            var meta = GetFFmpegMetaString(points);
-            var metaFile = Path.Combine(Path.GetDirectoryName(string.IsNullOrEmpty(videoPath) ? audioPath : videoPath)!, "chapters");
-            File.WriteAllText(metaFile, meta);
-            inputArg.Append($"-i \"{metaFile}\" -map_chapters {inputCount} ");
+            chapterFile = Path.Combine(Path.GetDirectoryName(videoPath.Length == 0 ? audioPath : videoPath)!, "chapters");
+            File.WriteAllText(chapterFile, useMp4box ? GetMp4boxMetaString(points) : GetFFmpegMetaString(points));
         }
 
-        inputArg.Append(string.Concat(Enumerable.Range(0, inputCount).Select(i => $"-map {i} ")));
-
-        //----分析完毕
-        var argsBuilder = new StringBuilder( );
-        argsBuilder.Append($"-loglevel {(Config.DebugLog ? "verbose" : "warning")} -y ");
-        argsBuilder.Append(inputArg);
-        argsBuilder.Append(metaArg);
-        if (!simplyMux)
-        {
-            argsBuilder.Append($"-metadata title=\"{(episodeId.Length == 0 ? title : episodeId)}\" ");
-            argsBuilder.Append($"-metadata comment=\"{url}\" ");
-            if (lang.Length != 0) argsBuilder.Append($"-metadata:s:a:0 language={lang} ");
-            if (!string.IsNullOrWhiteSpace(desc)) argsBuilder.Append($"-metadata description=\"{desc}\" ");
-            if (!string.IsNullOrEmpty(author)) argsBuilder.Append($"-metadata artist=\"{author}\" ");
-            if (episodeId.Length != 0) argsBuilder.Append($"-metadata album=\"{title}\" ");
-            if (pubTime != 0) argsBuilder.Append($"-metadata creation_time=\"{DateTimeOffset.FromUnixTimeSeconds(pubTime).ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ")}\" ");
-        }
-
-        argsBuilder.Append("-c:v copy -c:a copy ");
-        if (audioOnly && audioPath.Length == 0) argsBuilder.Append("-vn ");
-        if (subs != null) argsBuilder.Append("-c:s mov_text ");
-        // fix macOS hev1, see https://discussions.apple.com/thread/253081863?sortBy=rank
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && isHevc) argsBuilder.Append("-tag:v:0 hvc1 ");
-        argsBuilder.Append($"-movflags faststart -strict unofficial -strict -2 -f mp4 -- \"{outPath}\"");
-
-        var arguments = argsBuilder.ToString( );
-
-        LogDebug("ffmpeg命令: {0}", arguments);
-        return RunExe(FFMPEG, arguments);
+        return useMp4box
+            ? RunExe(MP4BOX, BuildMp4boxArgs(url, videoPath, audioPath, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, Config.DebugLog))
+            : RunExe(FFMPEG, BuildFFmpegArgs(url, videoPath, audioPath, audioMaterial, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, pubTime, simplyMux, isHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog));
     }
 
     public static void MergeFLV(string[] files, string outPath)
@@ -230,24 +199,21 @@ internal static partial class BBDownMuxer
         if (files.Length == 1)
         {
             File.Move(files[0], outPath);
+            return;
         }
-        else
-        {
-            foreach (var file in files)
-            {
-                var tmpFile = Path.Combine(Path.GetDirectoryName(file)!, Path.GetFileNameWithoutExtension(file) + ".ts");
-                var arguments = $"-loglevel warning -y -i \"{file}\" -map 0 -c copy -f mpegts -bsf:v h264_mp4toannexb \"{tmpFile}\"";
-                LogDebug("ffmpeg命令: {0}", arguments);
-                RunExe(FFMPEG, arguments);
-                File.Delete(file);
-            }
 
-            var f = GetFiles(Path.GetDirectoryName(files[0])!, ".ts");
-            CombineMultipleFilesIntoSingleFile(f, outPath);
-            foreach (var s in f)
-            {
-                File.Delete(s);
-            }
+        foreach (var file in files)
+        {
+            var tmpFile = Path.Combine(Path.GetDirectoryName(file)!, Path.GetFileNameWithoutExtension(file) + ".ts");
+            RunExe(FFMPEG, ["-loglevel", "warning", "-y", "-i", file, "-map", "0", "-c", "copy", "-f", "mpegts", "-bsf:v", "h264_mp4toannexb", tmpFile]);
+            File.Delete(file);
+        }
+
+        var tsFiles = GetFiles(Path.GetDirectoryName(files[0])!, ".ts");
+        CombineMultipleFilesIntoSingleFile(tsFiles, outPath);
+        foreach (var s in tsFiles)
+        {
+            File.Delete(s);
         }
     }
 }
