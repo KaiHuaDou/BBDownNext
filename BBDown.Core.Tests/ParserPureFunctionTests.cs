@@ -46,13 +46,14 @@ public class ParserPureFunctionTests
     }
 
     [Theory]
-    [InlineData(true, true, "https://tv.host/pgc/player/api/playurltv?")]
-    [InlineData(true, false, "https://tv.host/x/tv/playurl?")]
-    [InlineData(false, true, "https://web.host/pgc/player/web/v2/playurl?")]
-    [InlineData(false, false, "https://api.bilibili.com/x/player/wbi/playurl?")]
-    public void BuildPlayUrlPrefix_CoversAllApiCombinations(bool tvApi, bool bangumi, string expected)
+    [InlineData(true, true, false, "https://tv.host/pgc/player/api/playurltv?")]
+    [InlineData(true, false, false, "https://tv.host/x/tv/playurl?")]
+    [InlineData(false, true, false, "https://web.host/pgc/player/web/v2/playurl?")]
+    [InlineData(false, false, false, "https://api.bilibili.com/x/player/wbi/playurl?")]
+    [InlineData(false, true, true, "https://web.host/pugv/player/web/v2/playurl?")]
+    public void BuildPlayUrlPrefix_CoversAllApiCombinations(bool tvApi, bool bangumi, bool cheese, string expected)
     {
-        Assert.Equal(expected, Parser.BuildPlayUrlPrefix(tvApi, bangumi, "tv.host", "web.host"));
+        Assert.Equal(expected, Parser.BuildPlayUrlPrefix(tvApi, bangumi, cheese, "tv.host", "web.host"));
     }
 
     [Theory]

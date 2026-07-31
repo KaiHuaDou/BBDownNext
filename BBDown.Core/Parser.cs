@@ -58,14 +58,8 @@ public static partial class Parser
             return await AppHelper.DoReqAsync(req.Aid, req.Cid, req.EpId, qn, req.IsBangumi, req.Encoding, req.Cfg);
         }
 
-        var api = BuildPlayUrlPrefix(req.TvApi, req.IsBangumi, req.Cfg.TvHost, req.Cfg.Host)
+        var api = BuildPlayUrlPrefix(req.TvApi, req.IsBangumi, req.IsCheese, req.Cfg.TvHost, req.Cfg.Host)
             + (req.TvApi ? BuildTvApiQuery(req, qn) : BuildWebApiQuery(req, qn));
-
-        //课程接口
-        if (req.IsCheese)
-        {
-            api = api.Replace("/pgc/", "/pugv/");
-        }
 
         var webJson = await GetWebSourceAsync(api, req.Cfg);
         if (!webJson.Contains("\"大会员专享限制\""))
@@ -75,11 +69,28 @@ public static partial class Parser
 
         //大会员专享限制时从网页源代码尝试解析
         Log("此视频需要大会员，您大概率需要登录一个有大会员的账号才可以下载，尝试从网页源码解析。");
-        var webSource = await GetWebSourceAsync("https://www.bilibili.com/bangumi/play/ep" + req.EpId, req.Cfg);
-        return PlayerJsonRegex( ).Match(webSource).Groups[1].Value;
+        return await GetPlayJsonFromWebPageAsync(req);
     }
 
-    internal static string BuildPlayUrlPrefix(bool tvApi, bool bangumi, string tvHost, string host)
+    // 大会员专享限制时, 改从网页源码抠 window.__playinfo__。
+    // 与正常 API 路径解耦为独立方法, 并按 cheese / 番剧构造正确的播放页地址,
+    // 匹配失败时抛明确异常(而非返回空串导致后续 JSON 解析报莫名其妙的错)。
+    private static async Task<string> GetPlayJsonFromWebPageAsync(PlayUrlRequest req)
+    {
+        var pageUrl = req.IsCheese
+            ? $"https://www.bilibili.com/cheese/play/ep{req.EpId}"
+            : $"https://www.bilibili.com/bangumi/play/ep{req.EpId}";
+        var webSource = await GetWebSourceAsync(pageUrl, req.Cfg);
+        var match = PlayerJsonRegex( ).Match(webSource);
+        if (!match.Success)
+        {
+            throw new InvalidOperationException("从网页源码解析播放信息失败");
+        }
+
+        return match.Groups[1].Value;
+    }
+
+    internal static string BuildPlayUrlPrefix(bool tvApi, bool bangumi, bool cheese, string tvHost, string host)
     {
         var prefix = (tvApi, bangumi) switch
         {
@@ -88,6 +99,7 @@ public static partial class Parser
             (false, true) => $"{host}/pgc/player/web/v2/playurl",
             (false, false) => "api.bilibili.com/x/player/wbi/playurl"
         };
+        if (cheese) prefix = prefix.Replace("/pgc/", "/pugv/");
         return $"https://{prefix}?";
     }
 
