@@ -6,7 +6,7 @@ public static class Logger
 {
     public static void Log(object text, bool enter = true)
     {
-        Console.Write(DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss.fff]") + " - " + text);
+        Console.Write(DateTime.Now.ToString("[HH:mm:ss]") + " - " + text);
         if (enter)
         {
             Console.WriteLine( );
@@ -15,7 +15,7 @@ public static class Logger
 
     public static void LogError(object text)
     {
-        Console.Write(DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss.fff]") + " - ");
+        Console.Write(DateTime.Now.ToString("[HH:mm:ss]") + " - ");
         Console.ForegroundColor = ConsoleColor.Red;
         Console.Write(text);
         Console.ResetColor( );
@@ -26,7 +26,7 @@ public static class Logger
     {
         if (time)
         {
-            Console.Write(DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss.fff]") + " - ");
+            Console.Write(DateTime.Now.ToString("[HH:mm:ss]") + " - ");
         }
 
         Console.ForegroundColor = ConsoleColor.Cyan;
@@ -36,7 +36,7 @@ public static class Logger
         }
         else
         {
-            Console.Write("                            " + text);
+            Console.Write("            " + text);
         }
 
         Console.ResetColor( );
@@ -47,7 +47,7 @@ public static class Logger
     {
         if (time)
         {
-            Console.Write(DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss.fff]") + " - ");
+            Console.Write(DateTime.Now.ToString("[HH:mm:ss]") + " - ");
         }
 
         Console.ForegroundColor = ConsoleColor.DarkYellow;
@@ -57,7 +57,7 @@ public static class Logger
         }
         else
         {
-            Console.Write("                            " + text);
+            Console.Write("            " + text);
         }
 
         Console.ResetColor( );
@@ -69,7 +69,7 @@ public static class Logger
         if (Config.DebugLog)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write(DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss.fff]") + " - ");
+            Console.Write(DateTime.Now.ToString("[HH:mm:ss]") + " - ");
             if (args.Length > 0)
             {
                 Console.Write(string.Format(toFormat, args).Trim( ));

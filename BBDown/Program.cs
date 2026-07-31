@@ -138,6 +138,7 @@ internal sealed partial class Program
 
     private static Task RunApp(MyOption myOption)
     {
+        Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         return DoWorkAsync(myOption);
     }
 
