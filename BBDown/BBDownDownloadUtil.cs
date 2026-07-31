@@ -90,7 +90,7 @@ internal static class BBDownDownloadUtil
         }
 
         var retry = 0;
-        var tmpName = Path.Combine(desDir, Path.GetFileNameWithoutExtension(path) + ".tmp");
+        var tmpName = Path.Combine(desDir, Path.GetFileName(path) + ".tmp");
         while (true)
         {
             try
@@ -157,7 +157,7 @@ internal static class BBDownDownloadUtil
                 }
                 catch (NotSupportedException)
                 {
-                    if (++retry == 3) throw new NotSupportedException("服务器可能并不支持多线程下载, 请使用 --multi-thread false 关闭多线程");
+                    if (++retry == 3) throw new NotSupportedException("服务器可能并不支持多线程/Range 下载, 请使用 --single-thread 关闭多线程");
                 }
                 catch (Exception)
                 {
