@@ -474,7 +474,6 @@ internal sealed partial class Program
             if (downloadConfig.MultiThread && url.Contains("-cmcc-"))
             {
                 LogWarn("检测到 CMCC 域名 CDN，已经禁用多线程。");
-                downloadConfig.ForceHttp = false;
             }
 
             await DownloadFileAsync(url, destPath, downloadConfig);
