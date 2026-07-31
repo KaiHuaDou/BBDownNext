@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
@@ -10,13 +11,13 @@ namespace BBDown.Core.Fetcher;
 /// </summary>
 public static class SeriesListFetcher
 {
-    public static Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
-        return FetchByBizIdAsync(id[12..], cfg);
+        return FetchByBizIdAsync(id[12..], cfg, ct);
     }
 
-    internal static Task<VInfo> FetchByBizIdAsync(string bizId, AppConfig cfg)
+    internal static Task<VInfo> FetchByBizIdAsync(string bizId, AppConfig cfg, CancellationToken ct = default)
     {
-        return MediaListFetcher.FetchListAsync(bizId, 5, true, "系列", cfg);
+        return MediaListFetcher.FetchListAsync(bizId, 5, true, "系列", cfg, ct);
     }
 }

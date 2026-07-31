@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
@@ -18,19 +19,19 @@ namespace BBDown.Core.Fetcher;
 /// </summary>
 public static class MediaListFetcher
 {
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
         var bizId = id[10..];
         try
         {
-            return await FetchListAsync(bizId, 8, false, "合集", cfg);
+            return await FetchListAsync(bizId, 8, false, "合集", cfg, ct);
         }
         catch (InvalidOperationException listEx)
         {
             // 合集被删除、设为私密或无权访问时 data 为 null; 也可能是"系列"被误识别为合集
             try
             {
-                return await SeriesListFetcher.FetchByBizIdAsync(bizId, cfg);
+                return await SeriesListFetcher.FetchByBizIdAsync(bizId, cfg, ct);
             }
             catch (Exception seriesEx)
             {
@@ -40,10 +41,10 @@ public static class MediaListFetcher
     }
 
     // 合集(type=8)与系列(type=5)共用同一套 medialist 接口, 仅 type 与排序方向不同
-    internal static async Task<VInfo> FetchListAsync(string bizId, int type, bool descOrder, string label, AppConfig cfg)
+    internal static async Task<VInfo> FetchListAsync(string bizId, int type, bool descOrder, string label, AppConfig cfg, CancellationToken ct = default)
     {
         var api = $"{BiliApi.MediaListInfo}?type={type}&biz_id={bizId}&tid=0";
-        using var infoJson = JsonDocument.Parse(await GetWebSourceAsync(api, cfg));
+        using var infoJson = JsonDocument.Parse(await GetWebSourceAsync(api, cfg, null, ct));
         var data = infoJson.RootElement.GetProperty("data");
         if (data.ValueKind != JsonValueKind.Object)
         {
@@ -62,7 +63,7 @@ public static class MediaListFetcher
         while (hasMore)
         {
             var listApi = $"{BiliApi.MediaListResource}?type={type}&oid={oid}&otype=2&biz_id={bizId}&bvid=&with_current=true&mobi_app=web&ps=20&direction=false&sort_field=1&tid=0&desc={(descOrder ? "true" : "false")}";
-            using var listJson = JsonDocument.Parse(await GetWebSourceAsync(listApi, cfg));
+            using var listJson = JsonDocument.Parse(await GetWebSourceAsync(listApi, cfg, null, ct));
             var listData = listJson.RootElement.GetProperty("data");
             if (listData.ValueKind != JsonValueKind.Object)
             {

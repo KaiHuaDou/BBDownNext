@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -16,10 +17,10 @@ namespace BBDown.Core.Fetcher;
 
 public static partial class NormalInfoFetcher
 {
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
         var api = $"{BiliApi.View}?aid={id}";
-        var json = await GetWebSourceAsync(api, cfg);
+        var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
         var data = infoJson.RootElement.GetProperty("data");
         var title = data.GetProperty("title").ToString( );
@@ -62,7 +63,7 @@ public static partial class NormalInfoFetcher
         if (isSteinGate == 1) // 互动视频获取分P信息
         {
             var playerSoApi = $"{BiliApi.PlayerSo}?bvid={bvid}&id=cid:{cid}";
-            var playerSoText = await GetWebSourceAsync(playerSoApi, cfg);
+            var playerSoText = await GetWebSourceAsync(playerSoApi, cfg, null, ct);
             var playerSoXml = new XmlDocument( );
             playerSoXml.LoadXml($"<root>{playerSoText}</root>");
 
@@ -73,7 +74,7 @@ public static partial class NormalInfoFetcher
                 using var interactionDoc = JsonDocument.Parse(interactionNode.InnerText);
                 var graphVersion = interactionDoc.RootElement.GetProperty("graph_version").GetInt64( );
                 var edgeInfoApi = $"{BiliApi.EdgeInfo}?graph_version={graphVersion}&bvid={bvid}";
-                using var edgeInfoDoc = JsonDocument.Parse(await GetWebSourceAsync(edgeInfoApi, cfg));
+                using var edgeInfoDoc = JsonDocument.Parse(await GetWebSourceAsync(edgeInfoApi, cfg, null, ct));
                 var edgeInfoData = edgeInfoDoc.RootElement.GetProperty("data");
                 var questions = edgeInfoData.GetProperty("edges").GetProperty("questions").EnumerateArray( )
                     .ToList( );

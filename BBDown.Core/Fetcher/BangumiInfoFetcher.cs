@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
@@ -13,11 +14,11 @@ namespace BBDown.Core.Fetcher;
 
 public static class BangumiInfoFetcher
 {
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
         id = id[3..];
         var api = $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?ep_id={id}";
-        var json = await GetWebSourceAsync(api, cfg);
+        var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
         if (!infoJson.RootElement.TryGetProperty("result", out var result))
         {

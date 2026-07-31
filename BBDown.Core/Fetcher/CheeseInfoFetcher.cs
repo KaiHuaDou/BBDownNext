@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
@@ -11,12 +12,12 @@ namespace BBDown.Core.Fetcher;
 
 public static class CheeseInfoFetcher
 {
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
         id = id[7..];
         var index = "";
         var api = $"{BiliApi.SeasonPugv}?ep_id={id}";
-        var json = await GetWebSourceAsync(api, cfg);
+        var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
         var data = infoJson.RootElement.GetProperty("data");
         var cover = data.GetProperty("cover").ToString( );

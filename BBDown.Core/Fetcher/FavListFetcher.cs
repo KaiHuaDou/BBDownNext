@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
@@ -19,7 +20,7 @@ namespace BBDown.Core.Fetcher;
 /// </summary>
 public static class FavListFetcher
 {
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
         var parts = id[6..].Split(':');
         var favId = parts[0];
@@ -33,7 +34,7 @@ public static class FavListFetcher
             }
 
             var favListApi = $"{BiliApi.FavFolderList}?up_mid={mid}";
-            using var favJson = await GetJsonAsync(favListApi, cfg);
+            using var favJson = await GetJsonAsync(favListApi, cfg, ct);
             var folders = TryGetArray(favJson.RootElement.GetProperty("data"), "list", out var list)
                 ? EnumerateArrayOrEmpty(list)
                 : [];
@@ -47,7 +48,7 @@ public static class FavListFetcher
         List<Page> pagesInfo = [];
 
         var api = $"{BiliApi.FavResourceList}?media_id={favId}&pn=1&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
-        var json = await GetWebSourceAsync(api, cfg);
+        var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
         var data = infoJson.RootElement.GetProperty("data");
         var totalCount = data.GetProperty("info").GetProperty("media_count").GetInt32( );
@@ -61,7 +62,7 @@ public static class FavListFetcher
         for (var page = 2; page <= totalPage; page++)
         {
             api = $"{BiliApi.FavResourceList}?media_id={favId}&pn={page}&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
-            json = await GetWebSourceAsync(api, cfg);
+            json = await GetWebSourceAsync(api, cfg, null, ct);
             // medias 元素要在循环外继续使用, Clone 后才能安全释放 jsonDoc
             using var jsonDoc = JsonDocument.Parse(json);
             medias.AddRange(EnumerateArrayOrEmpty(jsonDoc.RootElement.GetProperty("data").GetProperty("medias")).Select(m => m.Clone( )));
@@ -79,7 +80,7 @@ public static class FavListFetcher
             var pageCount = m.GetProperty("page").GetInt32( );
             if (pageCount > 1)
             {
-                var tmpInfo = await NormalInfoFetcher.FetchAsync(m.GetProperty("id").ToString( ), cfg);
+                var tmpInfo = await NormalInfoFetcher.FetchAsync(m.GetProperty("id").ToString( ), cfg, ct);
                 foreach (var item in tmpInfo.PagesInfo)
                 {
                     var p = item.CopyWith(index++);

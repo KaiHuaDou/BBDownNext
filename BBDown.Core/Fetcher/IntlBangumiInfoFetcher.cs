@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
@@ -13,13 +14,13 @@ namespace BBDown.Core.Fetcher;
 
 public static partial class IntlBangumiInfoFetcher
 {
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
         id = id[3..];
         var host = cfg.Host == BiliApi.MainHost ? BiliApi.IntlAppHost : cfg.Host;
         var accessKey = cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "";
         var api = $"https://{host}{BiliApi.IntlSeasonAppPath}?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a{accessKey}";
-        var json = (await GetWebSourceAsync(api, cfg)).Replace("\\/", "/");
+        var json = (await GetWebSourceAsync(api, cfg, null, ct)).Replace("\\/", "/");
         using var infoJson = JsonDocument.Parse(json);
         if (!infoJson.RootElement.TryGetProperty("result", out var result))
         {
@@ -33,7 +34,7 @@ public static partial class IntlBangumiInfoFetcher
         if (cover.Length == 0)
         {
             var animeUrl = $"{BiliApi.AnimePage}/{seasonId}";
-            var web = await GetWebSourceAsync(animeUrl, cfg);
+            var web = await GetWebSourceAsync(animeUrl, cfg, null, ct);
             if (web.Length != 0)
             {
                 var regex = StateRegex( );
