@@ -107,20 +107,17 @@ public static partial class NormalInfoFetcher
             }
         }
 
-        try
+        //稿件被重定向到番剧播放页时，该稿件按番剧处理
+        if (data.TryGetProperty("redirect_url", out var redirectUrl) && redirectUrl.ValueKind == JsonValueKind.String
+            && IsBangumiPlayPage(redirectUrl.GetString( ) ?? ""))
         {
-            if (data.GetProperty("redirect_url").ToString( ).Contains("bangumi"))
+            bangumi = true;
+            //番剧内容通常不会有分P，如果有分P则不需要epId参数
+            if (pages.Count == 1 && EpIdRegex( ).Match(redirectUrl.GetString( )!) is { Success: true } epMatch)
             {
-                bangumi = true;
-                var epId = EpIdRegex( ).Match(data.GetProperty("redirect_url").ToString( )).Groups[1].Value;
-                //番剧内容通常不会有分P，如果有分P则不需要epId参数
-                if (pages.Count == 1)
-                {
-                    pagesInfo.ForEach(p => p.epid = epId);
-                }
+                pagesInfo.ForEach(p => p.epid = epMatch.Groups[1].Value);
             }
         }
-        catch { }
 
         var info = new VInfo
         {

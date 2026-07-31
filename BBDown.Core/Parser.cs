@@ -12,6 +12,7 @@ using BBDown.Core.Entity;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
+using static BBDown.Core.Util.JsonUtil;
 
 namespace BBDown.Core;
 
@@ -62,7 +63,7 @@ public static partial class Parser
             + (req.TvApi ? BuildTvApiQuery(req, qn) : BuildWebApiQuery(req, qn));
 
         var webJson = await GetWebSourceAsync(api, req.Cfg);
-        if (!webJson.Contains("\"大会员专享限制\""))
+        if (!IsVipRestricted(webJson))
         {
             return webJson;
         }
@@ -71,6 +72,34 @@ public static partial class Parser
         Log("此视频需要大会员，您大概率需要登录一个有大会员的账号才可以下载，尝试从网页源码解析。");
         return await GetPlayJsonFromWebPageAsync(req);
     }
+
+    // playurl 接口对大会员限制没有专用错误码，只能认 message 文案；不同端点分别用 message / msg
+    internal static bool IsVipRestricted(string webJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(webJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return false;
+
+            foreach (var key in VipRestrictionMessageKeys)
+            {
+                if (doc.RootElement.TryGetProperty(key, out var message)
+                    && message.ValueKind == JsonValueKind.String
+                    && message.GetString( ) == "大会员专享限制")
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static readonly string[] VipRestrictionMessageKeys = ["message", "msg"];
 
     // 大会员专享限制时, 改从网页源码抠 window.__playinfo__。
     // 与正常 API 路径解耦为独立方法, 并按 cheese / 番剧构造正确的播放页地址,
@@ -186,25 +215,27 @@ public static partial class Parser
         LogDebug(parsedResult.WebJsonString);
 
         //intl接口: prefer_code_type 0/1 各请求一次, 合并两次拿到的轨道
-        var intlRetried = false;
-        while (parsedResult.WebJsonString.Contains("\"stream_list\""))
+        for (var intlAttempt = 0; intlAttempt < 2; intlAttempt++)
         {
-            CollectIntlTracks(parsedResult, JsonDocument.Parse(parsedResult.WebJsonString).RootElement);
-            if (intlRetried) return parsedResult;
+            using var intlDoc = JsonDocument.Parse(parsedResult.WebJsonString);
+            if (!TryGetIntlVideoInfo(intlDoc.RootElement, out var videoInfo)) break;
 
-            intlRetried = true;
+            CollectIntlTracks(parsedResult, videoInfo);
+            if (intlAttempt == 1) return parsedResult;
+
             parsedResult.WebJsonString = await GetIntlPlayJsonAsync(aid, cid, epId, qn, cfg, "1");
         }
 
-        var data = JsonDocument.Parse(parsedResult.WebJsonString).RootElement;
-        var nodeName = ResolveDataNodeName(parsedResult.WebJsonString);
+        var doc = JsonDocument.Parse(parsedResult.WebJsonString);
+        var data = doc.RootElement;
+        var nodeName = ResolveDataNodeName(data);
         var root = GetRootNode(data, nodeName);
 
-        if (parsedResult.WebJsonString.Contains("\"dash\":{"))
+        if (HasObject(root, "dash"))
         {
             root = await ExtractDashTracksAsync(parsedResult, req, data, root, nodeName);
         }
-        else if (parsedResult.WebJsonString.Contains("\"durl\":["))
+        else if (TryGetArray(root, "durl", out _))
         {
             root = await ExtractFlvTracksAsync(parsedResult, req, nodeName);
         }
@@ -218,14 +249,29 @@ public static partial class Parser
     }
 
     // data 节点一次性判断完；v2 接口把有效载荷藏在 result.video_info 下
-    internal static string? ResolveDataNodeName(string webJson)
+    internal static string? ResolveDataNodeName(JsonElement data)
     {
-        if (webJson.Contains("\"result\":{"))
+        if (data.ValueKind != JsonValueKind.Object) return null;
+
+        if (data.TryGetProperty("result", out var result) && result.ValueKind == JsonValueKind.Object)
         {
-            return webJson.Contains("\"video_info\":{") ? "video_info" : "result";
+            return HasObject(result, "video_info") ? "video_info" : "result";
         }
 
-        return webJson.Contains("\"data\":{") ? "data" : null;
+        return HasObject(data, "data") ? "data" : null;
+    }
+
+    // intl 接口的有效载荷落在 data.video_info 下，只有它带 stream_list 才走 intl 分支
+    private static bool TryGetIntlVideoInfo(JsonElement root, out JsonElement videoInfo)
+    {
+        videoInfo = default;
+        if (!HasObject(root, "data")) return false;
+
+        var data = root.GetProperty("data");
+        if (!HasObject(data, "video_info")) return false;
+
+        videoInfo = data.GetProperty("video_info");
+        return TryGetArray(videoInfo, "stream_list", out _);
     }
 
     internal static JsonElement GetRootNode(JsonElement data, string? nodeName)
@@ -238,9 +284,8 @@ public static partial class Parser
         };
     }
 
-    private static void CollectIntlTracks(ParsedResult parsedResult, JsonElement data)
+    private static void CollectIntlTracks(ParsedResult parsedResult, JsonElement videoInfo)
     {
-        var videoInfo = data.GetProperty("data").GetProperty("video_info");
         var pDur = videoInfo.GetProperty("timelength").GetInt32( ) / 1000;
 
         foreach (var stream in videoInfo.GetProperty("stream_list").EnumerateArray( ))

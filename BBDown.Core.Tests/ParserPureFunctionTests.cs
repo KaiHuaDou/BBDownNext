@@ -63,7 +63,8 @@ public class ParserPureFunctionTests
     [InlineData("""{"dash":{}}""", null)]
     public void ResolveDataNodeName_PicksPayloadNode(string json, string? expected)
     {
-        Assert.Equal(expected, Parser.ResolveDataNodeName(json));
+        using var doc = JsonDocument.Parse(json);
+        Assert.Equal(expected, Parser.ResolveDataNodeName(doc.RootElement));
     }
 
     [Fact]
@@ -79,6 +80,27 @@ public class ParserPureFunctionTests
     {
         using var doc = JsonDocument.Parse("""{"quality":64}""");
         Assert.Equal(64, Parser.GetRootNode(doc.RootElement, null).GetProperty("quality").GetInt32( ));
+    }
+
+    [Theory]
+    [InlineData("""{"code":-10403,"message":"大会员专享限制"}""", true)]
+    [InlineData("""{"code":-10403,"msg":"大会员专享限制"}""", true)]
+    [InlineData("""{"code":0,"message":"0"}""", false)]
+    [InlineData("""{"message":"大会员专享限制的说明"}""", false)]
+    [InlineData("""{"data":{"message":"大会员专享限制"}}""", false)]
+    public void IsVipRestricted_OnlyMatchesTopLevelMessage(string json, bool expected)
+    {
+        Assert.Equal(expected, Parser.IsVipRestricted(json));
+    }
+
+    // 网页源码兜底路径会把 HTML 传进来，不能因为解析失败就崩
+    [Theory]
+    [InlineData("")]
+    [InlineData("<html>大会员专享限制</html>")]
+    [InlineData("[1,2,3]")]
+    public void IsVipRestricted_NonJsonOrNonObject_ReturnsFalse(string input)
+    {
+        Assert.False(Parser.IsVipRestricted(input));
     }
 
     [Fact]

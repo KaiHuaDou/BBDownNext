@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -9,6 +8,7 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using static BBDown.Core.Util.JsonUtil;
 
 namespace BBDown.Core.Fetcher;
 
@@ -49,28 +49,26 @@ public static partial class IntlBangumiInfoFetcher
 
         var pubTimeStr = result.GetProperty("publish").GetProperty("pub_time").ToString( );
         var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", null).ToUnixTimeSeconds( );
-        List<JsonElement> pages = [];
-        if (result.TryGetProperty("episodes", out var episodes))
-        {
-            pages = episodes.EnumerateArray( ).ToList( );
-        }
-
+        TryGetArray(result, "episodes", out var pages);
         List<Page> pagesInfo = [];
         var i = 1;
 
-        if (result.TryGetProperty("modules", out var modules))
+        //目标 ep 可能不在主 episodes 里，而在某个 module 的分组下
+        if (TryGetArray(result, "modules", out var modules))
         {
             foreach (var section in modules.EnumerateArray( ))
             {
-                if (section.ToString( ).Contains($"/{id}"))
+                if (section.TryGetProperty("data", out var data)
+                    && TryGetArray(data, "episodes", out var sectionEpisodes)
+                    && ContainsEpisode(sectionEpisodes, id))
                 {
-                    pages = section.GetProperty("data").GetProperty("episodes").EnumerateArray( ).ToList( );
+                    pages = sectionEpisodes;
                     break;
                 }
             }
         }
 
-        foreach (var page in pages)
+        foreach (var page in EnumerateArrayOrEmpty(pages))
         {
             //跳过预告
             if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告")

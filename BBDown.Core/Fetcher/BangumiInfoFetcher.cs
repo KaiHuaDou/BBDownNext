@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -8,6 +7,7 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using static BBDown.Core.Util.JsonUtil;
 
 namespace BBDown.Core.Fetcher;
 
@@ -29,28 +29,25 @@ public static class BangumiInfoFetcher
         var desc = result.GetProperty("evaluate").ToString( );
         var pubTimeStr = result.GetProperty("publish").GetProperty("pub_time").ToString( );
         var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", null).ToUnixTimeSeconds( );
-        var pages = result.GetProperty("episodes").EnumerateArray( );
+        TryGetArray(result, "episodes", out var pages);
         List<Page> pagesInfo = [];
         var i = 1;
 
         //episodes为空; 或者未包含对应epid，番外/花絮什么的
-        if (!(pages.Any( ) && result.GetProperty("episodes").ToString( ).Contains($"/ep{id}")))
+        if (!ContainsEpisode(pages, id) && TryGetArray(result, "section", out var sections))
         {
-            if (result.TryGetProperty("section", out var sections))
+            foreach (var section in sections.EnumerateArray( ))
             {
-                foreach (var section in sections.EnumerateArray( ))
+                if (TryGetArray(section, "episodes", out var sectionEpisodes) && ContainsEpisode(sectionEpisodes, id))
                 {
-                    if (section.ToString( ).Contains($"/ep{id}"))
-                    {
-                        title += "[" + section.GetProperty("title").ToString( ) + "]";
-                        pages = section.GetProperty("episodes").EnumerateArray( );
-                        break;
-                    }
+                    title += "[" + section.GetProperty("title").ToString( ) + "]";
+                    pages = sectionEpisodes;
+                    break;
                 }
             }
         }
 
-        foreach (var page in pages)
+        foreach (var page in EnumerateArrayOrEmpty(pages))
         {
             //跳过预告
             if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告")

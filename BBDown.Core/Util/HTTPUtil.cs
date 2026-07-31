@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using static BBDown.Core.Logger;
@@ -13,7 +15,7 @@ namespace BBDown.Core.Util;
 // CA1054/CA2234: 本类中以 string 接收 url 的公开方法（GetWebSourceAsync / GetWebLocationAsync /
 // GetJsonAsync / AddDownloadHeaders / GetWithRangeAsync / GetPostResponseAsync）均被 BBDown 主项目
 // 直接调用，改为 System.Uri 会造成跨项目破坏性变更（本次改动范围仅限 BBDown.Core），故保留 string。
-public static class HTTPUtil
+public static partial class HTTPUtil
 {
 
     public static readonly HttpClient AppHttpClient = new(new HttpClientHandler
@@ -45,12 +47,23 @@ public static class HTTPUtil
 
     public static string UserAgent { get; set; } = GetRandomUserAgent( );
 
+    // 番剧播放页要带 CURRENT_FNVAL 才会吐出 dash 源。只认 /ep123 /ss123 这样完整的路径段，
+    // 裸 Contains("/ep") 会把 /episodes、/ssl 之类一并命中
+    internal static bool IsBangumiPlayPage(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+               && uri.Segments.Any(segment => BangumiSegmentRegex( ).IsMatch(segment.TrimEnd('/')));
+    }
+
+    [GeneratedRegex(@"^(ep|ss)\d+$")]
+    private static partial Regex BangumiSegmentRegex( );
+
     public static async Task<string> GetWebSourceAsync(string url, AppConfig cfg, string? userAgent = null)
     {
         using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
         webRequest.Headers.TryAddWithoutValidation("User-Agent", userAgent ?? UserAgent);
         webRequest.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
-        webRequest.Headers.TryAddWithoutValidation("Cookie", (url.Contains("/ep") || url.Contains("/ss")) ? cfg.Cookie + ";CURRENT_FNVAL=4048;" : cfg.Cookie);
+        webRequest.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? cfg.Cookie + ";CURRENT_FNVAL=4048;" : cfg.Cookie);
         if (url.Contains("api.bilibili.com"))
         {
             webRequest.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com/");
