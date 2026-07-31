@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Binary;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Xunit;
@@ -52,9 +53,31 @@ public class AppHelperTests
         Assert.Equal([1, 2, 3], AppHelper.ReadMessage(data));
     }
 
-    [Fact]
-    public void ReadMessage_ThrowsOnTruncatedHeader()
+    [Theory]
+    [InlineData(new byte[] { })]
+    [InlineData(new byte[] { 0 })]
+    [InlineData(new byte[] { 0, 1, 2 })]
+    [InlineData(new byte[] { 0, 0, 0, 0 })]
+    public void ReadMessage_ThrowsOnTruncatedHeader(byte[] data)
     {
-        Assert.ThrowsAny<ArgumentException>(( ) => AppHelper.ReadMessage([0, 1, 2]));
+        Assert.Throws<InvalidDataException>(( ) => AppHelper.ReadMessage(data));
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0, 0, 0, 0, 4, 1, 2, 3 })]
+    [InlineData(new byte[] { 0, 0x7F, 0xFF, 0xFF, 0xFF, 1 })]
+    [InlineData(new byte[] { 0, 0xFF, 0xFF, 0xFF, 0xFF, 1 })]
+    public void ReadMessage_ThrowsWhenDeclaredSizeExceedsBuffer(byte[] data)
+    {
+        Assert.Throws<InvalidDataException>(( ) => AppHelper.ReadMessage(data));
+    }
+
+    [Fact]
+    public void ReadMessage_DecompressesExactBodyIgnoringTrailer()
+    {
+        var packed = AppHelper.PackMessage(Encoding.UTF8.GetBytes("带 trailer 的 gRPC 帧"));
+        byte[] withTrailer = [.. packed, 0x80, 0, 0, 0, 0x10, .. Encoding.ASCII.GetBytes("grpc-status:0\r\n")];
+
+        Assert.Equal(Encoding.UTF8.GetBytes("带 trailer 的 gRPC 帧"), AppHelper.ReadMessage(withTrailer));
     }
 }

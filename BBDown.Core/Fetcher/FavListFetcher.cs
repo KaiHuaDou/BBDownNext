@@ -8,6 +8,7 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using static BBDown.Core.Util.JsonUtil;
 
 namespace BBDown.Core.Fetcher;
 
@@ -20,15 +21,25 @@ public static class FavListFetcher
 {
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
-        id = id[6..];
-        var favId = id.Split(':')[0];
-        var mid = id.Split(':')[1];
+        var parts = id[6..].Split(':');
+        var favId = parts[0];
+        var mid = parts.Length > 1 ? parts[1] : "";
         //查找默认收藏夹
         if (favId.Length == 0)
         {
+            if (mid.Length == 0)
+            {
+                throw new ArgumentException($"收藏夹链接缺少 fid 与用户 id: {id}", nameof(id));
+            }
+
             var favListApi = $"{BiliApi.FavFolderList}?up_mid={mid}";
             using var favJson = await GetJsonAsync(favListApi, cfg);
-            favId = favJson.RootElement.GetProperty("data").GetProperty("list").EnumerateArray( ).First( ).GetProperty("id").ToString( );
+            var folders = TryGetArray(favJson.RootElement.GetProperty("data"), "list", out var list)
+                ? EnumerateArrayOrEmpty(list)
+                : [];
+            favId = folders.FirstOrDefault( ) is { ValueKind: JsonValueKind.Object } folder
+                ? folder.GetProperty("id").ToString( )
+                : throw new InvalidOperationException($"用户 {mid} 没有可下载的收藏夹");
         }
 
         var pageSize = 20;

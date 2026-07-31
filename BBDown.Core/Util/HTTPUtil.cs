@@ -171,9 +171,32 @@ public static partial class HTTPUtil
             request.Headers.TryAddWithoutValidation("grpc-encoding", "gzip");
         }
 
-        var response = await AppHttpClient.SendAsync(request);
+        using var response = await AppHttpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException($"gRPC 请求失败: HTTP {(int) response.StatusCode} {response.ReasonPhrase}", null, response.StatusCode);
+        }
+
         var bytes = await response.Content.ReadAsByteArrayAsync( );
 
+        // grpc-status 可能出现在响应头, 也可能出现在读完 body 后的 trailer 中
+        var status = ReadGrpcMeta(response, "grpc-status");
+        if (status is not (null or "0"))
+        {
+            throw new HttpRequestException($"gRPC 返回错误 status={status}: {ReadGrpcMeta(response, "grpc-message") ?? "无错误描述"}");
+        }
+
         return bytes;
+    }
+
+    private static string? ReadGrpcMeta(HttpResponseMessage response, string name)
+    {
+        if (response.Headers.TryGetValues(name, out var values)
+            || response.TrailingHeaders.TryGetValues(name, out values))
+        {
+            return values.FirstOrDefault( );
+        }
+
+        return null;
     }
 }

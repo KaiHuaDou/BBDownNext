@@ -21,7 +21,8 @@ public static class Entity
         public string? desc { get; set; }
         public string? ownerName { get; set; }
         public string? ownerMid { get; set; }
-        public string bvid => BilibiliBvConverter.Encode(long.Parse(aid));
+        // 番剧/课程等场景 aid 可能为空或非数字, 此时没有对应 BV 号, 不应连累文件名模板与元数据写入
+        public string bvid => long.TryParse(aid, out var avid) && avid > 0 ? BilibiliBvConverter.Encode(avid) : "";
         // CA1002: 保持 List<T>，调用方（BBDown 主项目）会对该集合执行 Add/整体替换
         public List<ViewPoint> points { get; set; } = [];
 

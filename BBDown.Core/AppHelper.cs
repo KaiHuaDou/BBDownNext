@@ -333,23 +333,20 @@ internal static class AppHelper
     /// <returns>字节流</returns>
     public static byte[] ReadMessage(byte[] data)
     {
-        byte first;
-        int size;
-        (first, size) = ReadInfo(data);
-        return first == 1 ? GzipDecompress(data[5..]) : data[5..(5 + size)];
-    }
+        if (data.Length < 5)
+        {
+            throw new InvalidDataException($"gRPC 响应帧头不足 5 字节(实际 {data.Length} 字节)");
+        }
 
-    /// <summary>
-    /// 读取报文长度
-    /// </summary>
-    /// <param name="data"></param>
-    /// <returns></returns>
-    private static (byte first, int size) ReadInfo(byte[] data)
-    {
-        var value1 = data[0];
-        var value2 = data[1..5];
+        var compressed = data[0] == 1;
+        var size = BinaryPrimitives.ReadInt32BigEndian(data.AsSpan(1, 4));
+        if (size < 0 || 5L + size > data.Length)
+        {
+            throw new InvalidDataException($"gRPC 帧头声明报文体 {size} 字节, 实际只有 {data.Length - 5} 字节");
+        }
 
-        return (value1, BinaryPrimitives.ReadInt32BigEndian(value2));
+        var body = data[5..(5 + size)];
+        return compressed ? GzipDecompress(body) : body;
     }
 
     /// <summary>

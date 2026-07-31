@@ -64,6 +64,17 @@ public class EntityTests
         Assert.Equal("BV1qt4y1X7TW", p.bvid);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("ep123456")]
+    [InlineData("99999999999999999999")]
+    public void Page_Bvid_EmptyWhenAidIsNotAnAvNumber(string aid)
+    {
+        Assert.Equal("", MakePage(aid: aid).bvid);
+    }
+
     [Fact]
     public void Video_Equality_ExcludesBaseUrlAndSize( )
     {
