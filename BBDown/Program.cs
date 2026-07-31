@@ -238,11 +238,26 @@ internal sealed partial class Program
         }
 
         (aid, var vInfo) = await FetchVideoInfoAsync(aid, cfg, myOption.UseIntlApi);
+        NormalizeOptionsAfterFetch(myOption, vInfo);
         PrintVideoSummary(vInfo, myOption);
         var apiType = DetermineApiType(myOption);
         PrintPagesInfo(vInfo, myOption);
 
         return ctx with { FetchedAid = aid, VInfo = vInfo, ApiType = apiType, Cfg = cfg };
+    }
+
+    /// <summary>
+    /// 视频信息解析完成后, 依据视频属性消解选项冲突。
+    /// 与 HandleConflictingOptions 分工: 后者只处理不依赖视频信息的冲突,
+    /// 此处处理需要 vInfo 才能判断的冲突(如互动视频不支持 TV 下载)。
+    /// </summary>
+    private static void NormalizeOptionsAfterFetch(MyOption myOption, VInfo vInfo)
+    {
+        if (vInfo.IsSteinGate && myOption.UseTvApi)
+        {
+            Log("视频为互动视频，暂时不支持 TV 下载，修改为默认下载。");
+            myOption.UseTvApi = false;
+        }
     }
 
     private static async Task<(string aid, VInfo vInfo)> FetchVideoInfoAsync(string aid, AppConfig cfg, bool useIntlApi)
@@ -296,12 +311,6 @@ internal sealed partial class Program
         if (!string.IsNullOrEmpty(mid))
         {
             Log($"UP 主页：https://space.bilibili.com/{mid}");
-        }
-
-        if (vInfo.IsSteinGate && myOption.UseTvApi)
-        {
-            Log("视频为互动视频，暂时不支持 TV 下载，修改为默认下载。");
-            myOption.UseTvApi = false;
         }
     }
 
