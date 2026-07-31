@@ -63,8 +63,7 @@ internal sealed partial class Program
     {
         Console.CancelKeyPress += Console_CancelKeyPress;
 
-        var resolvedArgs = new List<string>( );
-        var rootCommand = CommandLineInvoker.GetRootCommand(o => RunApp(o, resolvedArgs));
+        var rootCommand = CommandLineInvoker.GetRootCommand(RunApp);
         rootCommand.Description = "BBDown 是一个免费且便捷高效的哔哩哔哩下载/解析软件。";
         rootCommand.TreatUnmatchedTokensAsErrors = false;
 
@@ -86,45 +85,13 @@ internal sealed partial class Program
         serverCommand.SetAction(result => StartServer(result.GetValue<string>("--listen")));
         rootCommand.Subcommands.Add(serverCommand);
 
-        var rootResult = rootCommand.Parse(args, new ParserConfiguration( )
+        var parserConfiguration = new ParserConfiguration( )
         {
             EnablePosixBundling = true,
-        });
+        };
 
-        // 显式抛出异常
-        if (rootResult.Errors.Count != 0)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Error.WriteLine(rootResult.Errors[0].Message);
-            Console.ResetColor( );
-            Console.Error.WriteLine("请使用 BBDown --help 查看帮助");
-            return 1;
-        }
-
-        var argsList = new List<string>( );
-
-        foreach (var item in rootResult.CommandResult.Children)
-        {
-            if (item is ArgumentResult a)
-            {
-                if (a.Tokens.Count > 0)
-                {
-                    argsList.Add(a.Tokens[0].Value);
-                }
-            }
-            else if (item is OptionResult o)
-            {
-                argsList.Add($"--{o.Option.Name}");
-                argsList.AddRange(o.Tokens.Select(t => t.Value));
-            }
-        }
-
-        resolvedArgs.AddRange(argsList);
-
-        if (argsList.Contains("--debug"))
-        {
-            Config.SetDebugLog(true);
-        }
+        var rootResult = rootCommand.Parse(args, parserConfiguration);
+        if (!TryReportParseErrors(rootResult)) return 1;
 
         Console.BackgroundColor = ConsoleColor.DarkBlue;
         Console.ForegroundColor = ConsoleColor.White;
@@ -133,16 +100,35 @@ internal sealed partial class Program
         Console.ResetColor( );
         Console.WriteLine( );
 
-        //处理配置文件
-        BBDownConfigParser.HandleConfig(argsList, rootCommand);
+        //配置文件只补齐命令行未显式指定的选项，补齐后需重新解析一次
+        if (rootResult.CommandResult.Command == rootCommand)
+        {
+            var mergedArgs = BBDownConfigParser.MergeWithConfig(args, rootResult, rootCommand);
+            if (!ReferenceEquals(mergedArgs, args))
+            {
+                rootResult = rootCommand.Parse(mergedArgs, parserConfiguration);
+                if (!TryReportParseErrors(rootResult)) return 1;
+            }
+        }
 
         return await rootResult.InvokeAsync(new InvocationConfiguration( ) { EnableDefaultExceptionHandler = false });
     }
 
-    private static Task RunApp(MyOption myOption, List<string> argsList)
+    private static bool TryReportParseErrors(ParseResult parseResult)
+    {
+        if (parseResult.Errors.Count == 0) return true;
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.Error.WriteLine(parseResult.Errors[0].Message);
+        Console.ResetColor( );
+        Console.Error.WriteLine("请使用 BBDown --help 查看帮助");
+        return false;
+    }
+
+    private static Task RunApp(MyOption myOption)
     {
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        return DoWorkAsync(myOption, argsList);
+        return DoWorkAsync(myOption);
     }
 
     private static void StartServer(string? listenUrl)
@@ -155,28 +141,22 @@ internal sealed partial class Program
 #pragma warning restore CA2234
     }
 
-    public static WorkContext BuildWorkContext(MyOption myOption, List<string>? argsList = null)
+    public static WorkContext BuildWorkContext(MyOption myOption)
     {
+        Config.SetDebugLog(myOption.Debug);
+
         //处理冲突选项
         HandleConflictingOptions(myOption);
 
         //寻找并设置所需的二进制文件路径
         FindBinaries(myOption);
 
-        //切换工作目录
-        ChangeWorkingDir(myOption);
+        //确定本次任务的工作目录（不修改进程全局 CurrentDirectory，serve 模式下多任务会互相踩踏）
+        var workDir = ResolveWorkDir(myOption);
 
         //解析优先级
         var (encodingPriority, firstEncoding) = ParseEncodingPriority(myOption);
         var dfnPriority = ParseDfnPriority(myOption);
-
-        //用户同时指定了编码与清晰度优先级时，以命令行书写的先后为准
-        //(serve 模式由 JSON 注入参数，无命令行顺序，默认清晰度优先)
-        var encodingFirst = argsList != null
-            && argsList.Contains("--encoding-priority")
-            && argsList.Contains("--dfn-priority")
-            && argsList.FindIndex(s => s == "--encoding-priority")
-               < argsList.FindIndex(s => s == "--dfn-priority");
 
         //优先使用用户设置的 UA
         HTTPUtil.UserAgent = string.IsNullOrEmpty(myOption.UserAgent) ? HTTPUtil.UserAgent : myOption.UserAgent;
@@ -188,7 +168,6 @@ internal sealed partial class Program
         var savePathFormat = myOption.FilePattern;
         var lang = myOption.Language;
         var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
-        Config.SetDebugLog(myOption.Debug);
 
         LogDebug("AppDirectory: {0}", APP_DIR);
         LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption, MyOptionJsonContext.Default.MyOption));
@@ -196,7 +175,7 @@ internal sealed partial class Program
             EncodingPriority: encodingPriority,
             DfnPriority: dfnPriority,
             FirstEncoding: firstEncoding,
-            EncodingFirst: encodingFirst,
+            EncodingFirst: myOption.EncodingFirst,
             DownloadDanmaku: downloadDanmaku,
             DownloadDanmakuFormats: downloadDanmakuFormats,
             Input: input,
@@ -206,7 +185,8 @@ internal sealed partial class Program
             FetchedAid: "",
             VInfo: null,
             ApiType: "",
-            Cfg: default);
+            Cfg: default,
+            WorkDir: workDir);
     }
 
     public static async Task<WorkContext> GetVideoInfoAsync(MyOption myOption, WorkContext ctx)
@@ -329,11 +309,11 @@ internal sealed partial class Program
         }
     }
 
-    private static async Task DoWorkAsync(MyOption myOption, List<string>? argsList = null)
+    private static async Task DoWorkAsync(MyOption myOption)
     {
         try
         {
-            var ctx = BuildWorkContext(myOption, argsList);
+            var ctx = BuildWorkContext(myOption);
             ctx = await GetVideoInfoAsync(myOption, ctx);
             await DownloadPagesAsync(myOption, ctx);
         }

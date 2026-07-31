@@ -9,12 +9,15 @@ internal class MyOption
     public bool UseMP4box { get; set; }
     public string? EncodingPriority { get; set; }
     public string? DfnPriority { get; set; }
+    /// <summary>命令行上 --encoding-priority 写在 --dfn-priority 之前时为 true；serve 模式无书写顺序，恒为 false。</summary>
+    public bool EncodingFirst { get; set; }
     public bool OnlyShowInfo { get; set; }
     public bool ShowAll { get; set; }
     public bool UseAria2c { get; set; }
     public bool Interactive { get; set; }
     public bool HideStreams { get; set; }
     public bool MultiThread { get; set; } = true;
+    public bool SingleThread { get; set; }
     public bool SimplyMux { get; set; }
     public bool VideoOnly { get; set; }
     public bool AudioOnly { get; set; }
