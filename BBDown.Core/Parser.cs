@@ -45,7 +45,7 @@ public static partial class Parser
 
     private static async Task<string> GetPlayJsonAsync(PlayUrlRequest req, string qn = "0")
     {
-        LogDebug("aid={0},cid={1},epId={2},tvApi={3},IntlApi={4},appApi={5},qn={6}", req.Aid, req.Cid, req.EpId, req.TvApi, req.IntlApi, req.AppApi, qn);
+        LogDebug("aid={0},cid={1},epId={2},tvApi={3},IntlApi={4},qn={5}", req.Aid, req.Cid, req.EpId, req.TvApi, req.IntlApi, qn);
 
         if (req.IntlApi)
         {
@@ -53,11 +53,6 @@ public static partial class Parser
         }
 
         LogDebug("bangumi={0},cheese={1}", req.IsBangumi, req.IsCheese);
-
-        if (req.AppApi)
-        {
-            return await AppHelper.DoReqAsync(req.Aid, req.Cid, req.EpId, req.IsBangumi, req.Encoding, req.Cfg);
-        }
 
         var api = BuildPlayUrlPrefix(req.TvApi, req.IsBangumi, req.IsCheese, req.Cfg.TvHost, req.Cfg.Host)
             + (req.TvApi ? BuildTvApiQuery(req, qn) : BuildWebApiQuery(req, qn));
@@ -206,34 +201,41 @@ public static partial class Parser
     public static async Task<ParsedResult> ExtractTracksAsync(string aidOri, string aid, string cid, string epId, bool tvApi, bool intlApi, bool appApi, string encoding, AppConfig cfg, string qn = "0")
     {
         PlayUrlRequest req = new(aidOri, aid, cid, epId, tvApi, intlApi, appApi, encoding, cfg);
+
+        // intl 与 app 同时指定时沿用 intl, 与 GetPlayJsonAsync 的优先级保持一致
+        if (req.AppApi && !req.IntlApi)
+        {
+            return await ExtractAppTracksAsync(req);
+        }
+
         ParsedResult parsedResult = new( )
         {
             //调用解析
-            WebJsonString = await GetPlayJsonAsync(req, qn)
+            RawResponse = await GetPlayJsonAsync(req, qn)
         };
 
-        LogDebug(parsedResult.WebJsonString);
+        LogDebug(parsedResult.RawResponse);
 
         //intl接口: prefer_code_type 0/1 各请求一次, 合并两次拿到的轨道
         for (var intlAttempt = 0; intlAttempt < 2; intlAttempt++)
         {
-            using var intlDoc = JsonDocument.Parse(parsedResult.WebJsonString);
+            using var intlDoc = JsonDocument.Parse(parsedResult.RawResponse);
             if (!TryGetIntlVideoInfo(intlDoc.RootElement, out var videoInfo)) break;
 
             CollectIntlTracks(parsedResult, videoInfo);
             if (intlAttempt == 1) return parsedResult;
 
-            parsedResult.WebJsonString = await GetIntlPlayJsonAsync(aid, cid, epId, qn, cfg, "1");
+            parsedResult.RawResponse = await GetIntlPlayJsonAsync(aid, cid, epId, qn, cfg, "1");
         }
 
-        using var doc = JsonDocument.Parse(parsedResult.WebJsonString);
+        using var doc = JsonDocument.Parse(parsedResult.RawResponse);
         var data = doc.RootElement;
         var nodeName = ResolveDataNodeName(data);
         var root = GetRootNode(data, nodeName);
 
         if (HasObject(root, "dash"))
         {
-            root = await ExtractDashTracksAsync(parsedResult, req, data, root, nodeName);
+            root = await ExtractDashTracksAsync(parsedResult, req, root, nodeName);
         }
         else if (TryGetArray(root, "durl", out _))
         {
@@ -320,33 +322,22 @@ public static partial class Parser
         }
     }
 
-    private static async Task<JsonElement> ExtractDashTracksAsync(ParsedResult parsedResult, PlayUrlRequest req, JsonElement data, JsonElement root, string? nodeName)
+    private static async Task<JsonElement> ExtractDashTracksAsync(ParsedResult parsedResult, PlayUrlRequest req, JsonElement root, string? nodeName)
     {
         var pDur = ReadDashDuration(root);
-        CollectDashVideoTracks(parsedResult, root, pDur, req.TvApi, req.AppApi);
+        CollectDashVideoTracks(parsedResult, root, pDur, req.TvApi);
 
         //此处处理免二压视频，需要单独再请求一次；视频轨取两次的并集，音轨只取重新请求后的结果
-        var audioRoot = root;
-        if (!req.AppApi)
-        {
-            parsedResult.WebJsonString = await GetPlayJsonAsync(req, Config.MaxQn);
-            using var maxQnDoc = JsonDocument.Parse(parsedResult.WebJsonString);
-            // Clone 后节点脱离 maxQnDoc 独立存活, 可以安全返回给调用方
-            root = GetRootNode(maxQnDoc.RootElement, nodeName).Clone( );
-            CollectDashVideoTracks(parsedResult, root, pDur, req.TvApi, req.AppApi);
-            // 二次请求偶尔返回降级响应(限流/无 dash 节点)，此时沿用首次结果的音轨而不是丢弃
-            if (TryEnumerateArray(root, "dash", "audio") != null)
-            {
-                audioRoot = root;
-            }
-        }
+        var firstRoot = root;
+        parsedResult.RawResponse = await GetPlayJsonAsync(req, Config.MaxQn);
+        using var maxQnDoc = JsonDocument.Parse(parsedResult.RawResponse);
+        // Clone 后节点脱离 maxQnDoc 独立存活, 可以安全返回给调用方
+        root = GetRootNode(maxQnDoc.RootElement, nodeName).Clone( );
+        CollectDashVideoTracks(parsedResult, root, pDur, req.TvApi);
 
+        // 二次请求偶尔返回降级响应(限流/无 dash 节点)，此时沿用首次结果的音轨而不是丢弃
+        var audioRoot = TryEnumerateArray(root, "dash", "audio") != null ? root : firstRoot;
         CollectDashAudioTracks(parsedResult, audioRoot, pDur, req.TvApi);
-
-        if (req.AppApi && req.IsEpisode)
-        {
-            CollectDubbingTracks(parsedResult, data, pDur, req.Aid, req.Cid);
-        }
 
         return root;
     }
@@ -369,7 +360,7 @@ public static partial class Parser
         return 0;
     }
 
-    internal static void CollectDashVideoTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi, bool appApi)
+    private static void CollectDashVideoTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi)
     {
         var video = TryEnumerateArray(root, "dash", "video");
         if (video == null) return;
@@ -387,7 +378,7 @@ public static partial class Parser
                 codecs = GetVideoCodec(node.GetProperty("codecid").ToString( )),
                 size = node.TryGetProperty("size", out var sizeNode) ? Convert.ToDouble(sizeNode.ToString( )) : 0
             };
-            if (!tvApi && !appApi)
+            if (!tvApi)
             {
                 v.res = node.GetProperty("width").ToString( ) + "x" + node.GetProperty("height").ToString( );
                 v.fps = node.GetProperty("frame_rate").ToString( );
@@ -400,7 +391,7 @@ public static partial class Parser
         }
     }
 
-    internal static void CollectDashAudioTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi)
+    private static void CollectDashAudioTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi)
     {
         var audio = TryEnumerateArray(root, "dash", "audio");
         if (audio == null) return;
@@ -432,34 +423,11 @@ public static partial class Parser
         }
     }
 
-    internal static void CollectDubbingTracks(ParsedResult parsedResult, JsonElement data, int pDur, string aid, string cid)
-    {
-        var backgroundAudio = TryEnumerateArray(data, "dubbing_info", "background_audio");
-        var roleAudio = TryEnumerateArray(data, "dubbing_info", "role_audio_list");
-        if (backgroundAudio == null || roleAudio == null) return;
-
-        foreach (var node in backgroundAudio)
-        {
-            parsedResult.BackgroundAudioTracks.Add(BuildAudio(node, pDur));
-        }
-
-        foreach (var role in roleAudio)
-        {
-            parsedResult.RoleAudioList.Add(new AudioMaterialInfo( )
-            {
-                title = role.GetProperty("title").ToString( ),
-                personName = role.GetProperty("person_name").ToString( ),
-                path = $"{aid}/{aid}.{cid}.{role.GetProperty("audio_id")}.m4a",
-                audio = [.. role.GetProperty("audio").EnumerateArray( ).Select(node => BuildAudio(node, pDur))]
-            });
-        }
-    }
-
     private static async Task<JsonElement> ExtractFlvTracksAsync(ParsedResult parsedResult, PlayUrlRequest req, string? nodeName)
     {
         //默认以最高清晰度解析
-        parsedResult.WebJsonString = await GetPlayJsonAsync(req, Config.MaxQn);
-        using var doc = JsonDocument.Parse(parsedResult.WebJsonString);
+        parsedResult.RawResponse = await GetPlayJsonAsync(req, Config.MaxQn);
+        using var doc = JsonDocument.Parse(parsedResult.RawResponse);
         // Clone 后节点脱离 doc 独立存活, 可以安全返回给调用方
         var root = GetRootNode(doc.RootElement, nodeName).Clone( );
 
@@ -510,7 +478,7 @@ public static partial class Parser
         return [];
     }
 
-    internal static void AppendBangumiViewPoints(ParsedResult parsedResult, JsonElement root)
+    private static void AppendBangumiViewPoints(ParsedResult parsedResult, JsonElement root)
     {
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("clip_info_list", out var clipList)) return;
 

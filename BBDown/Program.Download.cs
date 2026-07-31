@@ -115,7 +115,7 @@ internal sealed partial class Program
 
                 if (Config.DebugLog)
                 {
-                    File.WriteAllText(Path.Combine(ctx.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.WebJsonString);
+                    File.WriteAllText(Path.Combine(ctx.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.RawResponse);
                 }
 
                 var downloadConfig = BuildDownloadConfig(myOption, ctx.Cfg, relatedTask);
@@ -258,12 +258,12 @@ internal sealed partial class Program
         }
 
         LogError("解析此分P失败（建议 --debug 查看详细信息）。");
-        if (parsedResult.WebJsonString.Length < 100)
+        if (parsedResult.RawResponse.Length < 100)
         {
-            LogError(parsedResult.WebJsonString);
+            LogError(parsedResult.RawResponse);
         }
 
-        LogDebug("{0}", parsedResult.WebJsonString);
+        LogDebug("{0}", parsedResult.RawResponse);
         return PageOutcome.Done("", selected);
     }
 

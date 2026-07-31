@@ -6,7 +6,7 @@ namespace BBDown.Core.Entity;
 
 public class ParsedResult
 {
-    public string WebJsonString { get; set; } = "";
+    public string RawResponse { get; set; } = "";
     public List<Video> VideoTracks { get; set; } = [];
     public List<Audio> AudioTracks { get; set; } = [];
     public List<Audio> BackgroundAudioTracks { get; set; } = [];

@@ -1,10 +1,13 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 using BBDown.Core.Protobuf;
 
 using static BBDown.Core.Entity.Entity;
+using static BBDown.Core.Logger;
 
 namespace BBDown.Core;
 
@@ -12,6 +15,15 @@ namespace BBDown.Core;
 // 不再序列化成网页那套 JSON 再解析回来
 public static partial class Parser
 {
+    private static async Task<ParsedResult> ExtractAppTracksAsync(PlayUrlRequest req)
+    {
+        var reply = await AppHelper.DoReqAsync(req.Aid, req.Cid, req.EpId, req.IsBangumi, req.Encoding, req.Cfg);
+        var result = BuildAppParsedResult(reply, req.IsEpisode, req.Aid, req.Cid);
+        result.RawResponse = JsonSerializer.Serialize(reply, JsonContext.Default.PlayViewReply);
+        LogDebug(result.RawResponse);
+        return result;
+    }
+
     internal static ParsedResult BuildAppParsedResult(PlayViewReply resp, bool isEpisode, string aid, string cid)
     {
         ParsedResult result = new( );
