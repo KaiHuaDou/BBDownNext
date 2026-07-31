@@ -27,6 +27,10 @@ internal sealed partial class Program
 
     public static readonly string APP_DIR = Path.GetDirectoryName(Environment.ProcessPath)!;
 
+    // 全局取消源: Ctrl+C 时取消, 令牌沿 Fetcher → Parser → HTTP → 下载 → 外部进程 全链路透传
+    private static readonly CancellationTokenSource s_cts = new();
+    internal static CancellationToken CancellationToken => s_cts.Token;
+
     private static string FormatTimeStamp(long ts, string format)
     {
         try
@@ -46,7 +50,9 @@ internal sealed partial class Program
 
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
-        LogWarn("Force Exit...");
+        // 抑制运行时默认的进程终止, 改为靠令牌优雅取消
+        e.Cancel = true;
+        LogWarn("收到取消信号，正在安全退出...");
         try
         {
             Console.ResetColor( );
@@ -56,7 +62,7 @@ internal sealed partial class Program
         }
         catch { }
 
-        Environment.Exit(0);
+        s_cts.Cancel( );
     }
 
     public static async Task<int> Main(params string[] args)
@@ -132,7 +138,7 @@ internal sealed partial class Program
     private static Task RunApp(MyOption myOption)
     {
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        return DoWorkAsync(myOption);
+        return DoWorkAsync(myOption, s_cts.Token);
     }
 
     private static void StartServer(string? listenUrl, string? workDir)
@@ -196,7 +202,7 @@ internal sealed partial class Program
             WorkDir: workDir);
     }
 
-    public static async Task<WorkContext> GetVideoInfoAsync(MyOption myOption, WorkContext ctx)
+    public static async Task<WorkContext> GetVideoInfoAsync(MyOption myOption, WorkContext ctx, CancellationToken ct = default)
     {
         // 加载认证信息
         var (cookie, token) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, myOption.UseTvApi, myOption.UseAppApi);
@@ -207,7 +213,7 @@ internal sealed partial class Program
         if (myOption is { UseIntlApi: false, UseTvApi: false } && cfg.Area is { Length: 0 })
         {
             Log("检测账号登录...");
-            var (info, wbi) = await ProbeAccountAsync(cfg);
+            var (info, wbi) = await ProbeAccountAsync(cfg, ct);
             cfg = cfg with { Wbi = wbi };
             PrintAccountStatus(info);
         }
@@ -225,7 +231,7 @@ internal sealed partial class Program
             throw new ArgumentException("输入有误");
         }
 
-        (aid, var vInfo) = await FetchVideoInfoAsync(aid, cfg, myOption.UseIntlApi);
+        (aid, var vInfo) = await FetchVideoInfoAsync(aid, cfg, myOption.UseIntlApi, ct);
         NormalizeOptionsAfterFetch(myOption, vInfo);
         PrintVideoSummary(vInfo, myOption);
         var apiType = DetermineApiType(myOption);
@@ -261,10 +267,10 @@ internal sealed partial class Program
         }
     }
 
-    private static async Task<(string aid, VInfo vInfo)> FetchVideoInfoAsync(string aid, AppConfig cfg, bool useIntlApi)
+    private static async Task<(string aid, VInfo vInfo)> FetchVideoInfoAsync(string aid, AppConfig cfg, bool useIntlApi, CancellationToken ct = default)
     {
         // EP/SS 优先按番剧查找，找不到时由 FetcherRegistry 内部回退到课程 (cheese) 查找
-        var vInfo = await FetcherRegistry.FetchAsync(aid, cfg, useIntlApi);
+        var vInfo = await FetcherRegistry.FetchAsync(aid, cfg, useIntlApi, ct);
         return (aid, vInfo);
     }
 
@@ -316,13 +322,17 @@ internal sealed partial class Program
         }
     }
 
-    private static async Task DoWorkAsync(MyOption myOption)
+    private static async Task DoWorkAsync(MyOption myOption, CancellationToken ct = default)
     {
         try
         {
             var ctx = BuildWorkContext(myOption);
-            ctx = await GetVideoInfoAsync(myOption, ctx);
-            await DownloadPagesAsync(myOption, ctx);
+            ctx = await GetVideoInfoAsync(myOption, ctx, ct);
+            await DownloadPagesAsync(myOption, ctx, relatedTask: null, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            LogWarn("已取消下载。");
         }
         catch (Exception e)
         {

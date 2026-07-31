@@ -168,7 +168,7 @@ public class BBDownApiServer
             task.Title = taskCtx.VInfo!.Title;
             task.Pic = taskCtx.VInfo.Pic;
             task.VideoPubTime = taskCtx.VInfo.PubTime;
-            await Program.DownloadPagesAsync(option, taskCtx, task);
+            await Program.DownloadPagesAsync(option, taskCtx, task, Program.CancellationToken);
             task.IsSuccessful = true;
         }
         catch (Exception e)

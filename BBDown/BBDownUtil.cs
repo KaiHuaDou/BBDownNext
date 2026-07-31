@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -490,12 +491,12 @@ internal static partial class Utils
         return tmp.ToString( );
     }
 
-    public static async Task<(AccountInfo Info, string Wbi)> ProbeAccountAsync(Core.AppConfig cfg)
+    public static async Task<(AccountInfo Info, string Wbi)> ProbeAccountAsync(Core.AppConfig cfg, CancellationToken ct = default)
     {
         try
         {
             var api = BiliApi.Nav;
-            var source = await GetWebSourceAsync(api, cfg);
+            var source = await GetWebSourceAsync(api, cfg, null, ct);
             using var doc = JsonDocument.Parse(source);
             var data = doc.RootElement.GetProperty("data");
             var info = ParseNav(data);
