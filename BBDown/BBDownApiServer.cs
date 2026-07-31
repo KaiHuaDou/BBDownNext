@@ -127,7 +127,8 @@ public class BBDownApiServer
 
     private async Task<DownloadTask> AddDownloadTaskAsync(MyOption option)
     {
-        var aid = await Utils.GetAvIdAsync(option.Url, new AppConfig(option.Cookie ?? "", option.AccessToken?.Replace("access_token=", "") ?? "", option.Host, option.EpHost, option.TvHost, option.Area, ""));
+        var (cookie, token) = CredentialStore.LoadAll(option.Cookie, option.AccessToken, option.UseTvApi, option.UseAppApi);
+        var aid = await Utils.GetAvIdAsync(option.Url, new AppConfig(cookie, token, option.Host, option.EpHost, option.TvHost, option.Area, ""));
         var runningTask = runningTasks.FirstOrDefault(task => task.Aid == aid);
         if (runningTask is not null)
         {
