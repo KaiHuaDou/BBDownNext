@@ -234,7 +234,7 @@ public static class DanmakuUtil
         // 弹幕类型
         public string FontSize { get; set; } = "";
         // 字号
-        public string Color { get; set; } = "";
+        public string Color { get; set; } = "FFFFFF";
         // 颜色
         public string Timestamp { get; set; } = "";
         // 时间戳
