@@ -496,9 +496,10 @@ internal static partial class Utils
         {
             var api = BiliApi.Nav;
             var source = await GetWebSourceAsync(api, cfg);
-            var json = JsonDocument.Parse(source).RootElement;
-            var info = ParseNav(json.GetProperty("data"));
-            var wbi_img = json.GetProperty("data").GetProperty("wbi_img");
+            using var doc = JsonDocument.Parse(source);
+            var data = doc.RootElement.GetProperty("data");
+            var info = ParseNav(data);
+            var wbi_img = data.GetProperty("wbi_img");
             var wbi = GetMixinKey(RSubString(wbi_img.GetProperty("img_url").GetString( )!) + RSubString(wbi_img.GetProperty("sub_url").GetString( )!));
             LogDebug("wbi: {0}", wbi);
             return (info, wbi);

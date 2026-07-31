@@ -62,9 +62,9 @@ public static class FavListFetcher
         {
             api = $"{BiliApi.FavResourceList}?media_id={favId}&pn={page}&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
             json = await GetWebSourceAsync(api, cfg);
-            var jsonDoc = JsonDocument.Parse(json);
-            data = jsonDoc.RootElement.GetProperty("data");
-            medias.AddRange(data.GetProperty("medias").EnumerateArray( ).ToList( ));
+            // medias 元素要在循环外继续使用, Clone 后才能安全释放 jsonDoc
+            using var jsonDoc = JsonDocument.Parse(json);
+            medias.AddRange(EnumerateArrayOrEmpty(jsonDoc.RootElement.GetProperty("data").GetProperty("medias")).Select(m => m.Clone( )));
         }
 
         foreach (var m in medias)

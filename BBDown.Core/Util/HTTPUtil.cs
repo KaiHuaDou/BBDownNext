@@ -81,7 +81,8 @@ public static partial class HTTPUtil
         webRequest.Headers.Connection.Clear( );
 
         LogDebug("获取网页内容: Url: {0}, Headers: {1}", url, webRequest.Headers);
-        var webResponse = (await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
+        using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead);
+        webResponse.EnsureSuccessStatusCode( );
 
         var htmlCode = await webResponse.Content.ReadAsStringAsync( );
         LogDebug("Response: {0}", htmlCode);
@@ -98,7 +99,8 @@ public static partial class HTTPUtil
         webRequest.Headers.Connection.Clear( );
 
         LogDebug("获取网页重定向地址: Url: {0}, Headers: {1}", url, webRequest.Headers);
-        var webResponse = (await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode( );
+        using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead);
+        webResponse.EnsureSuccessStatusCode( );
         var location = webResponse.RequestMessage!.RequestUri!.AbsoluteUri;
         LogDebug("Location: {0}", location);
         return location;
@@ -141,7 +143,14 @@ public static partial class HTTPUtil
         AddDownloadHeaders(request, url, cookie);
         request.Headers.Range = new(from, to);
         request.Headers.IfRange = ifRange != null ? new(ifRange.Value) : null;
-        return (await SendRawAsync(request)).EnsureSuccessStatusCode( );
+
+        // 失败响应握着连接不放会拖垮重试, 这里先释放再抛
+        var response = await SendRawAsync(request);
+        if (response.IsSuccessStatusCode) return response;
+
+        var status = response.StatusCode;
+        response.Dispose( );
+        throw new HttpRequestException($"下载请求失败: HTTP {(int) status} {status}", null, status);
     }
 
     public static async Task<byte[]> GetPostResponseAsync(string Url, byte[] postData, Dictionary<string, string>? headers = null)

@@ -70,11 +70,11 @@ public static partial class NormalInfoFetcher
 
             if (interactionNode is { InnerText.Length: > 0 })
             {
-                var graphVersion = JsonDocument.Parse(interactionNode.InnerText).RootElement
-                    .GetProperty("graph_version").GetInt64( );
+                using var interactionDoc = JsonDocument.Parse(interactionNode.InnerText);
+                var graphVersion = interactionDoc.RootElement.GetProperty("graph_version").GetInt64( );
                 var edgeInfoApi = $"{BiliApi.EdgeInfo}?graph_version={graphVersion}&bvid={bvid}";
-                var edgeInfoJson = await GetWebSourceAsync(edgeInfoApi, cfg);
-                var edgeInfoData = JsonDocument.Parse(edgeInfoJson).RootElement.GetProperty("data");
+                using var edgeInfoDoc = JsonDocument.Parse(await GetWebSourceAsync(edgeInfoApi, cfg));
+                var edgeInfoData = edgeInfoDoc.RootElement.GetProperty("data");
                 var questions = edgeInfoData.GetProperty("edges").GetProperty("questions").EnumerateArray( )
                     .ToList( );
                 var index = 2; // 互动视频分P索引从2开始

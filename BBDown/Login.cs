@@ -87,15 +87,16 @@ internal static class Login
                 {
                     Log("获取登录地址...");
                     var loginUrl = $"{BiliApi.QrCodeGenerate}?source=main-fe-header";
-                    var root = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(loginUrl, Core.AppConfig.Empty)).RootElement;
-                    var url = root.GetProperty("data").GetProperty("url").GetString( )!;
+                    using var doc = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(loginUrl, Core.AppConfig.Empty));
+                    var url = doc.RootElement.GetProperty("data").GetProperty("url").GetString( )!;
                     var key = GetQueryString("qrcode_key", url);
                     return (url, key);
                 },
                 Poll: async key =>
                 {
                     var pollUrl = $"{BiliApi.QrCodePoll}?qrcode_key={key}&source=main-fe-header";
-                    return JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(pollUrl, Core.AppConfig.Empty)).RootElement;
+                    using var doc = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(pollUrl, Core.AppConfig.Empty));
+                    return doc.RootElement.Clone( );
                 },
                 Interpret: root =>
                 {
@@ -135,11 +136,11 @@ internal static class Login
                     Uri loginUrl = new(BiliApi.TvQrCodeAuth);
                     var parms = GetTVLoginParms( );
                     using var loginContent = new FormUrlEncodedContent(parms.ToDictionary( ));
-                    var responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(loginUrl, loginContent)).Content.ReadAsByteArrayAsync( );
-                    var web = Encoding.UTF8.GetString(responseArray);
-                    var root = JsonDocument.Parse(web).RootElement;
-                    var url = root.GetProperty("data").GetProperty("url").GetString( )!;
-                    var authCode = root.GetProperty("data").GetProperty("auth_code").GetString( )!;
+                    using var response = await HTTPUtil.AppHttpClient.PostAsync(loginUrl, loginContent);
+                    using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync( ));
+                    var data = doc.RootElement.GetProperty("data");
+                    var url = data.GetProperty("url").GetString( )!;
+                    var authCode = data.GetProperty("auth_code").GetString( )!;
                     parms.Set("auth_code", authCode);
                     parms.Set("ts", GetTimeStamp(true));
                     parms.Remove("sign");
@@ -151,8 +152,9 @@ internal static class Login
                 {
                     Uri pollUrl = new(BiliApi.TvQrCodePoll);
                     using var pollContent = new FormUrlEncodedContent(tvParms!.ToDictionary( ));
-                    var responseArray = await (await HTTPUtil.AppHttpClient.PostAsync(pollUrl, pollContent)).Content.ReadAsByteArrayAsync( );
-                    return JsonDocument.Parse(Encoding.UTF8.GetString(responseArray)).RootElement;
+                    using var response = await HTTPUtil.AppHttpClient.PostAsync(pollUrl, pollContent);
+                    using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync( ));
+                    return doc.RootElement.Clone( );
                 },
                 Interpret: root =>
                 {

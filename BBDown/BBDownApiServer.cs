@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core;
+using BBDown.Core.Util;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -92,13 +93,13 @@ public class BBDownApiServer
                     }
 
                     var callback = req.CallBackWebHook;
-                    using var client = new HttpClient( );
                     var downloadTask = await task;
                     var jsonContent = JsonSerializer.Serialize(downloadTask, AppJsonSerializerContext.Default.DownloadTask);
                     try
                     {
+                        // 每次回调新建 HttpClient 会耗尽连接, 统一走共享实例
                         using var content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
-                        await client.PostAsync(new Uri(callback), content);
+                        using var response = await HTTPUtil.AppHttpClient.PostAsync(new Uri(callback), content);
                     }
                     catch (System.Exception e)
                     {

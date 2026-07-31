@@ -303,7 +303,7 @@ public static partial class SubUtil
     internal static string ConvertSubFromJson(string jsonString)
     {
         StringBuilder lines = new( );
-        var json = JsonDocument.Parse(jsonString);
+        using var json = JsonDocument.Parse(jsonString);
         var sub = json.RootElement.GetProperty("body").EnumerateArray( ).ToList( );
         for (var i = 0; i < sub.Count; i++)
         {

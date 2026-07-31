@@ -226,7 +226,7 @@ public static partial class Parser
             parsedResult.WebJsonString = await GetIntlPlayJsonAsync(aid, cid, epId, qn, cfg, "1");
         }
 
-        var doc = JsonDocument.Parse(parsedResult.WebJsonString);
+        using var doc = JsonDocument.Parse(parsedResult.WebJsonString);
         var data = doc.RootElement;
         var nodeName = ResolveDataNodeName(data);
         var root = GetRootNode(data, nodeName);
@@ -330,7 +330,9 @@ public static partial class Parser
         if (!req.AppApi)
         {
             parsedResult.WebJsonString = await GetPlayJsonAsync(req, Config.MaxQn);
-            root = GetRootNode(JsonDocument.Parse(parsedResult.WebJsonString).RootElement, nodeName);
+            using var maxQnDoc = JsonDocument.Parse(parsedResult.WebJsonString);
+            // Clone 后节点脱离 maxQnDoc 独立存活, 可以安全返回给调用方
+            root = GetRootNode(maxQnDoc.RootElement, nodeName).Clone( );
             CollectDashVideoTracks(parsedResult, root, pDur, req.TvApi, req.AppApi);
             // 二次请求偶尔返回降级响应(限流/无 dash 节点)，此时沿用首次结果的音轨而不是丢弃
             if (TryEnumerateArray(root, "dash", "audio") != null)
@@ -457,7 +459,9 @@ public static partial class Parser
     {
         //默认以最高清晰度解析
         parsedResult.WebJsonString = await GetPlayJsonAsync(req, Config.MaxQn);
-        var root = GetRootNode(JsonDocument.Parse(parsedResult.WebJsonString).RootElement, nodeName);
+        using var doc = JsonDocument.Parse(parsedResult.WebJsonString);
+        // Clone 后节点脱离 doc 独立存活, 可以安全返回给调用方
+        var root = GetRootNode(doc.RootElement, nodeName).Clone( );
 
         double size = 0;
         double length = 0;

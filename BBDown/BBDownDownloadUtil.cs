@@ -190,7 +190,8 @@ internal static class BBDownDownloadUtil
     {
         using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         AddDownloadHeaders(httpRequestMessage, url, cookie);
-        var response = (await SendRawAsync(httpRequestMessage)).EnsureSuccessStatusCode( );
+        using var response = await SendRawAsync(httpRequestMessage);
+        response.EnsureSuccessStatusCode( );
         return response.Content.Headers.ContentLength ?? 0;
     }
 
