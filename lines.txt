@@ -1,23 +1,23 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Language                                      Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- C#                                               71         9910         8204          492         1214
+ C#                                               71         9933         8222          496         1215
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────
  .\BBDown\Program.Download.cs                                 703          586           17          100
  .\BBDown.Core\Parser.cs                                      611          486           29           96
- .\BBDown\BBDownUtil.cs                                       556          447           59           50
- .\BBDown\Program.Methods.cs                                  454          354           54           46
+ .\BBDown\BBDownUtil.cs                                       557          448           59           50
+ .\BBDown\Program.Methods.cs                                  455          355           54           46
  .\BBDown.Tests\DownloadTests.cs                              362          314            2           46
+ .\BBDown\Program.cs                                          349          282           17           50
  .\BBDown.Core\Util\SubUtil.cs                                339          303           10           26
- .\BBDown\Program.cs                                          339          275           15           49
  .\BBDown.Core\AppHelper.cs                                   273          222           22           29
  .\BBDown\BBDownApiServer.cs                                  257          221            7           29
  .\BBDown.Core\DanmakuUtil.cs                                 256          209           24           23
  .\BBDown\CommandLineInvoker.cs                               233          217            6           10
  .\BBDown.Tests\MuxerArgsTests.cs                             224          187            2           35
  .\BBDown.Core\Util\HTTPUtil.cs                               224          171           14           39
- .\BBDown\BBDownMuxer.cs                                      219          184            1           34
- .\BBDown\BBDownDownloadUtil.cs                               214          179           11           24
+ .\BBDown\BBDownMuxer.cs                                      223          187            2           34
+ .\BBDown\BBDownDownloadUtil.cs                               215          180           11           24
  .\BBDown.Core.Tests\ParserPureFunctionTests.cs               205          174            4           27
  .\BBDown\Login.cs                                            181          165            5           11
  .\BBDown\ProgressBar.cs                                      167          125           18           24
@@ -36,10 +36,10 @@
  .\BBDown.Core.Tests\HttpStubFetcherTests.cs                  117          106            3            8
  .\BBDown.Tests\BBDownConfigParserTests.cs                    106           88            2           16
  .\BBDown.Tests\ConfigParserTests.cs                          104           96            0            8
+ .\BBDown\BBDownAria2c.cs                                     104           90            4           10
  .\BBDown.Core.Tests\EntityTests.cs                           103           89            1           13
  .\BBDown.Tests\UtilsTests.cs                                 102           87            4           11
  .\BBDown.Core.Tests\JsonUtilTests.cs                         101           87            2           12
- .\BBDown\BBDownAria2c.cs                                      98           85            3           10
  .\BBDown.Core\Fetcher\BangumiInfoFetcher.cs                   94           80            3           11
  .\BBDown.Core\Fetcher\IntlBangumiInfoFetcher.cs               88           76            1           11
  .\BBDown\BBDownConfigParser.cs                                87           68           11            8
@@ -79,8 +79,8 @@
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────
  .\BBDown.Core\APP\Response\playviewreply.proto               163          135            7           21
  .\BBDown.Core\APP\Response\dmviewreply.proto                 104           93            0           11
- .\BBDown.Core\APP\Header\network.proto                        25           24            0            1
  .\BBDown.Core\APP\Payload\playviewreq.proto                   25           24            0            1
+ .\BBDown.Core\APP\Header\network.proto                        25           24            0            1
  .\BBDown.Core\APP\Header\device.proto                         19           18            0            1
  .\BBDown.Core\APP\Header\metadata.proto                       12           11            0            1
  .\BBDown.Core\APP\Header\locale.proto                         12           11            0            1
@@ -123,5 +123,5 @@
  |- INI                                                         5            4            1            0
  .\README.md                                                  127            0           91           36
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                                            91        10760         8714          690         1356
+ Total                                            91        10783         8732          694         1357
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

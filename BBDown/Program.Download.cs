@@ -29,7 +29,7 @@ internal sealed partial class Program
         public static PageOutcome Done(string savePath, bool selected) => new(false, savePath, selected);
     }
 
-    public static async Task DownloadPagesAsync(MyOption myOption, WorkContext ctx, DownloadTask? relatedTask = null)
+    public static async Task DownloadPagesAsync(MyOption myOption, WorkContext ctx, DownloadTask? relatedTask = null, CancellationToken ct = default)
     {
         var vInfo = ctx.VInfo!;
         var pagesInfo = vInfo.PagesInfo;
@@ -52,7 +52,7 @@ internal sealed partial class Program
             if (pagesInfo.Count > 1 && ctx.Delay > 0)
             {
                 Log($"停顿 {ctx.Delay} 秒...");
-                await Task.Delay(ctx.Delay * 1000);
+                await Task.Delay(ctx.Delay * 1000, ct);
             }
 
             Log($"开始解析 P{p.index}：{p.aid}...（{pagesInfo.IndexOf(p) + 1} / {pagesInfo.Count}）");
@@ -63,7 +63,7 @@ internal sealed partial class Program
                 continue;
             }
 
-            await DownloadPageAsync(p, myOption, ctx, pagesInfo, relatedTask);
+            await DownloadPageAsync(p, myOption, ctx, pagesInfo, relatedTask, ct);
 
             if (myOption.SaveArchivesToFile)
             {
@@ -82,7 +82,7 @@ internal sealed partial class Program
             : (string.IsNullOrEmpty(myOption.FilePattern) ? SinglePageDefaultSavePath : myOption.FilePattern);
     }
 
-    private static async Task DownloadPageAsync(Page p, MyOption myOption, WorkContext ctx, List<Page> selectedPagesInfo, DownloadTask? relatedTask = null)
+    private static async Task DownloadPageAsync(Page p, MyOption myOption, WorkContext ctx, List<Page> selectedPagesInfo, DownloadTask? relatedTask = null, CancellationToken ct = default)
     {
         var pageCtx = BuildPageContext(p, ctx, selectedPagesInfo);
         List<Subtitle> subtitleInfo = [];
@@ -97,7 +97,7 @@ internal sealed partial class Program
 
                 if (!myOption.OnlyShowInfo)
                 {
-                    subtitleInfo = await PrepareCoverAndSubtitlesAsync(myOption, ctx, pageCtx);
+                    subtitleInfo = await PrepareCoverAndSubtitlesAsync(myOption, ctx, pageCtx, ct);
                     if (myOption.SubOnly)
                     {
                         TryDeleteEmptyDir(pageCtx.TempDir);
@@ -107,7 +107,7 @@ internal sealed partial class Program
 
                 //调用解析
                 var parsedResult = await ExtractTracksAsync(ctx.FetchedAid, p.aid, p.cid, p.epid,
-                    myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.FirstEncoding, ctx.Cfg);
+                    myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.FirstEncoding, ctx.Cfg, ct: ct);
                 if (p.points.Count == 0)
                 {
                     p.points = parsedResult.ExtraPoints;
@@ -119,7 +119,7 @@ internal sealed partial class Program
                 }
 
                 var downloadConfig = BuildDownloadConfig(myOption, ctx.Cfg, relatedTask);
-                var outcome = await DownloadTracksAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected);
+                var outcome = await DownloadTracksAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
 
                 selected = outcome.Selected;
                 if (outcome.Aborted) return;
@@ -134,7 +134,7 @@ internal sealed partial class Program
                 LogError(ex.Message);
                 var backoff = TimeSpan.FromSeconds(1 << retryCount);
                 LogWarn($"下载出现异常，{backoff.TotalSeconds:0} 秒后将进行自动重试...");
-                await Task.Delay(backoff);
+                await Task.Delay(backoff, ct);
                 continue;
             }
 
@@ -196,14 +196,14 @@ internal sealed partial class Program
         };
     }
 
-    private static async Task<List<Subtitle>> PrepareCoverAndSubtitlesAsync(MyOption myOption, WorkContext ctx, PageContext pageCtx)
+    private static async Task<List<Subtitle>> PrepareCoverAndSubtitlesAsync(MyOption myOption, WorkContext ctx, PageContext pageCtx, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
         Directory.CreateDirectory(pageCtx.TempDir);
 
         if (!myOption.SkipCover && !myOption.SubOnly && !File.Exists(pageCtx.CoverPath) && !myOption.DanmakuOnly && !myOption.CoverOnly)
         {
-            await DownloadFileAsync(pageCtx.CoverUrl, pageCtx.CoverPath, new DownloadConfig { Cookie = ctx.Cfg.Cookie });
+            await DownloadFileAsync(pageCtx.CoverUrl, pageCtx.CoverPath, new DownloadConfig { Cookie = ctx.Cfg.Cookie }, ct);
         }
 
         if (myOption.SkipSubtitle || myOption.DanmakuOnly || myOption.CoverOnly)
@@ -245,16 +245,16 @@ internal sealed partial class Program
     }
 
     private static async Task<PageOutcome> DownloadTracksAsync(ParsedResult parsedResult, MyOption myOption, WorkContext ctx, PageContext pageCtx,
-        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected)
+        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
     {
         if ((parsedResult.VideoTracks.Count != 0 || parsedResult.AudioTracks.Count != 0) && parsedResult.Clips.Count == 0)
         {
-            return await DownloadDashAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected);
+            return await DownloadDashAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
         }
 
         if (parsedResult.Clips.Count != 0 && parsedResult.Dfns.Count != 0)
         {
-            return await DownloadFlvAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected);
+            return await DownloadFlvAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
         }
 
         LogError("解析此分P失败（建议 --debug 查看详细信息）。");
@@ -268,7 +268,7 @@ internal sealed partial class Program
     }
 
     private static async Task<PageOutcome> DownloadDashAsync(ParsedResult parsedResult, MyOption myOption, WorkContext ctx, PageContext pageCtx,
-        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected)
+        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
 
@@ -325,7 +325,7 @@ internal sealed partial class Program
         var savePath = FormatSavePath(ctx, pageCtx, selectedVideo, selectedAudio);
         LogDebug("Format After: " + savePath);
 
-        if (ctx.DownloadDanmaku && await DownloadDanmakuAsync(myOption, ctx, pageCtx, savePath, downloadConfig))
+        if (ctx.DownloadDanmaku && await DownloadDanmakuAsync(myOption, ctx, pageCtx, savePath, downloadConfig, ct))
         {
             return PageOutcome.Abort(selected);
         }
@@ -333,7 +333,7 @@ internal sealed partial class Program
         if (myOption.CoverOnly)
         {
             var newCoverPath = Path.ChangeExtension(savePath, Path.GetExtension(pageCtx.CoverUrl));
-            await DownloadFileAsync(pageCtx.CoverUrl, newCoverPath, downloadConfig);
+            await DownloadFileAsync(pageCtx.CoverUrl, newCoverPath, downloadConfig, ct);
             TryDeleteEmptyDir(pageCtx.TempDir);
             relatedTask?.SavePaths.Add(newCoverPath);
         }
@@ -374,20 +374,20 @@ internal sealed partial class Program
             }
 
             Log($"开始下载 P{p.index} 视频...");
-            await DownloadTrackAsync(selectedVideo.baseUrl, videoPath, downloadConfig, video: true);
+            await DownloadTrackAsync(selectedVideo.baseUrl, videoPath, downloadConfig, video: true, ct);
         }
 
         if (selectedAudio != null)
         {
             Log($"开始下载 P{p.index} 音频...");
-            await DownloadTrackAsync(selectedAudio.baseUrl, audioPath, downloadConfig, video: false);
+            await DownloadTrackAsync(selectedAudio.baseUrl, audioPath, downloadConfig, video: false, ct);
         }
 
         if (selectedBackgroundAudio != null)
         {
             var backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.aid}.{p.cid}.P{p.index}.back_ground.m4a");
             Log($"开始下载 P{p.index} 背景配音...");
-            await DownloadTrackAsync(selectedBackgroundAudio.baseUrl, backgroundPath, downloadConfig, video: false);
+            await DownloadTrackAsync(selectedBackgroundAudio.baseUrl, backgroundPath, downloadConfig, video: false, ct);
             audioMaterial.Add(new AudioMaterial { title = "背景音频", personName = "", path = backgroundPath });
         }
 
@@ -395,7 +395,7 @@ internal sealed partial class Program
         {
             role.path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.path));
             Log($"开始下载 P{p.index} 配音 [{role.title}]...");
-            await DownloadTrackAsync(role.audio[aIndex].baseUrl, role.path, downloadConfig, video: false);
+            await DownloadTrackAsync(role.audio[aIndex].baseUrl, role.path, downloadConfig, video: false, ct);
             audioMaterial.Add(new AudioMaterial { title = role.title, personName = role.personName, path = role.path });
         }
 
@@ -416,7 +416,7 @@ internal sealed partial class Program
             pageCtx.EpisodeTitle,
             File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
             ctx.Lang,
-            subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux, isHevc, CancellationToken.None);
+            subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux, isHevc, ct);
         if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
         {
             LogError("合并失败");
@@ -428,7 +428,7 @@ internal sealed partial class Program
     }
 
     private static async Task<PageOutcome> DownloadFlvAsync(ParsedResult parsedResult, MyOption myOption, WorkContext ctx, PageContext pageCtx,
-        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected)
+        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
         List<AudioMaterial> audioMaterial = [];
@@ -447,7 +447,7 @@ internal sealed partial class Program
                 //重新解析
                 parsedResult.VideoTracks.Clear( );
                 parsedResult = await ExtractTracksAsync(ctx.FetchedAid, p.aid, p.cid, p.epid,
-                    myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.FirstEncoding, ctx.Cfg, dfns[vIndex]);
+                    myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.FirstEncoding, ctx.Cfg, dfns[vIndex], ct);
                 if (p.points.Count == 0) p.points = parsedResult.ExtraPoints;
                 reParsed = true;
                 selected = true;
@@ -480,13 +480,13 @@ internal sealed partial class Program
                 return PageOutcome.Abort(selected);
             }
 
-            var lastClipPath = await DownloadFlvClipsAsync(clips, pageCtx, downloadConfig);
+            var lastClipPath = await DownloadFlvClipsAsync(clips, pageCtx, downloadConfig, ct);
 
             Log($"下载 P{p.index} 完毕。");
             Log("开始合并分段...");
             var files = GetFiles(Path.GetDirectoryName(lastClipPath)!, ".mp4");
             var videoPath = pageCtx.VideoPath;
-            await BBDownMuxer.MergeFLV(files, videoPath, CancellationToken.None);
+            await BBDownMuxer.MergeFLV(files, videoPath, ct);
             if (myOption.SkipMux) return PageOutcome.Abort(selected);
 
             Log($"开始混流视频{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
@@ -500,7 +500,7 @@ internal sealed partial class Program
                 pageCtx.EpisodeTitle,
                 File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
                 ctx.Lang,
-                subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux, ct: CancellationToken.None);
+                subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux, ct: ct);
             if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
             {
                 LogError("合并失败");
@@ -524,7 +524,7 @@ internal sealed partial class Program
         return vIndex;
     }
 
-    private static async Task<string> DownloadFlvClipsAsync(List<string> clips, PageContext pageCtx, DownloadConfig downloadConfig)
+    private static async Task<string> DownloadFlvClipsAsync(List<string> clips, PageContext pageCtx, DownloadConfig downloadConfig, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
         var pad = string.Empty.PadRight(clips.Count.ToString( ).Length, '0');
@@ -533,20 +533,20 @@ internal sealed partial class Program
         {
             clipPath = Path.Combine(pageCtx.TempDir, $"{p.aid}.P{p.index}.{p.cid}.{i.ToString(pad)}.mp4");
             Log($"开始下载 P{p.index} 视频，片段（{(i + 1).ToString(pad)} / {clips.Count}）...");
-            await DownloadTrackAsync(clips[i], clipPath, downloadConfig, video: true);
+            await DownloadTrackAsync(clips[i], clipPath, downloadConfig, video: true, ct);
         }
 
         return clipPath;
     }
 
     // 返回 true 表示 --danmaku-only 已完成任务，应结束该分P
-    private static async Task<bool> DownloadDanmakuAsync(MyOption myOption, WorkContext ctx, PageContext pageCtx, string savePath, DownloadConfig downloadConfig)
+    private static async Task<bool> DownloadDanmakuAsync(MyOption myOption, WorkContext ctx, PageContext pageCtx, string savePath, DownloadConfig downloadConfig, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
         var danmakuXmlPath = Path.ChangeExtension(savePath, ".xml");
         var danmakuAssPath = Path.ChangeExtension(savePath, ".ass");
         Log("正在下载弹幕 XML 文件。");
-        await DownloadFileAsync($"{BiliApi.DanmakuXml}/{p.cid}.xml", danmakuXmlPath, downloadConfig);
+        await DownloadFileAsync($"{BiliApi.DanmakuXml}/{p.cid}.xml", danmakuXmlPath, downloadConfig, ct);
         var danmakus = DanmakuUtil.ParseXml(danmakuXmlPath);
         if (danmakus == null)
         {

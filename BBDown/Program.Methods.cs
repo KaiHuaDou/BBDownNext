@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core;
@@ -424,11 +425,11 @@ internal sealed partial class Program
     /// 下载轨道
     /// </summary>
     /// <returns></returns>
-    private static async Task DownloadTrackAsync(string url, string destPath, DownloadConfig downloadConfig, bool video)
+    private static async Task DownloadTrackAsync(string url, string destPath, DownloadConfig downloadConfig, bool video, CancellationToken ct = default)
     {
         if (downloadConfig.MultiThread && !url.Contains("-cmcc-"))
         {
-            await MultiThreadDownloadFileAsync(url, destPath, downloadConfig);
+            await MultiThreadDownloadFileAsync(url, destPath, downloadConfig, ct);
             Log($"合并 {(video ? "视频" : "音频")} 分片...");
             CombineMultipleFilesIntoSingleFile(GetFiles(Path.GetDirectoryName(destPath)!, $".{(video ? "v" : "a")}clip"), destPath);
             Log("清理分片...");
@@ -441,7 +442,7 @@ internal sealed partial class Program
                 LogWarn("检测到 CMCC 域名 CDN，已经禁用多线程。");
             }
 
-            await DownloadFileAsync(url, destPath, downloadConfig);
+            await DownloadFileAsync(url, destPath, downloadConfig, ct);
         }
     }
 
