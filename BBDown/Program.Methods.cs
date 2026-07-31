@@ -183,38 +183,6 @@ internal sealed partial class Program
         }
     }
 
-    /// <summary>
-    /// 加载用户的认证信息（cookie或token）, 命令行传入的优先于本地文件
-    /// </summary>
-    private static (string cookie, string token) LoadCredentials(MyOption myOption)
-    {
-        var cookie = myOption.Cookie ?? "";
-        var token = myOption.AccessToken?.Replace("access_token=", "") ?? "";
-
-        if (string.IsNullOrEmpty(cookie) && File.Exists(Path.Combine(APP_DIR, "BBDown.data")))
-        {
-            Log("加载本地 cookie...");
-            LogDebug("文件路径：{0}", Path.Combine(APP_DIR, "BBDown.data"));
-            cookie = File.ReadAllText(Path.Combine(APP_DIR, "BBDown.data"));
-        }
-
-        if (string.IsNullOrEmpty(token) && File.Exists(Path.Combine(APP_DIR, "BBDownTV.data")) && myOption.UseTvApi)
-        {
-            Log("加载本地 token...");
-            LogDebug("文件路径：{0}", Path.Combine(APP_DIR, "BBDownTV.data"));
-            token = File.ReadAllText(Path.Combine(APP_DIR, "BBDownTV.data")).Replace("access_token=", "");
-        }
-
-        if (string.IsNullOrEmpty(token) && File.Exists(Path.Combine(APP_DIR, "BBDownApp.data")) && myOption.UseAppApi)
-        {
-            Log("加载本地 token...");
-            LogDebug("文件路径：{0}", Path.Combine(APP_DIR, "BBDownApp.data"));
-            token = File.ReadAllText(Path.Combine(APP_DIR, "BBDownApp.data")).Replace("access_token=", "");
-        }
-
-        return (cookie, token);
-    }
-
     private static readonly object fileLock = new( );
     public static void SaveAidToFile(string aid)
     {

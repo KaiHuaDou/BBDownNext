@@ -65,14 +65,14 @@ internal sealed partial class Program
 
         var resolvedArgs = new List<string>( );
         var rootCommand = CommandLineInvoker.GetRootCommand(o => RunApp(o, resolvedArgs));
-        rootCommand.Description = "BBDown是一个免费且便捷高效的哔哩哔哩下载/解析软件.";
+        rootCommand.Description = "BBDown 是一个免费且便捷高效的哔哩哔哩下载/解析软件。";
         rootCommand.TreatUnmatchedTokensAsErrors = false;
 
-        Command loginCommand = new("login", "通过APP扫描二维码以登录您的WEB账号");
+        Command loginCommand = new("login", "通过 APP 扫描二维码以登录您的账号");
         loginCommand.SetAction(_ => Login.Web( ));
         rootCommand.Subcommands.Add(loginCommand);
 
-        Command loginTVCommand = new("logintv", "通过APP扫描二维码以登录您的TV账号");
+        Command loginTVCommand = new("logintv", "通过 APP 扫描二维码以登录您的 TV 账号");
         loginTVCommand.SetAction(_ => Login.TV( ));
         rootCommand.Subcommands.Add(loginTVCommand);
 
@@ -170,15 +170,15 @@ internal sealed partial class Program
         var (encodingPriority, firstEncoding) = ParseEncodingPriority(myOption);
         var dfnPriority = ParseDfnPriority(myOption);
 
-        //用户同时指定了编码与清晰度优先级时, 以命令行书写的先后为准
-        //(serve 模式由 JSON 注入参数, 无命令行顺序, 默认清晰度优先)
+        //用户同时指定了编码与清晰度优先级时，以命令行书写的先后为准
+        //(serve 模式由 JSON 注入参数，无命令行顺序，默认清晰度优先)
         var encodingFirst = argsList != null
             && argsList.Contains("--encoding-priority")
             && argsList.Contains("--dfn-priority")
             && argsList.FindIndex(s => s == "--encoding-priority")
                < argsList.FindIndex(s => s == "--dfn-priority");
 
-        //优先使用用户设置的UA
+        //优先使用用户设置的 UA
         HTTPUtil.UserAgent = string.IsNullOrEmpty(myOption.UserAgent) ? HTTPUtil.UserAgent : myOption.UserAgent;
 
         var downloadDanmaku = myOption.DownloadDanmaku || myOption.DanmakuOnly;
@@ -212,7 +212,7 @@ internal sealed partial class Program
     public static async Task<WorkContext> GetVideoInfoAsync(MyOption myOption, WorkContext ctx)
     {
         // 加载认证信息
-        var (cookie, token) = LoadCredentials(myOption);
+        var (cookie, token) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, myOption.UseTvApi, myOption.UseAppApi);
 
         var cfg = new AppConfig(cookie, token, myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
 
@@ -224,7 +224,7 @@ internal sealed partial class Program
             cfg = cfg with { Wbi = wbi };
             if (!isLogin)
             {
-                LogWarn("你尚未登录B站账号, 解析可能受到限制");
+                LogWarn("你尚未登录 B 站账号，解析可能受到限制");
             }
         }
 
@@ -247,9 +247,9 @@ internal sealed partial class Program
     }
 
     /// <summary>
-    /// 视频信息解析完成后, 依据视频属性消解选项冲突。
-    /// 与 HandleConflictingOptions 分工: 后者只处理不依赖视频信息的冲突,
-    /// 此处处理需要 vInfo 才能判断的冲突(如互动视频不支持 TV 下载)。
+    /// 视频信息解析完成后，依据视频属性消解选项冲突。
+    /// 与 HandleConflictingOptions 分工：后者只处理不依赖视频信息的冲突，
+    /// 此处处理需要 vInfo 才能判断的冲突 (如互动视频不支持 TV 下载)。
     /// </summary>
     private static void NormalizeOptionsAfterFetch(MyOption myOption, VInfo vInfo)
     {
@@ -262,7 +262,7 @@ internal sealed partial class Program
 
     private static async Task<(string aid, VInfo vInfo)> FetchVideoInfoAsync(string aid, AppConfig cfg, bool useIntlApi)
     {
-        // EP/SS 优先按番剧查找, 找不到时由 FetcherRegistry 内部回退到课程(cheese)查找
+        // EP/SS 优先按番剧查找，找不到时由 FetcherRegistry 内部回退到课程 (cheese) 查找
         var vInfo = await FetcherRegistry.FetchAsync(aid, cfg, useIntlApi);
         return (aid, vInfo);
     }
@@ -295,7 +295,7 @@ internal sealed partial class Program
 
     private static void PrintPagesInfo(VInfo vInfo, MyOption myOption)
     {
-        //打印分P信息
+        //打印分 P 信息
         var pagesInfo = vInfo.PagesInfo;
         var more = false;
         foreach (var p in pagesInfo)
