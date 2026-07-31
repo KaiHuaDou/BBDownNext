@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Text.Json;
+
 using BBDown.Core.Util;
 using Xunit;
 
@@ -5,6 +8,71 @@ namespace BBDown.Core.Tests;
 
 public class SubUtilTests
 {
+    private static List<Entity.Entity.Subtitle> Read(string json, string lanKey, string urlKey, string prefix, bool intl)
+    {
+        using var doc = JsonDocument.Parse(json);
+        return SubUtil.ReadSubtitles(doc.RootElement, lanKey, urlKey, prefix, intl);
+    }
+
+    [Fact]
+    public void ReadSubtitles_MapsLanUrlAndPath()
+    {
+        var subs = Read("""[{"lan":"zh-CN","subtitle_url":"//i0.hdslb.com/a.json"}]""",
+            "lan", "subtitle_url", "114/114.514", false);
+
+        var sub = Assert.Single(subs);
+        Assert.Equal("zh-CN", sub.lan);
+        Assert.Equal("//i0.hdslb.com/a.json", sub.url);
+        Assert.Equal("114/114.514.zh-CN.srt", sub.path);
+    }
+
+    // 非国际版一律按 srt 落盘，即使 url 看着像 ass
+    [Fact]
+    public void ReadSubtitles_NonIntlAlwaysUsesSrtExtension()
+    {
+        var subs = Read("""[{"lan":"en","subtitle_url":"https://x/a.ass"}]""", "lan", "subtitle_url", "1/1.2", false);
+        Assert.Equal("1/1.2.en.srt", subs[0].path);
+    }
+
+    [Theory]
+    [InlineData("https://x/a.json", "1/1.2.en.srt")]
+    [InlineData("https://x/a.ass", "1/1.2.en.ass")]
+    public void ReadSubtitles_IntlPicksExtensionByUrl(string url, string expectedPath)
+    {
+        var subs = Read($$"""[{"lang_key":"en","url":"{{url}}"}]""", "lang_key", "url", "1/1.2", true);
+        Assert.Equal(expectedPath, subs[0].path);
+    }
+
+    // 国际版 app 接口返回的是转义过的斜杠
+    [Fact]
+    public void ReadSubtitles_UnescapesBackslashSlash()
+    {
+        var subs = Read("""[{"key":"en","url":"https:\\\\/\\\\/x\\\\/a.ass"}]""", "key", "url", "1/1.2", true);
+        Assert.Equal("https://x/a.ass", subs[0].url);
+    }
+
+    [Fact]
+    public void ReadSubtitles_EmptyArrayProducesEmptyList()
+    {
+        Assert.Empty(Read("[]", "lan", "subtitle_url", "1/1.2", false));
+    }
+
+    [Fact]
+    public void ReadSubtitles_PreservesOrder()
+    {
+        var subs = Read("""[{"lan":"a","subtitle_url":"1"},{"lan":"b","subtitle_url":"2"},{"lan":"c","subtitle_url":"3"}]""",
+            "lan", "subtitle_url", "p", false);
+        Assert.Equal(["a", "b", "c"], subs.ConvertAll(s => s.lan));
+    }
+
+    // 字段缺失直接抛，由 GetSubtitlesAsync 的候选循环判定该接口不可用
+    [Fact]
+    public void ReadSubtitles_ThrowsWhenFieldMissing()
+    {
+        Assert.ThrowsAny<System.Exception>(( ) =>
+            Read("""[{"lan":"zh-CN"}]""", "lan", "subtitle_url", "p", false));
+    }
+
     [Theory]
     // 小写地区码会被规范化：zh-hans => zh-Hans
     [InlineData("zh-hans", "chi", "中文（简体）")]
