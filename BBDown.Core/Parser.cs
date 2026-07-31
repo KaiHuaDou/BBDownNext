@@ -514,12 +514,17 @@ public static partial class Parser
     {
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("clip_info_list", out var clipList)) return;
 
-        parsedResult.ExtraPoints.AddRange(clipList.EnumerateArray( ).Select(clip => new ViewPoint( )
+        AppendViewPoints(parsedResult, clipList.EnumerateArray( ).Select(clip => new ViewPoint( )
         {
             title = clip.GetProperty("toastText").ToString( ).Replace("即将跳过", ""),
             start = clip.GetProperty("start").GetInt32( ),
             end = clip.GetProperty("end").GetInt32( )
         }));
+    }
+
+    private static void AppendViewPoints(ParsedResult parsedResult, IEnumerable<ViewPoint> points)
+    {
+        parsedResult.ExtraPoints.AddRange(points);
         parsedResult.ExtraPoints.Sort((p1, p2) => p1.start.CompareTo(p2.start));
         parsedResult.ExtraPoints = FillGapsWithMainContent(parsedResult.ExtraPoints);
     }
