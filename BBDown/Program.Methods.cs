@@ -25,65 +25,6 @@ internal partial class Program
 {
 
     /// <summary>
-    /// 兼容旧版本命令行参数并给出警告
-    /// </summary>
-    /// <param name="myOption"></param>
-    private static void HandleDeprecatedOptions(MyOption myOption)
-    {
-        if (myOption.AddDfnSubfix)
-        {
-            LogWarn("--add-dfn-subfix 已被弃用, 建议使用 --file-pattern/-F 或 --multi-file-pattern/-M 来自定义输出文件名格式");
-            if (string.IsNullOrEmpty(myOption.FilePattern) && string.IsNullOrEmpty(myOption.MultiFilePattern))
-            {
-                SinglePageDefaultSavePath += "[<dfn>]";
-                MultiPageDefaultSavePath += "[<dfn>]";
-                LogWarn($"已切换至 -F \"{SinglePageDefaultSavePath}\" -M \"{MultiPageDefaultSavePath}\"");
-            }
-        }
-
-        if (myOption.Aria2cProxy != "")
-        {
-            LogWarn("--aria2c-proxy 已被弃用, 请使用 --aria2c-args 来设置aria2c代理, 本次执行已添加该代理");
-            myOption.Aria2cArgs += $" --all-proxy=\"{myOption.Aria2cProxy}\"";
-        }
-
-        if (myOption.OnlyHevc)
-        {
-            LogWarn("--only-hevc/-hevc 已被弃用, 请使用 --encoding-priority 来设置编码优先级, 本次执行已将hevc设置为最高优先级");
-            myOption.EncodingPriority = "hevc";
-        }
-
-        if (myOption.OnlyAvc)
-        {
-            LogWarn("--only-avc/-avc 已被弃用, 请使用 --encoding-priority 来设置编码优先级, 本次执行已将avc设置为最高优先级");
-            myOption.EncodingPriority = "avc";
-        }
-
-        if (myOption.OnlyAv1)
-        {
-            LogWarn("--only-av1/-av1 已被弃用, 请使用 --encoding-priority 来设置编码优先级, 本次执行已将av1设置为最高优先级");
-            myOption.EncodingPriority = "av1";
-        }
-
-        if (myOption.NoPaddingPageNum)
-        {
-            LogWarn("--no-padding-page-num 已被弃用, 建议使用 --file-pattern/-F 或 --multi-file-pattern/-M 来自定义输出文件名格式");
-            if (string.IsNullOrEmpty(myOption.FilePattern) && string.IsNullOrEmpty(myOption.MultiFilePattern))
-            {
-                MultiPageDefaultSavePath = MultiPageDefaultSavePath.Replace("<pageNumberWithZero>", "<pageNumber>");
-                LogWarn($"已切换至 -M \"{MultiPageDefaultSavePath}\"");
-            }
-        }
-
-        if (myOption.BandwidthAscending)
-        {
-            LogWarn("--bandwith-ascending 已被弃用, 建议使用 --video-ascending 与 --audio-ascending 来指定视频或音频是否升序, 本次执行已将视频与音频均设为升序");
-            myOption.VideoAscending = true;
-            myOption.AudioAscending = true;
-        }
-    }
-
-    /// <summary>
     /// 解析用户指定的编码优先级
     /// </summary>
     /// <param name="myOption"></param>

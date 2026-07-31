@@ -159,9 +159,6 @@ internal partial class Program
         bool downloadDanmaku, BBDownDanmakuFormat[] downloadDanmakuFormats, string input, string savePathFormat, string lang, string aidOri, int delay)
         SetUpWork(MyOption myOption)
     {
-        //处理废弃选项
-        HandleDeprecatedOptions(myOption);
-
         //处理冲突选项
         HandleConflictingOptions(myOption);
 

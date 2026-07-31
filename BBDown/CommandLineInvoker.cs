@@ -90,13 +90,6 @@ internal static class CommandLineInvoker
     private static readonly Option<string> TvHost = new("--tv-host", []) { Description = "自定义tv端接口请求Host(用于代理api.snm0516.aisee.tv)" };
     private static readonly Option<string> Area = new("--area", []) { Description = "(hk|tw|th) 使用BiliPlus时必选, 指定BiliPlus area" };
     private static readonly Option<string> ConfigFile = new("--config-file", []) { Description = "读取指定的BBDown本地配置文件(默认为: BBDown.config)" };//以下仅为兼容旧版本命令行, 不建议使用
-    private static readonly Option<string> Aria2cProxy = new("--aria2c-proxy", []) { Description = "调用aria2c进行下载时的代理地址配置", Hidden = true };
-    private static readonly Option<bool> OnlyHevc = new("--only-hevc", ["-hevc"]) { Description = "只下载hevc编码", Hidden = true };
-    private static readonly Option<bool> OnlyAvc = new("--only-avc", ["-avc"]) { Description = "只下载avc编码", Hidden = true };
-    private static readonly Option<bool> OnlyAv1 = new("--only-av1", ["-av1"]) { Description = "只下载av1编码", Hidden = true };
-    private static readonly Option<bool> AddDfnSubfix = new("--add-dfn-subfix", []) { Description = "为文件加入清晰度后缀, 如XXX[1080P 高码率]", Hidden = true };
-    private static readonly Option<bool> NoPaddingPageNum = new("--no-padding-page-num", []) { Description = "不给分P序号补零", Hidden = true };
-    private static readonly Option<bool> BandwidthAscending = new("--bandwith-ascending", []) { Description = "比特率升序(最小体积优先)", Hidden = true };
 
     public static RootCommand GetRootCommand(Func<MyOption, Task> action)
     {
@@ -151,14 +144,7 @@ internal static class CommandLineInvoker
             EpHost,
             TvHost,
             Area,
-            ConfigFile,
-            Aria2cProxy,
-            OnlyHevc,
-            OnlyAvc,
-            OnlyAv1,
-            AddDfnSubfix,
-            NoPaddingPageNum,
-            BandwidthAscending
+            ConfigFile
         };
 
         rootCommand.SetAction(async parseResult =>
@@ -215,14 +201,7 @@ internal static class CommandLineInvoker
                 EpHost = parseResult.GetValue(EpHost) ?? "",
                 TvHost = parseResult.GetValue(TvHost) ?? "",
                 Area = parseResult.GetValue(Area) ?? "",
-                ConfigFile = parseResult.GetValue(ConfigFile) ?? "",
-                Aria2cProxy = parseResult.GetValue(Aria2cProxy) ?? "",
-                OnlyHevc = parseResult.GetValue(OnlyHevc)!,
-                OnlyAvc = parseResult.GetValue(OnlyAvc)!,
-                OnlyAv1 = parseResult.GetValue(OnlyAv1)!,
-                AddDfnSubfix = parseResult.GetValue(AddDfnSubfix)!,
-                NoPaddingPageNum = parseResult.GetValue(NoPaddingPageNum)!,
-                BandwidthAscending = parseResult.GetValue(BandwidthAscending)!
+                ConfigFile = parseResult.GetValue(ConfigFile) ?? ""
             };
             await action(option);
         });
