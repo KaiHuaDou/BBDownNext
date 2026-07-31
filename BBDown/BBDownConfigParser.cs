@@ -15,8 +15,8 @@ internal static class BBDownConfigParser
     {
         try
         {
-            var configPath = newArgsList.Contains("--config-file")
-                ? newArgsList.ElementAt(newArgsList.IndexOf("--config-file") + 1)
+            var configPath = newArgsList.Contains("--config")
+                ? newArgsList.ElementAt(newArgsList.IndexOf("--config") + 1)
                 : Path.Combine(Program.APP_DIR, "BBDown.config");
             if (File.Exists(configPath))
             {

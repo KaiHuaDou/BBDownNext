@@ -7,40 +7,40 @@ namespace BBDown;
 internal static class CommandLineInvoker
 {
     private static readonly Argument<string> Url = new("url") { Description = "视频地址 或 av|bv|BV|ep|ss" };
-    private static readonly Option<bool> UseTvApi = new("--use-tv-api", ["-tv"]) { Description = "使用 TV 端解析模式" };
-    private static readonly Option<bool> UseAppApi = new("--use-app-api", ["-app"]) { Description = "使用 APP 端解析模式" };
-    private static readonly Option<bool> UseIntlApi = new("--use-intl-api", ["-intl"]) { Description = "使用国际版（东南亚视频）解析模式" };
-    private static readonly Option<bool> UseMP4box = new("--use-mp4box", []) { Description = "使用 MP4Box 来混流" };
+    private static readonly Option<bool> UseTvApi = new("--tv-api", ["-tv"]) { Description = "使用 TV 端解析模式" };
+    private static readonly Option<bool> UseAppApi = new("--app-api", ["-app"]) { Description = "使用 APP 端解析模式" };
+    private static readonly Option<bool> UseIntlApi = new("--intl-api", ["-intl"]) { Description = "使用国际版（东南亚视频）解析模式" };
+    private static readonly Option<bool> UseMP4box = new("--mp4box", []) { Description = "使用 MP4Box 来混流" };
     private static readonly Option<string> EncodingPriority = new("--encoding-priority", ["-e"]) { Description = "视频及音频编码的选择优先级，用逗号分隔，例：\"hevc,av1,avc,flac,eac3,m4a\"" };
     private static readonly Option<string> DfnPriority = new("--dfn-priority", ["-q"]) { Description = "画质优先级，用逗号分隔，例：\"8K 超高清, 1080P 高码率, HDR 真彩, 杜比视界\"" };
-    private static readonly Option<bool> OnlyShowInfo = new("--only-show-info", ["-info"]) { Description = "仅解析而不进行下载" };
+    private static readonly Option<bool> OnlyShowInfo = new("--show-info", ["-info"]) { Description = "仅解析而不进行下载" };
     private static readonly Option<bool> HideStreams = new("--hide-streams", ["-hs"]) { Description = "不要显示所有可用音视频流" };
     private static readonly Option<bool> Interactive = new("--interactive", ["-ia"]) { Description = "交互式选择清晰度" };
-    private static readonly Option<bool> ShowAll = new("--show-all", []) { Description = "展示所有分P标题" };
-    private static readonly Option<bool> UseAria2c = new("--use-aria2c", ["-aria2"]) { Description = "调用 aria2c 进行下载（你需要自行准备好二进制可执行文件）" };
+    private static readonly Option<bool> ShowAll = new("--all", []) { Description = "展示所有分P标题" };
+    private static readonly Option<bool> UseAria2c = new("--aria2c", ["-aria2"]) { Description = "调用 aria2c 进行下载（你需要自行准备好二进制可执行文件）" };
     private static readonly Option<string> Aria2cArgs = new("--aria2c-args", []) { Description = "调用 aria2c 的附加参数（默认参数包含 \"-x16 -s16 -j16 -k 5M\"，使用时注意字符串转义）" };
     private static readonly Option<bool> MultiThread = new("--multi-thread", ["-mt"]) { Description = "使用多线程下载（默认开启）" };
     private static readonly Option<string> SelectPage = new("--select-page", ["-p"]) { Description = "选择指定分P或分P范围：（-p 8 或 -p 1,2 或 -p 3-5 或 -p ALL 或 -p LAST 或 -p 3,5,LATEST）" };
     private static readonly Option<bool> SimplyMux = new("--simply-mux", []) { Description = "精简混流，不增加描述、作者等信息" };
-    private static readonly Option<bool> AudioOnly = new("--audio-only", []) { Description = "仅下载音频" };
-    private static readonly Option<bool> VideoOnly = new("--video-only", []) { Description = "仅下载视频" };
-    private static readonly Option<bool> DanmakuOnly = new("--danmaku-only", []) { Description = "仅下载弹幕" };
-    private static readonly Option<bool> CoverOnly = new("--cover-only", []) { Description = "仅下载封面" };
-    private static readonly Option<bool> SubOnly = new("--sub-only", []) { Description = "仅下载字幕" };
+    private static readonly Option<bool> AudioOnly = new("--audio-only", ["-a"]) { Description = "仅下载音频" };
+    private static readonly Option<bool> VideoOnly = new("--video-only", ["-v"]) { Description = "仅下载视频" };
+    private static readonly Option<bool> DanmakuOnly = new("--danmaku-only", ["-d"]) { Description = "仅下载弹幕" };
+    private static readonly Option<bool> CoverOnly = new("--cover-only", ["-c"]) { Description = "仅下载封面" };
+    private static readonly Option<bool> SubOnly = new("--sub-only", ["-s"]) { Description = "仅下载字幕" };
     private static readonly Option<bool> Debug = new("--debug", []) { Description = "输出调试日志" };
     private static readonly Option<bool> SkipMux = new("--skip-mux", []) { Description = "跳过混流步骤" };
     private static readonly Option<bool> SkipSubtitle = new("--skip-subtitle", []) { Description = "跳过字幕下载" };
     private static readonly Option<bool> SkipCover = new("--skip-cover", []) { Description = "跳过封面下载" };
     private static readonly Option<bool> ForceHttp = new("--force-http", []) { Description = "下载音视频时强制使用 HTTP 协议替换 HTTPS（默认开启）" };
-    private static readonly Option<bool> DownloadDanmaku = new("--download-danmaku", ["-dd"]) { Description = "下载弹幕" };
-    private static readonly Option<string> DownloadDanmakuFormats = new("--download-danmaku-formats", ["-ddf"]) { Description = $"指定需下载的弹幕格式，用逗号分隔，可选 {string.Join('/', BBDownDanmakuFormatInfo.AllFormatNames)}，默认：\"{string.Join(',', BBDownDanmakuFormatInfo.AllFormatNames)}\"" };
+    private static readonly Option<bool> DownloadDanmaku = new("--danmaku", ["-dd"]) { Description = "下载弹幕" };
+    private static readonly Option<string> DownloadDanmakuFormats = new("--danmaku-formats", ["-ddf"]) { Description = $"指定需下载的弹幕格式，用逗号分隔，可选 {string.Join('/', BBDownDanmakuFormatInfo.AllFormatNames)}，默认：\"{string.Join(',', BBDownDanmakuFormatInfo.AllFormatNames)}\"" };
     private static readonly Option<bool> SkipAi = new("--skip-ai", []) { Description = "跳过 AI 字幕下载（默认开启）" };
     private static readonly Option<bool> VideoAscending = new("--video-ascending", []) { Description = "视频升序（最小体积优先）" };
     private static readonly Option<bool> AudioAscending = new("--audio-ascending", []) { Description = "音频升序（最小体积优先）" };
     private static readonly Option<bool> AllowPcdn = new("--allow-pcdn", []) { Description = "不替换 PCDN 域名，仅在正常情况与 --upos-host 均无法下载时使用" };
     private static readonly Option<string> Language = new("--language", []) { Description = "设置混流的音频语言（代码），如 chi, jpn 等" };
     private static readonly Option<string> UserAgent = new("--user-agent", ["-ua"]) { Description = "指定 user-agent，否则使用随机 user-agent" };
-    private static readonly Option<string> Cookie = new("--cookie", ["-c"]) { Description = "设置字符串 cookie 用以下载网页接口的会员内容" };
+    private static readonly Option<string> Cookie = new("--cookie", []) { Description = "设置字符串 cookie 用以下载网页接口的会员内容" };
     private static readonly Option<string> AccessToken = new("--access-token", ["-token"]) { Description = "设置 access_token 用以下载 TV/APP 接口的会员内容" };
     private static readonly Option<string> WorkDir = new("--work-dir", []) { Description = "设置程序的工作目录" };
     private static readonly Option<string> FFmpegPath = new("--ffmpeg-path", []) { Description = "设置 ffmpeg 的路径" };
@@ -79,7 +79,7 @@ internal static class CommandLineInvoker
     private static readonly Option<string> EpHost = new("--ep-host", []) { Description = "指定 BiliPlus EP host（用于代理 api.bilibili.com/pgc/view/web/season，大部分解析服务器不支持代理该接口）" };
     private static readonly Option<string> TvHost = new("--tv-host", []) { Description = "自定义 TV 端接口请求 Host（用于代理 api.snm0516.aisee.tv）" };
     private static readonly Option<string> Area = new("--area", []) { Description = "（hk|tw|th）使用 BiliPlus 时必选，指定 BiliPlus area" };
-    private static readonly Option<string> ConfigFile = new("--config-file", []) { Description = "读取指定的 BBDown 本地配置文件（默认为：BBDown.config）" };//以下仅为兼容旧版本命令行, 不建议使用
+    private static readonly Option<string> ConfigFile = new("--config", []) { Description = "读取指定的 BBDown 本地配置文件（默认为：BBDown.config）" };
 
     public static RootCommand GetRootCommand(Func<MyOption, Task> action)
     {
