@@ -35,7 +35,7 @@ internal sealed partial class Program
         }
         catch (Exception ex)
         {
-            LogError($"格式化日期出错: {ex.Message}");
+            LogError($"格式化日期出错：{ex.Message}。");
             return ts.ToString( );
         }
     }
@@ -215,9 +215,9 @@ internal sealed partial class Program
             }
         }
 
-        Log("获取aid...");
+        Log("获取 aid...");
         var aid = await GetAvIdAsync(ctx.Input, cfg);
-        Log($"获取aid结束: {aid}");
+        Log($"获取 aid 结束：{aid}");
 
         if (string.IsNullOrEmpty(aid))
         {
@@ -246,10 +246,10 @@ internal sealed partial class Program
             if (e.Message != "Arg_KeyNotFound") throw; // 错误消息不符合预期，抛出异常
             if (aid.StartsWith("cheese:")) throw; // 已经按课程查找过，不再重复尝试
 
-            LogWarn("未找到此 EP/SS 对应番剧信息, 正在尝试按课程查找。");
+            LogWarn("未找到此 EP/SS 对应番剧信息，正在尝试按课程查找。");
 
             aid = aid.Replace("ep", "cheese");
-            Log("新的 aid: " + aid);
+            Log("新的 aid：" + aid);
 
             if (string.IsNullOrEmpty(aid))
             {
@@ -267,27 +267,27 @@ internal sealed partial class Program
     {
         var title = vInfo.Title;
         var pubTime = vInfo.PubTime;
-        LogColor("视频标题: " + title);
+        LogColor("视频标题：" + title);
         if (pubTime != 0)
         {
-            Log("发布时间: " + FormatTimeStamp(pubTime, "yyyy-MM-dd HH:mm:ss zzz"));
+            Log("发布时间：" + FormatTimeStamp(pubTime, "yyyy-MM-dd HH:mm:ss zzz"));
         }
 
         var bvid = vInfo.PagesInfo.FirstOrDefault( )?.bvid;
         if (!string.IsNullOrEmpty(bvid) && !myOption.UseIntlApi)
         {
-            Log($"视频URL: https://www.bilibili.com/video/{bvid}/");
+            Log($"视频 URL：https://www.bilibili.com/video/{bvid}/");
         }
 
         var mid = vInfo.PagesInfo.FirstOrDefault(p => !string.IsNullOrEmpty(p.ownerMid))?.ownerMid;
         if (!string.IsNullOrEmpty(mid))
         {
-            Log($"UP主页: https://space.bilibili.com/{mid}");
+            Log($"UP 主页：https://space.bilibili.com/{mid}");
         }
 
         if (vInfo.IsSteinGate && myOption.UseTvApi)
         {
-            Log("视频为互动视频，暂时不支持tv下载，修改为默认下载");
+            Log("视频为互动视频，暂时不支持 TV 下载，修改为默认下载。");
             myOption.UseTvApi = false;
         }
     }
@@ -307,7 +307,7 @@ internal sealed partial class Program
                 if (more && p.index != pagesInfo.Count) continue;
                 if (!more && p.index > 5)
                 {
-                    Log("......");
+                    Log("...");
                     more = true;
                     continue;
                 }
@@ -330,7 +330,7 @@ internal sealed partial class Program
             Console.BackgroundColor = ConsoleColor.Red;
             Console.ForegroundColor = ConsoleColor.White;
             var msg = Config.DebugLog ? e.ToString( ) : e.Message;
-            Console.Write($"{msg}{Environment.NewLine}请尝试升级到最新版本后重试!");
+            Console.Write($"{msg}{Environment.NewLine}请尝试升级到最新版本后重试！");
             Console.ResetColor( );
             Console.WriteLine( );
             Thread.Sleep(1);

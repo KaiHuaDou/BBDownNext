@@ -54,7 +54,7 @@ internal sealed partial class Program
         var formats = myOption.DownloadDanmakuFormats.Replace("，", ",").ToLower( ).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         if (formats.Any(format => !BBDownDanmakuFormatInfo.AllFormatNames.Contains(format)))
         {
-            LogError($"包含不支持的下载弹幕格式：{myOption.DownloadDanmakuFormats}");
+            LogError($"包含不支持的下载弹幕格式：{myOption.DownloadDanmakuFormats}。");
             return BBDownDanmakuFormatInfo.DefaultFormats;
         }
 
@@ -193,21 +193,21 @@ internal sealed partial class Program
 
         if (string.IsNullOrEmpty(cookie) && File.Exists(Path.Combine(APP_DIR, "BBDown.data")))
         {
-            Log("加载本地cookie...");
+            Log("加载本地 cookie...");
             LogDebug("文件路径：{0}", Path.Combine(APP_DIR, "BBDown.data"));
             cookie = File.ReadAllText(Path.Combine(APP_DIR, "BBDown.data"));
         }
 
         if (string.IsNullOrEmpty(token) && File.Exists(Path.Combine(APP_DIR, "BBDownTV.data")) && myOption.UseTvApi)
         {
-            Log("加载本地token...");
+            Log("加载本地 token...");
             LogDebug("文件路径：{0}", Path.Combine(APP_DIR, "BBDownTV.data"));
             token = File.ReadAllText(Path.Combine(APP_DIR, "BBDownTV.data")).Replace("access_token=", "");
         }
 
         if (string.IsNullOrEmpty(token) && File.Exists(Path.Combine(APP_DIR, "BBDownApp.data")) && myOption.UseAppApi)
         {
-            Log("加载本地token...");
+            Log("加载本地 token...");
             LogDebug("文件路径：{0}", Path.Combine(APP_DIR, "BBDownApp.data"));
             token = File.ReadAllText(Path.Combine(APP_DIR, "BBDownApp.data")).Replace("access_token=", "");
         }
@@ -257,12 +257,12 @@ internal sealed partial class Program
             if (!string.IsNullOrEmpty(vInfo.Index))
             {
                 selectedPages = [vInfo.Index];
-                Log("程序已自动选择你输入的集数, 如果要下载其他集数请自行指定分P(如可使用-p ALL代表全部)");
+                Log("程序已自动选择你输入的集数，如果要下载其他集数请自行指定分P（如可使用 -p ALL 代表全部）。");
             }
             else if (!string.IsNullOrEmpty(GetQueryString("p", input)))
             {
                 selectedPages = [GetQueryString("p", input)];
-                Log("程序已自动选择你输入的集数, 如果要下载其他集数请自行指定分P(如可使用-p ALL代表全部)");
+                Log("程序已自动选择你输入的集数，如果要下载其他集数请自行指定分P（如可使用 -p ALL 代表全部）。");
             }
         }
         else if (selectPage != "ALL")
@@ -320,13 +320,13 @@ internal sealed partial class Program
                 var pcdnReg = PcdnRegex( );
                 if (selectedVideo != null && pcdnReg.IsMatch(selectedVideo.baseUrl))
                 {
-                    LogWarn($"检测到视频流为PCDN, 尝试强制替换为{BACKUP_HOST}……");
+                    LogWarn($"检测到视频流为 PCDN，尝试强制替换为 {BACKUP_HOST}...");
                     selectedVideo.baseUrl = pcdnReg.Replace(selectedVideo.baseUrl, $"://{BACKUP_HOST}/");
                 }
 
                 if (selectedAudio != null && pcdnReg.IsMatch(selectedAudio.baseUrl))
                 {
-                    LogWarn($"检测到音频流为PCDN, 尝试强制替换为{BACKUP_HOST}……");
+                    LogWarn($"检测到音频流为 PCDN，尝试强制替换为 {BACKUP_HOST}...");
                     selectedAudio.baseUrl = pcdnReg.Replace(selectedAudio.baseUrl, $"://{BACKUP_HOST}/");
                 }
             }
@@ -369,7 +369,7 @@ internal sealed partial class Program
     {
         if (parsedResult.BackgroundAudioTracks.Count != 0 && parsedResult.RoleAudioList.Count != 0)
         {
-            Log($"共计{parsedResult.BackgroundAudioTracks.Count}条背景音频流.");
+            Log($"共计 {parsedResult.BackgroundAudioTracks.Count} 条背景音频流。");
             var index = 0;
             foreach (var a in parsedResult.BackgroundAudioTracks)
             {
@@ -377,7 +377,7 @@ internal sealed partial class Program
                 LogColor($"{index++}. [{a.codecs}] [{a.bandwidth} kbps] [~{FormatFileSize(pDur * a.bandwidth * 1024 / 8)}]", false);
             }
 
-            Log($"共计{parsedResult.RoleAudioList.Count}条配音, 每条包含{parsedResult.RoleAudioList[0].audio.Count}条配音流.");
+            Log($"共计 {parsedResult.RoleAudioList.Count} 条配音，每条包含 {parsedResult.RoleAudioList[0].audio.Count} 条配音流。");
             index = 0;
             foreach (var a in parsedResult.RoleAudioList[0].audio)
             {
@@ -388,7 +388,7 @@ internal sealed partial class Program
         //展示所有的音视频流信息
         if (parsedResult.VideoTracks.Count != 0)
         {
-            Log($"共计{parsedResult.VideoTracks.Count}条视频流.");
+            Log($"共计 {parsedResult.VideoTracks.Count} 条视频流。");
             var index = 0;
             foreach (var v in parsedResult.VideoTracks)
             {
@@ -401,7 +401,7 @@ internal sealed partial class Program
 
         if (parsedResult.AudioTracks.Count != 0)
         {
-            Log($"共计{parsedResult.AudioTracks.Count}条音频流.");
+            Log($"共计 {parsedResult.AudioTracks.Count} 条音频流。");
             var index = 0;
             foreach (var a in parsedResult.AudioTracks)
             {
@@ -438,7 +438,7 @@ internal sealed partial class Program
     {
         if (parsedResult.VideoTracks.Count != 0)
         {
-            Log("请选择一条视频流(输入序号): ", false);
+            Log("请选择一条视频流（输入序号）：", false);
             Console.ForegroundColor = ConsoleColor.Cyan;
             vIndex = Convert.ToInt32(Console.ReadLine( ));
             if (vIndex > parsedResult.VideoTracks.Count || vIndex < 0) vIndex = 0;
@@ -447,7 +447,7 @@ internal sealed partial class Program
 
         if (parsedResult.AudioTracks.Count != 0)
         {
-            Log("请选择一条音频流(输入序号): ", false);
+            Log("请选择一条音频流（输入序号）：", false);
             Console.ForegroundColor = ConsoleColor.Cyan;
             aIndex = Convert.ToInt32(Console.ReadLine( ));
             if (aIndex > parsedResult.AudioTracks.Count || aIndex < 0) aIndex = 0;
@@ -464,7 +464,7 @@ internal sealed partial class Program
         if (downloadConfig.MultiThread && !url.Contains("-cmcc-"))
         {
             await MultiThreadDownloadFileAsync(url, destPath, downloadConfig);
-            Log($"合并{(video ? "视频" : "音频")}分片...");
+            Log($"合并 {(video ? "视频" : "音频")} 分片...");
             CombineMultipleFilesIntoSingleFile(GetFiles(Path.GetDirectoryName(destPath)!, $".{(video ? "v" : "a")}clip"), destPath);
             Log("清理分片...");
             foreach (var file in new DirectoryInfo(Path.GetDirectoryName(destPath)!).EnumerateFiles("*.?clip")) file.Delete( );
@@ -473,7 +473,7 @@ internal sealed partial class Program
         {
             if (downloadConfig.MultiThread && url.Contains("-cmcc-"))
             {
-                LogWarn("检测到cmcc域名cdn, 已经禁用多线程");
+                LogWarn("检测到 CMCC 域名 CDN，已经禁用多线程。");
                 downloadConfig.ForceHttp = false;
             }
 

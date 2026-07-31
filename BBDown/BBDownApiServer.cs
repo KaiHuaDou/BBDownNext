@@ -114,8 +114,8 @@ public class BBDownApiServer
         {
             Console.BackgroundColor = ConsoleColor.Red;
             Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"{url}不是合法的http URL，url示例：http://0.0.0.0:5000");
-            Console.WriteLine("如果您需要https，请额外配置反向代理");
+            Console.WriteLine($"{url} 不是合法的 http URL，url 示例：http://0.0.0.0:5000");
+            Console.WriteLine("如果您需要 https，请额外配置反向代理");
             Console.ResetColor( );
             Console.WriteLine( );
             Thread.Sleep(1);
@@ -151,9 +151,9 @@ public class BBDownApiServer
         {
             Console.BackgroundColor = ConsoleColor.Red;
             Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"{aid}下载失败");
+            Console.WriteLine($"{aid} 下载失败");
             var msg = Config.DebugLog ? e.ToString( ) : e.Message;
-            Console.Write($"{msg}{Environment.NewLine}请尝试升级到最新版本后重试!");
+            Console.Write($"{msg}{Environment.NewLine}请尝试升级到最新版本后重试！");
             Console.ResetColor( );
             Console.WriteLine( );
         }

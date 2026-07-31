@@ -74,7 +74,7 @@ public static partial class Parser
         }
 
         //大会员专享限制时从网页源代码尝试解析
-        Log("此视频需要大会员，您大概率需要登录一个有大会员的账号才可以下载，尝试从网页源码解析");
+        Log("此视频需要大会员，您大概率需要登录一个有大会员的账号才可以下载，尝试从网页源码解析。");
         var webSource = await GetWebSourceAsync("https://www.bilibili.com/bangumi/play/ep" + req.EpId, req.Cfg);
         return PlayerJsonRegex( ).Match(webSource).Groups[1].Value;
     }

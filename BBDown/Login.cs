@@ -23,7 +23,7 @@ internal static class Login
         using var qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
         using PngByteQRCode pngByteCode = new(qrCodeData);
         await File.WriteAllBytesAsync("qrcode.png", pngByteCode.GetGraphic(7));
-        Log("生成二维码成功: qrcode.png, 请打开并扫描, 或扫描打印的二维码");
+        Log("生成二维码成功：qrcode.png，请打开并扫描，或扫描打印的二维码。");
         new ConsoleQRCode(qrCodeData).GetGraphic( );
     }
 
@@ -57,7 +57,7 @@ internal static class Login
                 var code = JsonDocument.Parse(w).RootElement.GetProperty("data").GetProperty("code").GetInt32( );
                 if (code == 86038)
                 {
-                    LogColor("二维码已过期, 请重新执行登录指令.");
+                    LogColor("二维码已过期，请重新执行登录指令。");
                     break;
                 }
                 else if (code == 86101) //等待扫码
@@ -68,7 +68,7 @@ internal static class Login
                 {
                     if (!flag)
                     {
-                        Log("扫码成功, 请确认...");
+                        Log("扫码成功，请确认...");
                         flag = !flag;
                     }
                 }
@@ -112,7 +112,7 @@ internal static class Login
                 var code = JsonDocument.Parse(web).RootElement.GetProperty("code").ToString( );
                 if (code == "86038")
                 {
-                    LogColor("二维码已过期, 请重新执行登录指令.");
+                    LogColor("二维码已过期，请重新执行登录指令。");
                     break;
                 }
                 else if (code == "86039") //等待扫码
@@ -122,7 +122,7 @@ internal static class Login
                 else
                 {
                     var cc = JsonDocument.Parse(web).RootElement.GetProperty("data").GetProperty("access_token").ToString( );
-                    Log("登录成功: AccessToken=" + cc);
+                    Log("登录成功：AccessToken=" + cc);
                     await SaveCredentialAsync("BBDownTV.data", "access_token=" + cc);
                     break;
                 }

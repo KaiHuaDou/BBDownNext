@@ -71,7 +71,7 @@ internal static class AppHelper
         {
             if (!(string.IsNullOrEmpty(encoding) || encoding == "HEVC"))
             {
-                LogWarn("APP的番剧不支持 HEVC 以外的编码");
+                LogWarn("APP 的番剧不支持 HEVC 以外的编码。");
             }
 
             var body = GetPayload(Convert.ToInt64(epId), Convert.ToInt64(cid), Convert.ToInt64(qn), PlayViewReq.Types.CodeType.Code265);
