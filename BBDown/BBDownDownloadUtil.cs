@@ -24,6 +24,10 @@ internal static class BBDownDownloadUtil
         public bool MultiThread { get; set; }
         public DownloadTask? RelatedTask { get; set; }
         public string Cookie { get; set; } = string.Empty;
+        // <=0 表示不限制（Parallel 默认取 ProcessorCount）
+        public int MaxDegreeOfParallelism { get; set; }
+        // 多线程分片大小（字节），默认 20MB
+        public long ChunkSize { get; set; } = 20 * 1024 * 1024;
     }
 
     private static async Task RangeDownloadToTmpAsync(int id, string url, string tmpName, long fromPosition, long? toPosition, Action<int, long, long> onProgress, string cookie, bool failOnRangeNotSupported = false, CancellationToken ct = default)
@@ -50,22 +54,27 @@ internal static class BBDownDownloadUtil
         }
 
         using var stream = await response.Content.ReadAsStreamAsync(ct);
-        var totalBytes = downloadedBytes + (response.Content.Headers.ContentLength ?? long.MaxValue - downloadedBytes);
+        var contentLength = response.Content.Headers.ContentLength;
+        // 已知总长度时用它作为进度分母；未知时退化为 MaxValue（进度停在 0%, 但不再编造虚假百分比）
+        var totalBytes = downloadedBytes + (contentLength ?? long.MaxValue - downloadedBytes);
+        long received = 0;
 
-        const int blockSize = 1048576 / 4;
+        const int blockSize = 1024 * 1024;
         var buffer = new byte[blockSize];
 
-        while (downloadedBytes < totalBytes)
+        while (contentLength == null ? true : received < contentLength)
         {
-            var received = await stream.ReadAsync(buffer, ct);
-            if (received == 0) break;
-            await fileStream.WriteAsync(buffer.AsMemory(0, received), ct);
-            await fileStream.FlushAsync(ct);
-            downloadedBytes += received;
-            onProgress(id, downloadedBytes - fromPosition, totalBytes);
+            var read = await stream.ReadAsync(buffer, ct);
+            if (read == 0) break;
+            await fileStream.WriteAsync(buffer.AsMemory(0, read), ct);
+            received += read;
+            onProgress(id, downloadedBytes + received - fromPosition, totalBytes);
         }
 
-        if (response.Content.Headers.ContentLength != null && (response.Content.Headers.ContentLength != new FileInfo(tmpName).Length))
+        // 完整性：本次会话写入的字节数必须等于 Content-Length。
+        // 206 Partial Content 时 Content-Length 是「本分片剩余字节」而非累计文件长度，
+        // 之前用 FileInfo.Length（累计）比对会在单线程续传时误报 Retry...
+        if (contentLength != null && received != contentLength)
         {
             throw new IOException("Retry...");
         }
@@ -122,7 +131,7 @@ internal static class BBDownDownloadUtil
             return;
         }
 
-        var allClips = GetAllClips(url, fileSize);
+        var allClips = GetAllClips(url, fileSize, config.ChunkSize);
         var total = allClips.Count;
         LogDebug("分段数量：{0}", total);
         ConcurrentDictionary<int, long> clipProgress = new( );
@@ -130,7 +139,12 @@ internal static class BBDownDownloadUtil
 
         using var progress = new ProgressBar(config.RelatedTask);
         progress.Report(0);
-        await Parallel.ForEachAsync(allClips, async (clip, ct) =>
+        var parallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = config.MaxDegreeOfParallelism > 0 ? config.MaxDegreeOfParallelism : -1,
+            CancellationToken = ct,
+        };
+        await Parallel.ForEachAsync(allClips, parallelOptions, async (clip, token) =>
         {
             var tmp = Path.Combine(Path.GetDirectoryName(path)!, clip.index.ToString("00000") + "_" + Path.GetFileNameWithoutExtension(path) + (Path.GetExtension(path).EndsWith(".mp4") ? ".vclip" : ".aclip"));
             try
@@ -139,11 +153,15 @@ internal static class BBDownDownloadUtil
                 {
                     clipProgress[index] = downloaded;
                     progress.Report((double) clipProgress.Values.Sum( ) / fileSize, clipProgress.Values.Sum( ));
-                }, config.Cookie, true, ct);
+                }, config.Cookie, true, token);
             }
             catch (NotSupportedException ex)
             {
                 throw new NotSupportedException("服务器可能并不支持多线程/Range 下载, 请使用 --single-thread 关闭多线程", ex);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -153,35 +171,25 @@ internal static class BBDownDownloadUtil
     }
 
     //此函数主要是切片下载逻辑
-    internal static List<Clip> GetAllClips(string url, long fileSize)
+    internal static List<Clip> GetAllClips(string url, long fileSize, long chunkSize = 20 * 1024 * 1024)
     {
         List<Clip> clips = [];
         var index = 0;
         long counter = 0;
-        var perSize = 20 * 1024 * 1024;
         while (fileSize > 0)
         {
+            var size = Math.Min(chunkSize, fileSize);
             Clip c = new( )
             {
                 index = index,
                 from = counter,
-                to = counter + perSize
+                // 闭区间 [from, to]，非末片各占 chunkSize 字节；末片 to=-1 表示下到结尾
+                to = fileSize > chunkSize ? counter + size - 1 : -1
             };
-            //没到最后
-            if (fileSize - perSize > 0)
-            {
-                fileSize -= perSize;
-                counter += perSize + 1;
-                index++;
-                clips.Add(c);
-            }
-            //已到最后
-            else
-            {
-                c.to = -1;
-                clips.Add(c);
-                break;
-            }
+            clips.Add(c);
+            fileSize -= size;
+            counter += size;
+            index++;
         }
 
         return clips;
