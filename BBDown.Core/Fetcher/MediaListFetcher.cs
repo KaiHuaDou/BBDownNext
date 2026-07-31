@@ -7,6 +7,7 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using static BBDown.Core.Util.JsonUtil;
 
 namespace BBDown.Core.Fetcher;
 
@@ -19,35 +20,40 @@ public static class MediaListFetcher
 {
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
-        id = id[10..];
-        var api = $"{BiliApi.MediaListInfo}?type=8&biz_id={id}&tid=0";
-        var json = await GetWebSourceAsync(api, cfg);
-        using var infoJson = JsonDocument.Parse(json);
-        var root = infoJson.RootElement;
-        var data = root.GetProperty("data");
-        if (data.ValueKind != JsonValueKind.Object)
+        var bizId = id[10..];
+        try
         {
-            // 部分情况下（合集被删除、设为私密或无权访问）data 会是 null
-            // 也有可能是“系列”却被误识别为合集，这里优先尝试按系列解析
+            return await FetchListAsync(bizId, 8, false, "合集", cfg);
+        }
+        catch (InvalidOperationException listEx)
+        {
+            // 合集被删除、设为私密或无权访问时 data 为 null; 也可能是"系列"被误识别为合集
             try
             {
-                return await SeriesListFetcher.FetchAsync($"seriesBizId:{id}", cfg);
+                return await SeriesListFetcher.FetchByBizIdAsync(bizId, cfg);
             }
-            catch
+            catch (Exception seriesEx)
             {
-                var code = root.TryGetProperty("code", out var codeElem) && codeElem.ValueKind == JsonValueKind.Number
-                    ? codeElem.GetInt32( )
-                    : 0;
-                var message = root.TryGetProperty("message", out var msgElem) && msgElem.ValueKind == JsonValueKind.String
-                    ? msgElem.GetString( )
-                    : "未知错误";
-                throw new InvalidOperationException($"获取合集信息失败(code={code}): {message}");
+                throw new InvalidOperationException($"{listEx.Message}; 按系列解析同样失败: {seriesEx.Message}", listEx);
             }
+        }
+    }
+
+    // 合集(type=8)与系列(type=5)共用同一套 medialist 接口, 仅 type 与排序方向不同
+    internal static async Task<VInfo> FetchListAsync(string bizId, int type, bool descOrder, string label, AppConfig cfg)
+    {
+        var api = $"{BiliApi.MediaListInfo}?type={type}&biz_id={bizId}&tid=0";
+        using var infoJson = JsonDocument.Parse(await GetWebSourceAsync(api, cfg));
+        var data = infoJson.RootElement.GetProperty("data");
+        if (data.ValueKind != JsonValueKind.Object)
+        {
+            var (code, message) = ReadApiError(infoJson.RootElement);
+            throw new InvalidOperationException($"获取{label}信息失败(code={code}): {message}");
         }
 
         var listTitle = data.GetProperty("title").GetString( )!;
         var intro = data.GetProperty("intro").GetString( )!;
-        var pubTime = data.GetProperty("ctime").GetInt64( )!;
+        var pubTime = data.GetProperty("ctime").GetInt64( );
 
         List<Page> pagesInfo = [];
         var hasMore = true;
@@ -55,24 +61,17 @@ public static class MediaListFetcher
         var index = 1;
         while (hasMore)
         {
-            var listApi = $"{BiliApi.MediaListResource}?type=8&oid={oid}&otype=2&biz_id={id}&with_current=true&mobi_app=web&ps=20&direction=false&sort_field=1&tid=0&desc=false";
-            json = await GetWebSourceAsync(listApi, cfg);
-            using var listJson = JsonDocument.Parse(json);
-            var listRoot = listJson.RootElement;
-            data = listRoot.GetProperty("data");
-            if (data.ValueKind != JsonValueKind.Object)
+            var listApi = $"{BiliApi.MediaListResource}?type={type}&oid={oid}&otype=2&biz_id={bizId}&bvid=&with_current=true&mobi_app=web&ps=20&direction=false&sort_field=1&tid=0&desc={(descOrder ? "true" : "false")}";
+            using var listJson = JsonDocument.Parse(await GetWebSourceAsync(listApi, cfg));
+            var listData = listJson.RootElement.GetProperty("data");
+            if (listData.ValueKind != JsonValueKind.Object)
             {
-                var code = listRoot.TryGetProperty("code", out var codeElem) && codeElem.ValueKind == JsonValueKind.Number
-                    ? codeElem.GetInt32( )
-                    : 0;
-                var message = listRoot.TryGetProperty("message", out var msgElem) && msgElem.ValueKind == JsonValueKind.String
-                    ? msgElem.GetString( )
-                    : "未知错误";
-                throw new InvalidOperationException($"获取合集视频列表失败(code={code}): {message}");
+                var (code, message) = ReadApiError(listJson.RootElement);
+                throw new InvalidOperationException($"获取{label}视频列表失败(code={code}): {message}");
             }
 
-            hasMore = data.GetProperty("has_more").GetBoolean( );
-            foreach (var m in data.GetProperty("media_list").EnumerateArray( ))
+            hasMore = listData.GetProperty("has_more").GetBoolean( );
+            foreach (var m in listData.GetProperty("media_list").EnumerateArray( ))
             {
                 // 只处理未失效的视频条目（与收藏夹解析逻辑保持一致）
                 if (m.TryGetProperty("attr", out var attrElem) && attrElem.GetInt32( ) != 0)
@@ -94,7 +93,7 @@ public static class MediaListFetcher
                         epid = "",
                         title = pageCount == 1 ? m.GetProperty("title").ToString( ) : $"{m.GetProperty("title")}_P{page.GetProperty("page")}_{page.GetProperty("title")}", //单P使用外层标题 多P则拼接内层子标题
                         dur = page.GetProperty("duration").GetInt32( ),
-                        res = page.GetProperty("dimension").GetProperty("width").ToString( ) + "x" + page.GetProperty("dimension").GetProperty("height").ToString( ),
+                        res = ReadDimension(page),
                         pubTime = m.GetProperty("pubtime").GetInt64( ),
                         cover = m.GetProperty("cover").ToString( ),
                         desc = desc,
@@ -115,7 +114,7 @@ public static class MediaListFetcher
             }
         }
 
-        var info = new VInfo
+        return new VInfo
         {
             Title = listTitle.Trim( ),
             Desc = intro.Trim( ),
@@ -124,7 +123,5 @@ public static class MediaListFetcher
             PagesInfo = pagesInfo,
             IsBangumi = false
         };
-
-        return info;
     }
 }

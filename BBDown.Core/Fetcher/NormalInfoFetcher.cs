@@ -10,6 +10,7 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using static BBDown.Core.Util.JsonUtil;
 
 namespace BBDown.Core.Fetcher;
 
@@ -48,7 +49,7 @@ public static partial class NormalInfoFetcher
                 epid = "",
                 title = page.GetProperty("part").ToString( ).Trim( ),
                 dur = page.GetProperty("duration").GetInt32( ),
-                res = page.GetProperty("dimension").GetProperty("width").ToString( ) + "x" + page.GetProperty("dimension").GetProperty("height").ToString( ),
+                res = ReadDimension(page),
                 pubTime = pubTime, //分p视频没有发布时间
                 cover = "",
                 desc = "",

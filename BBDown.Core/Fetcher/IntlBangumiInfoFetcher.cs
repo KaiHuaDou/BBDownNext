@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -17,7 +16,6 @@ public static partial class IntlBangumiInfoFetcher
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[3..];
-        var index = "";
         var host = cfg.Host == BiliApi.MainHost ? BiliApi.IntlAppHost : cfg.Host;
         var accessKey = cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "";
         var api = $"https://{host}{BiliApi.IntlSeasonAppPath}?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a{accessKey}";
@@ -50,8 +48,6 @@ public static partial class IntlBangumiInfoFetcher
         var pubTimeStr = result.GetProperty("publish").GetProperty("pub_time").ToString( );
         var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", null).ToUnixTimeSeconds( );
         TryGetArray(result, "episodes", out var pages);
-        List<Page> pagesInfo = [];
-        var i = 1;
 
         //目标 ep 可能不在主 episodes 里，而在某个 module 的分组下
         if (TryGetArray(result, "modules", out var modules))
@@ -68,41 +64,8 @@ public static partial class IntlBangumiInfoFetcher
             }
         }
 
-        foreach (var page in EnumerateArrayOrEmpty(pages))
-        {
-            //跳过预告
-            if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告")
-            {
-                continue;
-            }
-
-            var res = "";
-            try
-            {
-                res = page.GetProperty("dimension").GetProperty("width").ToString( ) + "x" + page.GetProperty("dimension").GetProperty("height").ToString( );
-            }
-            catch (Exception) { }
-
-            var _title = page.GetProperty("title").ToString( ) + " " + page.GetProperty("long_title").ToString( );
-            _title = _title.Trim( );
-            Page p = new( )
-            {
-                index = i++,
-                aid = page.GetProperty("aid").ToString( ),
-                cid = page.GetProperty("cid").ToString( ),
-                epid = page.GetProperty("id").ToString( ),
-                title = _title,
-                dur = 0,
-                res = res,
-                pubTime = page.TryGetProperty("pub_time", out var pub_time) ? pub_time.GetInt64( ) : 0,
-            };
-            if (p.epid == id)
-            {
-                index = p.index.ToString( );
-            }
-
-            pagesInfo.Add(p);
-        }
+        var pagesInfo = BangumiInfoFetcher.BuildEpisodePages(pages);
+        var index = pagesInfo.Find(p => p.epid == id)?.index.ToString( ) ?? "";
 
         var info = new VInfo
         {

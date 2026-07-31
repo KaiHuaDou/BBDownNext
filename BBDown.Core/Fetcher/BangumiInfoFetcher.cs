@@ -16,7 +16,6 @@ public static class BangumiInfoFetcher
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg)
     {
         id = id[3..];
-        var index = "";
         var api = $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?ep_id={id}";
         var json = await GetWebSourceAsync(api, cfg);
         using var infoJson = JsonDocument.Parse(json);
@@ -30,8 +29,6 @@ public static class BangumiInfoFetcher
         var pubTimeStr = result.GetProperty("publish").GetProperty("pub_time").ToString( );
         var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", null).ToUnixTimeSeconds( );
         TryGetArray(result, "episodes", out var pages);
-        List<Page> pagesInfo = [];
-        var i = 1;
 
         //episodes为空; 或者未包含对应epid，番外/花絮什么的
         if (!ContainsEpisode(pages, id) && TryGetArray(result, "section", out var sections))
@@ -47,41 +44,8 @@ public static class BangumiInfoFetcher
             }
         }
 
-        foreach (var page in EnumerateArrayOrEmpty(pages))
-        {
-            //跳过预告
-            if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告")
-            {
-                continue;
-            }
-
-            var res = "";
-            try
-            {
-                res = page.GetProperty("dimension").GetProperty("width").ToString( ) + "x" + page.GetProperty("dimension").GetProperty("height").ToString( );
-            }
-            catch (Exception) { }
-
-            var _title = page.GetProperty("title").ToString( ) + " " + page.GetProperty("long_title").ToString( );
-            _title = _title.Trim( );
-            Page p = new( )
-            {
-                index = i++,
-                aid = page.GetProperty("aid").ToString( ),
-                cid = page.GetProperty("cid").ToString( ),
-                epid = page.GetProperty("id").ToString( ),
-                title = _title,
-                dur = 0,
-                res = res,
-                pubTime = page.GetProperty("pub_time").GetInt64( ),
-            };
-            if (p.epid == id)
-            {
-                index = p.index.ToString( );
-            }
-
-            pagesInfo.Add(p);
-        }
+        var pagesInfo = BuildEpisodePages(pages);
+        var index = pagesInfo.Find(p => p.epid == id)?.index.ToString( ) ?? "";
 
         var info = new VInfo
         {
@@ -96,5 +60,34 @@ public static class BangumiInfoFetcher
         };
 
         return info;
+    }
+
+    // 国内番剧与 INTL 番剧的 episodes 结构一致，共用同一段分集构造
+    internal static List<Page> BuildEpisodePages(JsonElement episodes)
+    {
+        List<Page> pagesInfo = [];
+        var i = 1;
+        foreach (var page in EnumerateArrayOrEmpty(episodes))
+        {
+            //跳过预告
+            if (page.TryGetProperty("badge", out var badge) && badge.ToString( ) == "预告")
+            {
+                continue;
+            }
+
+            pagesInfo.Add(new Page
+            {
+                index = i++,
+                aid = page.GetProperty("aid").ToString( ),
+                cid = page.GetProperty("cid").ToString( ),
+                epid = page.GetProperty("id").ToString( ),
+                title = (page.GetProperty("title").ToString( ) + " " + page.GetProperty("long_title").ToString( )).Trim( ),
+                dur = 0,
+                res = ReadDimension(page),
+                pubTime = page.TryGetProperty("pub_time", out var pubTime) ? pubTime.GetInt64( ) : 0,
+            });
+        }
+
+        return pagesInfo;
     }
 }

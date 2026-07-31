@@ -75,4 +75,27 @@ public class JsonUtilTests
         var episodes = Parse("""[{"id":1,"share_copy":"see also /ep777"}]""");
         Assert.False(JsonUtil.ContainsEpisode(episodes, "777"));
     }
+
+    [Theory]
+    [InlineData("""{"dimension":{"width":1920,"height":1080}}""", "1920x1080")]
+    [InlineData("""{"dimension":{"width":1920,"height":1080,"rotate":0}}""", "1920x1080")]
+    [InlineData("""{"dimension":{"width":1920}}""", "")]
+    [InlineData("""{"dimension":null}""", "")]
+    [InlineData("""{}""", "")]
+    [InlineData("""[]""", "")]
+    public void ReadDimension_MissingFieldsGiveEmptyString(string json, string expected)
+    {
+        Assert.Equal(expected, JsonUtil.ReadDimension(Parse(json)));
+    }
+
+    [Theory]
+    [InlineData("""{"code":-403,"message":"访问权限不足"}""", -403, "访问权限不足")]
+    [InlineData("""{"code":0}""", 0, "未知错误")]
+    [InlineData("""{"message":"boom"}""", 0, "boom")]
+    [InlineData("""{"code":"-403","message":404}""", 0, "未知错误")]
+    [InlineData("""[]""", 0, "未知错误")]
+    public void ReadApiError_FallsBackOnMissingOrMistypedFields(string json, int code, string message)
+    {
+        Assert.Equal((code, message), JsonUtil.ReadApiError(Parse(json)));
+    }
 }
