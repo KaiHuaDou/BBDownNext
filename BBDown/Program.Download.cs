@@ -409,14 +409,14 @@ internal sealed partial class Program
             savePath = ToAudioOnlyPath(savePath);
 
         var isHevc = selectedVideo?.codecs == "HEVC";
-        var code = BBDownMuxer.MuxAV(useMp4box, p.bvid, videoPath, audioPath, audioMaterial, savePath,
+        int code = await BBDownMuxer.MuxAV(useMp4box, p.bvid, videoPath, audioPath, audioMaterial, savePath,
             pageCtx.Desc,
             pageCtx.Title,
             p.ownerName ?? "",
             pageCtx.EpisodeTitle,
             File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
             ctx.Lang,
-            subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux, isHevc);
+            subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux, isHevc, CancellationToken.None);
         if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
         {
             LogError("合并失败");
@@ -486,21 +486,21 @@ internal sealed partial class Program
             Log("开始合并分段...");
             var files = GetFiles(Path.GetDirectoryName(lastClipPath)!, ".mp4");
             var videoPath = pageCtx.VideoPath;
-            BBDownMuxer.MergeFLV(files, videoPath);
+            await BBDownMuxer.MergeFLV(files, videoPath, CancellationToken.None);
             if (myOption.SkipMux) return PageOutcome.Abort(selected);
 
             Log($"开始混流视频{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
             if (myOption.AudioOnly)
                 savePath = ToAudioOnlyPath(savePath);
 
-            var code = BBDownMuxer.MuxAV(false, p.bvid, videoPath, "", audioMaterial, savePath,
+            int code = await BBDownMuxer.MuxAV(false, p.bvid, videoPath, "", audioMaterial, savePath,
                 pageCtx.Desc,
                 pageCtx.Title,
                 p.ownerName ?? "",
                 pageCtx.EpisodeTitle,
                 File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
                 ctx.Lang,
-                subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux);
+                subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux, ct: CancellationToken.None);
             if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
             {
                 LogError("合并失败");

@@ -5,6 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 using BBDown.Core;
 
@@ -20,7 +22,7 @@ internal static class BBDownMuxer
     public static string FFMPEG = "ffmpeg";
     public static string MP4BOX = "mp4box";
 
-    private static int RunExe(string app, List<string> args)
+    private static async Task<int> RunExe(string app, List<string> args, CancellationToken ct = default)
     {
         LogDebug("{0}命令: {1}", Path.GetFileNameWithoutExtension(app), FormatArgs(args));
         using Process p = new( );
@@ -43,7 +45,9 @@ internal static class BBDownMuxer
         };
         p.Start( );
         p.BeginErrorReadLine( );
-        p.WaitForExit( );
+        // 取消时杀掉子进程, 避免 ffmpeg 在 WaitForExitAsync 已取消后仍挂起
+        using var _ = ct.Register(() => { try { p.Kill( ); } catch { } });
+        await p.WaitForExitAsync(ct);
         return p.ExitCode;
     }
 
@@ -164,7 +168,7 @@ internal static class BBDownMuxer
         return args;
     }
 
-    public static int MuxAV(bool useMp4box, string bvid, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, string desc = "", string title = "", string author = "", string episodeId = "", string pic = "", string lang = "", List<Subtitle>? subs = null, bool audioOnly = false, bool videoOnly = false, List<ViewPoint>? points = null, long pubTime = 0, bool simplyMux = false, bool isHevc = false)
+    public static async Task<int> MuxAV(bool useMp4box, string bvid, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, string desc = "", string title = "", string author = "", string episodeId = "", string pic = "", string lang = "", List<Subtitle>? subs = null, bool audioOnly = false, bool videoOnly = false, List<ViewPoint>? points = null, long pubTime = 0, bool simplyMux = false, bool isHevc = false, CancellationToken ct = default)
     {
         if (audioOnly && audioPath.Length != 0)
         {
@@ -190,11 +194,11 @@ internal static class BBDownMuxer
         }
 
         return useMp4box
-            ? RunExe(MP4BOX, BuildMp4boxArgs(url, videoPath, audioPath, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, Config.DebugLog))
-            : RunExe(FFMPEG, BuildFFmpegArgs(url, videoPath, audioPath, audioMaterial, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, pubTime, simplyMux, isHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog));
+            ? await RunExe(MP4BOX, BuildMp4boxArgs(url, videoPath, audioPath, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, Config.DebugLog), ct)
+            : await RunExe(FFMPEG, BuildFFmpegArgs(url, videoPath, audioPath, audioMaterial, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, pubTime, simplyMux, isHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog), ct);
     }
 
-    public static void MergeFLV(string[] files, string outPath)
+    public static async Task MergeFLV(string[] files, string outPath, CancellationToken ct = default)
     {
         if (files.Length == 1)
         {
@@ -205,7 +209,7 @@ internal static class BBDownMuxer
         foreach (var file in files)
         {
             var tmpFile = Path.Combine(Path.GetDirectoryName(file)!, Path.GetFileNameWithoutExtension(file) + ".ts");
-            RunExe(FFMPEG, ["-loglevel", "warning", "-y", "-i", file, "-map", "0", "-c", "copy", "-f", "mpegts", "-bsf:v", "h264_mp4toannexb", tmpFile]);
+            await RunExe(FFMPEG, ["-loglevel", "warning", "-y", "-i", file, "-map", "0", "-c", "copy", "-f", "mpegts", "-bsf:v", "h264_mp4toannexb", tmpFile], ct);
             File.Delete(file);
         }
 
