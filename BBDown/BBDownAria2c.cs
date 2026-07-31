@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core;
@@ -13,7 +14,7 @@ internal static class BBDownAria2c
 {
     public static string ARIA2C = "aria2c";
 
-    private static async Task<int> RunCommandCodeAsync(string command, List<string> args)
+    private static async Task<int> RunCommandCodeAsync(string command, List<string> args, CancellationToken ct = default)
     {
         using Process p = new( );
         p.StartInfo.UseShellExecute = false;
@@ -25,7 +26,12 @@ internal static class BBDownAria2c
         }
 
         p.Start( );
-        await p.WaitForExitAsync( );
+        // 取消时杀掉子进程, 避免 aria2c 在 WaitForExitAsync 已取消后仍挂起
+        using var _ = ct.Register(() =>
+        {
+            try { p.Kill( ); } catch { }
+        });
+        await p.WaitForExitAsync(ct);
         return p.ExitCode;
     }
 
@@ -91,8 +97,8 @@ internal static class BBDownAria2c
         return result;
     }
 
-    public static async Task DownloadFileByAria2cAsync(string url, string path, string extraArgs, string cookie)
+    public static async Task DownloadFileByAria2cAsync(string url, string path, string extraArgs, string cookie, CancellationToken ct = default)
     {
-        await RunCommandCodeAsync(ARIA2C, BuildArgs(url, path, extraArgs, cookie));
+        await RunCommandCodeAsync(ARIA2C, BuildArgs(url, path, extraArgs, cookie), ct);
     }
 }
