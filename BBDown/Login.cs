@@ -136,7 +136,9 @@ internal static class Login
                     Uri loginUrl = new(BiliApi.TvQrCodeAuth);
                     var parms = GetTVLoginParms( );
                     using var loginContent = new FormUrlEncodedContent(parms.ToDictionary( ));
-                    using var response = await HTTPUtil.AppHttpClient.PostAsync(loginUrl, loginContent);
+                    using var loginRequest = new HttpRequestMessage(HttpMethod.Post, loginUrl) { Content = loginContent };
+                    loginRequest.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
+                    using var response = await HTTPUtil.AppHttpClient.SendAsync(loginRequest);
                     using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync( ));
                     var data = doc.RootElement.GetProperty("data");
                     var url = data.GetProperty("url").GetString( )!;
@@ -152,7 +154,9 @@ internal static class Login
                 {
                     Uri pollUrl = new(BiliApi.TvQrCodePoll);
                     using var pollContent = new FormUrlEncodedContent(tvParms!.ToDictionary( ));
-                    using var response = await HTTPUtil.AppHttpClient.PostAsync(pollUrl, pollContent);
+                    using var pollRequest = new HttpRequestMessage(HttpMethod.Post, pollUrl) { Content = pollContent };
+                    pollRequest.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
+                    using var response = await HTTPUtil.AppHttpClient.SendAsync(pollRequest);
                     using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync( ));
                     return doc.RootElement.Clone( );
                 },

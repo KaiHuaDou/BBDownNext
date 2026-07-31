@@ -235,7 +235,8 @@ public static partial class SubUtil
                 Type = 1,
                 Spmid = "main.ugc-video-detail.0.0",
             }.ToByteArray( ));
-            var body = AppHelper.ReadMessage(await GetPostResponseAsync(api, payload));
+            var headers = AppHelper.GetHeader("", cfg, "app.biliapi.net");
+            var body = AppHelper.ReadMessage(await GetPostResponseAsync(api, payload, headers));
             var reply = new MessageParser<DmViewReply>(( ) => new DmViewReply( )).ParseFrom(body);
             return reply.Subtitle?.Subtitles?
                 .Select(s => new Subtitle { lan = s.Lan, url = s.SubtitleUrl, path = $"{pathPrefix}.{s.Lan}.srt" })

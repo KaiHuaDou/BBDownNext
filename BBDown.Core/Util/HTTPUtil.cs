@@ -77,7 +77,9 @@ public static partial class HTTPUtil
         using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
         webRequest.Headers.TryAddWithoutValidation("User-Agent", userAgent ?? UserAgent);
         webRequest.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
-        webRequest.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? cfg.Cookie + ";CURRENT_FNVAL=4048;" : cfg.Cookie);
+        var cookie = cfg.Cookie;
+        if (Buvid.Fragment.Length != 0) cookie += ";" + Buvid.Fragment;
+        webRequest.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? cookie + ";CURRENT_FNVAL=4048;" : cookie);
 
         var host = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : "";
         if (host == BiliApi.MainHost)

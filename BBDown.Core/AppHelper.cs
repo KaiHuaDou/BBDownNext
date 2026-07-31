@@ -31,7 +31,6 @@ internal static class AppHelper
     private const Network.Types.TYPE networkType = Network.Types.TYPE.Wifi;
     private const string networkOid = "46007";
     private const string cronet = "1.36.1";
-    private const string buvid = "";
     private const string mobiApp = "android";
     private const string appKey = "android64";
     private const string sessionId = "dedf8669";
@@ -54,7 +53,7 @@ internal static class AppHelper
 
     public static async Task<PlayViewReply> DoReqAsync(string aid, string cid, string epId, bool bangumi, string encoding, AppConfig cfg, string appkey = "", CancellationToken ct = default)
     {
-        var headers = GetHeader(appkey, cfg);
+        var headers = GetHeader(appkey, cfg, bangumi ? "app.bilibili.com" : "grpc.biliapi.net");
         LogDebug("App-Req-Headers: {0}", JsonSerializer.Serialize(headers, JsonContext.Default.DictionaryStringString));
         byte[] data;
         // 只有pgc接口才有配音和片头尾信息
@@ -101,11 +100,11 @@ internal static class AppHelper
 
     #region 生成Headers相关方法
 
-    private static Dictionary<string, string> GetHeader(string appkey, AppConfig cfg)
+    internal static Dictionary<string, string> GetHeader(string appkey, AppConfig cfg, string host)
     {
         return new Dictionary<string, string>( )
         {
-            ["Host"] = "grpc.biliapi.net",
+            ["Host"] = host,
             ["user-agent"] = $"Dalvik/{dalvikVer} (Linux; U; Android {osVer}; {brand} {model}) {appVer} os/android model/{brand} mobi_app/android build/{build} channel/{channel} innerVer/{build} osVer/{osVer} network/2 grpc-java-cronet/{cronet}",
             ["te"] = "trailers",
             ["x-bili-fawkes-req-bin"] = GenerateFawkesReqBin( ),
@@ -151,7 +150,7 @@ internal static class AppHelper
         {
             AppId = appId,
             Build = build,
-            Buvid = buvid,
+            Buvid = Buvid.Value,
             MobiApp = mobiApp,
             Platform = platform,
             Channel = channel,
@@ -170,7 +169,7 @@ internal static class AppHelper
             MobiApp = mobiApp,
             Build = build,
             Channel = channel,
-            Buvid = buvid,
+            Buvid = Buvid.Value,
             Platform = platform
         };
         return Convert.ToBase64String(obj.ToByteArray( ));

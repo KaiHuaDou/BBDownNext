@@ -39,9 +39,50 @@ public static partial class Parser
     }
 
     // CA5351: MD5 由 B 站 wbi 签名协议规定，哈希值必须与服务端保持一致，不能替换为 SHA256
+    // 算法见 bilibili-API-collect/docs/misc/sign/wbi.md：把含 wts 的参数按 key 升序排序后，对值做
+    // encodeURIComponent 风格编码（并过滤 !'()*），末尾直接拼接 mixinKey 取 MD5 得 w_rid，再追加回原始 query。
+    // 当前 playurl 参数均为数字/固定字面量，编码为恒等变换；排序是关键修正点（旧实现按书写序拼接，与服务端不一致）。
     public static string WbiSign(string api, AppConfig cfg)
     {
-        return $"{api}&w_rid=" + string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(api + cfg.Wbi)).Select(i => i.ToString("x2")).ToArray( ));
+        if (cfg.Wbi.Length == 0) return api;
+
+        var canonical = string.Join("&",
+            api.Split('&')
+                .Select(part => part.Split('=', 2))
+                .Where(kv => kv.Length == 2 && kv[0] != "w_rid")
+                .Select(kv => (Key: kv[0], Value: WbiEncodeValue(kv[1])))
+                .OrderBy(p => p.Key, StringComparer.Ordinal)
+                .Select(p => $"{p.Key}={p.Value}"))
+            + cfg.Wbi;
+
+        var w_rid = string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(canonical)).Select(b => b.ToString("x2")));
+        return $"{api}&w_rid={w_rid}";
+    }
+
+    // 与浏览器 encodeURIComponent 一致：保留 A-Za-z0-9-_.~，过滤 wbi.md 要求的 !'()*，其余按 UTF-8 字节大写十六进制转义（空格 -> %20）。
+    private static string WbiEncodeValue(string value)
+    {
+        var sb = new StringBuilder(value.Length);
+        foreach (var ch in value)
+        {
+            if (ch is (>= 'A' and <= 'Z') or (>= 'a' and <= 'z') or (>= '0' and <= '9') or '-' or '_' or '.' or '~')
+            {
+                sb.Append(ch);
+            }
+            else if (ch is '!' or '\'' or '(' or ')' or '*')
+            {
+                // wbi.md 要求过滤 !'()*
+            }
+            else
+            {
+                foreach (var b in Encoding.UTF8.GetBytes(new[] { ch }))
+                {
+                    sb.Append('%').Append(b.ToString("X2"));
+                }
+            }
+        }
+
+        return sb.ToString();
     }
 
     private static async Task<string> GetPlayJsonAsync(PlayUrlRequest req, string qn = "0", CancellationToken ct = default)

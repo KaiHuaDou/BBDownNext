@@ -205,7 +205,7 @@ internal sealed partial class Program
         var cfg = new AppConfig(cookie, token, myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
 
         // 检测是否登录了账号
-        if (myOption is { UseIntlApi: false, UseTvApi: false } && cfg.Area is { Length: 0 })
+        if (myOption is { UseIntlApi: false, UseTvApi: false })
         {
             Log("检测账号登录...");
             var (info, wbi) = await ProbeAccountAsync(cfg, ct);
@@ -217,6 +217,7 @@ internal sealed partial class Program
             Log($"已使用 {DetermineApiType(myOption)} 凭据");
         }
 
+        await Buvid.InitAsync(ct);
         Log("获取 aid...");
         var aid = await GetAvIdAsync(ctx.Input, cfg);
         Log($"获取 aid 结束：{aid}");

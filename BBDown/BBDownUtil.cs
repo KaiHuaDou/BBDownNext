@@ -178,7 +178,7 @@ internal static partial class Utils
 
     private static async Task<string> GetEpIdByBangumiSSIdAsync(string ssId, Core.AppConfig cfg)
     {
-        var api = $"https://{cfg.EpHost}/pgc/view/web/season?season_id={ssId}";
+        var api = $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?season_id={ssId}";
         var json = await GetWebSourceAsync(api, cfg);
         using var jDoc = JsonDocument.Parse(json);
         var epId = jDoc.RootElement.GetProperty("result").GetProperty("episodes").EnumerateArray( ).First( ).GetProperty("id").ToString( );

@@ -23,6 +23,8 @@ public static class BiliApi
 
     // 主机固定的接口
     public const string View = $"https://{MainHost}/x/web-interface/view";
+    public const string ViewWbi = $"https://{MainHost}/x/web-interface/wbi/view";
+    public const string FingerSpi = $"https://{MainHost}/x/frontend/finger/spi";
     public const string Nav = $"https://{MainHost}/x/web-interface/nav";
     public const string PlayerWbiV2 = $"https://{MainHost}/x/player/wbi/v2";
     public const string PlayerSo = $"https://{MainHost}/x/player.so";
