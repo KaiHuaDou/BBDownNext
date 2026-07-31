@@ -14,6 +14,7 @@ internal sealed record WorkContext(
     Dictionary<string, byte> EncodingPriority,
     Dictionary<string, int> DfnPriority,
     string FirstEncoding,
+    bool EncodingFirst,
     bool DownloadDanmaku,
     BBDownDanmakuFormat[] DownloadDanmakuFormats,
     string Input,

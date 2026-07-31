@@ -259,7 +259,7 @@ public class DownloadTests
             MakeVideo("120", "4K 超清", "HEVC", 4000),
         ];
         var dfnPriority = new Dictionary<string, int> { ["1080P 高清"] = 0, ["4K 超清"] = 1 };
-        var sorted = Program.SortTracks(tracks, dfnPriority, [], videoAscending: false);
+        var sorted = Program.SortTracks(tracks, dfnPriority, [], videoAscending: false, encodingFirst: false);
 
         Assert.Equal("1080P 高清", sorted[0].dfn);
         Assert.Equal(3, sorted.Count);
@@ -274,7 +274,7 @@ public class DownloadTests
             MakeVideo("120", "4K 超清", "AVC", 1000),
             MakeVideo("120", "4K 超清", "HEVC", 2000),
         ];
-        var sorted = Program.SortTracks(tracks, [], [], videoAscending: false);
+        var sorted = Program.SortTracks(tracks, [], [], videoAscending: false, encodingFirst: false);
 
         Assert.Equal("120", sorted[0].id);
         Assert.Equal(2000, sorted[0].bandwidth);
@@ -289,7 +289,7 @@ public class DownloadTests
             MakeVideo("120", "4K 超清", "AVC", 5000),
             MakeVideo("120", "4K 超清", "AVC", 1000),
         ];
-        var sorted = Program.SortTracks(tracks, [], [], videoAscending: true);
+        var sorted = Program.SortTracks(tracks, [], [], videoAscending: true, encodingFirst: false);
         Assert.Equal(1000, sorted[0].bandwidth);
     }
 
@@ -328,5 +328,23 @@ public class DownloadTests
         ];
         var sorted = Program.SortTracks(tracks, [], audioAscending: true);
         Assert.Equal(64, sorted[0].bandwidth);
+    }
+
+    [Fact]
+    public void SortVideoTracks_EncodingFirst_WhenRequested()
+    {
+        List<Video> tracks =
+        [
+            MakeVideo("80", "1080P 高清", "AVC", 1000),
+            MakeVideo("120", "4K 超清", "AVC", 5000),
+            MakeVideo("120", "4K 超清", "HEVC", 4000),
+        ];
+        var dfnPriority = new Dictionary<string, int> { ["1080P 高清"] = 0, ["4K 超清"] = 1 };
+        var encodingPriority = new Dictionary<string, byte> { ["HEVC"] = 0, ["AVC"] = 1 };
+        //编码优先时, 先按编码(HEVC 在前), 再按清晰度
+        var sorted = Program.SortTracks(tracks, dfnPriority, encodingPriority, videoAscending: false, encodingFirst: true);
+
+        Assert.Equal("HEVC", sorted[0].codecs);
+        Assert.Equal(3, sorted.Count);
     }
 }

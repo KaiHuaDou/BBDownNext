@@ -63,7 +63,8 @@ internal sealed partial class Program
     {
         Console.CancelKeyPress += Console_CancelKeyPress;
 
-        var rootCommand = CommandLineInvoker.GetRootCommand(RunApp);
+        var resolvedArgs = new List<string>( );
+        var rootCommand = CommandLineInvoker.GetRootCommand(o => RunApp(o, resolvedArgs));
         rootCommand.Description = "BBDown是一个免费且便捷高效的哔哩哔哩下载/解析软件.";
         rootCommand.TreatUnmatchedTokensAsErrors = false;
 
@@ -118,6 +119,8 @@ internal sealed partial class Program
             }
         }
 
+        resolvedArgs.AddRange(argsList);
+
         if (argsList.Contains("--debug"))
         {
             Config.SetDebugLog(true);
@@ -136,10 +139,10 @@ internal sealed partial class Program
         return await rootResult.InvokeAsync(new InvocationConfiguration( ) { EnableDefaultExceptionHandler = false });
     }
 
-    private static Task RunApp(MyOption myOption)
+    private static Task RunApp(MyOption myOption, List<string> argsList)
     {
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        return DoWorkAsync(myOption);
+        return DoWorkAsync(myOption, argsList);
     }
 
     private static void StartServer(string? listenUrl)
@@ -152,7 +155,7 @@ internal sealed partial class Program
 #pragma warning restore CA2234
     }
 
-    public static WorkContext BuildWorkContext(MyOption myOption)
+    public static WorkContext BuildWorkContext(MyOption myOption, List<string>? argsList = null)
     {
         //处理冲突选项
         HandleConflictingOptions(myOption);
@@ -166,6 +169,14 @@ internal sealed partial class Program
         //解析优先级
         var (encodingPriority, firstEncoding) = ParseEncodingPriority(myOption);
         var dfnPriority = ParseDfnPriority(myOption);
+
+        //用户同时指定了编码与清晰度优先级时, 以命令行书写的先后为准
+        //(serve 模式由 JSON 注入参数, 无命令行顺序, 默认清晰度优先)
+        var encodingFirst = argsList != null
+            && argsList.Contains("--encoding-priority")
+            && argsList.Contains("--dfn-priority")
+            && argsList.FindIndex(s => s == "--encoding-priority")
+               < argsList.FindIndex(s => s == "--dfn-priority");
 
         //优先使用用户设置的UA
         HTTPUtil.UserAgent = string.IsNullOrEmpty(myOption.UserAgent) ? HTTPUtil.UserAgent : myOption.UserAgent;
@@ -185,6 +196,7 @@ internal sealed partial class Program
             EncodingPriority: encodingPriority,
             DfnPriority: dfnPriority,
             FirstEncoding: firstEncoding,
+            EncodingFirst: encodingFirst,
             DownloadDanmaku: downloadDanmaku,
             DownloadDanmakuFormats: downloadDanmakuFormats,
             Input: input,
@@ -318,11 +330,11 @@ internal sealed partial class Program
         }
     }
 
-    private static async Task DoWorkAsync(MyOption myOption)
+    private static async Task DoWorkAsync(MyOption myOption, List<string>? argsList = null)
     {
         try
         {
-            var ctx = BuildWorkContext(myOption);
+            var ctx = BuildWorkContext(myOption, argsList);
             ctx = await GetVideoInfoAsync(myOption, ctx);
             await DownloadPagesAsync(myOption, ctx);
         }

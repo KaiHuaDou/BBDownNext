@@ -430,7 +430,7 @@ internal sealed partial class Program
         var dfns = parsedResult.Dfns;
         while (true)
         {
-            parsedResult.VideoTracks = SortTracks(parsedResult.VideoTracks, ctx.DfnPriority, ctx.EncodingPriority, myOption.VideoAscending);
+            parsedResult.VideoTracks = SortTracks(parsedResult.VideoTracks, ctx.DfnPriority, ctx.EncodingPriority, myOption.VideoAscending, ctx.EncodingFirst);
 
             var vIndex = 0;
             if (myOption.Interactive && !reParsed && !selected)
@@ -573,7 +573,7 @@ internal sealed partial class Program
 
     private static void SortDashTracks(ParsedResult parsedResult, WorkContext ctx, MyOption myOption)
     {
-        parsedResult.VideoTracks = SortTracks(parsedResult.VideoTracks, ctx.DfnPriority, ctx.EncodingPriority, myOption.VideoAscending);
+        parsedResult.VideoTracks = SortTracks(parsedResult.VideoTracks, ctx.DfnPriority, ctx.EncodingPriority, myOption.VideoAscending, ctx.EncodingFirst);
         parsedResult.AudioTracks = SortTracks(parsedResult.AudioTracks, ctx.EncodingPriority, myOption.AudioAscending);
         parsedResult.BackgroundAudioTracks = SortTracks(parsedResult.BackgroundAudioTracks, ctx.EncodingPriority, myOption.AudioAscending);
         foreach (var role in parsedResult.RoleAudioList)
@@ -596,10 +596,10 @@ internal sealed partial class Program
         TryDeleteEmptyDir(pageCtx.Page.aid);
     }
 
-    internal static List<Video> SortTracks(List<Video> videoTracks, Dictionary<string, int> dfnPriority, Dictionary<string, byte> encodingPriority, bool videoAscending)
+    internal static List<Video> SortTracks(List<Video> videoTracks, Dictionary<string, int> dfnPriority, Dictionary<string, byte> encodingPriority, bool videoAscending, bool encodingFirst)
     {
         //用户同时输入了自定义分辨率优先级和自定义编码优先级, 则根据输入顺序依次进行排序
-        return dfnPriority.Count != 0 && encodingPriority.Count != 0 && Environment.CommandLine.IndexOf("--encoding-priority", StringComparison.Ordinal) < Environment.CommandLine.IndexOf("--dfn-priority")
+        return dfnPriority.Count != 0 && encodingPriority.Count != 0 && encodingFirst
             ? [.. videoTracks
                 .OrderBy(v => encodingPriority.GetValueOrDefault(v.codecs, (byte) 100))
                 .ThenBy(v => dfnPriority.GetValueOrDefault(v.dfn, 100))
