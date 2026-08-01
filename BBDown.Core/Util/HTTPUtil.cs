@@ -82,7 +82,9 @@ public static partial class HTTPUtil
         webRequest.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? cookie + ";CURRENT_FNVAL=4048;" : cookie);
 
         var host = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : "";
-        if (host == BiliApi.MainHost)
+        // passport 系接口（扫码登录 generate/poll 等）同样校验 Referer，浏览器从 www.bilibili.com 发起，
+        // 不带 Referer 会被服务端在拿到 data.url 之前就挡下，导致 Web 登录拿不到 SESSDATA
+        if (host == BiliApi.MainHost || host == BiliApi.PassportHost)
         {
             webRequest.Headers.TryAddWithoutValidation("Referer", BiliApi.Site + "/");
         }

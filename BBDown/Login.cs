@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Specialized;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -16,9 +17,61 @@ using static BBDown.Utils;
 
 namespace BBDown;
 
-internal static class Login
+public static class Login
 {
-    private enum QrState { Expired, WaitingScan, WaitingConfirm, Success }
+    public enum QrState { Expired, WaitingScan, WaitingConfirm, Success }
+
+    private static readonly string[] WebCookieNames = ["DedeUserID", "DedeUserID__ckMd5", "SESSDATA", "bili_jct"];
+
+    // code 字段在 Web 与 TV 两套接口间类型不一致（整数/字符串），ToString 对两种 ValueKind 都能取到原文
+    private static int ReadCode(JsonElement element) => int.Parse(element.ToString( ));
+
+    private static string ReadMessage(JsonElement element)
+        => element.TryGetProperty("message", out var m) ? (m.GetString( ) ?? "") : "";
+
+    public static (QrState State, string? Data) InterpretWeb(JsonElement root)
+    {
+        var outer = ReadCode(root.GetProperty("code"));
+        if (outer != 0) throw new InvalidOperationException($"轮询失败：{outer} {ReadMessage(root)}");
+
+        var data = root.GetProperty("data");
+        var state = ReadCode(data.GetProperty("code")) switch
+        {
+            0 => QrState.Success,
+            86038 => QrState.Expired,
+            86090 => QrState.WaitingConfirm,
+            86101 => QrState.WaitingScan,
+            var code => throw new InvalidOperationException($"未知的扫码状态：{code} {ReadMessage(data)}")
+        };
+        return (state, state == QrState.Success ? data.GetProperty("url").GetString( ) : null);
+    }
+
+    public static (QrState State, string? Data) InterpretTv(JsonElement root)
+    {
+        var state = ReadCode(root.GetProperty("code")) switch
+        {
+            0 => QrState.Success,
+            86038 => QrState.Expired,
+            86039 => QrState.WaitingScan,
+            86090 => QrState.WaitingConfirm,
+            var code => throw new InvalidOperationException($"扫码登录失败：{code} {ReadMessage(root)}")
+        };
+        return (state, state == QrState.Success ? root.GetProperty("data").GetProperty("access_token").GetString( ) : null);
+    }
+
+    /// <summary>
+    /// crossDomain 回调 url 的 query 里混有 gourl / first_domain / Expires 等非 cookie 字段，只取真正的登录 cookie。
+    /// </summary>
+    public static string BuildWebCookie(string url)
+    {
+        var cookie = string.Join(';', url[(url.IndexOf('?') + 1)..]
+            .Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Select(pair => pair.Split('=', 2))
+            .Where(kv => kv.Length == 2 && WebCookieNames.Contains(kv[0]))
+            // 英文逗号会被部分下游当作 cookie 分隔符，需转义
+            .Select(kv => $"{kv[0]}={kv[1].Replace(",", "%2C")}"));
+        return cookie.Length > 0 ? cookie : throw new InvalidOperationException("登录响应中缺少 Cookie");
+    }
 
     /// <summary>
     /// 扫码登录的通用编排参数：生成二维码、轮询状态、解释状态、落盘凭据。
@@ -98,24 +151,11 @@ internal static class Login
                     using var doc = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(pollUrl, Core.AppConfig.Empty));
                     return doc.RootElement.Clone( );
                 },
-                Interpret: root =>
+                Interpret: InterpretWeb,
+                Persist: async url =>
                 {
-                    var code = root.GetProperty("data").GetProperty("code").GetInt32( );
-                    var state = code switch
-                    {
-                        86038 => QrState.Expired,
-                        86101 => QrState.WaitingScan,
-                        86090 => QrState.WaitingConfirm,
-                        _ => QrState.Success
-                    };
-                    var data = state == QrState.Success ? root.GetProperty("data").GetProperty("url").GetString( ) : null;
-                    return (state, data);
-                },
-                Persist: async data =>
-                {
-                    Log("登录成功：SESSDATA=" + GetQueryString("SESSDATA", data));
-                    //导出cookie, 转义英文逗号 否则部分场景会出问题
-                    await CredentialStore.SaveWebCookie(data[(data.IndexOf('?') + 1)..].Replace("&", ";").Replace(",", "%2C"));
+                    Log("登录成功：SESSDATA=" + GetQueryString("SESSDATA", url));
+                    await CredentialStore.SaveWebCookie(BuildWebCookie(url));
                 },
                 ExpiredText: "二维码已过期，请重新执行登录指令。"), qrPath);
         }
@@ -160,18 +200,7 @@ internal static class Login
                     using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync( ));
                     return doc.RootElement.Clone( );
                 },
-                Interpret: root =>
-                {
-                    var code = root.GetProperty("code").GetString( )!;
-                    var state = code switch
-                    {
-                        "86038" => QrState.Expired,
-                        "86039" => QrState.WaitingScan,
-                        _ => QrState.Success
-                    };
-                    var data = state == QrState.Success ? root.GetProperty("data").GetProperty("access_token").GetString( ) : null;
-                    return (state, data);
-                },
+                Interpret: InterpretTv,
                 Persist: async data =>
                 {
                     Log("登录成功：AccessToken=" + data);

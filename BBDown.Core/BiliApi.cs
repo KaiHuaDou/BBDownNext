@@ -7,6 +7,7 @@ namespace BBDown.Core;
 public static class BiliApi
 {
     public const string MainHost = "api.bilibili.com";
+    public const string PassportHost = "passport.bilibili.com";
     public const string TvHost = "api.snm0516.aisee.tv";
     public const string IntlAppHost = "api.bilibili.tv";
     public const string IntlWebHost = "api.biliintl.com";
