@@ -64,6 +64,12 @@ internal sealed partial class Program
     {
         Console.CancelKeyPress += Console_CancelKeyPress;
 
+        if (args.Length == 0)
+        {
+            PrintUsageExample();
+            return 0;
+        }
+
         var rootCommand = CommandLineInvoker.GetRootCommand(RunApp);
         rootCommand.Description = "BBDown 是一个免费且便捷高效的哔哩哔哩下载/解析软件。";
         rootCommand.TreatUnmatchedTokensAsErrors = false;
@@ -130,6 +136,19 @@ internal sealed partial class Program
         return false;
     }
 
+    private static void PrintUsageExample()
+    {
+        Console.WriteLine("""
+        BBDown 哔哩哔哩下载器
+
+        用法示例：
+          BBDown <视频地址>                下载视频（支持 av / BV / EP / SS）
+          BBDown <视频地址> -p 1-5         仅下载第 1~5 集
+          BBDown <视频地址> --audio-only   仅下载音频
+          BBDown --help                    查看全部参数说明
+        """);
+    }
+
     private static Task RunApp(MyOption myOption)
     {
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
@@ -174,7 +193,7 @@ internal sealed partial class Program
 
         var input = myOption.Url;
         var savePathFormat = myOption.FilePattern;
-        var lang = myOption.Language;
+        var lang = myOption.Lang;
         var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
 
         LogDebug("AppDirectory: {0}", APP_DIR);

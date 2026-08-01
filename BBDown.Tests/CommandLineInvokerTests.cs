@@ -25,33 +25,26 @@ public class CommandLineInvokerTests
         return captured!;
     }
 
-    // P0-1: --simply-mux 之前未注册到 RootCommand，被静默丢弃。
+    // P0-1: --no-metadata 曾未注册到 RootCommand，被静默丢弃。
     [Fact]
-    public async Task SimplyMux_Flag_EnablesOption()
+    public async Task NoMetadata_Flag_EnablesOption()
     {
-        var opt = await ParseAsync(SampleUrl, "--simply-mux");
-        Assert.True(opt.SimplyMux);
+        var opt = await ParseAsync(SampleUrl, "--no-metadata");
+        Assert.True(opt.NoMetadata);
     }
 
     [Fact]
-    public async Task SimplyMux_DefaultsToFalse()
+    public async Task NoMetadata_DefaultsToFalse()
     {
         var opt = await ParseAsync(SampleUrl);
-        Assert.False(opt.SimplyMux);
+        Assert.False(opt.NoMetadata);
     }
 
-    // P0-2: 默认开启的开关曾被无条件覆盖成 false。
+    // P0-2: 默认开启的开关曾被无条件覆盖成 false。不加 -st 即视为多线程。
     [Fact]
     public async Task MultiThread_DefaultsToTrue()
     {
         var opt = await ParseAsync(SampleUrl);
-        Assert.True(opt.MultiThread);
-    }
-
-    [Fact]
-    public async Task MultiThread_Flag_Enables()
-    {
-        var opt = await ParseAsync(SampleUrl, "--multi-thread");
         Assert.True(opt.MultiThread);
     }
 
@@ -70,18 +63,34 @@ public class CommandLineInvokerTests
         Assert.True(opt.ForceHttp);
     }
 
+    // P0-3: --allow-ai 反转语义——默认不下载 AI 字幕，加选项才下载。
     [Fact]
-    public async Task SkipAi_DefaultsToTrue()
+    public async Task AllowAi_DefaultsToFalse()
     {
         var opt = await ParseAsync(SampleUrl);
-        Assert.True(opt.SkipAi);
+        Assert.False(opt.AllowAi);
     }
 
     [Fact]
-    public async Task ForceReplaceHost_DefaultsToTrue()
+    public async Task AllowAi_Flag_Enables()
+    {
+        var opt = await ParseAsync(SampleUrl, "--allow-ai");
+        Assert.True(opt.AllowAi);
+    }
+
+    // --no-force-host 反转语义——默认强制替换 host，加选项才不替换。
+    [Fact]
+    public async Task NoForceHost_DefaultsToFalse()
     {
         var opt = await ParseAsync(SampleUrl);
-        Assert.True(opt.ForceReplaceHost);
+        Assert.False(opt.NoForceHost);
+    }
+
+    [Fact]
+    public async Task NoForceHost_Flag_Enables()
+    {
+        var opt = await ParseAsync(SampleUrl, "--no-force-host");
+        Assert.True(opt.NoForceHost);
     }
 
     [Fact]

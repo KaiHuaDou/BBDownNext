@@ -8,6 +8,7 @@
         <Description>BBDown是一个免费且便捷高效的哔哩哔哩下载/解析软件.</Description>
         <PackageProjectUrl>https://github.com/nilaoda/BBDown</PackageProjectUrl>
         <PackAsTool>true</PackAsTool>
+        <IsPackable>true</IsPackable>
         <ToolCommandName>BBDown</ToolCommandName>
         <PackageOutputPath>./nupkg</PackageOutputPath>
     </PropertyGroup>

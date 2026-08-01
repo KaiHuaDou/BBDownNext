@@ -90,11 +90,11 @@ public class ConfigParserTests
     [Fact]
     public void TokenizeConfigLines_MultipleLinesAccumulate( )
     {
-        var path = WriteConfig("--app-only", "--output /tmp/out", "# x", "--multi-thread");
+        var path = WriteConfig("--app-only", "--output /tmp/out", "# x", "--single-thread");
         try
         {
             var tokens = BBDownConfigParser.TokenizeConfigLines(path);
-            Assert.Equal(["--app-only", "--output", "/tmp/out", "--multi-thread"], tokens);
+            Assert.Equal(["--app-only", "--output", "/tmp/out", "--single-thread"], tokens);
         }
         finally
         {

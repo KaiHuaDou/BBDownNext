@@ -57,11 +57,17 @@ public class SelectedPagesTests
         Assert.Equal(["7"], Select("", url: $"{PlainUrl}?p=3", index: "7"));
     }
 
-    // ALL 返回 null，与「未选择」同义，由调用方按全量处理
+    // ALL / all 返回 null，与「未选择」同义，由调用方按全量处理
     [Fact]
     public void All_ReturnsNull()
     {
         Assert.Null(Select("ALL"));
+    }
+
+    [Fact]
+    public void All_LowerCase_ReturnsNull()
+    {
+        Assert.Null(Select("all"));
     }
 
     [Fact]
@@ -82,31 +88,75 @@ public class SelectedPagesTests
         Assert.Equal(["3", "4", "5"], Select("3-5"));
     }
 
+    [Fact]
+    public void SingleValueRange_ResolvesToThatPage()
+    {
+        Assert.Equal(["3"], Select("3-3"));
+    }
+
     [Theory]
-    [InlineData("LAST")]
-    [InlineData("NEW")]
     [InlineData("LATEST")]
-    public void LastAliases_ResolveToPageCount(string alias)
+    [InlineData("NEW")]
+    public void LatestAliases_ResolveToLastIndex(string alias)
     {
         Assert.Equal(["10"], Select(alias, pageCount: 10));
     }
 
-    [Fact]
-    public void LastAlias_IsCaseInsensitive()
+    [Theory]
+    [InlineData("LAST")]
+    [InlineData("last")]
+    public void LastKeyword_ResolveToSecondToLast(string alias)
     {
-        Assert.Equal(["10"], Select("last", pageCount: 10));
+        Assert.Equal(["9"], Select(alias, pageCount: 10));
     }
 
     [Fact]
-    public void LastAlias_WorksInsideCommaList()
+    public void LatestAlias_IsCaseInsensitive()
+    {
+        Assert.Equal(["10"], Select("latest", pageCount: 10));
+    }
+
+    [Fact]
+    public void LastKeyword_IsCaseInsensitive()
+    {
+        Assert.Equal(["9"], Select("LAST", pageCount: 10));
+    }
+
+    [Fact]
+    public void LatestAlias_WorksInsideCommaList()
     {
         Assert.Equal(["3", "5", "10"], Select("3,5,LATEST", pageCount: 10));
     }
 
     [Fact]
-    public void LastAlias_WorksAsRangeEnd()
+    public void LastKeyword_WorksAsRangeEnd()
     {
-        Assert.Equal(["8", "9", "10"], Select("8-LAST", pageCount: 10));
+        Assert.Equal(["8", "9"], Select("8-LAST", pageCount: 10));
+    }
+
+    [Fact]
+    public void OpenStartRange_FromFirstToGiven()
+    {
+        Assert.Equal(Enumerable.Range(1, 22).Select(x => x.ToString()), Select("-22", pageCount: 30));
+    }
+
+    [Fact]
+    public void OpenEndRange_FromGivenToLast()
+    {
+        Assert.Equal(Enumerable.Range(16, 15).Select(x => x.ToString()), Select("16-", pageCount: 30));
+    }
+
+    [Fact]
+    public void MixedExpression_WithLatestAsRangeEnd()
+    {
+        var expected = Enumerable.Range(1, 10).Concat(Enumerable.Range(15, 16)).Select(x => x.ToString());
+        Assert.Equal(expected, Select("1,2,3-3,4-5,6-10,15-latest", pageCount: 30));
+    }
+
+    [Fact]
+    public void WhitespaceAroundCommaItemsIsTrimmed()
+    {
+        Assert.Equal(["25", "26", "27", "33"], Select("25-27,   33", pageCount: 40));
     }
 
     [Fact]
@@ -115,17 +165,64 @@ public class SelectedPagesTests
         Assert.Equal(["1", "2"], Select("  1,2,  "));
     }
 
-    // 解析失败时返回 null 而非空列表，调用方据此退回全量
     [Fact]
-    public void Unparsable_ReturnsNull()
+    public void ReversedRange_IsNormalized()
     {
-        Assert.Null(Select("abc-def"));
+        Assert.Equal(["3", "4", "5"], Select("5-3")!);
     }
 
-    // 倒序区间产出空列表（for 循环一次都不进），不是 null
     [Fact]
-    public void ReversedRange_ReturnsEmpty()
+    public void LastKeyword_WithTwoPages_ResolvesToFirst()
     {
-        Assert.Empty(Select("5-3")!);
+        Assert.Equal(["1"], Select("last", pageCount: 2));
+    }
+
+    [Fact]
+    public void LastKeyword_WithSinglePage_IsIgnored()
+    {
+        Assert.Empty(Select("last", pageCount: 1)!);
+    }
+
+    [Fact]
+    public void LatestKeyword_WithSinglePage_ResolvesToOnlyPage()
+    {
+        Assert.Equal(["1"], Select("latest", pageCount: 1));
+    }
+
+    [Fact]
+    public void OutOfRangeUpperBound_IsClamped()
+    {
+        Assert.Equal(Enumerable.Range(1, 10).Select(x => x.ToString()), Select("1-999", pageCount: 10));
+    }
+
+    [Fact]
+    public void OpenStartBeyondLastPage_ClampsToAll()
+    {
+        // 只有 3 集却写 -4：夹紧到末集，下载全 3 集
+        Assert.Equal(["1", "2", "3"], Select("-4", pageCount: 3));
+    }
+
+    [Fact]
+    public void OutOfRangeLowerBound_IsClamped()
+    {
+        Assert.Equal(Enumerable.Range(1, 10).Select(x => x.ToString()), Select("0-10", pageCount: 10));
+    }
+
+    [Fact]
+    public void InvalidToken_IsIgnored()
+    {
+        Assert.Empty(Select("abc", pageCount: 10)!);
+    }
+
+    [Fact]
+    public void InvalidRangeToken_IsIgnored()
+    {
+        Assert.Empty(Select("abc-def", pageCount: 10)!);
+    }
+
+    [Fact]
+    public void DuplicateValues_AreDeduplicatedAndSorted()
+    {
+        Assert.Equal(["1", "2"], Select("1,1,2,2,1")!);
     }
 }

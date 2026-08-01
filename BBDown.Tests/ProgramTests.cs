@@ -136,9 +136,9 @@ public class ProgramTests
     }
 
     [Fact]
-    public void HandleConflictingOptions_SkipSubtitleClearsSubOnly()
+    public void HandleConflictingOptions_NoSubClearsSubOnly()
     {
-        var o = new MyOption { SkipSubtitle = true, SubOnly = true };
+        var o = new MyOption { NoSub = true, SubOnly = true };
         Program.HandleConflictingOptions(o);
         Assert.False(o.SubOnly);
     }

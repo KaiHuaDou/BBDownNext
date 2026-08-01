@@ -57,10 +57,10 @@ public sealed class BBDownConfigParserTests : IDisposable
 
     // 默认值为 true 的开关，配置文件必须能关掉。
     [Fact]
-    public void Config_CanDisableDefaultTrueSwitch()
+    public void Config_CanEnableAllowAi()
     {
-        var opt = Merge("--skip-ai false\n", SampleUrl);
-        Assert.False(opt.SkipAi);
+        var opt = Merge("--allow-ai\n", SampleUrl);
+        Assert.True(opt.AllowAi);
     }
 
     [Fact]

@@ -22,7 +22,7 @@ internal class MyOption
     public bool HideStreams { get; set; }
     public bool MultiThread { get; set; } = true;
     public bool SingleThread { get; set; }
-    public bool SimplyMux { get; set; }
+    public bool NoMetadata { get; set; }
     public bool VideoOnly { get; set; }
     public bool AudioOnly { get; set; }
     public bool DanmakuOnly { get; set; }
@@ -30,22 +30,22 @@ internal class MyOption
     public bool SubOnly { get; set; }
     public bool Debug { get; set; }
     public bool SkipMux { get; set; }
-    public bool SkipSubtitle { get; set; }
-    public bool SkipCover { get; set; }
+    public bool NoSub { get; set; }
+    public bool NoCover { get; set; }
     public bool ForceHttp { get; set; } = true;
     public bool DownloadDanmaku { get; set; }
     public string? DownloadDanmakuFormats { get; set; }
-    public bool SkipAi { get; set; } = true;
+    public bool AllowAi { get; set; }
     public bool VideoAscending { get; set; }
     public bool AudioAscending { get; set; }
     public bool AllowPcdn { get; set; }
-    public bool ForceReplaceHost { get; set; } = true;
+    public bool NoForceHost { get; set; }
     public bool SaveArchivesToFile { get; set; }
     public bool StopOnError { get; set; }
     public string FilePattern { get; set; } = "";
     public string MultiFilePattern { get; set; } = "";
     public string SelectPage { get; set; } = "";
-    public string Language { get; set; } = "";
+    public string Lang { get; set; } = "";
     public string UserAgent { get; set; } = "";
     public string Cookie { get; set; } = "";
     public string AccessToken { get; set; } = "";

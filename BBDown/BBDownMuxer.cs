@@ -96,7 +96,7 @@ internal static class BBDownMuxer
         return args;
     }
 
-    internal static List<string> BuildFFmpegArgs(string url, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, string desc, string title, string author, string episodeId, string pic, string lang, List<Subtitle> subs, bool audioOnly, string? chapterFile, long pubTime, bool simplyMux, bool tagHvc1, bool debugLog)
+    internal static List<string> BuildFFmpegArgs(string url, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, string desc, string title, string author, string episodeId, string pic, string lang, List<Subtitle> subs, bool audioOnly, string? chapterFile, long pubTime, bool noMetadata, bool tagHvc1, bool debugLog)
     {
         List<string> args = ["-loglevel", debugLog ? "verbose" : "warning", "-y"];
         List<string> meta = [];
@@ -148,7 +148,7 @@ internal static class BBDownMuxer
 
         args.AddRange(meta);
 
-        if (!simplyMux)
+        if (!noMetadata)
         {
             args.AddRange(["-metadata", $"title={(episodeId.Length == 0 ? title : episodeId)}"]);
             args.AddRange(["-metadata", $"comment={url}"]);
@@ -168,7 +168,7 @@ internal static class BBDownMuxer
         return args;
     }
 
-    public static async Task<int> MuxAV(bool useMp4box, string bvid, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, string desc = "", string title = "", string author = "", string episodeId = "", string pic = "", string lang = "", List<Subtitle>? subs = null, bool audioOnly = false, bool videoOnly = false, List<ViewPoint>? points = null, long pubTime = 0, bool simplyMux = false, bool isHevc = false, CancellationToken ct = default)
+    public static async Task<int> MuxAV(bool useMp4box, string bvid, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, string desc = "", string title = "", string author = "", string episodeId = "", string pic = "", string lang = "", List<Subtitle>? subs = null, bool audioOnly = false, bool videoOnly = false, List<ViewPoint>? points = null, long pubTime = 0, bool noMetadata = false, bool isHevc = false, CancellationToken ct = default)
     {
         if (audioOnly && audioPath.Length != 0)
         {
@@ -195,7 +195,7 @@ internal static class BBDownMuxer
 
         return useMp4box
             ? await RunExe(MP4BOX, BuildMp4boxArgs(url, videoPath, audioPath, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, Config.DebugLog), ct)
-            : await RunExe(FFMPEG, BuildFFmpegArgs(url, videoPath, audioPath, audioMaterial, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, pubTime, simplyMux, isHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog), ct);
+            : await RunExe(FFMPEG, BuildFFmpegArgs(url, videoPath, audioPath, audioMaterial, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, pubTime, noMetadata, isHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog), ct);
     }
 
     public static async Task MergeFLV(string[] files, string outPath, CancellationToken ct = default)

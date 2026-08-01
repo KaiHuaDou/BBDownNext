@@ -105,10 +105,10 @@ internal sealed partial class Program
         {
             BBDownAria2c.ARIA2C = myOption.Aria2cPath;
         }
-        //寻找ffmpeg或mp4box
+        //寻找 ffmpeg 或 mp4box
         if (!myOption.SkipMux)
         {
-            //ffmpeg 与 mp4box 都探测, 以便下载时按需选择(杜比视界可能临时改用 mp4box)
+            //ffmpeg 与 mp4box 都探测，以便下载时按需选择 (杜比视界可能临时改用 mp4box)
             if (string.IsNullOrEmpty(BBDownMuxer.FFMPEG) || !File.Exists(BBDownMuxer.FFMPEG))
             {
                 var binPath = FindExecutable("ffmpeg");
@@ -127,14 +127,14 @@ internal sealed partial class Program
             }
         }
 
-        //寻找aria2c
+        //寻找 aria2c
         if (myOption.UseAria2c)
         {
             if (string.IsNullOrEmpty(BBDownAria2c.ARIA2C) || !File.Exists(BBDownAria2c.ARIA2C))
             {
                 var binPath = FindExecutable("aria2c");
                 if (string.IsNullOrEmpty(binPath))
-                    throw new InvalidOperationException("找不到可执行的aria2c文件");
+                    throw new InvalidOperationException("找不到可执行的 aria2c 文件");
                 BBDownAria2c.ARIA2C = binPath;
             }
         }
@@ -150,14 +150,14 @@ internal sealed partial class Program
         {
             myOption.HideStreams = false;
         }
-        //audioOnly和videoOnly同时开启则全部忽视
+        //audioOnly 和 videoOnly 同时开启则全部忽视
         if (myOption.AudioOnly && myOption.VideoOnly)
         {
             myOption.AudioOnly = false;
             myOption.VideoOnly = false;
         }
 
-        if (myOption.SkipSubtitle)
+        if (myOption.NoSub)
         {
             myOption.SubOnly = false;
         }
@@ -185,7 +185,7 @@ internal sealed partial class Program
     private static Dictionary<(string Aid, string Cid), string>? _archiveCache;
     private static bool _archiveOldFormatWarned;
 
-    // 仅在该分P 完整成功（含混流）后写入；键为 (aid, cid)，同 aid 不同分P 互不干扰
+    // 仅在该分 P 完整成功（含混流）后写入；键为 (aid, cid)，同 aid 不同分 P 互不干扰
     public static void SaveArchive(string aid, string cid, string savePath)
     {
         lock (archiveLock)
@@ -236,73 +236,120 @@ internal sealed partial class Program
     }
 
     /// <summary>
-    /// 获取选中的分P列表
+    /// 获取选中的分 P 列表。返回 null 表示不筛选（全量下载）；空列表表示用户显式指定但无任何合法分 P（一个都不下）。
+    /// 语法：-p all｜1｜1,2,5｜3-5（闭区间，含两端）｜16-（开区间，到末集）｜-22（开区间，从首集）｜
+    /// 1,2,3-3,4-5,6-10,15-latest（混合）｜latest/new=最后一集｜last/LAST=倒数第二集。
+    /// 关键字大小写不敏感；表达式首尾、项内空白与尾逗号均忽略；越界数字夹紧到有效边界并提醒；倒序区间自动交换。
     /// </summary>
-    /// <param name="myOption"></param>
-    /// <param name="vInfo"></param>
-    /// <param name="input"></param>
-    /// <returns></returns>
     internal static List<string>? GetSelectedPages(MyOption myOption, VInfo vInfo, string input)
     {
-        List<string>? selectedPages = null;
-        var pagesInfo = vInfo.PagesInfo;
-        var selectPage = myOption.SelectPage.ToUpper( ).Trim( ).Trim(',');
-
-        if (string.IsNullOrEmpty(selectPage))
+        if (string.IsNullOrWhiteSpace(myOption.SelectPage))
         {
-            //如果用户没有选择分P, 根据epid或query param来确定某一集
+            //如果用户没有选择分 P, 根据 epid 或 query param 来确定某一集
             if (!string.IsNullOrEmpty(vInfo.Index))
             {
-                selectedPages = [vInfo.Index];
-                Log("程序已自动选择你输入的集数，如果要下载其他集数请自行指定分P（如可使用 -p ALL 代表全部）。");
+                Log("程序已自动选择你输入的集数，如果要下载其他集数请自行指定分 P（如可使用 -p ALL 代表全部）。");
+                return [vInfo.Index];
             }
-            else if (!string.IsNullOrEmpty(GetQueryString("p", input)))
+            var urlPage = GetQueryString("p", input);
+            if (!string.IsNullOrEmpty(urlPage))
             {
-                selectedPages = [GetQueryString("p", input)];
-                Log("程序已自动选择你输入的集数，如果要下载其他集数请自行指定分P（如可使用 -p ALL 代表全部）。");
+                Log("程序已自动选择你输入的集数，如果要下载其他集数请自行指定分 P（如可使用 -p ALL 代表全部）。");
+                return [urlPage];
             }
+            return null;
         }
-        else if (selectPage != "ALL")
+
+        if (myOption.SelectPage.Trim().Equals("ALL", StringComparison.OrdinalIgnoreCase))
         {
-            selectedPages = [];
-
-            //选择最新分P
-            var lastPage = pagesInfo.Count.ToString( );
-            foreach (var key in new[] { "LAST", "NEW", "LATEST" })
-            {
-                selectPage = selectPage.Replace(key, lastPage);
-            }
-
-            try
-            {
-                if (selectPage.Contains('-'))
-                {
-                    var tmp = selectPage.Split('-');
-                    var start = int.Parse(tmp[0]);
-                    var end = int.Parse(tmp[1]);
-                    for (var i = start; i <= end; i++)
-                    {
-                        selectedPages.Add(i.ToString( ));
-                    }
-                }
-                else
-                {
-                    foreach (var s in selectPage.Split(','))
-                    {
-                        selectedPages.Add(s);
-                    }
-                }
-            }
-            catch { LogError("解析分P参数时失败了~"); selectedPages = null; }
-
-            ;
+            return null;
         }
 
-        return selectedPages;
+        var pagesInfo = vInfo.PagesInfo;
+        var lastIndex = pagesInfo[^1].index;        // 列表末项，即最后一集（兼容非连续 index）
+        var firstIndex = pagesInfo[0].index;
+        var secondLastIndex = pagesInfo.Count >= 2 ? pagesInfo[^2].index : -1;
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var anyValid = false;
+
+        foreach (var rawToken in myOption.SelectPage.Split(','))
+        {
+            var token = rawToken.Trim();
+            if (token.Length == 0) continue;
+
+            if (token.Contains('-'))
+            {
+                var parts = token.Split('-', 2);
+                var startStr = parts[0].Trim();
+                var endStr = parts.Length > 1 ? parts[1].Trim() : "";
+
+                var startValid = startStr.Length == 0;
+                var start = startValid ? firstIndex : ResolveIndex(startStr, firstIndex, lastIndex, secondLastIndex, out startValid);
+                var endValid = endStr.Length == 0;
+                var end = endValid ? lastIndex : ResolveIndex(endStr, firstIndex, lastIndex, secondLastIndex, out endValid);
+
+                if (!startValid || !endValid) continue;
+
+                if (start > end) (start, end) = (end, start);   // 倒序区间归一化
+
+                for (var i = start; i <= end; i++)
+                {
+                    if (seen.Add(i.ToString())) anyValid = true;
+                }
+            }
+            else
+            {
+                var value = ResolveIndex(token, firstIndex, lastIndex, secondLastIndex, out var valid);
+                if (!valid) continue;
+                if (seen.Add(value.ToString())) anyValid = true;
+            }
+        }
+
+        return anyValid ? [.. seen.OrderBy(x => int.Parse(x))] : [];
+    }
+
+    // 解析单个分 P 片段：latest/new → 最后一集；last/LAST → 倒数第二集；数字越界则夹紧到有效边界并提醒。
+    // 无法解析（非数字非关键字）返回 (0, false)。
+    private static int ResolveIndex(string part, int firstIndex, int lastIndex, int secondLastIndex, out bool valid)
+    {
+        valid = true;
+        var upper = part.ToUpperInvariant();
+        if (upper is "LATEST" or "NEW")
+        {
+            return lastIndex;
+        }
+        if (upper is "LAST")
+        {
+            if (secondLastIndex < 0)
+            {
+                LogError($"分 P 选择「{part}」需要至少 2 个分 P，已忽略。");
+                valid = false;
+                return 0;
+            }
+            return secondLastIndex;
+        }
+        if (int.TryParse(part, out var n))
+        {
+            if (n < firstIndex)
+            {
+                Log($"分 P 选择「{part}」小于最小分 P {firstIndex}，已夹紧到 {firstIndex}。");
+                return firstIndex;
+            }
+            if (n > lastIndex)
+            {
+                Log($"分 P 选择「{part}」超出最大分 P {lastIndex}，已夹紧到 {lastIndex}。");
+                return lastIndex;
+            }
+            return n;
+        }
+        LogError($"分 P 选择「{part}」不是合法的分 P 编号或关键字（可用：latest/new/last），已忽略。");
+        valid = false;
+        return 0;
     }
 
     /// <summary>
-    /// 处理CDN域名
+    /// 处理 CDN 域名
     /// </summary>
     /// <param name="myOption"></param>
     /// <param name="video"></param>
@@ -311,7 +358,7 @@ internal sealed partial class Program
     {
         if (myOption.UposHost is { Length: 0 })
         {
-            //处理PCDN
+            //处理 PCDN
             if (!myOption.AllowPcdn)
             {
                 var pcdnReg = PcdnRegex( );
@@ -331,13 +378,13 @@ internal sealed partial class Program
             var akamReg = AkamRegex( );
             if (selectedVideo != null && cfg.Area is not { Length: 0 } && selectedVideo.baseUrl.Contains("akamaized.net"))
             {
-                LogWarn($"检测到视频流为外国源, 尝试强制替换为{BACKUP_HOST}……");
+                LogWarn($"检测到视频流为外国源，尝试强制替换为{BACKUP_HOST}……");
                 selectedVideo.baseUrl = akamReg.Replace(selectedVideo.baseUrl, $"://{BACKUP_HOST}/");
             }
 
             if (selectedAudio != null && cfg.Area is not { Length: 0 } && selectedAudio.baseUrl.Contains("akamaized.net"))
             {
-                LogWarn($"检测到音频流为外国源, 尝试强制替换为{BACKUP_HOST}……");
+                LogWarn($"检测到音频流为外国源，尝试强制替换为{BACKUP_HOST}……");
                 selectedAudio.baseUrl = akamReg.Replace(selectedAudio.baseUrl, $"://{BACKUP_HOST}/");
             }
         }

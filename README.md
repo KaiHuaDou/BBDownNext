@@ -106,89 +106,88 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 
 ### 解析模式
 
-| 参数 | 简写 | 说明 |
-| --- | --- | --- |
-| `--tv-api` | `-tv` | 使用 TV 端解析模式（用于番剧 / 大会员等内容） |
-| `--app-api` | `-app` | 使用 APP 端解析模式 |
-| `--intl-api` | `-intl` | 使用国际版（东南亚视频）解析模式 |
-| `--host` | | 指定 BiliPlus host（需 `access_token`，不需要 `cookie`；解析服务器可获取你账号的大部分权限，请谨慎使用） |
-| `--ep-host` | | 指定 BiliPlus EP host（代理 `api.bilibili.com/pgc/view/web/season`，多数解析服务器不支持代理该接口） |
-| `--tv-host` | | 自定义 TV 端接口请求 Host（用于代理 `api.snm0516.aisee.tv`） |
-| `--area` | | 使用 BiliPlus 时必选，指定区域：`hk` / `tw` / `th` |
+| 参数         | 简写    | 说明                                                         |
+| ------------ | ------- | ------------------------------------------------------------ |
+| `--tv-api`   | `-tv`   | 使用 TV 端解析模式（用于番剧 / 大会员等内容）                |
+| `--app-api`  | `-app`  | 使用 APP 端解析模式                                          |
+| `--intl-api` | `-intl` | 使用国际版（东南亚视频）解析模式                             |
+| `--host`     |         | 指定 BiliPlus host（详见脚注 [^host]）                       |
+| `--ep-host`  |         | 指定 BiliPlus EP host（详见脚注 [^ep-host]）                 |
+| `--tv-host`  |         | 自定义 TV 端接口请求 Host（用于代理 `api.snm0516.aisee.tv`） |
+| `--area`     |         | 使用 BiliPlus 时必选，指定区域：`hk` / `tw` / `th`           |
 
 ### 清晰度与编码
 
-| 参数 | 简写 | 说明 |
-| --- | --- | --- |
-| `--encoding-priority` | `-e` | 视频及音频编码选择优先级，逗号分隔，如 `hevc,av1,avc,flac,eac3,m4a` |
-| `--dfn-priority` | `-q` | 画质优先级，逗号分隔，如 `8K 超高清, 1080P 高码率, HDR 真彩, 杜比视界` |
-| `--video-ascending` | | 视频升序（最小体积优先） |
-| `--audio-ascending` | | 音频升序（最小体积优先） |
-| `--interactive` | `-ia` | 交互式选择清晰度 |
-| `--hide-streams` | `-hs` | 不显示所有可用音视频流 |
-| `--show-info` | `-info` | 仅解析而不进行下载 |
-| `--all` | | 展示所有分 P 标题 |
+| 参数                  | 简写    | 说明                                                     |
+| --------------------- | ------- | -------------------------------------------------------- |
+| `--encoding-priority` | `-e`    | 视频及音频编码选择优先级（详见脚注 [^encodingpriority]） |
+| `--dfn-priority`      | `-q`    | 画质优先级（详见脚注 [^dfnpriority]）                    |
+| `--video-ascending`   |         | 视频升序（最小体积优先）                                 |
+| `--audio-ascending`   |         | 音频升序（最小体积优先）                                 |
+| `--interactive`       | `-ia`   | 交互式选择清晰度                                         |
+| `--hide-streams`      | `-hs`   | 不显示所有可用音视频流                                   |
+| `--show-info`         | `-info` | 仅解析而不进行下载                                       |
+| `--all`               |         | 展示所有分 P 标题                                        |
 
 > 同时指定 `-e` 与 `-q` 时，以命令行书写的先后为准（写在前的优先）。`-q` 仅作用于清晰度筛选，编码仍由 `-e` 控制。
 
 ### 下载内容
 
-| 参数 | 简写 | 说明 |
-| --- | --- | --- |
-| `--video-only` | `-v` | 仅下载视频 |
-| `--audio-only` | `-a` | 仅下载音频 |
-| `--danmaku-only` | `-d` | 仅下载弹幕 |
-| `--cover-only` | `-c` | 仅下载封面 |
-| `--sub-only` | `-s` | 仅下载字幕 |
-| `--danmaku` | `-dd` | 下载弹幕（与音视频一并下载） |
-| `--danmaku-formats` | `-ddf` | 指定需下载的弹幕格式，逗号分隔，可选 `xml` / `ass`，默认 `xml,ass` |
-| `--skip-mux` | | 跳过混流步骤 |
-| `--skip-subtitle` | | 跳过字幕下载 |
-| `--skip-cover` | | 跳过封面下载 |
-| `--skip-ai` | | 跳过 AI 字幕下载（默认开启，即默认不下载 AI 字幕） |
-| `--simply-mux` | | 精简混流，不写入描述、作者等元数据 |
-| `--language` | | 设置混流音频语言代码，如 `chi`、`jpn` 等 |
+| 参数                | 简写   | 说明                                               |
+| ------------------- | ------ | -------------------------------------------------- |
+| `--video-only`      | `-v`   | 仅下载视频                                         |
+| `--audio-only`      | `-a`   | 仅下载音频                                         |
+| `--danmaku-only`    | `-d`   | 仅下载弹幕                                         |
+| `--cover-only`      | `-c`   | 仅下载封面                                         |
+| `--sub-only`        | `-s`   | 仅下载字幕                                         |
+| `--danmaku`         | `-dd`  | 下载弹幕（与音视频一并下载）                       |
+| `--danmaku-formats` | `-ddf` | 指定需下载的弹幕格式（详见脚注 [^danmakuformats]） |
+| `--skip-mux`        |        | 跳过混流步骤                                       |
+| `--no-sub`          |        | 跳过字幕下载                                       |
+| `--no-cover`        |        | 跳过封面下载                                       |
+| `--allow-ai`        |        | 下载 AI 字幕（默认不下载，加此选项才下载）         |
+| `--no-metadata`     |        | 精简混流，不写入描述、作者等元数据                 |
+| `--lang`            |        | 设置混流音频语言代码，如 `chi`、`jpn` 等           |
 
 ### 下载方式与性能
 
-| 参数 | 简写 | 说明 |
-| --- | --- | --- |
-| `--aria2c` | `-aria2` | 调用 aria2c 进行下载（需自行准备二进制） |
-| `--aria2c-args` | | 调用 aria2c 的附加参数（默认值含 `-x16 -s16 -j16 -k 5M`，含空格的参数用引号包裹） |
-| `--multi-thread` | `-mt` | 使用多线程下载（默认开启） |
-| `--single-thread` | `-st` | 使用单线程下载（等价于关闭 `--multi-thread`，用于不支持 Range 的服务器） |
-| `--delay-per-page` | | 分 P 之间下载的间隔时间，单位秒，默认 `0`（无间隔） |
-| `--upos-host` | | 自定义 upos（CDN）服务器 |
-| `--force-replace-host` | | 强制替换下载服务器 host（默认开启） |
-| `--allow-pcdn` | | 不替换 PCDN 域名，仅在正常情况与 `--upos-host` 均无法下载时使用 |
-| `--force-http` | | 下载音视频时强制以 HTTP 替换 HTTPS（默认开启） |
+| 参数               | 简写     | 说明                                                              |
+| ------------------ | -------- | ----------------------------------------------------------------- |
+| `--aria2c`         | `-aria2` | 调用 aria2c 进行下载（需自行准备二进制）                          |
+| `--aria2c-args`    |          | 调用 aria2c 的附加参数（详见脚注 [^aria2cargs]）                  |
+| `--single-thread`  | `-st`    | 使用单线程下载，用于不支持 Range 的服务器；不加此选项即默认多线程 |
+| `--delay-per-page` |          | 分 P 之间下载的间隔时间，单位秒，默认 `0`（无间隔）               |
+| `--upos-host`      |          | 自定义 upos（CDN）服务器                                          |
+| `--no-force-host`  |          | 不强制替换下载服务器 host（默认强制替换，加此选项才不替换）       |
+| `--allow-pcdn`     |          | 不替换 PCDN 域名，仅在正常情况与 `--upos-host` 均无法下载时使用   |
+| `--force-http`     |          | 下载音视频时强制以 HTTP 替换 HTTPS（默认开启）                    |
 
 ### 账号与凭据
 
-| 参数 | 简写 | 说明 |
-| --- | --- | --- |
-| `--cookie` | | 字符串 cookie，用于下载网页接口的会员内容 |
+| 参数             | 简写     | 说明                                           |
+| ---------------- | -------- | ---------------------------------------------- |
+| `--cookie`       |          | 字符串 cookie，用于下载网页接口的会员内容      |
 | `--access-token` | `-token` | access_token，用于下载 TV / APP 接口的会员内容 |
-| `--user-agent` | `-ua` | 指定 user-agent；不指定则使用随机 user-agent |
+| `--user-agent`   | `-ua`    | 指定 user-agent；不指定则使用随机 user-agent   |
 
 > 推荐用 `login` / `logintv` 扫码登录后自动保存凭据，避免手动粘贴 `--cookie` / `--access-token`。
 
 ### 文件、路径与调试
 
-| 参数 | 简写 | 说明 |
-| --- | --- | --- |
-| `--file-pattern` | `-F` | 自定义单 P 存储文件名（支持内置变量，见下） |
-| `--multi-file-pattern` | `-M` | 自定义多 P 存储文件名（支持内置变量，见下） |
-| `--select-page` | `-p` | 选择分 P 或分 P 范围：`-p 8`、`-p 1,2`、`-p 3-5`、`-p ALL`、`-p LAST`、`-p 3,5,LATEST` |
-| `--work-dir` | | 设置程序工作目录 |
-| `--ffmpeg-path` | | 指定 ffmpeg 路径 |
-| `--mp4box` | | 使用 MP4Box 来混流 |
-| `--mp4box-path` | | 指定 mp4box 路径 |
-| `--aria2c-path` | | 指定 aria2c 路径 |
-| `--save-archives-to-file` | | 将下载过的视频记录到本地文件，用于后续跳过同一视频 |
-| `--stop-on-error` | | 遇到某个分P 下载失败时立即停止，而不是继续下载其余分P（默认继续，并在末尾汇总失败的分P 后非零退出） |
-| `--config` | | 读取指定的 BBDown 本地配置文件（默认为程序目录下的 `BBDown.config`） |
-| `--debug` | | 输出调试日志 |
+| 参数                      | 简写 | 说明                                                                 |
+| ------------------------- | ---- | -------------------------------------------------------------------- |
+| `--file-pattern`          | `-F` | 自定义单 P 存储文件名（支持内置变量，见下）                          |
+| `--multi-file-pattern`    | `-M` | 自定义多 P 存储文件名（支持内置变量，见下）                          |
+| `--select-page`           | `-p` | 选择分 P（语法详见脚注 [^selectpage]）                               |
+| `--work-dir`              |      | 设置程序工作目录                                                     |
+| `--ffmpeg-path`           |      | 指定 ffmpeg 路径                                                     |
+| `--mp4box`                |      | 使用 MP4Box 来混流                                                   |
+| `--mp4box-path`           |      | 指定 mp4box 路径                                                     |
+| `--aria2c-path`           |      | 指定 aria2c 路径                                                     |
+| `--save-archives-to-file` |      | 将下载过的视频记录到本地文件，用于后续跳过同一视频                   |
+| `--stop-on-error`         |      | 遇到分 P 下载失败时立即停止（详见脚注 [^stoponerror]）               |
+| `--config`                |      | 读取指定的 BBDown 本地配置文件（默认为程序目录下的 `BBDown.config`） |
+| `--debug`                 |      | 输出调试日志                                                         |
 
 #### 文件名内置变量
 
@@ -196,27 +195,27 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 
 可用变量：
 
-| 变量 | 含义 |
-| --- | --- |
-| `<videoTitle>` | 视频主标题 |
-| `<pageNumber>` | 分 P 序号 |
-| `<pageNumberWithZero>` | 分 P 序号（前缀补零） |
-| `<pageTitle>` | 分 P 标题 |
-| `<bvid>` | 视频 BV 号 |
-| `<aid>` | 视频 aid |
-| `<cid>` | 视频 cid |
-| `<dfn>` | 视频清晰度 |
-| `<res>` | 视频分辨率 |
-| `<fps>` | 视频帧率 |
-| `<videoCodecs>` | 视频编码 |
-| `<videoBandwidth>` | 视频码率 |
-| `<audioCodecs>` | 音频编码 |
-| `<audioBandwidth>` | 音频码率 |
-| `<ownerName>` | 上传者名称 |
-| `<ownerMid>` | 上传者 mid |
-| `<publishDate>` | 收藏夹 / 番剧 / 合集发布时间 |
-| `<videoDate>` | 视频发布时间（分 P 视频与 `<publishDate>` 相同） |
-| `<apiType>` | API 类型（TV / APP / INTL / WEB） |
+| 变量                   | 含义                                             |
+| ---------------------- | ------------------------------------------------ |
+| `<videoTitle>`         | 视频主标题                                       |
+| `<pageNumber>`         | 分 P 序号                                        |
+| `<pageNumberWithZero>` | 分 P 序号（前缀补零）                            |
+| `<pageTitle>`          | 分 P 标题                                        |
+| `<bvid>`               | 视频 BV 号                                       |
+| `<aid>`                | 视频 aid                                         |
+| `<cid>`                | 视频 cid                                         |
+| `<dfn>`                | 视频清晰度                                       |
+| `<res>`                | 视频分辨率                                       |
+| `<fps>`                | 视频帧率                                         |
+| `<videoCodecs>`        | 视频编码                                         |
+| `<videoBandwidth>`     | 视频码率                                         |
+| `<audioCodecs>`        | 音频编码                                         |
+| `<audioBandwidth>`     | 音频码率                                         |
+| `<ownerName>`          | 上传者名称                                       |
+| `<ownerMid>`           | 上传者 mid                                       |
+| `<publishDate>`        | 收藏夹 / 番剧 / 合集发布时间                     |
+| `<videoDate>`          | 视频发布时间（分 P 视频与 `<publishDate>` 相同） |
+| `<apiType>`            | API 类型（TV / APP / INTL / WEB）                |
 
 示例：
 
@@ -230,18 +229,18 @@ BBDown "BV1xx" -M "<videoTitle>/[P<pageNumberWithZero>]<pageTitle>"
 
 ## 子命令
 
-| 子命令 | 说明 |
-| --- | --- |
-| `login` | 通过 APP 扫描二维码登录 WEB 账号（凭据自动保存） |
-| `logintv` | 通过 APP 扫描二维码登录 TV 账号（凭据自动保存） |
-| `serve` | 以服务器模式运行，提供 HTTP JSON API（详见 [API.md](./API.md)） |
+| 子命令    | 说明                                                            |
+| --------- | --------------------------------------------------------------- |
+| `login`   | 通过 APP 扫描二维码登录 WEB 账号（凭据自动保存）                |
+| `logintv` | 通过 APP 扫描二维码登录 TV 账号（凭据自动保存）                 |
+| `serve`   | 以服务器模式运行，提供 HTTP JSON API（详见 [API.md](./API.md)） |
 
 ### `serve` 参数
 
-| 参数 | 简写 | 说明 |
-| --- | --- | --- |
-| `--listen` | `-l` | 监听地址，默认 `http://127.0.0.1:23333`。**接口无认证，切勿暴露公网**；如需跨机访问请自行加反向代理与鉴权 |
-| `--work-dir` | | 所有任务的工作目录（请求中的同名 `WorkDir` 字段会被忽略，一律以服务端为准） |
+| 参数         | 简写 | 说明                                                                                                      |
+| ------------ | ---- | --------------------------------------------------------------------------------------------------------- |
+| `--listen`   | `-l` | 监听地址，默认 `http://127.0.0.1:23333`。**接口无认证，切勿暴露公网**；如需跨机访问请自行加反向代理与鉴权 |
+| `--work-dir` |      | 所有任务的工作目录（请求中的同名 `WorkDir` 字段会被忽略，一律以服务端为准）                               |
 
 ```bash
 # 以默认地址启动服务器
@@ -261,7 +260,6 @@ BBDown 支持从配置文件读取参数，避免每次都在命令行重复输�
 # BBDown.config 示例
 --tv-api
 --dfn-priority 1080P 高码率, 720P 流畅
---multi-thread
 --cookie SESSDATA=xxxxxx
 
 # 也支持把地址写进配置文件
@@ -288,7 +286,7 @@ BV1uv411q7Mv
 
 **Q：如何让下载更快？**
 
-可配合 `--aria2c` 调用 aria2c 多线程下载，或使用内置的 `--multi-thread`（默认开启）。分 P 视频可用 `--delay-per-page` 控制间隔以免触发风控。
+可配合 `--aria2c` 调用 aria2c 多线程下载，或使用内置的默认多线程（不加 `--single-thread` 即多线程）。分 P 视频可用 `--delay-per-page` 控制间隔以免触发风控。
 
 **Q：aria2c 怎么用？**
 
@@ -297,6 +295,36 @@ BV1uv411q7Mv
 **Q：配置文件和命令行的优先级？**
 
 命令行未显式给出的选项，才会由配置文件补齐；命令行已给出的以命令行为准。
+
+## 脚注
+
+[^selectpage]: 选择分 P 语法：
+
+- `all` 全部
+- `8` 单集
+- `1,2,5` 逗号列表
+- `3-5` 闭区间（含两端：3,4,5）；`3-3` 仅第 3 集
+- `16-` 开区间，到末集
+- `-22` 开区间，从首集到 22
+- `1,2,3-3,4-5,6-10,15-latest` 混合写法
+- `latest` / `new` 最后一集（最新一集）
+- `last` / `LAST` 倒数第二集
+- 关键字大小写不敏感；`latest` 可写作 `new`；越界数字自动夹紧到有效边界；非法项忽略并提醒
+- 以 `-` 开头的表达式需在命令行加引号：`-p "-22,25-27,33"`
+
+[^aria2cargs]: 调用 aria2c 的附加参数，含空格的参数用引号包裹。默认参数包含 `-x16 -s16 -j16 -k 5M`。
+
+[^encodingpriority]: 视频及音频编码的选择优先级，逗号分隔。例：`hevc,av1,avc,flac,eac3,m4a`
+
+[^dfnpriority]: 画质优先级，逗号分隔。例：`8K 超高清, 1080P 高码率, HDR 真彩, 杜比视界`
+
+[^danmakuformats]: 指定需下载的弹幕格式，逗号分隔，默认全部下载（如 `xml,ass`）。
+
+[^stoponerror]: 遇到分 P 下载失败时立即停止，而不是继续下载其余分 P。默认继续，并在末尾汇总失败的分 P 后非零退出。
+
+[^host]: 指定 BiliPlus host。使用 BiliPlus 需要 access_token、不需要 cookie；解析服务器能够获取你账号的大部分权限，请谨慎使用！
+
+[^ep-host]: 指定 BiliPlus EP host，用于代理 `api.bilibili.com/pgc/view/web/season`；大部分解析服务器不支持代理该接口。
 
 ## 许可证
 

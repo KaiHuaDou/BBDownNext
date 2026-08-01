@@ -57,7 +57,7 @@ internal static class BBDownDownloadUtil
             await BBDownAria2c.DownloadFileByAria2cAsync(url, path, config.Aria2cArgs, config.Cookie, ct);
             if (File.Exists(path + ".aria2") || !File.Exists(path))
             {
-                throw new InvalidOperationException("aria2下载可能存在错误");
+                throw new InvalidOperationException("aria2 下载可能存在错误");
             }
 
             Console.WriteLine( );
@@ -77,14 +77,14 @@ internal static class BBDownDownloadUtil
         // 上一轮已经下完并 move 过：连大小探测都不用发
         if (manifest is { Done: true } && manifest.Fingerprint == fingerprint && IsCompleteOnDisk(path, manifest.TotalSize))
         {
-            LogDebug("文件已下载过, 跳过下载");
+            LogDebug("文件已下载过，跳过下载");
             return;
         }
 
         if (manifest is not null && (manifest.Done || !PartFile.Matches(manifest, fingerprint, -1)))
         {
             // 指纹不符（多半是换了画质）或已失效，旧字节一律不能用
-            LogDebug("已有的续传数据与本次下载地址不匹配, 丢弃重下");
+            LogDebug("已有的续传数据与本次下载地址不匹配，丢弃重下");
             PartFile.Discard(path);
             manifest = null;
         }
@@ -103,7 +103,7 @@ internal static class BBDownDownloadUtil
             LogDebug("文件大小：{0} bytes", totalSize);
             if (IsCompleteOnDisk(path, totalSize))
             {
-                LogDebug("文件已下载过, 跳过下载");
+                LogDebug("文件已下载过，跳过下载");
                 if (resumable) PartFile.Save(path, Completed(fingerprint, totalSize, ifRange));
                 return;
             }
@@ -176,7 +176,7 @@ internal static class BBDownDownloadUtil
                 }
                 catch (NotSupportedException ex)
                 {
-                    throw new NotSupportedException("服务器可能并不支持多线程/Range 下载, 请使用 --single-thread 关闭多线程", ex);
+                    throw new NotSupportedException("服务器可能并不支持多线程/Range 下载，请使用 --single-thread 关闭多线程", ex);
                 }
                 catch (OperationCanceledException)
                 {
@@ -184,7 +184,7 @@ internal static class BBDownDownloadUtil
                 }
                 catch (Exception ex)
                 {
-                    throw new InvalidOperationException($"分片 {index} 下载失败: {ex.Message}", ex);
+                    throw new InvalidOperationException($"分片 {index} 下载失败：{ex.Message}", ex);
                 }
                 finally
                 {
@@ -327,17 +327,17 @@ internal static class BBDownDownloadUtil
     }
 
     /// <summary>
-    /// 将下载地址强制转换为HTTP
+    /// 将下载地址强制转换为 HTTP
     /// </summary>
     private static string ReplaceUrl(string url)
     {
         if (url.Contains(".mcdn.bilivideo.cn:"))
         {
-            LogDebug("对[*.mcdn.bilivideo.cn:xxx]域名不做处理");
+            LogDebug("对 [*.mcdn.bilivideo.cn:xxx] 域名不做处理");
             return url;
         }
 
-        LogDebug("将https更改为http");
+        LogDebug("将 https 更改为 http");
         return url.Replace("https:", "http:");
     }
 }

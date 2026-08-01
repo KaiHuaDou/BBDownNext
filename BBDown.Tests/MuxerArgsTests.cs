@@ -23,7 +23,7 @@ public class MuxerArgsTests
     {
         var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
             desc: "", title: "标题", author: "UP主", episodeId: "", pic: "", lang: "",
-            subs: [], audioOnly: false, chapterFile: null, pubTime: 0, simplyMux: false,
+            subs: [], audioOnly: false, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
 
         Assert.Equal([
@@ -46,7 +46,7 @@ public class MuxerArgsTests
 
         var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.mp4",
             desc: "", title: "t", author: evil, episodeId: "", pic: "", lang: "",
-            subs: [], audioOnly: false, chapterFile: null, pubTime: 0, simplyMux: false,
+            subs: [], audioOnly: false, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
 
         Assert.Contains($"artist={evil}", args);
@@ -60,7 +60,7 @@ public class MuxerArgsTests
     {
         var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
             desc: "简介", title: "标题", author: "UP主", episodeId: "第1话", pic: "", lang: "zh",
-            subs: [], audioOnly: false, chapterFile: null, pubTime: 1600000000, simplyMux: true,
+            subs: [], audioOnly: false, chapterFile: null, pubTime: 1600000000, noMetadata: true,
             tagHvc1: false, debugLog: false);
 
         Assert.DoesNotContain("-metadata", args);
@@ -72,7 +72,7 @@ public class MuxerArgsTests
     {
         var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
             desc: "简介", title: "标题", author: "UP主", episodeId: "第1话", pic: "", lang: "zh",
-            subs: [], audioOnly: false, chapterFile: null, pubTime: 1600000000, simplyMux: false,
+            subs: [], audioOnly: false, chapterFile: null, pubTime: 1600000000, noMetadata: false,
             tagHvc1: false, debugLog: false);
 
         Assert.Contains("title=第1话", args);
@@ -90,7 +90,7 @@ public class MuxerArgsTests
         var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", material, "/out/x.mp4",
             desc: "", title: "标题", author: "", episodeId: "", pic: "/tmp/c.jpg", lang: "",
             subs: [Sub("zh-Hans", "/tmp/s0.srt"), Sub("en-US", "/tmp/s1.srt")],
-            audioOnly: false, chapterFile: "/tmp/chapters", pubTime: 0, simplyMux: false,
+            audioOnly: false, chapterFile: "/tmp/chapters", pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
 
         // 6 路输入：视频、音频、配音、封面、两条字幕；章节文件是第 7 路，索引为 6
@@ -106,7 +106,7 @@ public class MuxerArgsTests
         var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.mp4",
             desc: "", title: "t", author: "", episodeId: "", pic: "", lang: "",
             subs: [Sub("zh-Hans", "/tmp/s0.srt"), Sub("en-US", "/tmp/s1.srt")],
-            audioOnly: false, chapterFile: null, pubTime: 0, simplyMux: false,
+            audioOnly: false, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
 
         Assert.Contains("title=中文（简体）", args);
@@ -124,7 +124,7 @@ public class MuxerArgsTests
     {
         var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.m4a",
             desc: "", title: "t", author: "", episodeId: "", pic: "", lang: "",
-            subs: [], audioOnly: true, chapterFile: null, pubTime: 0, simplyMux: false,
+            subs: [], audioOnly: true, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
 
         Assert.Contains("-vn", args);
@@ -135,11 +135,11 @@ public class MuxerArgsTests
     {
         var withVideo = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
             desc: "", title: "t", author: "", episodeId: "", pic: "/tmp/c.jpg", lang: "",
-            subs: [], audioOnly: false, chapterFile: null, pubTime: 0, simplyMux: false,
+            subs: [], audioOnly: false, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
         var audioOnly = BBDownMuxer.BuildFFmpegArgs(Url, "", "/tmp/a.m4a", [], "/out/x.m4a",
             desc: "", title: "t", author: "", episodeId: "", pic: "/tmp/c.jpg", lang: "",
-            subs: [], audioOnly: true, chapterFile: null, pubTime: 0, simplyMux: false,
+            subs: [], audioOnly: true, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
 
         Assert.Equal("attached_pic", ValueAfter(withVideo, "-disposition:v:1"));
@@ -153,7 +153,7 @@ public class MuxerArgsTests
     {
         var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.mp4",
             desc: "", title: "t", author: "", episodeId: "", pic: "", lang: "",
-            subs: [], audioOnly: false, chapterFile: null, pubTime: 0, simplyMux: false,
+            subs: [], audioOnly: false, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: debugLog);
 
         Assert.Equal(expected, ValueAfter(args, "-loglevel"));

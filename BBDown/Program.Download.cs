@@ -242,19 +242,19 @@ internal sealed partial class Program
         var p = pageCtx.Page;
         Directory.CreateDirectory(pageCtx.TempDir);
 
-        if (!myOption.SkipCover && !myOption.SubOnly && !File.Exists(pageCtx.CoverPath) && !myOption.DanmakuOnly && !myOption.CoverOnly)
+        if (!myOption.NoCover && !myOption.SubOnly && !File.Exists(pageCtx.CoverPath) && !myOption.DanmakuOnly && !myOption.CoverOnly)
         {
             await DownloadFileAsync(pageCtx.CoverUrl, pageCtx.CoverPath, new DownloadConfig { Cookie = ctx.Cfg.Cookie }, ct);
         }
 
-        if (myOption.SkipSubtitle || myOption.DanmakuOnly || myOption.CoverOnly)
+        if (myOption.NoSub || myOption.DanmakuOnly || myOption.CoverOnly)
         {
             return [];
         }
 
         LogDebug("获取字幕...");
         var subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.UseIntlApi, ctx.Cfg);
-        if (myOption.SkipAi && subtitleInfo.Count != 0)
+        if (!myOption.AllowAi && subtitleInfo.Count != 0)
         {
             Log($"跳过下载 AI 字幕。");
             subtitleInfo = subtitleInfo.Where(s => !s.lan.StartsWith("ai-")).ToList( );
@@ -383,7 +383,7 @@ internal sealed partial class Program
         PrintSelectedTrackInfo(selectedVideo, selectedAudio, p.dur);
 
         //用户开启了强制替换
-        if (myOption.ForceReplaceHost && string.IsNullOrEmpty(myOption.UposHost))
+        if (!myOption.NoForceHost && string.IsNullOrEmpty(myOption.UposHost))
         {
             myOption.UposHost = BACKUP_HOST;
         }
@@ -456,7 +456,7 @@ internal sealed partial class Program
             pageCtx.EpisodeTitle,
             File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
             ctx.Lang,
-            subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux, isHevc, ct);
+            subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.NoMetadata, isHevc, ct);
         if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
         {
             LogError("合并失败");
@@ -550,7 +550,7 @@ internal sealed partial class Program
                 pageCtx.EpisodeTitle,
                 File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
                 ctx.Lang,
-                subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux, ct: ct);
+                subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.NoMetadata, ct: ct);
             if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
             {
                 LogError("合并失败");
