@@ -16,7 +16,7 @@ public static partial class IntlBangumiInfoFetcher
 {
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
-        id = id[3..];
+        id = id[IdPrefix.EpColon.Length..];
         var host = cfg.Host == BiliApi.MainHost ? BiliApi.IntlAppHost : cfg.Host;
         var accessKey = cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "";
         var api = $"https://{host}{BiliApi.IntlSeasonAppPath}?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a{accessKey}";
@@ -38,11 +38,15 @@ public static partial class IntlBangumiInfoFetcher
             if (web.Length != 0)
             {
                 var regex = StateRegex( );
-                var _json = regex.Match(web).Groups[1].Value;
-                using var _tempJson = JsonDocument.Parse(_json);
-                cover = _tempJson.RootElement.GetProperty("mediaInfo").GetProperty("cover").ToString( );
-                title = _tempJson.RootElement.GetProperty("mediaInfo").GetProperty("title").ToString( );
-                desc = _tempJson.RootElement.GetProperty("mediaInfo").GetProperty("evaluate").ToString( );
+                var m = regex.Match(web);
+                if (m.Success && m.Groups.Count > 1)
+                {
+                    var _json = m.Groups[1].Value;
+                    using var _tempJson = JsonDocument.Parse(_json);
+                    cover = _tempJson.RootElement.GetProperty("mediaInfo").GetProperty("cover").ToString( );
+                    title = _tempJson.RootElement.GetProperty("mediaInfo").GetProperty("title").ToString( );
+                    desc = _tempJson.RootElement.GetProperty("mediaInfo").GetProperty("evaluate").ToString( );
+                }
             }
         }
 
@@ -76,7 +80,8 @@ public static partial class IntlBangumiInfoFetcher
             PubTime = pubTime,
             PagesInfo = pagesInfo,
             IsBangumi = true,
-            IsCheese = true,
+            // 国际版番剧同样不是课程（cheese），原 IsCheese = true 为误设（P1-5）
+            IsBangumiEnd = result.TryGetProperty("is_finish", out var f) && f.GetInt32( ) == 1,
             Index = index
         };
 

@@ -23,7 +23,7 @@ public static partial class NormalInfoFetcher
         var api = $"{BiliApi.ViewWbi}?{Parser.WbiSign($"aid={id}&wts={wts}", cfg)}";
         var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
-        var data = infoJson.RootElement.GetProperty("data");
+        var data = GetApiData(infoJson.RootElement, "视频信息");
         var title = data.GetProperty("title").ToString( );
         var desc = data.GetProperty("desc").ToString( );
         var pic = data.GetProperty("pic").ToString( );
@@ -76,7 +76,7 @@ public static partial class NormalInfoFetcher
                 var graphVersion = interactionDoc.RootElement.GetProperty("graph_version").GetInt64( );
                 var edgeInfoApi = $"{BiliApi.EdgeInfo}?graph_version={graphVersion}&bvid={bvid}";
                 using var edgeInfoDoc = JsonDocument.Parse(await GetWebSourceAsync(edgeInfoApi, cfg, null, ct));
-                var edgeInfoData = edgeInfoDoc.RootElement.GetProperty("data");
+                var edgeInfoData = GetApiData(edgeInfoDoc.RootElement, "互动视频分P信息");
                 var questions = edgeInfoData.GetProperty("edges").GetProperty("questions").EnumerateArray( )
                     .ToList( );
                 var index = 2; // 互动视频分P索引从2开始

@@ -31,9 +31,9 @@ public static partial class Parser
         string Encoding,
         AppConfig Cfg)
     {
-        public bool IsCheese => AidOri.StartsWith("cheese:");
+        public bool IsCheese => AidOri.StartsWith(IdPrefix.Cheese);
 
-        public bool IsEpisode => AidOri.StartsWith("ep:");
+        public bool IsEpisode => AidOri.StartsWith(IdPrefix.EpColon);
 
         public bool IsBangumi => IsCheese || IsEpisode;
     }
@@ -46,17 +46,24 @@ public static partial class Parser
     {
         if (cfg.Wbi.Length == 0) return api;
 
-        var canonical = string.Join("&",
+        // 先剔除任何已存在的 w_rid：既用于计算 canonical，也避免重签名时把旧 w_rid 残留在输出里
+        var withoutWrid = string.Join("&",
             api.Split('&')
                 .Select(part => part.Split('=', 2))
                 .Where(kv => kv.Length == 2 && kv[0] != "w_rid")
+                .Select(kv => $"{kv[0]}={kv[1]}"));
+
+        var canonical = string.Join("&",
+            withoutWrid.Split('&')
+                .Select(part => part.Split('=', 2))
+                .Where(kv => kv.Length == 2)
                 .Select(kv => (Key: kv[0], Value: WbiEncodeValue(kv[1])))
                 .OrderBy(p => p.Key, StringComparer.Ordinal)
                 .Select(p => $"{p.Key}={p.Value}"))
             + cfg.Wbi;
 
         var w_rid = string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(canonical)).Select(b => b.ToString("x2")));
-        return $"{api}&w_rid={w_rid}";
+        return $"{withoutWrid}&w_rid={w_rid}";
     }
 
     // 与浏览器 encodeURIComponent 一致：保留 A-Za-z0-9-_.~，过滤 wbi.md 要求的 !'()*，其余按 UTF-8 字节大写十六进制转义（空格 -> %20）。
@@ -330,7 +337,8 @@ public static partial class Parser
 
     private static void CollectIntlTracks(ParsedResult parsedResult, JsonElement videoInfo)
     {
-        var pDur = videoInfo.GetProperty("timelength").GetInt32( ) / 1000;
+        // 缺字段时不应抛 KeyNotFoundException（P1-6）
+        var pDur = videoInfo.TryGetProperty("timelength", out var tl) ? tl.GetInt32( ) / 1000 : 0;
 
         foreach (var stream in videoInfo.GetProperty("stream_list").EnumerateArray( ))
         {
@@ -354,12 +362,16 @@ public static partial class Parser
             }
         }
 
-        foreach (var node in videoInfo.GetProperty("dash_audio").EnumerateArray( ))
+        // 缺字段时不应抛 KeyNotFoundException（P1-6）
+        if (videoInfo.TryGetProperty("dash_audio", out var dashAudioArr) && dashAudioArr.ValueKind == JsonValueKind.Array)
         {
-            var a = BuildAudio(node, pDur, "M4A");
-            if (!parsedResult.AudioTracks.Contains(a))
+            foreach (var node in dashAudioArr.EnumerateArray( ))
             {
-                parsedResult.AudioTracks.Add(a);
+                var a = BuildAudio(node, pDur, "M4A");
+                if (!parsedResult.AudioTracks.Contains(a))
+                {
+                    parsedResult.AudioTracks.Add(a);
+                }
             }
         }
     }
@@ -647,6 +659,7 @@ public static partial class Parser
 
     [GeneratedRegex("window.__playinfo__=([\\s\\S]*?)<\\/script>")]
     private static partial Regex PlayerJsonRegex( );
-    [GeneratedRegex("http.*:\\d+")]
+    // 仅当 authority 部分带显式端口（如 http://host:8080）才识别为 PCDN，避免误命中带数字查询参数的普通 URL（P2）
+    [GeneratedRegex("^https?://[^/]*:\\d+")]
     private static partial Regex BaseUrlRegex( );
 }

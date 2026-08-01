@@ -7,6 +7,7 @@ using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
+using static BBDown.Core.Util.JsonUtil;
 
 namespace BBDown.Core.Fetcher;
 
@@ -14,12 +15,12 @@ public static class CheeseInfoFetcher
 {
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
-        id = id[7..];
+        id = id[IdPrefix.Cheese.Length..];
         var index = "";
         var api = $"{BiliApi.SeasonPugv}?ep_id={id}";
         var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
-        var data = infoJson.RootElement.GetProperty("data");
+        var data = GetApiData(infoJson.RootElement, "课程信息");
         var cover = data.GetProperty("cover").ToString( );
         var title = data.GetProperty("title").ToString( );
         var desc = data.GetProperty("subtitle").ToString( );

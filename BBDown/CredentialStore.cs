@@ -26,13 +26,34 @@ internal static class CredentialStore
         => TryRead(dir, AppFile);
 
     public static async Task SaveWebCookie(string content, string? dir = null)
-        => await File.WriteAllTextAsync(Path.Combine(dir ?? Program.APP_DIR, WebFile), content);
+    {
+        var path = Path.Combine(dir ?? Program.APP_DIR, WebFile);
+        await File.WriteAllTextAsync(path, content);
+        HardenFilePermissions(path);
+    }
 
     public static async Task SaveTvToken(string content, string? dir = null)
-        => await File.WriteAllTextAsync(Path.Combine(dir ?? Program.APP_DIR, TvFile), content);
+    {
+        var path = Path.Combine(dir ?? Program.APP_DIR, TvFile);
+        await File.WriteAllTextAsync(path, content);
+        HardenFilePermissions(path);
+    }
 
-    public static async Task SaveAppToken(string content, string? dir = null)
-        => await File.WriteAllTextAsync(Path.Combine(dir ?? Program.APP_DIR, AppFile), content);
+    // 凭据明文落盘，尽量收紧文件权限：类 Unix 系统设为 600（仅 owner 可读写）；Windows 暂不收紧以避免误锁自身（P0-1）
+    private static void HardenFilePermissions(string path)
+    {
+        try
+        {
+            if (!OperatingSystem.IsWindows( ))
+            {
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+        }
+        catch
+        {
+            // 权限收紧失败不应影响凭据保存
+        }
+    }
 
     /// <summary>
     /// 合并命令行传入与本地文件的凭据：命令行优先；缺失时回退到对应类型的本地文件。

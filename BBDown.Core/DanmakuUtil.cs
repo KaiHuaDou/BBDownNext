@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -18,12 +20,6 @@ public static class DanmakuUtil
     private const double TOP_SPEND_TIME = 4.00;     //单条顶部或底部弹幕存在时间
     private const int PROTECT_LENGTH = 50;          //滚动弹幕屏占百分比
     public static readonly DanmakuComparer comparer = new( );
-
-    /*public static async Task DownloadAsync(Page p, string xmlPath, bool aria2c, string aria2cProxy)
-    {
-        string danmakuUrl = $"{BiliApi.DanmakuXml}/{p.cid}.xml";
-        await DownloadFile(danmakuUrl, xmlPath, aria2c, aria2cProxy);
-    }*/
 
     public static DanmakuItem[]? ParseXml(string xmlPath)
     {
@@ -80,7 +76,7 @@ public static class DanmakuUtil
     /// <param name="danmakus">弹幕</param>
     /// <param name="outputPath">保存路径</param>
     /// <returns></returns>
-    public static async Task SaveAsAssAsync(DanmakuItem[] danmakus, string outputPath)
+    public static async Task SaveAsAssAsync(DanmakuItem[] danmakus, string outputPath, CancellationToken ct = default)
     {
         var sb = new StringBuilder( );
         // ASS字幕文件头
@@ -101,8 +97,10 @@ public static class DanmakuUtil
         sb.AppendLine("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text");
 
         PositionController controller = new( );   // 弹幕位置控制器
-        Array.Sort(danmakus, comparer);
-        foreach (var danmaku in danmakus)
+        // 排序应在副本上进行，避免就地改写调用方传入的数组（P1-26）
+        var sorted = (DanmakuItem[]) danmakus.Clone( );
+        Array.Sort(sorted, comparer);
+        foreach (var danmaku in sorted)
         {
             var height = controller.UpdatePosition(danmaku.DanmakuMode, danmaku.Second, danmaku.Content.Length);
             if (height == -1)
@@ -119,13 +117,25 @@ public static class DanmakuUtil
             };
             if (danmaku.Color != "FFFFFF")
             {
-                effect += $"\\c&{danmaku.Color}&";
+                effect += $"\\c&H{ToAssColor(danmaku.Color)}&";
             }
 
             sb.AppendLine($"Dialogue: 2,{danmaku.StartTime},{danmaku.EndTime},BBDOWN_Style,,0000,0000,0000,,{{{effect}}}{danmaku.Content}");
         }
 
-        await File.WriteAllTextAsync(outputPath, sb.ToString( ), Encoding.UTF8);
+        await File.WriteAllTextAsync(outputPath, sb.ToString( ), Encoding.UTF8, ct);
+    }
+
+    // B 站 XML 的颜色是整数 RGB，ASS 的 \c&H...& 却是 BGR 字节序，直接照搬会让红蓝对调（P0-5）
+    internal static string ToAssColor(string rgbHex)
+    {
+        if (!int.TryParse(rgbHex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
+        {
+            return rgbHex;
+        }
+
+        var bgr = ((rgb & 0xFF) << 16) | (rgb & 0xFF00) | ((rgb >> 16) & 0xFF);
+        return bgr.ToString("X6", CultureInfo.InvariantCulture);
     }
 
     internal class PositionController
@@ -191,7 +201,7 @@ public static class DanmakuUtil
             };
             try
             {
-                var second = double.Parse(attrs[0]);
+                var second = double.Parse(attrs[0], CultureInfo.InvariantCulture);
                 Second = second;
                 StartTime = ComputeTime(second);
                 EndTime = ComputeTime(second + (DanmakuMode == 1 ? MOVE_SPEND_TIME : TOP_SPEND_TIME));
@@ -204,8 +214,8 @@ public static class DanmakuUtil
             FontSize = attrs[2];
             try
             {
-                var colorD = int.Parse(attrs[3]);
-                Color = string.Format("{0:X6}", colorD);
+                var colorD = int.Parse(attrs[3], CultureInfo.InvariantCulture);
+                Color = (colorD & 0xFFFFFF).ToString("X6", CultureInfo.InvariantCulture);
             }
             catch (FormatException e)
             {

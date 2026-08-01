@@ -17,7 +17,7 @@ public class CommandLineInvokerTests
         var root = CommandLineInvoker.GetRootCommand(o =>
         {
             captured = o;
-            return Task.CompletedTask;
+            return Task.FromResult(0);
         });
         var parseResult = root.Parse(args);
         await parseResult.InvokeAsync();
@@ -40,27 +40,26 @@ public class CommandLineInvokerTests
         Assert.False(opt.NoMetadata);
     }
 
-    // P0-2: 默认开启的开关曾被无条件覆盖成 false。不加 -st 即视为多线程。
+    // P0-2: 默认开启的开关曾被无条件覆盖成 false。不加 -st 即视为多线程（默认 SingleThread 为 false）。
     [Fact]
-    public async Task MultiThread_DefaultsToTrue()
+    public async Task SingleThread_DefaultsToFalse()
     {
         var opt = await ParseAsync(SampleUrl);
-        Assert.True(opt.MultiThread);
+        Assert.False(opt.SingleThread);
     }
 
     [Fact]
-    public async Task SingleThread_DisablesMultiThread()
+    public async Task SingleThread_SetsSingleThread()
     {
         var opt = await ParseAsync(SampleUrl, "--single-thread");
         Assert.True(opt.SingleThread);
-        Assert.False(opt.MultiThread);
     }
 
     [Fact]
-    public async Task ForceHttp_DefaultsToTrue()
+    public async Task NoForceHttp_DefaultsToFalse()
     {
         var opt = await ParseAsync(SampleUrl);
-        Assert.True(opt.ForceHttp);
+        Assert.False(opt.NoForceHttp);
     }
 
     // P0-3: --allow-ai 反转语义——默认不下载 AI 字幕，加选项才下载。
@@ -114,7 +113,7 @@ public class CommandLineInvokerTests
     [Fact]
     public void DuplicatedOption_ThrowsOnGetValue()
     {
-        var root = CommandLineInvoker.GetRootCommand(_ => Task.CompletedTask);
+        var root = CommandLineInvoker.GetRootCommand(_ => Task.FromResult(0));
         var parseResult = root.Parse([SampleUrl, "--host", "from-config", "--host", "from-cli"]);
         Assert.Throws<InvalidOperationException>(() => parseResult.GetValue<string>("--host"));
     }

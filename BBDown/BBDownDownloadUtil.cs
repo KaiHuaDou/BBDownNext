@@ -22,8 +22,8 @@ internal static class BBDownDownloadUtil
     {
         public bool UseAria2c { get; set; }
         public string Aria2cArgs { get; set; } = string.Empty;
-        public bool ForceHttp { get; set; }
-        public bool MultiThread { get; set; }
+        public bool NoForceHttp { get; set; }
+        public bool SingleThread { get; set; }
         public DownloadTask? RelatedTask { get; set; }
         public string Cookie { get; set; } = string.Empty;
         // <=0 表示不限制（Parallel 默认取 ProcessorCount）
@@ -46,7 +46,7 @@ internal static class BBDownDownloadUtil
     public static async Task DownloadAsync(string url, string path, DownloadConfig config, bool resumable = true, CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(url)) return;
-        if (config.ForceHttp) url = ReplaceUrl(url);
+        if (!config.NoForceHttp) url = ReplaceUrl(url);
         LogDebug("Start downloading: {0}", url);
 
         var destDir = Path.GetDirectoryName(path)!;
@@ -64,11 +64,11 @@ internal static class BBDownDownloadUtil
             return;
         }
 
-        var multiThread = resumable && config.MultiThread;
-        if (multiThread && url.Contains("-cmcc-"))
+        var singleThread = !resumable || config.SingleThread;
+        if (!singleThread && url.Contains("-cmcc-"))
         {
             LogWarn("检测到 CMCC 域名 CDN，已经禁用多线程。");
-            multiThread = false;
+            singleThread = true;
         }
 
         var fingerprint = PartFile.Fingerprint(url);
@@ -109,7 +109,7 @@ internal static class BBDownDownloadUtil
             }
         }
 
-        var chunkSize = multiThread && config.ChunkSize > 0 ? config.ChunkSize : long.MaxValue;
+        var chunkSize = !singleThread && config.ChunkSize > 0 ? config.ChunkSize : long.MaxValue;
         var ranges = PartFile.Ranges(totalSize, chunkSize);
         // 远端没给 Content-Length，退化为一条开放区间：仍可续传，只是进度没有分母
         if (ranges.Count == 0) ranges.Add((0, -1));

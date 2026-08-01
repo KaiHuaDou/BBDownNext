@@ -151,16 +151,16 @@ public class DownloadTests
         {
             UseAria2c = true,
             Aria2cArgs = "-x16",
-            ForceHttp = true,
-            MultiThread = false,
+            NoForceHttp = false,
+            SingleThread = false,
         };
         var cfg = AppConfig.Empty with { Cookie = "SESSDATA=abc" };
         var dc = Program.BuildDownloadConfig(o, cfg, null);
 
         Assert.True(dc.UseAria2c);
         Assert.Equal("-x16", dc.Aria2cArgs);
-        Assert.True(dc.ForceHttp);
-        Assert.False(dc.MultiThread);
+        Assert.False(dc.NoForceHttp);
+        Assert.False(dc.SingleThread);
         Assert.Equal("SESSDATA=abc", dc.Cookie);
         Assert.Null(dc.RelatedTask);
     }

@@ -24,7 +24,8 @@ internal sealed partial class Program
     public static string SinglePageDefaultSavePath { get; } = "<videoTitle>";
     public static string MultiPageDefaultSavePath { get; } = "<videoTitle>/[P<pageNumberWithZero>]<pageTitle>";
 
-    public static readonly string APP_DIR = Path.GetDirectoryName(Environment.ProcessPath)!;
+    // AppContext.BaseDirectory 指向入口程序集所在目录；Environment.ProcessPath 在 `dotnet BBDown.dll` 下返回宿主路径，会写错位置（P1-13）
+    public static readonly string APP_DIR = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
 
     // 全局取消源: Ctrl+C 时取消, 令牌沿 Fetcher → Parser → HTTP → 下载 → 外部进程 全链路透传
     private static readonly CancellationTokenSource s_cts = new();
@@ -64,12 +65,6 @@ internal sealed partial class Program
     {
         Console.CancelKeyPress += Console_CancelKeyPress;
 
-        if (args.Length == 0)
-        {
-            PrintUsageExample();
-            return 0;
-        }
-
         var rootCommand = CommandLineInvoker.GetRootCommand(RunApp);
         rootCommand.Description = "BBDown 是一个免费且便捷高效的哔哩哔哩下载/解析软件。";
         rootCommand.TreatUnmatchedTokensAsErrors = false;
@@ -102,7 +97,6 @@ internal sealed partial class Program
         };
 
         var rootResult = rootCommand.Parse(args, parserConfiguration);
-        if (!TryReportParseErrors(rootResult)) return 1;
 
         Console.BackgroundColor = ConsoleColor.DarkBlue;
         Console.ForegroundColor = ConsoleColor.White;
@@ -118,11 +112,26 @@ internal sealed partial class Program
             if (!ReferenceEquals(mergedArgs, args))
             {
                 rootResult = rootCommand.Parse(mergedArgs, parserConfiguration);
-                if (!TryReportParseErrors(rootResult)) return 1;
+            }
+
+            //命令行与配置文件都没给出视频地址时，打印用法而不是抛「缺少必需参数」（--help/--version 不产生错误，仍走原流程）
+            if (rootResult.Errors.Count > 0 && !HasUrlArgument(rootResult))
+            {
+                PrintUsageExample( );
+                return 0;
             }
         }
 
-        return await rootResult.InvokeAsync(new InvocationConfiguration( ) { EnableDefaultExceptionHandler = false });
+        if (!TryReportParseErrors(rootResult)) return 1;
+
+        return await rootResult.InvokeAsync(new InvocationConfiguration( ) { EnableDefaultExceptionHandler = true });
+    }
+
+    private static bool HasUrlArgument(ParseResult parseResult)
+    {
+        return parseResult.CommandResult.Children
+            .OfType<ArgumentResult>( )
+            .Any(a => a.Argument.Name == "url" && a.Tokens.Count > 0);
     }
 
     private static bool TryReportParseErrors(ParseResult parseResult)
@@ -149,7 +158,7 @@ internal sealed partial class Program
         """);
     }
 
-    private static Task RunApp(MyOption myOption)
+    private static Task<int> RunApp(MyOption myOption)
     {
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         return DoWorkAsync(myOption, s_cts.Token);
@@ -197,7 +206,7 @@ internal sealed partial class Program
         var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
 
         LogDebug("AppDirectory: {0}", APP_DIR);
-        LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption, MyOptionJsonContext.Default.MyOption));
+        LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption.WithSecretsRedacted( ), MyOptionJsonContext.Default.MyOption));
         return new WorkContext(
             EncodingPriority: encodingPriority,
             DfnPriority: dfnPriority,
@@ -212,7 +221,7 @@ internal sealed partial class Program
             FetchedAid: "",
             VInfo: null,
             ApiType: "",
-            Cfg: default,
+            Cfg: AppConfig.Empty,
             WorkDir: workDir);
     }
 
@@ -223,12 +232,14 @@ internal sealed partial class Program
 
         var cfg = new AppConfig(cookie, token, myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
 
-        // 检测是否登录了账号
+        // nav 无需登录即可返回 wbi 密钥；TV/国际版模式同样会命中 wbi 接口（view、player/wbi/v2），
+        // 跳过取密钥会让签名为空而被服务端拒绝（P1-27）
+        Log("检测账号登录...");
+        var (info, wbi) = await ProbeAccountAsync(cfg, ct);
+        cfg = cfg with { Wbi = wbi };
+
         if (myOption is { UseIntlApi: false, UseTvApi: false })
         {
-            Log("检测账号登录...");
-            var (info, wbi) = await ProbeAccountAsync(cfg, ct);
-            cfg = cfg with { Wbi = wbi };
             PrintAccountStatus(info);
         }
         else if (!string.IsNullOrEmpty(token))
@@ -337,17 +348,19 @@ internal sealed partial class Program
         }
     }
 
-    private static async Task DoWorkAsync(MyOption myOption, CancellationToken ct = default)
+    private static async Task<int> DoWorkAsync(MyOption myOption, CancellationToken ct = default)
     {
         try
         {
             var ctx = BuildWorkContext(myOption);
             ctx = await GetVideoInfoAsync(myOption, ctx, ct);
             await DownloadPagesAsync(myOption, ctx, relatedTask: null, ct);
+            return 0;
         }
         catch (OperationCanceledException)
         {
             LogWarn("已取消下载。已下载的部分会保留在临时文件中，重跑同一条命令即可从断点继续。");
+            return 130;
         }
         catch (Exception e)
         {
@@ -357,8 +370,7 @@ internal sealed partial class Program
             Console.Write($"{msg}{Environment.NewLine}请尝试升级到最新版本后重试！");
             Console.ResetColor( );
             Console.WriteLine( );
-            Thread.Sleep(1);
-            Environment.Exit(1);
+            return 1;
         }
     }
 }

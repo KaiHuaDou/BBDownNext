@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -60,31 +61,31 @@ internal static partial class Utils
         if (input.Contains("/space.bilibili.com/") && input.Contains("/lists/"))
             return ResolveSpaceList(input);
         if (input.Contains("/space.bilibili.com/") && input.Contains("/favlist"))
-            return $"favId:{GetQueryString("fid", input)}:{UidRegex( ).Match(input).Groups[1].Value}";
+            return $"{IdPrefix.FavId}{GetQueryString("fid", input)}:{UidRegex( ).Match(input).Groups[1].Value}";
         if (input.Contains("/space.bilibili.com/"))
             throw new NotSupportedException("目前下载器不支持下载用户空间的全部投稿视频，请逐条传入具体视频链接进行下载。");
         if (input.Contains("ep_id="))
-            return $"ep:{GetQueryString("ep_id", input)}";
+            return $"{IdPrefix.EpColon}{GetQueryString("ep_id", input)}";
         if (GlobalEpRegex( ).Match(input) is { Success: true } globalEp)
-            return $"ep:{globalEp.Groups[1].Value}";
+            return $"{IdPrefix.EpColon}{globalEp.Groups[1].Value}";
         if (BangumiMdRegex( ).Match(input) is { Success: true } md)
-            return $"ep:{await GetEpIdByMDAsync(md.Groups[1].Value, cfg)}";
-        return $"ep:{await ScrapeFirstEpIdAsync(input, cfg)}";
+            return $"{IdPrefix.EpColon}{await GetEpIdByMDAsync(md.Groups[1].Value, cfg)}";
+        return $"{IdPrefix.EpColon}{await ScrapeFirstEpIdAsync(input, cfg)}";
     }
 
     private static async Task<string> ResolveShorthandAsync(string input, Core.AppConfig cfg)
     {
         if (input.ToLower( ).StartsWith("bv"))
-            return GetAidByBV(input[3..]);
-        if (input.ToLower( ).StartsWith("av"))
-            return input.ToLower( )[2..];
-        if (input.StartsWith("cheese/")) // ^cheese/(ep|ss)\d+ 格式
+            return GetAidByBV(input[IdPrefix.Bv.Length..]);
+        if (input.ToLower( ).StartsWith(IdPrefix.Av))
+            return input.ToLower( )[IdPrefix.Av.Length..];
+        if (input.StartsWith(IdPrefix.CheeseSlash)) // ^cheese/(ep|ss)\d+ 格式
             return await ResolveCheeseAsync(input, cfg);
-        if (input.StartsWith("ep"))
-            return $"ep:{input[2..]}";
-        if (input.StartsWith("ss"))
-            return $"ep:{await GetEpIdByBangumiSSIdAsync(input[2..], cfg)}";
-        if (input.StartsWith("md"))
+        if (input.StartsWith(IdPrefix.Ep))
+            return $"{IdPrefix.EpColon}{input[IdPrefix.Ep.Length..]}";
+        if (input.StartsWith(IdPrefix.Ss))
+            return $"{IdPrefix.EpColon}{await GetEpIdByBangumiSSIdAsync(input[IdPrefix.Ss.Length..], cfg)}";
+        if (input.StartsWith(IdPrefix.Md))
             return $"ep:{await GetEpIdByMDAsync(MdRegex( ).Match(input).Groups[1].Value, cfg)}";
         throw new ArgumentException("输入有误", nameof(input));
     }
@@ -96,7 +97,7 @@ internal static partial class Utils
             epId = EpRegex( ).Match(input).Groups[1].Value;
         else if (input.Contains("/ss"))
             epId = await GetEpidBySSIdAsync(SsRegex( ).Match(input).Groups[1].Value, cfg);
-        return $"cheese:{epId}";
+        return $"{IdPrefix.Cheese}{epId}";
     }
 
     // 新版个人空间合集/系列链接：
@@ -413,7 +414,8 @@ internal static partial class Utils
         List<ViewPoint> points = [];
         try
         {
-            var api = $"{BiliApi.PlayerWbiV2}?cid={cid}&aid={aid}";
+            var wts = DateTimeOffset.Now.ToUnixTimeSeconds( ).ToString(CultureInfo.InvariantCulture);
+            var api = $"{BiliApi.PlayerWbiV2}?{Parser.WbiSign($"aid={aid}&cid={cid}&wts={wts}", cfg)}";
             var json = await GetWebSourceAsync(api, cfg);
             using var infoJson = JsonDocument.Parse(json);
             if (infoJson.RootElement.GetProperty("data").TryGetProperty("view_points", out var vPoint))

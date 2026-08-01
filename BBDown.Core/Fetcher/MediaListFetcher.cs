@@ -21,7 +21,7 @@ public static class MediaListFetcher
 {
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
-        var bizId = id[10..];
+        var bizId = id[IdPrefix.ListBizId.Length..];
         try
         {
             return await FetchListAsync(bizId, 8, false, "合集", cfg, ct);
@@ -45,13 +45,7 @@ public static class MediaListFetcher
     {
         var api = $"{BiliApi.MediaListInfo}?type={type}&biz_id={bizId}&tid=0";
         using var infoJson = JsonDocument.Parse(await GetWebSourceAsync(api, cfg, null, ct));
-        var data = infoJson.RootElement.GetProperty("data");
-        if (data.ValueKind != JsonValueKind.Object)
-        {
-            var (code, message) = ReadApiError(infoJson.RootElement);
-            throw new InvalidOperationException($"获取{label}信息失败(code={code}): {message}");
-        }
-
+        var data = GetApiData(infoJson.RootElement, $"{label}信息");
         var listTitle = data.GetProperty("title").GetString( )!;
         var intro = data.GetProperty("intro").GetString( )!;
         var pubTime = data.GetProperty("ctime").GetInt64( );
@@ -64,13 +58,7 @@ public static class MediaListFetcher
         {
             var listApi = $"{BiliApi.MediaListResource}?type={type}&oid={oid}&otype=2&biz_id={bizId}&bvid=&with_current=true&mobi_app=web&ps=20&direction=false&sort_field=1&tid=0&desc={(descOrder ? "true" : "false")}";
             using var listJson = JsonDocument.Parse(await GetWebSourceAsync(listApi, cfg, null, ct));
-            var listData = listJson.RootElement.GetProperty("data");
-            if (listData.ValueKind != JsonValueKind.Object)
-            {
-                var (code, message) = ReadApiError(listJson.RootElement);
-                throw new InvalidOperationException($"获取{label}视频列表失败(code={code}): {message}");
-            }
-
+            var listData = GetApiData(listJson.RootElement, $"{label}视频列表");
             hasMore = listData.GetProperty("has_more").GetBoolean( );
             foreach (var m in listData.GetProperty("media_list").EnumerateArray( ))
             {

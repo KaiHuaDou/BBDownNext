@@ -167,7 +167,7 @@ internal sealed partial class Program
                     relatedTask?.SavePaths.Add(outcome.SavePath);
                 }
             }
-            catch (Exception ex) when (!IsRangeUnsupported(ex))
+            catch (Exception ex) when (ShouldRetry(ex))
             {
                 if (++retryCount > 2) throw;
                 LogError(ex.Message);
@@ -190,6 +190,15 @@ internal sealed partial class Program
         return ex is NotSupportedException
                || (ex is AggregateException agg && agg.InnerExceptions.Any(e => e is NotSupportedException));
     }
+
+    // Ctrl+C 触发的取消不能被当成"下载异常"退避重试，否则用户按下之后还要再等两轮退避（P1-20）
+    internal static bool IsCancellation(Exception ex)
+    {
+        return ex is OperationCanceledException
+               || (ex is AggregateException agg && agg.InnerExceptions.Any(e => e is OperationCanceledException));
+    }
+
+    internal static bool ShouldRetry(Exception ex) => !IsRangeUnsupported(ex) && !IsCancellation(ex);
 
     private static PageContext BuildPageContext(Page p, WorkContext ctx, List<Page> selectedPagesInfo)
     {
@@ -230,8 +239,8 @@ internal sealed partial class Program
         {
             UseAria2c = myOption.UseAria2c,
             Aria2cArgs = myOption.Aria2cArgs,
-            ForceHttp = myOption.ForceHttp,
-            MultiThread = myOption.MultiThread,
+            NoForceHttp = myOption.NoForceHttp,
+            SingleThread = myOption.SingleThread,
             RelatedTask = relatedTask,
             Cookie = cfg.Cookie,
         };
@@ -253,7 +262,7 @@ internal sealed partial class Program
         }
 
         LogDebug("获取字幕...");
-        var subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.UseIntlApi, ctx.Cfg);
+        var subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.UseIntlApi, ctx.Cfg, ct);
         if (!myOption.AllowAi && subtitleInfo.Count != 0)
         {
             Log($"跳过下载 AI 字幕。");
@@ -265,7 +274,7 @@ internal sealed partial class Program
             s.path = Path.Combine(pageCtx.TempDir, Path.GetFileName(s.path));
             Log($"下载字幕 {s.lan} => {SubUtil.GetSubtitleCode(s.lan).Name}...");
             LogDebug("下载：{0}", s.url);
-            await SubUtil.SaveSubtitleAsync(s.url, s.path, ctx.Cfg);
+            await SubUtil.SaveSubtitleAsync(s.url, s.path, ctx.Cfg, ct);
             if (myOption.SubOnly && File.Exists(s.path) && File.ReadAllText(s.path).Length != 0)
             {
                 MoveSubtitleToOutput(s, ctx, pageCtx);
@@ -382,14 +391,7 @@ internal sealed partial class Program
         Log($"已选择的流：");
         PrintSelectedTrackInfo(selectedVideo, selectedAudio, p.dur);
 
-        //用户开启了强制替换
-        if (!myOption.NoForceHost && string.IsNullOrEmpty(myOption.UposHost))
-        {
-            myOption.UposHost = BACKUP_HOST;
-        }
-
-        //处理PCDN
-        HandlePcdn(myOption, selectedVideo, selectedAudio, ctx.Cfg);
+        HandleCdnHost(myOption, selectedVideo, selectedAudio, ctx.Cfg);
 
         if (File.Exists(savePath) && new FileInfo(savePath).Length != 0)
         {
@@ -493,6 +495,8 @@ internal sealed partial class Program
                 selected = true;
                 continue;
             }
+
+            HandleCdnHost(myOption, clips, ctx.Cfg);
 
             Log($"共计 {parsedResult.VideoTracks.Count} 条流（共有 {clips.Count} 个分段）。");
             var index = 0;
@@ -612,7 +616,7 @@ internal sealed partial class Program
         else if (ctx.DownloadDanmakuFormats.Contains(BBDownDanmakuFormat.Ass))
         {
             Log("正在保存弹幕 ASS 文件...");
-            await DanmakuUtil.SaveAsAssAsync(danmakus, danmakuAssPath);
+            await DanmakuUtil.SaveAsAssAsync(danmakus, danmakuAssPath, ct);
         }
 
         if (!ctx.DownloadDanmakuFormats.Contains(BBDownDanmakuFormat.Xml) && File.Exists(danmakuXmlPath))

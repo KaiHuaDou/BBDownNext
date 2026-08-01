@@ -46,4 +46,11 @@ public class BilibiliBvConverterTests
     {
         Assert.Throws<InvalidOperationException>(( ) => BilibiliBvConverter.Decode("short"));
     }
+
+    [Fact]
+    public void Decode_InvalidChar_Throws( )
+    {
+        // '0' 不在 BV 字母表中，应抛出可读异常而非 KeyNotFoundException
+        Assert.Throws<InvalidOperationException>(( ) => BilibiliBvConverter.Decode("000000000"));
+    }
 }

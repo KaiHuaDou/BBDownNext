@@ -13,11 +13,11 @@ public static class FetcherRegistry
     {
         return id switch
         {
-            _ when id.StartsWith("cheese:") => CheeseInfoFetcher.FetchAsync(id, cfg, ct),
-            _ when id.StartsWith("ep:") => FetchEpisodeAsync(id, cfg, useIntlApi, ct),
-            _ when id.StartsWith("listBizId:") => MediaListFetcher.FetchAsync(id, cfg, ct),
-            _ when id.StartsWith("seriesBizId:") => SeriesListFetcher.FetchAsync(id, cfg, ct),
-            _ when id.StartsWith("favId:") => FavListFetcher.FetchAsync(id, cfg, ct),
+            _ when id.StartsWith(IdPrefix.Cheese) => CheeseInfoFetcher.FetchAsync(id, cfg, ct),
+            _ when id.StartsWith(IdPrefix.EpColon) => FetchEpisodeAsync(id, cfg, useIntlApi, ct),
+            _ when id.StartsWith(IdPrefix.ListBizId) => MediaListFetcher.FetchAsync(id, cfg, ct),
+            _ when id.StartsWith(IdPrefix.SeriesBizId) => SeriesListFetcher.FetchAsync(id, cfg, ct),
+            _ when id.StartsWith(IdPrefix.FavId) => FavListFetcher.FetchAsync(id, cfg, ct),
             _ => NormalInfoFetcher.FetchAsync(id, cfg, ct),
         };
     }
@@ -35,7 +35,7 @@ public static class FetcherRegistry
         catch (BangumiNotFoundException)
         {
             LogWarn("未找到此 EP/SS 对应番剧信息，正在尝试按课程查找。");
-            return await CheeseInfoFetcher.FetchAsync("cheese:" + id["ep:".Length..], cfg, ct);
+            return await CheeseInfoFetcher.FetchAsync(IdPrefix.Cheese + id[IdPrefix.EpColon.Length..], cfg, ct);
         }
     }
 }

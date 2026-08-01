@@ -29,6 +29,10 @@ public static class Login
     private static string ReadMessage(JsonElement element)
         => element.TryGetProperty("message", out var m) ? (m.GetString( ) ?? "") : "";
 
+    // 日志中只展示凭据首尾，避免明文泄露（P0-3）
+    private static string MaskSecret(string? s)
+        => string.IsNullOrEmpty(s) || s.Length <= 8 ? "***" : $"{s[..4]}****{s[^4..]}";
+
     public static (QrState State, string? Data) InterpretWeb(JsonElement root)
     {
         var outer = ReadCode(root.GetProperty("code"));
@@ -130,9 +134,10 @@ public static class Login
         if (File.Exists(path)) File.Delete(path);
     }
 
-    public static async Task Web( )
+    public static async Task<int> Web( )
     {
         var qrPath = Path.Combine(Path.GetTempPath( ), "BBDown_qrcode.png");
+        var success = false;
         try
         {
             await RunQrLoginAsync(new QrLoginPlan(
@@ -154,19 +159,22 @@ public static class Login
                 Interpret: InterpretWeb,
                 Persist: async url =>
                 {
-                    Log("登录成功：SESSDATA=" + GetQueryString("SESSDATA", url));
+                    Log($"登录成功：SESSDATA={MaskSecret(GetQueryString("SESSDATA", url))}");
                     await CredentialStore.SaveWebCookie(BuildWebCookie(url));
+                    success = true;
                 },
                 ExpiredText: "二维码已过期，请重新执行登录指令。"), qrPath);
         }
         catch (Exception e) { LogError(e.Message); }
         finally { DeleteQrCode(qrPath); }
+        return success ? 0 : 1;
     }
 
-    public static async Task TV( )
+    public static async Task<int> TV( )
     {
         var qrPath = Path.Combine(Path.GetTempPath( ), "BBDown_qrcode.png");
         NameValueCollection? tvParms = null;
+        var success = false;
         try
         {
             await RunQrLoginAsync(new QrLoginPlan(
@@ -203,12 +211,14 @@ public static class Login
                 Interpret: InterpretTv,
                 Persist: async data =>
                 {
-                    Log("登录成功：AccessToken=" + data);
+                    Log($"登录成功：AccessToken={MaskSecret(data)}");
                     await CredentialStore.SaveTvToken("access_token=" + data);
+                    success = true;
                 },
                 ExpiredText: "二维码已过期，请重新执行登录指令。"), qrPath);
         }
         catch (Exception e) { LogError(e.Message); }
         finally { DeleteQrCode(qrPath); }
+        return success ? 0 : 1;
     }
 }

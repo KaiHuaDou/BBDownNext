@@ -22,7 +22,7 @@ public static class FavListFetcher
 {
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
-        var parts = id[6..].Split(':');
+        var parts = id[IdPrefix.FavId.Length..].Split(':');
         var favId = parts[0];
         var mid = parts.Length > 1 ? parts[1] : "";
         //查找默认收藏夹
@@ -35,7 +35,7 @@ public static class FavListFetcher
 
             var favListApi = $"{BiliApi.FavFolderList}?up_mid={mid}";
             using var favJson = await GetJsonAsync(favListApi, cfg, ct);
-            var folders = TryGetArray(favJson.RootElement.GetProperty("data"), "list", out var list)
+            var folders = TryGetArray(GetApiData(favJson.RootElement, "收藏夹列表"), "list", out var list)
                 ? EnumerateArrayOrEmpty(list)
                 : [];
             favId = folders.FirstOrDefault( ) is { ValueKind: JsonValueKind.Object } folder
@@ -50,7 +50,7 @@ public static class FavListFetcher
         var api = $"{BiliApi.FavResourceList}?media_id={favId}&pn=1&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
         var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
-        var data = infoJson.RootElement.GetProperty("data");
+        var data = GetApiData(infoJson.RootElement, "收藏夹信息");
         var totalCount = data.GetProperty("info").GetProperty("media_count").GetInt32( );
         var totalPage = (int) Math.Ceiling((double) totalCount / pageSize);
         var title = data.GetProperty("info").GetProperty("title").GetString( )!;
@@ -65,7 +65,7 @@ public static class FavListFetcher
             json = await GetWebSourceAsync(api, cfg, null, ct);
             // medias 元素要在循环外继续使用, Clone 后才能安全释放 jsonDoc
             using var jsonDoc = JsonDocument.Parse(json);
-            medias.AddRange(EnumerateArrayOrEmpty(jsonDoc.RootElement.GetProperty("data").GetProperty("medias")).Select(m => m.Clone( )));
+            medias.AddRange(EnumerateArrayOrEmpty(GetApiData(jsonDoc.RootElement, "收藏夹信息").GetProperty("medias")).Select(m => m.Clone( )));
         }
 
         foreach (var m in medias)

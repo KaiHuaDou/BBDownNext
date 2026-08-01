@@ -35,13 +35,6 @@ public static partial class HTTPUtil
         Timeout = DefaultTimeout
     };
 
-    // 大文件下载需要更长的超时；进程级配置，运行时经此属性调整（不在热路径上改动 HttpClient 本身）
-    internal static TimeSpan RequestTimeout
-    {
-        get => AppHttpClient.Timeout;
-        set => AppHttpClient.Timeout = value;
-    }
-
     private static readonly string[] platforms = ["Windows NT 10.0; Win64", "Macintosh; Intel Mac OS X 10_15", "X11; Linux x86_64"];
 
     private static string RandomVersion(int min, int max)

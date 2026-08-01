@@ -35,8 +35,8 @@ public class SmokeDownloadTests
             WorkDir = workDir,
             SkipMux = true,
             NoCover = true,
-            MultiThread = false,
-            ForceHttp = true,
+            SingleThread = false,
+            NoForceHttp = false,
             DfnPriority = "360P 流畅,480P 清晰,720P 高清",
         };
 

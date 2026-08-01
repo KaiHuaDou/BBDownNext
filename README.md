@@ -7,7 +7,7 @@
 <p align="center">
   <img alt=".NET" src="https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" />
-  <a href="https://github.com/KaiHuaDou/BBDown/releases"><img alt="Release" src="https://img.shields.io/github/v/release/KaiHuaDou/BBDown?label=release" /></a>
+  <a href="https://github.com/nilaoda/BBDown/releases"><img alt="Release" src="https://img.shields.io/github/v/release/nilaoda/BBDown?label=release" /></a>
 </p>
 
 <p align="center">

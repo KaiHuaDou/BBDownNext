@@ -16,7 +16,7 @@ public static class BangumiInfoFetcher
 {
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
-        id = id[3..];
+        id = id[IdPrefix.EpColon.Length..];
         var api = $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?ep_id={id}";
         var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
@@ -56,7 +56,9 @@ public static class BangumiInfoFetcher
             PubTime = pubTime,
             PagesInfo = pagesInfo,
             IsBangumi = true,
-            IsCheese = true,
+            // 番剧不是课程（cheese），原 IsCheese = true 为误设（P1-5）
+            // 完结状态从 season 接口的 is_finish 读取，避免 IsBangumiEnd 永远为 false（P1-4）
+            IsBangumiEnd = result.TryGetProperty("is_finish", out var f) && f.GetInt32( ) == 1,
             Index = index
         };
 

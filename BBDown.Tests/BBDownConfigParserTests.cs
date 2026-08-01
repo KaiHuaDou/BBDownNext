@@ -28,7 +28,7 @@ public sealed class BBDownConfigParserTests : IDisposable
         var root = CommandLineInvoker.GetRootCommand(o =>
         {
             captured = o;
-            return Task.CompletedTask;
+            return Task.FromResult(0);
         });
 
         var merged = BBDownConfigParser.MergeWithConfig(args, root.Parse(args), root);
@@ -89,7 +89,7 @@ public sealed class BBDownConfigParserTests : IDisposable
     public void MissingConfigFile_ReturnsOriginalArgs()
     {
         string[] args = [SampleUrl, "--config", Path.Combine(Path.GetTempPath(), "definitely-not-here.config")];
-        var root = CommandLineInvoker.GetRootCommand(_ => Task.CompletedTask);
+        var root = CommandLineInvoker.GetRootCommand(_ => Task.FromResult(0));
         var merged = BBDownConfigParser.MergeWithConfig(args, root.Parse(args), root);
         Assert.Same(args, merged);
     }
@@ -99,7 +99,7 @@ public sealed class BBDownConfigParserTests : IDisposable
     {
         File.WriteAllText(configPath, "# 只有注释\n\n");
         string[] args = [SampleUrl, "--config", configPath];
-        var root = CommandLineInvoker.GetRootCommand(_ => Task.CompletedTask);
+        var root = CommandLineInvoker.GetRootCommand(_ => Task.FromResult(0));
         var merged = BBDownConfigParser.MergeWithConfig(args, root.Parse(args), root);
         Assert.Same(args, merged);
     }

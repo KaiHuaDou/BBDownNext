@@ -431,6 +431,12 @@ BBDown.data
 BBDownTV.data
 BBDownApp.data
 qrcode.png
+# 配置文件可能含明文 SESSDATA / access_token（README 示例即写入 cookie），禁止提交（P0-1）
+BBDown.config
+# 断点续传清单与临时分片（P1-12）
+BBDown.archives
+*.bbdown.part
+*.bbdown.json
 
 # 本地 AI 助手工作区数据
 .workbuddy/

@@ -23,16 +23,6 @@ env:
   BUILD_CONFIG: Release
 
 jobs:
-  set-date:
-    name: Compute build date (UTC+8)
-    runs-on: ubuntu-latest
-    outputs:
-      date: ${{ steps.get_date.outputs.date }}
-    steps:
-      - name: Get Date in UTC+8
-        id: get_date
-        run: echo "date=$(date -u -d '8 hours' +'%Y%m%d')" >> "$GITHUB_OUTPUT"
-
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -59,7 +49,7 @@ jobs:
 
   build-windows:
     name: Build Windows (${{ matrix.rid }})
-    needs: [set-date, test]
+    needs: [test]
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -78,20 +68,20 @@ jobs:
       - name: Publish
         run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
 
-      - name: Package
+      - name: Stage artifact
         shell: pwsh
-        run: Compress-Archive -Path artifact/BBDown.exe -DestinationPath BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip
+        run: mv artifact/BBDown.exe BBDown-${{ matrix.rid }}.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: BBDown_${{ matrix.rid }}
-          path: BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip
+          path: artifact
           retention-days: 7
 
   build-macos:
     name: Build macOS (${{ matrix.rid }})
-    needs: [set-date, test]
+    needs: [test]
     runs-on: macos-latest
     strategy:
       fail-fast: false
@@ -110,26 +100,24 @@ jobs:
       - name: Publish
         run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
 
-      - name: Package
-        run: |
-          cd artifact
-          zip ../BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip BBDown
+      - name: Stage artifact
+        run: mv artifact/BBDown BBDown-${{ matrix.rid }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: BBDown_${{ matrix.rid }}
-          path: BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip
+          path: artifact
           retention-days: 7
 
   build-linux:
     name: Build Linux (${{ matrix.rid }})
-    needs: [set-date, test]
+    needs: [test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        rid: [linux-x64, linux-arm64]
+        rid: [linux-x64, linux-arm64, linux-musl-x64, linux-musl-arm64]
     steps:
       - uses: actions/checkout@v7
 
@@ -140,68 +128,19 @@ jobs:
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
 
-      # linux-arm64 在 x64 runner上做交叉编译，需要 arm64 交叉工具链（含 aarch64-linux-gnu-objcopy）
-      - name: Install cross-compile toolchain (linux-arm64)
-        if: matrix.rid == 'linux-arm64'
-        run: |
-          sudo dpkg --add-architecture arm64
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ $(. /etc/os-release && echo "$VERSION_CODENAME") main restricted" | sudo tee /etc/apt/sources.list.d/arm64.list
-          sudo apt-get update
-          sudo apt-get install -y clang llvm binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu zlib1g-dev:arm64
-
-      - name: Publish
-        run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
-
-      - name: Package
-        run: |
-          cd artifact
-          zip ../BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip BBDown
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: BBDown_${{ matrix.rid }}
-          path: BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip
-          retention-days: 7
-
-  build-linux-musl:
-    name: Build Linux (musl) (${{ matrix.rid }})
-    needs: [set-date, test]
-    runs-on: ${{ matrix.runner }}
-    container:
-      image: mcr.microsoft.com/dotnet/sdk:9.0-alpine
-    env:
-      # Grpc.Tools 自带的 protoc 是 glibc 二进制，Alpine(musl) 无法运行；
-      # 改用 apk 安装的 musl 原生 protoc（BBDown.Core 只用 GrpcServices=None，不需要 grpc_csharp_plugin）。
-      PROTOBUF_PROTOC: /usr/bin/protoc
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - rid: linux-musl-x64
-            runner: ubuntu-latest
-          - rid: linux-musl-arm64
-            runner: ubuntu-24.04-arm
-    steps:
-      - name: Install build dependencies
-        run: apk add --no-cache git clang build-base zlib-dev zip nodejs gcompat protobuf
-      # GitHub 不支持在 arm64 的 Alpine 容器内运行 JS action（如 actions/checkout）。
-      # 变通：把 /etc/os-release 的 ID=alpine 改为非 alpine，并装 gcompat 让宿主机注入的 glibc Node 能在 musl 容器内运行。
-      - name: Allow JS actions in Alpine container (arm64 only)
-        if: matrix.rid == 'linux-musl-arm64'
-        run: sed -i 's/^ID=alpine/ID=linux/' /etc/os-release
-      - uses: actions/checkout@v7
+      # AOT 交叉编译（含 musl / arm64）由 PublishAotClang 提供 musl sysroot、静态 libz 与 objcopy，
+      # 复用 runner 自带的 clang，无需 Alpine 容器或交叉工具链 apt 安装。
       - name: Publish (AOT)
         run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
-      - name: Package
-        run: |
-          cd artifact
-          zip -r ../BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip .
+
+      - name: Stage artifact
+        run: mv artifact/BBDown BBDown-${{ matrix.rid }}
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: BBDown_${{ matrix.rid }}
-          path: BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip
+          path: artifact
           retention-days: 7
 
   pack:
@@ -232,7 +171,7 @@ jobs:
   release:
     name: Publish GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-windows, build-macos, build-linux, build-linux-musl, pack]
+    needs: [build-windows, build-macos, build-linux, pack]
     runs-on: ubuntu-latest
     permissions:
       contents: write

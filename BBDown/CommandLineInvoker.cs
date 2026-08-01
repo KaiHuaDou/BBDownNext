@@ -32,7 +32,7 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> HideStreams = new("--hide-streams", ["-hs"]) { Description = "不要显示所有可用音视频流" };
     private static readonly Option<bool> Interactive = new("--interactive", ["-ia"]) { Description = "交互式选择清晰度" };
     private static readonly Option<bool> ShowAll = new("--all", []) { Description = "展示所有分 P 标题" };
-    private static readonly Option<bool> UseAria2c = new("--aria2c", ["-aria2"]) { Description = "调用 aria2c 进行下载（你需要自行准备好二进制可执行文件）" };
+    private static readonly Option<bool> UseAria2c = new("--aria2c", ["-aria2"]) { Description = "调用 aria2c 进行下载（你需要自行准备可执行文件）" };
     private static readonly Option<string> Aria2cArgs = new("--aria2c-args", [])
     {
         Description = """
@@ -42,7 +42,7 @@ internal static class CommandLineInvoker
     };
     private static readonly Option<bool> SingleThread = new("--single-thread", ["-st"])
     {
-        Description = "使用单线程下载，用于不支持 Range 的服务器；不加此选项即默认多线程"
+        Description = "使用单线程下载，用于不支持 Range 的服务器。"
     };
     private static readonly Option<string> SelectPage = new("--select-page", ["-p"])
     {
@@ -58,7 +58,6 @@ internal static class CommandLineInvoker
           latest / new     最后一集（最新一集）
           last / LAST      倒数第二集
         关键字大小写不敏感；latest 可写作 new；越界数字自动夹紧到有效边界；非法项忽略并提醒。
-        以 - 开头的表达式需在命令行加引号：-p "-22,25-27,33"
         """
     };
     private static readonly Option<bool> NoMetadata = new("--no-metadata", []) { Description = "精简混流，不增加描述、作者等信息" };
@@ -71,13 +70,14 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> SkipMux = new("--skip-mux", []) { Description = "跳过混流步骤" };
     private static readonly Option<bool> NoSub = new("--no-sub", []) { Description = "跳过字幕下载" };
     private static readonly Option<bool> NoCover = new("--no-cover", []) { Description = "跳过封面下载" };
-    private static readonly Option<bool> ForceHttp = new("--force-http", []) { Description = "下载音视频时强制使用 HTTP 协议替换 HTTPS（默认开启）", DefaultValueFactory = _ => true };
+    private static readonly Option<bool> NoForceHttp = new("--no-force-http", []) { Description = "下载音视频时避免降级为 HTTP" };
     private static readonly Option<bool> DownloadDanmaku = new("--danmaku", ["-dd"]) { Description = "下载弹幕" };
     private static readonly Option<string> DownloadDanmakuFormats = new("--danmaku-formats", ["-ddf"])
     {
-        Description = "指定需下载的弹幕格式，逗号分隔，默认全部下载（如 xml,ass）。"
+        Description = "指定需下载的弹幕格式，逗号分隔",
+        DefaultValueFactory = _ => "xml,ass"
     };
-    private static readonly Option<bool> AllowAi = new("--allow-ai", []) { Description = "下载 AI 字幕（默认不下载，加此选项才下载）" };
+    private static readonly Option<bool> AllowAi = new("--allow-ai", []) { Description = "下载 AI 字幕" };
     private static readonly Option<bool> VideoAscending = new("--video-ascending", []) { Description = "视频升序（最小体积优先）" };
     private static readonly Option<bool> AudioAscending = new("--audio-ascending", []) { Description = "音频升序（最小体积优先）" };
     private static readonly Option<bool> AllowPcdn = new("--allow-pcdn", []) { Description = "不替换 PCDN 域名，仅在正常情况与 --upos-host 均无法下载时使用" };
@@ -86,12 +86,12 @@ internal static class CommandLineInvoker
     private static readonly Option<string> Cookie = new("--cookie", []) { Description = "设置字符串 cookie 用以下载网页接口的会员内容" };
     private static readonly Option<string> AccessToken = new("--access-token", ["-token"]) { Description = "设置 access_token 用以下载 TV/APP 接口的会员内容" };
     private static readonly Option<string> WorkDir = new("--work-dir", []) { Description = "设置程序的工作目录" };
-    private static readonly Option<string> FFmpegPath = new("--ffmpeg-path", []) { Description = "设置 ffmpeg 的路径" };
-    private static readonly Option<string> Mp4boxPath = new("--mp4box-path", []) { Description = "设置 mp4box 的路径" };
+    private static readonly Option<string> FFmpegPath = new("--ffmpeg-path", []) { Description = "设置 FFmpeg 的路径" };
+    private static readonly Option<string> Mp4boxPath = new("--mp4box-path", []) { Description = "设置 MP4Box 的路径" };
     private static readonly Option<string> Aria2cPath = new("--aria2c-path", []) { Description = "设置 aria2c 的路径" };
     private static readonly Option<string> UposHost = new("--upos-host", []) { Description = "自定义 upos 服务器" };
-    private static readonly Option<bool> NoForceHost = new("--no-force-host", []) { Description = "不强制替换下载服务器 host（默认强制替换，加此选项才不替换）" };
-    private static readonly Option<bool> SaveArchivesToFile = new("--save-archives-to-file", []) { Description = "将下载过的视频记录到本地文件中，用于后续跳过下载同个视频" };
+    private static readonly Option<bool> NoForceHost = new("--no-force-host", []) { Description = "不强制替换下载服务器 host" };
+    private static readonly Option<bool> SaveRecords = new("--save-records", []) { Description = "将下载过的视频记录到本地文件中，用于后续跳过下载同个视频" };
     private static readonly Option<bool> StopOnError = new("--stop-on-error", [])
     {
         Description = """
@@ -99,7 +99,7 @@ internal static class CommandLineInvoker
         默认继续，并在末尾汇总失败的分 P 后非零退出。
         """
     };
-    private static readonly Option<string> DelayPerPage = new("--delay-per-page", []) { Description = "设置下载合集分 P 之间的下载间隔时间（单位：秒，默认无间隔）", DefaultValueFactory = _ => "0" };
+    private static readonly Option<string> DelayPerPage = new("--delay-per-page", []) { Description = "设置下载合集分 P 之间的下载间隔时间（单位：秒）", DefaultValueFactory = _ => "0" };
     private static readonly Option<string> FilePattern = new("--file-pattern", ["-F"])
     {
         Description = $"""
@@ -140,7 +140,8 @@ internal static class CommandLineInvoker
     {
         Description = """
         指定 BiliPlus host。
-        使用 BiliPlus 需要 access_token、不需要 cookie；解析服务器能够获取你账号的大部分权限，请谨慎使用！
+        使用 BiliPlus 需要 access_token，无需 cookie。
+        解析服务器能够获取你账号的大部分权限，请谨慎使用！
         """,
         DefaultValueFactory = _ => BiliApi.MainHost
     };
@@ -148,15 +149,24 @@ internal static class CommandLineInvoker
     {
         Description = """
         指定 BiliPlus EP host。
-        用于代理 api.bilibili.com/pgc/view/web/season；大部分解析服务器不支持代理该接口
+        用于代理 api.bilibili.com/pgc/view/web/season
+        大部分解析服务器不支持代理该接口
         """,
         DefaultValueFactory = _ => BiliApi.MainHost
     };
-    private static readonly Option<string> TvHost = new("--tv-host", []) { Description = "自定义 TV 端接口请求 Host（用于代理 api.snm0516.aisee.tv）", DefaultValueFactory = _ => BiliApi.TvHost };
-    private static readonly Option<string> Area = new("--area", []) { Description = "（hk|tw|th）使用 BiliPlus 时必选，指定 BiliPlus area" };
-    private static readonly Option<string> ConfigFile = new("--config", []) { Description = "读取指定的 BBDown 本地配置文件（默认为：BBDown.config）" };
+    private static readonly Option<string> TvHost = new("--tv-host", [])
+    {
+        Description = "自定义 TV 端接口请求 Host",
+        DefaultValueFactory = _ => BiliApi.TvHost
+    };
+    private static readonly Option<string> Area = new("--area", []) { Description = "（hk|tw|th）使用 BiliPlus 时指定 BiliPlus area" };
+    private static readonly Option<string> ConfigFile = new("--config", [])
+    {
+        Description = "读取指定的 BBDown 本地配置文件",
+        DefaultValueFactory = _ => "BBDown.config"
+    };
 
-    public static RootCommand GetRootCommand(Func<MyOption, Task> action)
+    public static RootCommand GetRootCommand(Func<MyOption, Task<int>> action)
     {
         var rootCommand = new RootCommand
         {
@@ -183,7 +193,7 @@ internal static class CommandLineInvoker
             NoMetadata,
             NoSub,
             NoCover,
-            ForceHttp,
+            NoForceHttp,
             DownloadDanmaku,
             DownloadDanmakuFormats,
             AllowAi,
@@ -204,7 +214,7 @@ internal static class CommandLineInvoker
             Aria2cPath,
             UposHost,
             NoForceHost,
-            SaveArchivesToFile,
+            SaveRecords,
             StopOnError,
             DelayPerPage,
             Host,
@@ -231,7 +241,6 @@ internal static class CommandLineInvoker
                 UseAria2c = parseResult.GetValue(UseAria2c)!,
                 Interactive = parseResult.GetValue(Interactive)!,
                 HideStreams = parseResult.GetValue(HideStreams)!,
-                MultiThread = !parseResult.GetValue(SingleThread)!,
                 SingleThread = parseResult.GetValue(SingleThread)!,
                 NoMetadata = parseResult.GetValue(NoMetadata)!,
                 VideoOnly = parseResult.GetValue(VideoOnly)!,
@@ -243,7 +252,7 @@ internal static class CommandLineInvoker
                 SkipMux = parseResult.GetValue(SkipMux)!,
                 NoSub = parseResult.GetValue(NoSub)!,
                 NoCover = parseResult.GetValue(NoCover)!,
-                ForceHttp = parseResult.GetValue(ForceHttp)!,
+                NoForceHttp = parseResult.GetValue(NoForceHttp)!,
                 DownloadDanmaku = parseResult.GetValue(DownloadDanmaku)!,
                 DownloadDanmakuFormats = parseResult.GetValue(DownloadDanmakuFormats) ?? "",
                 AllowAi = parseResult.GetValue(AllowAi)!,
@@ -264,7 +273,7 @@ internal static class CommandLineInvoker
                 Aria2cPath = parseResult.GetValue(Aria2cPath) ?? "",
                 UposHost = parseResult.GetValue(UposHost) ?? "",
                 NoForceHost = parseResult.GetValue(NoForceHost)!,
-                SaveArchivesToFile = parseResult.GetValue(SaveArchivesToFile)!,
+                SaveArchivesToFile = parseResult.GetValue(SaveRecords)!,
                 StopOnError = parseResult.GetValue(StopOnError)!,
                 DelayPerPage = parseResult.GetValue(DelayPerPage) ?? "",
                 Host = parseResult.GetValue(Host) ?? "",
@@ -273,7 +282,7 @@ internal static class CommandLineInvoker
                 Area = parseResult.GetValue(Area) ?? "",
                 ConfigFile = parseResult.GetValue(ConfigFile) ?? ""
             };
-            await action(option);
+            return await action(option);
         });
 
         return rootCommand;
@@ -291,10 +300,19 @@ internal static class CommandLineInvoker
         for (var i = 0; i < parseResult.Tokens.Count; i++)
         {
             var token = parseResult.Tokens[i];
-            if (token.Type != TokenType.Option) continue;
+            if (token.Type != TokenType.Option)
+            {
+                continue;
+            }
 
-            if (encodingIndex < 0 && Matches(EncodingPriority, token.Value)) encodingIndex = i;
-            else if (dfnIndex < 0 && Matches(DfnPriority, token.Value)) dfnIndex = i;
+            if (encodingIndex < 0 && Matches(EncodingPriority, token.Value))
+            {
+                encodingIndex = i;
+            }
+            else if (dfnIndex < 0 && Matches(DfnPriority, token.Value))
+            {
+                dfnIndex = i;
+            }
         }
 
         return encodingIndex >= 0 && dfnIndex >= 0 && encodingIndex < dfnIndex;

@@ -2,7 +2,7 @@
   <Folder Name="/解决方案项/">
     <File Path=".editorconfig" />
     <File Path=".gitignore" />
-    <File Path="json-api-doc.md" />
+    <File Path="API.md" />
     <File Path="LICENSE" />
     <File Path="README.md" />
   </Folder>

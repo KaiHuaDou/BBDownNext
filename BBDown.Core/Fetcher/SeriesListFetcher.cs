@@ -13,7 +13,7 @@ public static class SeriesListFetcher
 {
     public static Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
-        return FetchByBizIdAsync(id[12..], cfg, ct);
+        return FetchByBizIdAsync(id[IdPrefix.SeriesBizId.Length..], cfg, ct);
     }
 
     internal static Task<VInfo> FetchByBizIdAsync(string bizId, AppConfig cfg, CancellationToken ct = default)

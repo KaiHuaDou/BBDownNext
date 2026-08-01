@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Protobuf;
@@ -169,24 +171,19 @@ public static partial class SubUtil
             ["uk"] = ("ukr", "Українська"),
             ["ur"] = ("urd", "Urdu"),
             ["vi"] = ("vie", "Tiếng Việt"),
-        }.ToFrozenDictionary( );
+        }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
+    // 表内 region/script 子标签大小写并不统一（en-US 全大写、zh-Hans 首字母大写），
+    // 与其在查表前做大小写归一，不如直接用大小写不敏感的字典（P1-24）
     public static (string Code, string Name) GetSubtitleCode(string key)
     {
-        //zh-hans => zh-Hans
-        if (NonCapsRegex( ).Match(key) is { Success: true } result)
-        {
-            var v = result.Value;
-            key = key.Replace(v, v.ToUpper( ));
-        }
-
         return SubtitleCodes.TryGetValue(key, out var value) ? value : ("und", "Undetermined");
     }
 
     #region 字幕接口
 
     // 任一环节抛异常或返回空 URL 都视为该接口不可用，由调用方回退到下一个候选
-    private static async Task<List<Subtitle>?> TryFetchAsync(Func<Task<List<Subtitle>>> fetch)
+    private static async Task<List<Subtitle>?> TryFetchAsync(Func<Task<List<Subtitle>>> fetch, CancellationToken ct = default)
     {
         try
         {
@@ -215,17 +212,17 @@ public static partial class SubUtil
 
     #endregion
 
-    public static async Task<List<Subtitle>> GetSubtitlesAsync(string aid, string cid, string epId, int index, bool intl, AppConfig cfg)
+    public static async Task<List<Subtitle>> GetSubtitlesAsync(string aid, string cid, string epId, int index, bool intl, AppConfig cfg, CancellationToken ct = default)
     {
         var pathPrefix = $"{aid}/{aid}.{cid}";
 
-        async Task<List<Subtitle>> FromJsonAsync(string api, Func<JsonElement, JsonElement> locate, string lanKey, string urlKey)
+        async Task<List<Subtitle>> FromJsonAsync(string api, Func<JsonElement, JsonElement> locate, string lanKey, string urlKey, CancellationToken ct = default)
         {
-            using var json = JsonDocument.Parse(await GetWebSourceAsync(api, cfg));
+            using var json = JsonDocument.Parse(await GetWebSourceAsync(api, cfg, null, ct));
             return ReadSubtitles(locate(json.RootElement), lanKey, urlKey, pathPrefix, intl);
         }
 
-        async Task<List<Subtitle>> FromAppAsync( )
+        async Task<List<Subtitle>> FromAppAsync(CancellationToken ct = default)
         {
             const string api = BiliApi.GrpcDmView;
             var payload = AppHelper.PackMessage(new DmViewReq
@@ -236,7 +233,7 @@ public static partial class SubUtil
                 Spmid = "main.ugc-video-detail.0.0",
             }.ToByteArray( ));
             var headers = AppHelper.GetHeader("", cfg, "app.biliapi.net");
-            var body = AppHelper.ReadMessage(await GetPostResponseAsync(api, payload, headers));
+            var body = AppHelper.ReadMessage(await GetPostResponseAsync(api, payload, headers, ct));
             var reply = new MessageParser<DmViewReply>(( ) => new DmViewReply( )).ParseFrom(body);
             return reply.Subtitle?.Subtitles?
                 .Select(s => new Subtitle { lan = s.Lan, url = s.SubtitleUrl, path = $"{pathPrefix}.{s.Lan}.srt" })
@@ -252,26 +249,27 @@ public static partial class SubUtil
             ?
             [
                 ( ) => FromJsonAsync($"https://{intlWebHost}{BiliApi.IntlSubtitleWebPath}?episode_id={epId}",
-                    root => root.GetProperty("data").GetProperty("subtitles"), "lang_key", "url"),
+                    root => root.GetProperty("data").GetProperty("subtitles"), "lang_key", "url", ct),
                 ( ) => FromJsonAsync($"https://{intlAppHost}{BiliApi.IntlSeasonAppPath}?ep_id={epId}&platform=android&s_locale=zh_SG{accessKey}",
                     root => root.GetProperty("result").GetProperty("modules")[0].GetProperty("data").GetProperty("episodes")[index - 1].GetProperty("subtitles"),
-                    "key", "url"),
+                    "key", "url", ct),
             ]
             : cfg.Cookie.Length == 0
                 // 未登录只有 APP 端能拿到字幕
-                ? [FromAppAsync]
+                ? [() => FromAppAsync(ct)]
                 :
                 [
-                    ( ) => FromJsonAsync($"{BiliApi.PlayerWbiV2}?cid={cid}&aid={aid}",
-                        root => root.GetProperty("data").GetProperty("subtitle").GetProperty("subtitles"), "lan", "subtitle_url"),
+                    // wbi 接口未签名会被服务端拒绝（P1-27）
+                    ( ) => FromJsonAsync($"{BiliApi.PlayerWbiV2}?{Parser.WbiSign($"aid={aid}&cid={cid}&wts={DateTimeOffset.Now.ToUnixTimeSeconds( ).ToString(CultureInfo.InvariantCulture)}", cfg)}",
+                        root => root.GetProperty("data").GetProperty("subtitle").GetProperty("subtitles"), "lan", "subtitle_url", ct),
                     ( ) => FromJsonAsync($"{BiliApi.View}?aid={aid}&cid={cid}",
-                        root => root.GetProperty("data").GetProperty("subtitle").GetProperty("list"), "lan", "subtitle_url"),
-                    FromAppAsync,
+                        root => root.GetProperty("data").GetProperty("subtitle").GetProperty("list"), "lan", "subtitle_url", ct),
+                    ( ) => FromAppAsync(ct),
                 ];
 
         foreach (var candidate in candidates)
         {
-            if (await TryFetchAsync(candidate) is not { } subtitles)
+            if (await TryFetchAsync(candidate, ct) is not { } subtitles)
             {
                 continue;
             }
@@ -289,15 +287,15 @@ public static partial class SubUtil
 
     // CA1054: url 保持 string —— 该方法被 BBDown 主项目直接调用（传入 Subtitle.url 字符串），
     // 改为 System.Uri 属于跨项目破坏性变更（本次改动范围仅限 BBDown.Core）
-    public static async Task SaveSubtitleAsync(string url, string path, AppConfig cfg)
+    public static async Task SaveSubtitleAsync(string url, string path, AppConfig cfg, CancellationToken ct = default)
     {
         if (path.EndsWith(".srt"))
         {
-            await File.WriteAllTextAsync(path, ConvertSubFromJson(await GetWebSourceAsync(url, cfg)), Encoding.UTF8);
+            await File.WriteAllTextAsync(path, ConvertSubFromJson(await GetWebSourceAsync(url, cfg, null, ct)), Encoding.UTF8, ct);
         }
         else
         {
-            await File.WriteAllTextAsync(path, await GetWebSourceAsync(url, cfg), Encoding.UTF8);
+            await File.WriteAllTextAsync(path, await GetWebSourceAsync(url, cfg, null, ct), Encoding.UTF8, ct);
         }
     }
 
@@ -335,6 +333,4 @@ public static partial class SubUtil
         return TimeSpan.FromSeconds(sec).ToString(@"hh\:mm\:ss\,fff");
     }
 
-    [GeneratedRegex("-[a-z]")]
-    private static partial Regex NonCapsRegex( );
 }

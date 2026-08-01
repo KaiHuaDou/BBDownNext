@@ -59,7 +59,7 @@ public static class BilibiliBvConverter
     {
         if (bvidStr.Length != BV_LEN)
         {
-            throw new InvalidOperationException($"Bv BV1{bvidStr} must to be 12 char");
+            throw new InvalidOperationException($"无效的 BV 号：BV1{bvidStr} 长度应为 12 个字符，实际 {bvidStr.Length} 个");
         }
 
         var bvid = Encoding.ASCII.GetBytes(bvidStr);
@@ -69,7 +69,13 @@ public static class BilibiliBvConverter
         long avid = 0;
         foreach (var b in bvid)
         {
-            avid = avid * BASE + REV_ALPHABETA[b];
+            // 字符集校验：避免字典查找直接抛 KeyNotFoundException，给出可读错误
+            if (!REV_ALPHABETA.TryGetValue(b, out var value))
+            {
+                throw new InvalidOperationException($"无效的 BV 字符：{(char) b}（不在 BV 字母表中）");
+            }
+
+            avid = avid * BASE + value;
         }
 
         return (avid & MASK_CODE) ^ XOR_CODE;

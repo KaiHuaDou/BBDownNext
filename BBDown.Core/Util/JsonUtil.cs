@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -5,7 +6,7 @@ using System.Text.Json;
 namespace BBDown.Core.Util;
 
 // 结构化的 JSON 判定，替代在已解析过的 JSON 字符串上再做全文 Contains
-internal static class JsonUtil
+public static class JsonUtil
 {
     public static bool HasObject(JsonElement parent, string name)
     {
@@ -63,6 +64,20 @@ internal static class JsonUtil
             ? msgElem.GetString( )!
             : "未知错误";
         return (code, message);
+    }
+
+    // 接口失败时 data 缺失或为 null，直接 GetProperty("data") 只会抛出不含 code/message 的 KeyNotFoundException
+    public static JsonElement GetApiData(JsonElement root, string label, string dataName = "data")
+    {
+        if (root.ValueKind == JsonValueKind.Object
+            && root.TryGetProperty(dataName, out var data)
+            && data.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+        {
+            return data;
+        }
+
+        var (code, message) = ReadApiError(root);
+        throw new InvalidOperationException($"获取{label}失败(code={code})：{message}");
     }
 
     // 番剧接口用 episodes[].id 标识分集。原实现把整棵子树 ToString 后找 "/ep{id}"，

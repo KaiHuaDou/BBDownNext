@@ -200,24 +200,31 @@ internal static class BBDownMuxer
 
     public static async Task MergeFLV(string[] files, string outPath, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(files);
+        if (files.Length == 0) return;
         if (files.Length == 1)
         {
-            File.Move(files[0], outPath);
+            File.Move(files[0], outPath, true);
             return;
         }
 
-        foreach (var file in files)
+        // 只合并本次转出的分段：扫目录取 .ts 会混入并发任务或上次残留的文件，且顺序不受控（P1-22）
+        List<string> tsFiles = new(files.Length);
+        try
         {
-            var tmpFile = Path.Combine(Path.GetDirectoryName(file)!, Path.GetFileNameWithoutExtension(file) + ".ts");
-            await RunExe(FFMPEG, ["-loglevel", "warning", "-y", "-i", file, "-map", "0", "-c", "copy", "-f", "mpegts", "-bsf:v", "h264_mp4toannexb", tmpFile], ct);
-            File.Delete(file);
-        }
+            foreach (var file in files)
+            {
+                var tmpFile = Path.Combine(Path.GetDirectoryName(file)!, Path.GetFileNameWithoutExtension(file) + ".ts");
+                await RunExe(FFMPEG, ["-loglevel", "warning", "-y", "-i", file, "-map", "0", "-c", "copy", "-f", "mpegts", "-bsf:v", "h264_mp4toannexb", tmpFile], ct);
+                tsFiles.Add(tmpFile);
+                SafeDelete(file);
+            }
 
-        var tsFiles = GetFiles(Path.GetDirectoryName(files[0])!, ".ts");
-        CombineMultipleFilesIntoSingleFile(tsFiles, outPath);
-        foreach (var s in tsFiles)
+            CombineMultipleFilesIntoSingleFile([.. tsFiles], outPath);
+        }
+        finally
         {
-            File.Delete(s);
+            tsFiles.ForEach(SafeDelete);
         }
     }
 }
