@@ -152,12 +152,16 @@ public static partial class HTTPUtil
         request.Headers.TryAddWithoutValidation("Cookie", cookie);
     }
 
-    public static async Task<HttpResponseMessage> GetWithRangeAsync(string url, long from, long? to, string cookie, DateTimeOffset? ifRange = null, CancellationToken ct = default)
+    /// <param name="ifRange">
+    /// 服务器上次给的 ETag 或 Last-Modified 原文。必须原样回传：自己拿本地文件时间戳去造
+    /// If-Range 只会让校验恒通过，等于没做校验。为空则不带该头。
+    /// </param>
+    public static async Task<HttpResponseMessage> GetWithRangeAsync(string url, long from, long? to, string cookie, string? ifRange = null, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         AddDownloadHeaders(request, url, cookie);
         request.Headers.Range = new(from, to);
-        request.Headers.IfRange = ifRange != null ? new(ifRange.Value) : null;
+        if (!string.IsNullOrEmpty(ifRange)) request.Headers.TryAddWithoutValidation("If-Range", ifRange);
 
         // 失败响应握着连接不放会拖垮重试, 这里先释放再抛
         var response = await SendRawAsync(request, ct);

@@ -17,5 +17,7 @@
     </ItemGroup>
     <ItemGroup>
         <InternalsVisibleTo Include="BBDown.Core.Tests" />
+        <!-- 主项目的下载层测试要替换 HTTPUtil.AppHttpClient 来 stub Range 响应 -->
+        <InternalsVisibleTo Include="BBDown.Tests" />
     </ItemGroup>
 </Project>

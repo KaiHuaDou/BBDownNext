@@ -181,27 +181,58 @@ internal sealed partial class Program
         return dir;
     }
 
-    private static readonly object fileLock = new( );
-    public static void SaveAidToFile(string aid)
+    private static readonly object archiveLock = new( );
+    private static Dictionary<(string Aid, string Cid), string>? _archiveCache;
+    private static bool _archiveOldFormatWarned;
+
+    // 仅在该分P 完整成功（含混流）后写入；键为 (aid, cid)，同 aid 不同分P 互不干扰
+    public static void SaveArchive(string aid, string cid, string savePath)
     {
-        lock (fileLock)
+        lock (archiveLock)
         {
+            _archiveCache ??= LoadArchives( );
+            _archiveCache[(aid, cid)] = savePath;
             var filePath = Path.Combine(APP_DIR, "BBDown.archives");
-            LogDebug("文件路径：{0}", filePath);
-            File.AppendAllText(filePath, $"{aid}|");
+            File.AppendAllText(filePath, $"{Environment.NewLine}{aid}\t{cid}\t{savePath}");
         }
     }
 
-    public static bool CheckAidFromFile(string aid)
+    public static bool CheckArchive(string aid, string cid)
     {
-        lock (fileLock)
+        lock (archiveLock)
         {
-            var filePath = Path.Combine(APP_DIR, "BBDown.archives");
-            if (!File.Exists(filePath)) return false;
-            LogDebug("文件路径：{0}", filePath);
-            var text = File.ReadAllText(filePath);
-            return text.Split('|').Any(item => item == aid);
+            _archiveCache ??= LoadArchives( );
+            if (_archiveCache.TryGetValue((aid, cid), out var savePath))
+            {
+                // 文件被删/移走 → 视为未下载，重新下
+                return string.IsNullOrEmpty(savePath) || File.Exists(savePath);
+            }
+            return false;
         }
+    }
+
+    // 进程内一次性载入；旧格式（aid| 拼接、无制表符）整体忽略
+    private static Dictionary<(string Aid, string Cid), string> LoadArchives( )
+    {
+        var dict = new Dictionary<(string, string), string>( );
+        var filePath = Path.Combine(APP_DIR, "BBDown.archives");
+        if (!File.Exists(filePath)) return dict;
+        foreach (var line in File.ReadAllLines(filePath))
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var parts = line.Split('\t');
+            if (parts.Length < 2)
+            {
+                if (!_archiveOldFormatWarned)
+                {
+                    _archiveOldFormatWarned = true;
+                    LogWarn("检测到旧版 BBDown.archives（已失效），已忽略；新的归档记录将以 aid\\tcid\\t路径 格式写入。");
+                }
+                continue;
+            }
+            dict[(parts[0], parts[1])] = parts.Length > 2 ? parts[2] : "";
+        }
+        return dict;
     }
 
     /// <summary>
@@ -418,37 +449,6 @@ internal sealed partial class Program
             aIndex = Convert.ToInt32(Console.ReadLine( ));
             if (aIndex > parsedResult.AudioTracks.Count || aIndex < 0) aIndex = 0;
             Console.ResetColor( );
-        }
-    }
-
-    /// <summary>
-    /// 下载轨道
-    /// </summary>
-    /// <returns></returns>
-    private static async Task DownloadTrackAsync(string url, string destPath, DownloadConfig downloadConfig, bool video, CancellationToken ct = default)
-    {
-        if (downloadConfig.MultiThread && !url.Contains("-cmcc-"))
-        {
-            var clipPaths = await MultiThreadDownloadFileAsync(url, destPath, downloadConfig, ct);
-            try
-            {
-                Log($"合并 {(video ? "视频" : "音频")} 分片...");
-                CombineMultipleFilesIntoSingleFile([.. clipPaths], destPath);
-            }
-            finally
-            {
-                Log("清理分片...");
-                foreach (var file in clipPaths) SafeDelete(file);
-            }
-        }
-        else
-        {
-            if (downloadConfig.MultiThread && url.Contains("-cmcc-"))
-            {
-                LogWarn("检测到 CMCC 域名 CDN，已经禁用多线程。");
-            }
-
-            await DownloadFileAsync(url, destPath, downloadConfig, ct);
         }
     }
 

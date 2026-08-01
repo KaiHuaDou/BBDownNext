@@ -53,6 +53,7 @@ internal static class CommandLineInvoker
     private static readonly Option<string> UposHost = new("--upos-host", []) { Description = "自定义 upos 服务器" };
     private static readonly Option<bool> ForceReplaceHost = new("--force-replace-host", []) { Description = "强制替换下载服务器 host（默认开启）", DefaultValueFactory = _ => true };
     private static readonly Option<bool> SaveArchivesToFile = new("--save-archives-to-file", []) { Description = "将下载过的视频记录到本地文件中，用于后续跳过下载同个视频" };
+    private static readonly Option<bool> StopOnError = new("--stop-on-error", []) { Description = "遇到某个分P 下载失败时立即停止，而不是继续下载其余分P（默认继续并在末尾汇总失败）" };
     private static readonly Option<string> DelayPerPage = new("--delay-per-page", []) { Description = "设置下载合集分 P 之间的下载间隔时间（单位：秒，默认无间隔）", DefaultValueFactory = _ => "0" };
     private static readonly Option<string> FilePattern = new("--file-pattern", ["-F"])
     {
@@ -135,6 +136,7 @@ internal static class CommandLineInvoker
             UposHost,
             ForceReplaceHost,
             SaveArchivesToFile,
+            StopOnError,
             DelayPerPage,
             Host,
             EpHost,
@@ -194,6 +196,7 @@ internal static class CommandLineInvoker
                 UposHost = parseResult.GetValue(UposHost) ?? "",
                 ForceReplaceHost = parseResult.GetValue(ForceReplaceHost)!,
                 SaveArchivesToFile = parseResult.GetValue(SaveArchivesToFile)!,
+                StopOnError = parseResult.GetValue(StopOnError)!,
                 DelayPerPage = parseResult.GetValue(DelayPerPage) ?? "",
                 Host = parseResult.GetValue(Host) ?? "",
                 EpHost = parseResult.GetValue(EpHost) ?? "",

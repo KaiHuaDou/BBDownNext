@@ -328,7 +328,7 @@ internal sealed partial class Program
         }
         catch (OperationCanceledException)
         {
-            LogWarn("已取消下载。");
+            LogWarn("已取消下载。已下载的部分会保留在临时文件中，重跑同一条命令即可从断点继续。");
         }
         catch (Exception e)
         {

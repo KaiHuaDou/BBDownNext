@@ -41,6 +41,7 @@ internal class MyOption
     public bool AllowPcdn { get; set; }
     public bool ForceReplaceHost { get; set; } = true;
     public bool SaveArchivesToFile { get; set; }
+    public bool StopOnError { get; set; }
     public string FilePattern { get; set; } = "";
     public string MultiFilePattern { get; set; } = "";
     public string SelectPage { get; set; } = "";

@@ -47,31 +47,69 @@ internal sealed partial class Program
 
         ctx = ctx with { SavePathFormat = ResolveSavePathFormat(myOption, pagesCount, vInfo.IsBangumi, vInfo.IsBangumiEnd) };
 
-        foreach (var p in pagesInfo)
+        var errors = await RunPagesAsync(pagesInfo, myOption.StopOnError, async (p, token) =>
         {
             if (pagesInfo.Count > 1 && ctx.Delay > 0)
             {
                 Log($"停顿 {ctx.Delay} 秒...");
-                await Task.Delay(ctx.Delay * 1000, ct);
+                await Task.Delay(ctx.Delay * 1000, token);
             }
 
             Log($"开始解析 P{p.index}：{p.aid}...（{pagesInfo.IndexOf(p) + 1} / {pagesInfo.Count}）");
 
-            if (myOption.SaveArchivesToFile && CheckAidFromFile(p.aid))
+            if (myOption.SaveArchivesToFile && CheckArchive(p.aid, p.cid))
             {
-                Log($"aid：{p.aid} 已下载过，跳过下载...");
-                continue;
+                Log($"分P 已下载过（aid：{p.aid} / cid：{p.cid}），跳过下载...");
+                return;
             }
 
-            await DownloadPageAsync(p, myOption, ctx, pagesInfo, relatedTask, ct);
+            var outcome = await DownloadPageAsync(p, myOption, ctx, pagesInfo, relatedTask, token);
 
-            if (myOption.SaveArchivesToFile)
+            // 只有完整成功（含混流）才记归档；半截失败/中止不应标记为已下载
+            if (myOption.SaveArchivesToFile && !outcome.Aborted && !string.IsNullOrWhiteSpace(outcome.SavePath))
             {
-                SaveAidToFile(p.aid);
+                SaveArchive(p.aid, p.cid, outcome.SavePath);
             }
+        }, ct);
+
+        if (errors.Count > 0)
+        {
+            var list = string.Join(", ", errors.Select(e => $"P{e.Page.index}（{e.Page.aid}）"));
+            LogError($"以下分P 下载失败：{list}");
+            throw new AggregateException(errors.Select(e => e.Error));
         }
 
         Log("任务完成。");
+    }
+
+    /// <summary>
+    /// 逐个跑分P 并收集失败：默认（stopOnError=false）遇到异常继续下一个，末尾一并返回；
+    /// stopOnError=true 时第一个异常即停。Ctrl+C 的 OperationCanceledException 不被吞，直接上抛。
+    /// 具体的延迟、归档校验、下载逻辑都在传入的委托里，本函数只负责"跑 + 聚合失败"。
+    /// </summary>
+    internal static async Task<List<(Page Page, Exception Error)>> RunPagesAsync(
+        IReadOnlyList<Page> pages, bool stopOnError,
+        Func<Page, CancellationToken, Task> run, CancellationToken ct)
+    {
+        var errors = new List<(Page, Exception)>( );
+        foreach (var page in pages)
+        {
+            try
+            {
+                await run(page, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                errors.Add((page, ex));
+                if (stopOnError) break;
+            }
+        }
+
+        return errors;
     }
 
     // 1. 多P; 2. 只有1P, 但是是番剧, 尚未完结时 按照多P处理
@@ -82,12 +120,13 @@ internal sealed partial class Program
             : (string.IsNullOrEmpty(myOption.FilePattern) ? SinglePageDefaultSavePath : myOption.FilePattern);
     }
 
-    private static async Task DownloadPageAsync(Page p, MyOption myOption, WorkContext ctx, List<Page> selectedPagesInfo, DownloadTask? relatedTask = null, CancellationToken ct = default)
+    private static async Task<PageOutcome> DownloadPageAsync(Page p, MyOption myOption, WorkContext ctx, List<Page> selectedPagesInfo, DownloadTask? relatedTask = null, CancellationToken ct = default)
     {
         var pageCtx = BuildPageContext(p, ctx, selectedPagesInfo);
         List<Subtitle> subtitleInfo = [];
         var selected = false; //用户是否已经手动选择过了轨道
         var retryCount = 0;
+        var outcome = PageOutcome.Abort(selected);
         while (true)
         {
             try
@@ -101,7 +140,7 @@ internal sealed partial class Program
                     if (myOption.SubOnly)
                     {
                         TryDeleteEmptyDir(pageCtx.TempDir);
-                        return;
+                        return PageOutcome.Abort(selected);
                     }
                 }
 
@@ -119,10 +158,10 @@ internal sealed partial class Program
                 }
 
                 var downloadConfig = BuildDownloadConfig(myOption, ctx.Cfg, relatedTask);
-                var outcome = await DownloadTracksAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
+                outcome = await DownloadTracksAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
 
                 selected = outcome.Selected;
-                if (outcome.Aborted) return;
+                if (outcome.Aborted) return outcome;
                 if (!string.IsNullOrWhiteSpace(outcome.SavePath))
                 {
                     relatedTask?.SavePaths.Add(outcome.SavePath);
@@ -140,6 +179,8 @@ internal sealed partial class Program
 
             break;
         }
+
+        return outcome;
     }
 
     // 服务器不支持 Range 时重试多少次都是同样结果，直接放行让用户看到换单线程的提示
@@ -363,74 +404,67 @@ internal sealed partial class Program
         var audioPath = pageCtx.AudioPath;
         List<AudioMaterial> audioMaterial = [];
         var useMp4box = myOption.UseMP4box;
-        try
+        if (selectedVideo != null)
         {
-            if (selectedVideo != null)
+            //杜比视界(id=126), 若 ffmpeg 版本小于 5.0, 使用 mp4box 封装
+            if (selectedVideo.id == "126" && !useMp4box && !CheckFFmpegDOVI( ))
             {
-                //杜比视界(id=126), 若 ffmpeg 版本小于 5.0, 使用 mp4box 封装
-                if (selectedVideo.id == "126" && !useMp4box && !CheckFFmpegDOVI( ))
-                {
-                    LogWarn($"检测到杜比视界清晰度且您的 ffmpeg 版本小于 5.0，将使用 mp4box 混流...");
-                    useMp4box = true;
-                }
-
-                Log($"开始下载 P{p.index} 视频...");
-                await DownloadTrackAsync(selectedVideo.baseUrl, videoPath, downloadConfig, video: true, ct);
+                LogWarn($"检测到杜比视界清晰度且您的 ffmpeg 版本小于 5.0，将使用 mp4box 混流...");
+                useMp4box = true;
             }
 
-            if (selectedAudio != null)
-            {
-                Log($"开始下载 P{p.index} 音频...");
-                await DownloadTrackAsync(selectedAudio.baseUrl, audioPath, downloadConfig, video: false, ct);
-            }
-
-            if (selectedBackgroundAudio != null)
-            {
-                var backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.aid}.{p.cid}.P{p.index}.back_ground.m4a");
-                Log($"开始下载 P{p.index} 背景配音...");
-                await DownloadTrackAsync(selectedBackgroundAudio.baseUrl, backgroundPath, downloadConfig, video: false, ct);
-                audioMaterial.Add(new AudioMaterial { title = "背景音频", personName = "", path = backgroundPath });
-            }
-
-            foreach (var role in parsedResult.RoleAudioList)
-            {
-                role.path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.path));
-                Log($"开始下载 P{p.index} 配音 [{role.title}]...");
-                await DownloadTrackAsync(role.audio[aIndex].baseUrl, role.path, downloadConfig, video: false, ct);
-                audioMaterial.Add(new AudioMaterial { title = role.title, personName = role.personName, path = role.path });
-            }
-
-            Log($"下载 P{p.index} 完毕。");
-            if (parsedResult.VideoTracks.Count == 0) videoPath = "";
-            if (parsedResult.AudioTracks.Count == 0) audioPath = "";
-            if (myOption.SkipMux) return PageOutcome.Abort(selected);
-
-            Log($"开始合并音视频{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
-            if (myOption.AudioOnly)
-                savePath = ToAudioOnlyPath(savePath);
-
-            var isHevc = selectedVideo?.codecs == "HEVC";
-            int code = await BBDownMuxer.MuxAV(useMp4box, p.bvid, videoPath, audioPath, audioMaterial, savePath,
-                pageCtx.Desc,
-                pageCtx.Title,
-                p.ownerName ?? "",
-                pageCtx.EpisodeTitle,
-                File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
-                ctx.Lang,
-                subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux, isHevc, ct);
-            if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
-            {
-                LogError("合并失败");
-                return PageOutcome.Abort(selected);
-            }
-
-            return PageOutcome.Done(savePath, selected);
+            Log($"开始下载 P{p.index} 视频...");
+            await DownloadAsync(selectedVideo.baseUrl, videoPath, downloadConfig, ct: ct);
         }
-        finally
+
+        if (selectedAudio != null)
         {
-            // 无论成功/异常/提前中止都清理中间文件，避免 .tmp/.vclip 残留
-            CleanupTempFiles(pageCtx, videoPath, audioPath, subtitleInfo, audioMaterial);
+            Log($"开始下载 P{p.index} 音频...");
+            await DownloadAsync(selectedAudio.baseUrl, audioPath, downloadConfig, ct: ct);
         }
+
+        if (selectedBackgroundAudio != null)
+        {
+            var backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.aid}.{p.cid}.P{p.index}.back_ground.m4a");
+            Log($"开始下载 P{p.index} 背景配音...");
+            await DownloadAsync(selectedBackgroundAudio.baseUrl, backgroundPath, downloadConfig, ct: ct);
+            audioMaterial.Add(new AudioMaterial { title = "背景音频", personName = "", path = backgroundPath });
+        }
+
+        foreach (var role in parsedResult.RoleAudioList)
+        {
+            role.path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.path));
+            Log($"开始下载 P{p.index} 配音 [{role.title}]...");
+            await DownloadAsync(role.audio[aIndex].baseUrl, role.path, downloadConfig, ct: ct);
+            audioMaterial.Add(new AudioMaterial { title = role.title, personName = role.personName, path = role.path });
+        }
+
+        Log($"下载 P{p.index} 完毕。");
+        if (parsedResult.VideoTracks.Count == 0) videoPath = "";
+        if (parsedResult.AudioTracks.Count == 0) audioPath = "";
+        if (myOption.SkipMux) return PageOutcome.Abort(selected);
+
+        Log($"开始合并音视频{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
+        if (myOption.AudioOnly)
+            savePath = ToAudioOnlyPath(savePath);
+
+        var isHevc = selectedVideo?.codecs == "HEVC";
+        int code = await BBDownMuxer.MuxAV(useMp4box, p.bvid, videoPath, audioPath, audioMaterial, savePath,
+            pageCtx.Desc,
+            pageCtx.Title,
+            p.ownerName ?? "",
+            pageCtx.EpisodeTitle,
+            File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
+            ctx.Lang,
+            subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.SimplyMux, isHevc, ct);
+        if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
+        {
+            LogError("合并失败");
+            return PageOutcome.Abort(selected);
+        }
+
+        CleanupTempFiles(pageCtx, videoPath, audioPath, subtitleInfo, audioMaterial);
+        return PageOutcome.Done(savePath, selected);
     }
 
     private static async Task<PageOutcome> DownloadFlvAsync(ParsedResult parsedResult, MyOption myOption, WorkContext ctx, PageContext pageCtx,
@@ -497,7 +531,11 @@ internal sealed partial class Program
             }
             finally
             {
-                foreach (var file in clipPaths) SafeDelete(file);
+                foreach (var file in clipPaths)
+                {
+                    SafeDelete(file);
+                    PartFile.Discard(file);
+                }
             }
             if (myOption.SkipMux) return PageOutcome.Abort(selected);
 
@@ -546,7 +584,7 @@ internal sealed partial class Program
             var clipPath = Path.Combine(pageCtx.TempDir, $"{p.aid}.P{p.index}.{p.cid}.{i.ToString(pad)}.mp4");
             clipPaths.Add(clipPath);
             Log($"开始下载 P{p.index} 视频，片段（{(i + 1).ToString(pad)} / {clips.Count}）...");
-            await DownloadTrackAsync(clips[i], clipPath, downloadConfig, video: true, ct);
+            await DownloadAsync(clips[i], clipPath, downloadConfig, ct: ct);
         }
 
         return clipPaths;
@@ -605,14 +643,19 @@ internal sealed partial class Program
         Log("清理临时文件...");
         SafeDelete(videoPath);
         SafeDelete(audioPath);
-        // 单线程下载的 .tmp 残留
-        SafeDelete(videoPath + ".tmp");
-        SafeDelete(audioPath + ".tmp");
+        // 续传状态清单随 track 一起清理：只在混流成功时走到这里，
+        // 失败/Ctrl+C 时 DownloadAsync 保留 .bbdown.part/.json，重跑即可续上
+        PartFile.Discard(videoPath);
+        PartFile.Discard(audioPath);
         var trackPath = string.IsNullOrEmpty(videoPath) ? audioPath : videoPath;
         if (pageCtx.Page.points.Count != 0 && !string.IsNullOrEmpty(trackPath))
             SafeDelete(Path.Combine(Path.GetDirectoryName(trackPath) ?? "", "chapters"));
         foreach (var s in subtitleInfo) SafeDelete(s.path);
-        foreach (var a in audioMaterial) SafeDelete(a.path);
+        foreach (var a in audioMaterial)
+        {
+            SafeDelete(a.path);
+            PartFile.Discard(a.path);
+        }
         if (pageCtx.DeleteCoverAfterMux) SafeDelete(pageCtx.CoverPath);
         TryDeleteEmptyDir(pageCtx.TempDir);
     }

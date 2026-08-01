@@ -38,14 +38,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
+
       - name: Run tests with coverage
         run: dotnet test --configuration ${{ env.BUILD_CONFIG }} --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx" --verbosity minimal
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -64,17 +67,21 @@ jobs:
         rid: [win-x64, win-arm64]
     steps:
       - uses: actions/checkout@v7
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
+
       - name: Publish
         run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
+
       - name: Package
         shell: pwsh
         run: Compress-Archive -Path artifact/BBDown.exe -DestinationPath BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -92,18 +99,22 @@ jobs:
         rid: [osx-x64, osx-arm64]
     steps:
       - uses: actions/checkout@v7
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
+
       - name: Publish
         run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
+
       - name: Package
         run: |
           cd artifact
           zip ../BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip BBDown
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -112,62 +123,67 @@ jobs:
           retention-days: 7
 
   build-linux:
-    name: Build Linux (x64 + arm64, glibc 2.27)
+    name: Build Linux (${{ matrix.rid }})
     needs: [set-date, test]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [linux-x64, linux-arm64]
     steps:
       - uses: actions/checkout@v7
-      - name: Build x64 in Ubuntu 18.04 container (for glibc 2.27 compatibility)
-        run: |
-          docker run --rm \
-            -v "$PWD:/workspace" \
-            -w /workspace \
-            ubuntu:18.04 \
-            bash -c "
-              set -e
-              apt-get update
-              DEBIAN_FRONTEND=noninteractive apt-get install -y wget build-essential clang libicu-dev zlib1g libcurl4-openssl-dev libkrb5-dev
-              DOTNET_SDK_VERSION='${{ env.DOTNET_SDK_VERSION }}'
-              DOTNET_SDK_URL=\"https://builds.dotnet.microsoft.com/dotnet/Sdk/\${DOTNET_SDK_VERSION}/dotnet-sdk-\${DOTNET_SDK_VERSION}-linux-x64.tar.gz\"
-              wget -nv \"\$DOTNET_SDK_URL\" -O dotnet-sdk.tar.gz
-              mkdir -p /opt/dotnet
-              tar -xzf dotnet-sdk.tar.gz -C /opt/dotnet
-              export PATH=\"/opt/dotnet:\$PATH\"
-              dotnet publish BBDown -r linux-x64 -c ${{ env.BUILD_CONFIG }} -o /workspace/artifact
-            "
-      - name: Build arm64 in cross container (for glibc 2.27 compatibility)
-        run: |
-          docker run --rm \
-            -v "$PWD:/workspace" \
-            -w /workspace \
-            mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-cross-arm64-20220312201346-b2c2436 \
-            bash -c "
-              set -e
-              DOTNET_SDK_VERSION='${{ env.DOTNET_SDK_VERSION }}'
-              DOTNET_SDK_URL=\"https://builds.dotnet.microsoft.com/dotnet/Sdk/\${DOTNET_SDK_VERSION}/dotnet-sdk-\${DOTNET_SDK_VERSION}-linux-x64.tar.gz\"
-              wget -nv \"\$DOTNET_SDK_URL\" -O dotnet-sdk.tar.gz
-              mkdir -p /opt/dotnet
-              tar -xzf dotnet-sdk.tar.gz -C /opt/dotnet
-              export PATH=\"/opt/dotnet:\$PATH\"
-              dotnet publish BBDown -r linux-arm64 -c ${{ env.BUILD_CONFIG }} -p:StripSymbols=true -p:CppCompilerAndLinker=clang-9 -p:SysRoot=/crossrootfs/arm64 -o /workspace/artifact-arm64
-            "
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+          cache: true
+          cache-dependency-path: "**/Directory.Packages.props"
+
+      - name: Publish
+        run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
+
       - name: Package
         run: |
           cd artifact
-          zip ../BBDown_${{ needs.set-date.outputs.date }}_linux-x64.zip BBDown
-          cd ../artifact-arm64
-          zip ../BBDown_${{ needs.set-date.outputs.date }}_linux-arm64.zip BBDown
-      - name: Upload artifact [linux-x64]
+          zip ../BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip BBDown
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: BBDown_linux-x64
-          path: BBDown_${{ needs.set-date.outputs.date }}_linux-x64.zip
+          name: BBDown_${{ matrix.rid }}
+          path: BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip
           retention-days: 7
-      - name: Upload artifact [linux-arm64]
+
+  build-linux-musl:
+    name: Build Linux (musl) (${{ matrix.rid }})
+    needs: [set-date, test]
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: mcr.microsoft.com/dotnet/sdk:9.0-alpine
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-musl-x64
+            runner: ubuntu-latest
+          - rid: linux-musl-arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Install build dependencies
+        run: apk add --no-cache git clang build-base zlib-dev zip nodejs
+      - uses: actions/checkout@v7
+      - name: Publish (AOT)
+        run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
+      - name: Package
+        run: |
+          cd artifact
+          zip -r ../BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip .
+      - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: BBDown_linux-arm64
-          path: BBDown_${{ needs.set-date.outputs.date }}_linux-arm64.zip
+          name: BBDown_${{ matrix.rid }}
+          path: BBDown_${{ needs.set-date.outputs.date }}_${{ matrix.rid }}.zip
           retention-days: 7
 
   pack:
@@ -176,14 +192,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
+
       - name: Pack
         run: dotnet pack BBDown -c ${{ env.BUILD_CONFIG }} -o nupkg
+
       - name: Upload nupkg
         uses: actions/upload-artifact@v7
         with:
@@ -194,7 +213,7 @@ jobs:
   release:
     name: Publish GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-windows, build-macos, build-linux, pack]
+    needs: [build-windows, build-macos, build-linux, build-linux-musl, pack]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -205,6 +224,7 @@ jobs:
           path: artifacts
           pattern: BBDown_*
           merge-multiple: true
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:

@@ -186,6 +186,7 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 | `--mp4box-path` | | 指定 mp4box 路径 |
 | `--aria2c-path` | | 指定 aria2c 路径 |
 | `--save-archives-to-file` | | 将下载过的视频记录到本地文件，用于后续跳过同一视频 |
+| `--stop-on-error` | | 遇到某个分P 下载失败时立即停止，而不是继续下载其余分P（默认继续，并在末尾汇总失败的分P 后非零退出） |
 | `--config` | | 读取指定的 BBDown 本地配置文件（默认为程序目录下的 `BBDown.config`） |
 | `--debug` | | 输出调试日志 |
 
