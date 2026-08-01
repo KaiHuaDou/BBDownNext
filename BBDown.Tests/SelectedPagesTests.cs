@@ -7,7 +7,7 @@ namespace BBDown.Tests;
 
 public class SelectedPagesTests
 {
-    private const string PlainUrl = "https://www.bilibili.com/video/BV1xx411c7mD";
+    private static readonly string PlainUrl = TestVideos.PickRandom();
 
     private static VInfo MakeVInfo(int pageCount, string? index = null) => new()
     {
@@ -29,8 +29,8 @@ public class SelectedPagesTests
         })]
     };
 
-    private static List<string>? Select(string selectPage, int pageCount = 10, string url = PlainUrl, string? index = null)
-        => Program.GetSelectedPages(new MyOption { SelectPage = selectPage }, MakeVInfo(pageCount, index), url);
+    private static List<string>? Select(string selectPage, int pageCount = 10, string? url = null, string? index = null)
+        => Program.GetSelectedPages(new MyOption { SelectPage = selectPage }, MakeVInfo(pageCount, index), url ?? TestVideos.PickRandom());
 
     [Fact]
     public void NoSelection_ReturnsNull()

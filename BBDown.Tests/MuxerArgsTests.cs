@@ -8,7 +8,7 @@ namespace BBDown.Tests;
 
 public class MuxerArgsTests
 {
-    private const string Url = "https://www.bilibili.com/video/BV1uv411q7Mv/";
+    private static readonly string Url = TestVideos.PickRandom();
 
     private static Subtitle Sub(string lan, string path) => new( ) { lan = lan, url = "", path = path };
 
