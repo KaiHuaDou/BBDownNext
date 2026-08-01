@@ -1,149 +1,241 @@
-# JSON API文档
+# JSON API 文档
 
-## API
+BBDown 的服务器模式（`BBDown serve`）会在本地启动一个 HTTP 服务器，对外暴露任务增删查的 JSON API。本文档描述这些接口的请求 / 响应格式、数据结构与使用注意事项。
 
-如果以服务器模式启动BBDown，BBDown会在本地启动一个http server，该服务器有以下API：
+> **⚠️ 安全警告：该接口没有任何认证机制。**
+> 默认监听 `http://127.0.0.1:23333`，切勿直接暴露到公网。
+> 需要跨机器访问时，请自行加反向代理并补上鉴权，再显式指定 `serve -l http://0.0.0.0:23333`。
+> 此外，服务器默认开启了 CORS（`AllowAnyOrigin`），任意来源网页均可向该端口发请求，请勿在不可信网络下运行。
 
-> **⚠️ 该接口没有任何认证机制，默认只监听 `http://127.0.0.1:23333`，切勿直接暴露到公网。**
-> 需要跨机器访问时请自行加反向代理与鉴权，并显式指定 `serve -l http://0.0.0.0:23333`。
+---
 
-### 获取任务列表
-**Endpoint:** `/get-tasks/`
+## 启动服务器
 
-**Method:** GET
+```bash
+# 默认监听 http://127.0.0.1:23333
+BBDown serve
 
-**Description:** 获取所有任务的列表，包括正在运行的任务和已完成的任务。
+# 指定监听地址与工作目录
+BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
+```
 
-**Response:** JSON格式的`DownloadTaskCollection`。
+| 参数         | 简写 | 说明                                                                      |
+| ------------ | ---- | ------------------------------------------------------------------------- |
+| `--listen`   | `-l` | 监听地址，默认 `http://127.0.0.1:23333`                                   |
+| `--work-dir` |      | 所有任务的工作目录（请求体中的 `WorkDir` 字段会被忽略，一律以服务端为准） |
+
+服务器启动后会一直运行，直到进程被终止（可用 `Ctrl+C` 优雅取消正在进行的下载）。
+
+---
+
+## 接口一览
+
+所有响应均为 JSON。任务标识（`{id}`）使用视频的 **AID**（字符串）。
+
+| 方法 | 路径                      | 说明                                                  |
+| ---- | ------------------------- | ----------------------------------------------------- |
+| GET  | `/get-tasks/`             | 获取运行中与已完成任务的整体快照                      |
+| GET  | `/get-tasks/running`      | 获取正在运行的任务列表                                |
+| GET  | `/get-tasks/finished`     | 获取已完成的任务列表                                  |
+| GET  | `/get-tasks/{id}`         | 获取指定 AID 的任务详情                               |
+| POST | `/add-task`               | 新增下载任务                                          |
+| GET  | `/remove-finished`        | 移除所有已完成任务                                    |
+| GET  | `/remove-finished/failed` | 移除所有已失败（`IsSuccessful == false`）的已完成任务 |
+| GET  | `/remove-finished/{id}`   | 移除指定 AID 的已完成任务                             |
+
+---
+
+## 接口详情
+
+### 获取任务快照
+
+- **Endpoint：** `/get-tasks/`
+- **Method：** GET
+- **Description：** 获取运行中和已完成任务的整体快照。
+- **Response：** JSON 格式的 `DownloadTaskSnapshot`，包含 `Running` 与 `Finished` 两个 `DownloadTask` 列表。
 
 ### 获取正在运行的任务列表
-**Endpoint:** `/get-tasks/running`
 
-**Method:** GET
-
-**Description:** 获取所有正在运行的任务的列表。
-
-**Response:** JSON格式的`List<DownloadTask>`, 正在运行的任务列表。
+- **Endpoint：** `/get-tasks/running`
+- **Method：** GET
+- **Response：** JSON 格式的 `List<DownloadTask>`，即正在运行的任务列表。
 
 ### 获取已完成的任务列表
-**Endpoint:** `/get-tasks/finished`
 
-**Method:** GET
-
-**Description:** 获取所有已完成的任务的列表。
-
-**Response:**  JSON格式的`List<DownloadTask>`, 已完成的任务列表。
+- **Endpoint：** `/get-tasks/finished`
+- **Method：** GET
+- **Response：** JSON 格式的 `List<DownloadTask>`，即已完成的任务列表。
 
 ### 获取特定任务
-**Endpoint:** `/get-tasks/{id}`
 
-**Method:** GET
-
-**Description:** 获取特定任务的详细信息，根据视频的AID。
-
-**Parameters:**
-- `{id}` (路径参数): 视频的AID
-
-**Response:** 如果找到匹配的任务，将返回JSON格式的`DownloadTask`。如果未找到匹配的任务，将返回404 Not Found。
+- **Endpoint：** `/get-tasks/{id}`
+- **Method：** GET
+- **Description：** 按视频 AID 获取任务详情（运行中的或已完成的均可）。
+- **Parameters：**
+    - `{id}`（路径参数）：视频的 AID。
+- **Response：**
+    - 找到匹配任务：返回 JSON 格式的 `DownloadTask`。
+    - 未找到：返回 `404 Not Found`。
 
 ### 添加任务
-**Endpoint:** `/add-task`
 
-**Method:** POST
+- **Endpoint：** `/add-task`
+- **Method：** POST
+- **Description：** 向任务列表新增一个下载任务。
+- **Request Body：** JSON 格式的任务信息，需符合 `ServeRequestOptions`（继承自 `MyOption`）。不要求包含所有字段，**只需有 `Url` 字段**即可；`Url` 支持与命令行相同的 `av|bv|BV|ep|ss` 编号。
+- **Response：**
+    - 请求有效并成功加入队列：`200 OK`。
+    - 请求体无法解析：`400 Bad Request`，错误消息为 `"输入有误"`。
 
-**Description:** 向任务列表中添加新任务。
+> **安全限制：** 出于安全考虑，以下字段会被**忽略**，一律以服务端启动时的配置为准：
+> `FFmpegPath`、`Mp4boxPath`、`Aria2cPath`、`Aria2cArgs`、`WorkDir`。
+> 工作目录请在启动服务时用 `serve --work-dir` 指定；ffmpeg / mp4box / aria2c 请放在 BBDown 同目录或系统 `PATH` 中。
+>
+> **回调：** 请求体可携带 `CallBackWebHook`（字符串），任务**完成**后会以 `POST` 方式向该地址回传 `DownloadTask` 的 JSON；留空或不传则不回调。
 
-**Request Body:** JSON格式的任务信息，需要符合`MyOption`数据结构。并不要求带有MyOption中的每一个字段，只需要有`Url`字段就够了。
+### 移除所有已完成任务
 
-出于安全考虑，以下字段会被**忽略**，一律以服务端启动时的配置为准：`FFmpegPath`、`Mp4boxPath`、`Aria2cPath`、`Aria2cArgs`、`WorkDir`。其中工作目录请在启动服务时用 `serve --work-dir` 指定，ffmpeg / mp4box / aria2c 请放在 BBDown 同目录或 `PATH` 中。
+- **Endpoint：** `/remove-finished`
+- **Method：** GET
+- **Response：** `200 OK`。
 
-**Response:**
-- 如果请求有效并成功添加任务，将返回200 OK。
-- 如果请求无效，将返回400 Bad Request，并附带错误消息`"输入有误"`。
+### 移除所有已失败的已完成任务
 
-### 移除已完成的任务
-**Endpoint:** `/remove-finished`
+- **Endpoint：** `/remove-finished/failed`
+- **Method：** GET
+- **Description：** 仅移除已完成且失败（`IsSuccessful == false`）的任务。
+- **Response：** `200 OK`。
 
-**Method:** GET
+### 移除特定已完成任务
 
-**Description:** 移除所有已完成的任务
+- **Endpoint：** `/remove-finished/{id}`
+- **Method：** GET
+- **Description：** 按视频 AID 移除对应的已完成任务。
+- **Parameters：**
+    - `{id}`（路径参数）：视频的 AID。
+- **Response：** 无论是否找到对应任务，均返回 `200 OK`。
 
-**Response:**
-- 返回200 OK。
-
-### 移除已完成的任务
-**Endpoint:** `/remove-finished/failed`
-
-**Method:** GET
-
-**Description:** 移除所有已完成但是失败(`IsSuccessful == false`)的任务
-
-**Response:**
-- 返回200 OK。
-
-### 移除特定已完成的任务
-**Endpoint:** `/remove-finished/{id}`
-
-**Method:** GET
-
-**Description:** 移除特定已完成的任务，根据视频的AID。
-
-**Parameters:**
-- `{id}` (路径参数): 视频的AID
-
-**Response:**
-- 无论是否能找到对应ID的任务，均返回200 OK。
+---
 
 ## 数据结构
 
-### `DownloadTask` 数据结构
-`DownloadTask` 数据结构表示一个下载任务的信息。
+### `DownloadTask`
 
-**属性：**
-- `Aid` `<string>`: 视频解析出的Aid，用作任务的唯一标识符。同一 Aid 在运行中与已完成列表内各自唯一，重复提交同一 Aid 会直接返回已有的运行中任务。
-- `Url` `<string>`: 下载任务请求时的URL，不一定需要完整的URL，命令行支持的`av|bv|BV|ep|ss`都可以在这里使用。
-- `TaskCreateTime` `<long>`: 任务创建时间，Unix时间戳，**精确到毫秒**，本机时区。
-- `Title` `<string?>`: 视频的标题。
-- `Pic` `<string?>`: 视频的封面图片链接。
-- `VideoPubTime` `<long?>`: 视频发布时间，Unix时间戳，精确到秒。
-- `TaskFinishTime` `<long?>`: 任务完成时间，Unix时间戳，**精确到毫秒**，本机时区。
-- `Progress` `<double>`: 任务的下载进度，为0-1区间范围的小数。
-- `DownloadSpeed` `<double>`: 下载速度, 单位为Byte/s。下载中时为最后一次更新的实时速度，下载完成后为平均速度。
-- `TotalDownloadedBytes` `<double>`: 总下载字节(Byte)数，完成后的数字比实际文件偏小。
-- `IsSuccessful` `<bool>`: 标识任务是否成功完成。
+表示一个下载任务。
 
-### `DownloadTaskCollection` 数据结构
-`DownloadTaskCollection` 数据结构包含两个列表，分别表示正在运行的任务和已完成的任务。
+| 属性                   | 类型                 | 说明                                                                                                                     |
+| ---------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `Aid`                  | `string`             | 视频解析出的 AID，作为任务唯一标识。同一 AID 在运行中与已完成列表内各自唯一，重复提交同一 AID 会直接返回已有的运行中任务 |
+| `Url`                  | `string`             | 任务请求时的 URL。不要求完整 URL，命令行支持的 `av\|bv\|BV\|ep\|ss` 均可                                                 |
+| `TaskCreateTime`       | `long`               | 任务创建时间，Unix 时间戳，**精确到毫秒**，本机时区                                                                      |
+| `Title`                | `string?`            | 视频标题                                                                                                                 |
+| `Pic`                  | `string?`            | 视频封面图片链接                                                                                                         |
+| `VideoPubTime`         | `long?`              | 视频发布时间，Unix 时间戳，精确到秒                                                                                      |
+| `TaskFinishTime`       | `long?`              | 任务完成时间，Unix 时间戳，**精确到毫秒**，本机时区                                                                      |
+| `Progress`             | `double`             | 下载进度，0–1 之间的小数                                                                                                 |
+| `DownloadSpeed`        | `double`             | 下载速度，单位 Byte/s。下载中为最后一次更新的实时速度，完成后为平均速度                                                  |
+| `TotalDownloadedBytes` | `double`             | 总下载字节数（Byte）；完成后的数值比实际文件略小（见下方注意事项）                                                       |
+| `IsSuccessful`         | `bool`               | 任务是否成功完成                                                                                                         |
+| `SavePaths`            | `Collection<string>` | 已生成文件的本地路径集合（可能包含视频、音频、弹幕、封面等）                                                             |
 
-**属性：**
-- `Running` `<List<DownloadTask>>`: 包含正在运行的任务的列表，每个元素都是 `DownloadTask` 数据结构。
-- `Finished` `<List<DownloadTask>>`: 包含已完成的任务的列表，每个元素都是 `DownloadTask` 数据结构。
+### `DownloadTaskSnapshot`
 
-### `MyOption` 数据结构
+任务快照，对应 `/get-tasks/` 的响应。
 
-参考[BBDown/MyOption.cs](./BBDown/MyOption.cs)。属性和命令行参数几乎是一一对应的，相应的值填写使用命令行会使用的值即可。这个结构会随着版本变化，请参考对应版本时候的文件。
+| 属性       | 类型                          | 说明               |
+| ---------- | ----------------------------- | ------------------ |
+| `Running`  | `IReadOnlyList<DownloadTask>` | 正在运行的任务列表 |
+| `Finished` | `IReadOnlyList<DownloadTask>` | 已完成的任务列表   |
 
-### 注意事项
-- 由于BBDown的下载进度回报频率所限，`TotalDownloadedBytes`会比实际下载的文件略低，大概会少等效于1秒下载速度的文件体积，如果文件本身就非常小那这个数字偏差会较大。
-- BBDown目前内部机制没有太好的方法取消单个下载任务，因此目前任务提交以后只能等任务失败或者完成。
-- 目前服务器没有对同时执行的下载任务数量做任何限制，如果短时间频繁添加任务就会同时执行相当数量的下载任务，需要小心注意不要耗尽资源。未来考虑添加下载队列。
+### `MyOption` / `ServeRequestOptions`
 
-### 使用例
+请求体字段与命令行参数几乎一一对应，取值使用命令行中会用的值即可。字段会随版本变化，请以对应版本的源码为准：
 
-#### 用BV号添加任务
+- [`BBDown/MyOption.cs`](./BBDown/MyOption.cs)：所有可选字段定义。
+- [`BBDown/Model/ServeRequestOptions.cs`](./BBDown/Model/ServeRequestOptions.cs)：在 `MyOption` 基础上新增 `CallBackWebHook`。
+
+---
+
+## 注意事项
+
+- **进度偏差：** 受 BBDown 下载进度回报频率所限，`TotalDownloadedBytes` 会比实际下载文件偏小，大约少等效于 1 秒下载速度的体积；文件本身极小时偏差比例会更明显。
+- **无法取消单个任务：** 目前内部机制没有可靠的方法取消单个下载任务，任务提交后只能等待其失败或完成（`serve` 模式同样如此）。终止整个服务器（`Ctrl+C`）会取消所有进行中的任务。
+- **并发无上限：** 服务器当前未对同时执行的下载任务数量做任何限制。短时间内频繁 `add-task` 会同时拉起大量下载，可能耗尽带宽 / 系统资源，请自行控制节奏（未来版本计划加入下载队列）。
+- **CORS：** 服务器默认允许任意来源跨域请求（`AllowAnyOrigin`），仅建议在本地 / 可信网络下使用。
+
+---
+
+## 使用例
+
+> 以下示例使用默认的 `23333` 端口；若以其他地址启动 `serve`，请相应替换 URL。
+
+### 用 BV 号添加任务
 
 ```shell
-curl -X POST -H 'Content-Type: application/json' -d '{ "Url": "BV1qt4y1X7TW" }' http://localhost:58682/add-task
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{ "Url": "BV1qt4y1X7TW" }' \
+  http://localhost:23333/add-task
 ```
 
-#### 下载到指定目录
+### 用 av / ep / ss 编号添加任务
 
-Windows:
 ```shell
-curl -X POST -H 'Content-Type: application/json' -d '{ "Url": "BV1qt4y1X7TW", "FilePattern": "C:\\Downloads\\<videoTitle>[<dfn>]" }' http://localhost:58682/add-task
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{ "Url": "av170001" }' \
+  http://localhost:23333/add-task
 ```
 
-Unix-Like:
+### 下载到指定目录
+
+Windows：
+
 ```shell
-curl -X POST -H 'Content-Type: application/json' -d '{ "Url": "BV1qt4y1X7TW", "FilePattern": "/Downloads/<videoTitle>[<dfn>]" }' http://localhost:58682/add-task
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{ "Url": "BV1qt4y1X7TW", "FilePattern": "C:\\Downloads\\<videoTitle>[<dfn>]" }' \
+  http://localhost:23333/add-task
+```
+
+Unix-Like：
+
+```shell
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{ "Url": "BV1qt4y1X7TW", "FilePattern": "/Downloads/<videoTitle>[<dfn>]" }' \
+  http://localhost:23333/add-task
+```
+
+### 带任务完成回调
+
+```shell
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{ "Url": "BV1qt4y1X7TW", "CallBackWebHook": "http://my-service.example.com/bbdown/callback" }' \
+  http://localhost:23333/add-task
+```
+
+### 查询任务列表
+
+```shell
+# 整体快照（运行中 + 已完成）
+curl http://localhost:23333/get-tasks/
+
+# 仅运行中
+curl http://localhost:23333/get-tasks/running
+
+# 仅已完成
+curl http://localhost:23333/get-tasks/finished
+
+# 指定 AID 详情
+curl http://localhost:23333/get-tasks/12345678
+```
+
+### 清理已完成任务
+
+```shell
+# 清空所有已完成
+curl http://localhost:23333/remove-finished
+
+# 仅清理由失败的任务
+curl http://localhost:23333/remove-finished/failed
+
+# 按 AID 删除某个已完成任务
+curl http://localhost:23333/remove-finished/12345678
 ```

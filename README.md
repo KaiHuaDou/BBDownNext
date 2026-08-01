@@ -5,11 +5,19 @@
 </p>
 
 <p align="center">
+  <img alt=".NET" src="https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white" />
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" />
+  <a href="https://github.com/KaiHuaDou/BBDown/releases"><img alt="Release" src="https://img.shields.io/github/v/release/KaiHuaDou/BBDown?label=release" /></a>
+</p>
+
+<p align="center">
   <a href="#特性">特性</a> ·
   <a href="#安装">安装</a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="#参数说明">参数说明</a> ·
+  <a href="#子命令">子命令</a> ·
   <a href="#配置文件">配置文件</a> ·
+  <a href="#服务器模式">服务器模式</a> ·
   <a href="#常见问题">常见问题</a>
 </p>
 
@@ -17,12 +25,14 @@
 
 ## 特性
 
-- 支持下载普通视频、番剧、课程、直播回放、收藏夹、合集等多种内容
-- 支持 **TV / APP / INTL / WEB** 四种解析模式，自动应对不同区域的限制
+- 支持下载普通视频、番剧、课程（cheese）、直播回放、收藏夹、合集等多种内容
+- 支持 **TV / APP / INTL / WEB** 四种解析模式，自动应对不同区域的限制，并兼容 BiliPlus 代理
 - 支持 **DASH** 与 **FLV** 两种封装，可按清晰度、编码优先级自由选择
 - 支持杜比视界、HDR、8K、高码率等高质量音视频流
 - 支持弹幕（XML / ASS）、字幕、封面、AI 字幕的下载与嵌入
 - 支持 aria2c 多线程加速、断点续传与自定义混流参数
+- 支持扫码登录 WEB / TV 账号，自动保存凭据用于下载大会员内容
+- 支持服务器模式（`serve`），提供 HTTP JSON API 便于与下载器 / 前端集成
 - 纯命令行，跨平台（Windows / Linux / macOS），无图形界面依赖
 
 ## 安装
@@ -33,17 +43,41 @@
 
 ### 方式二：作为 .NET 全局工具安装
 
+需要先安装 [.NET SDK](https://dotnet.microsoft.com/download)（版本 ≥ 9.0），然后在命令行执行：
+
 ```bash
 dotnet tool install --global BBDown
 ```
+
+安装后，终端任意位置均可直接使用 `BBDown` 命令。
+
+### 方式三：从源码构建
+
+需要先安装 [.NET SDK](https://dot.net)（版本 ≥ 9.0，本仓库 `global.json` 锁定 `9.0.300`）。
+
+```bash
+# 克隆仓库
+git clone https://github.com/nilaoda/BBDown.git
+cd BBDown
+
+# 构建 Release 版本
+dotnet build -c Release
+
+# 运行
+dotnet run --project BBDown -c Release -- "https://www.bilibili.com/video/BV1uv411q7Mv"
+```
+
+构建产物位于各项目的 `bin/Release/net9.0/` 目录下。也可用 `dotnet pack` 生成 NuGet 包（已配置 `PackAsTool`，工具命令名为 `BBDown`）。
 
 ### 依赖
 
 下载与混流依赖以下二进制工具（任选其一，建议使用 ffmpeg）：
 
-- **ffmpeg**：用于音视频下载与混流（推荐）
-- **mp4box**：可选，用于杜比视界等特殊封装的混流
-- **aria2c**：可选，用于多线程加速下载
+- **ffmpeg**：用于音视频下载与混流（推荐）。BBDown 会在 `PATH` 与程序所在目录中自动查找；也可用 `--ffmpeg-path` 显式指定。
+- **mp4box**：可选，用于杜比视界等特殊封装的混流。可用 `--mp4box` 切换为 MP4Box 混流，或用 `--mp4box-path` 指定路径。
+- **aria2c**：可选，用于多线程加速下载。可用 `--aria2c` 启用，或用 `--aria2c-path` 指定路径。
+
+> 以上三个二进制只要放在 BBDown 同目录或系统 `PATH` 中即可被自动识别，无需额外配置。
 
 ## 快速开始
 
@@ -59,57 +93,168 @@ BBDown "BV1uv411q7Mv" -a
 
 # 指定清晰度与编码优先级
 BBDown "BV1uv411q7Mv" -q "1080P 高码率" -e "avc,flac"
+
+# 下载番剧 / 课程（需要会员凭据）
+BBDown "BV1xx" --tv-api --access-token "你的token"
 ```
 
-## 参数
+地址参数支持完整 URL，也支持裸 `av|bv|BV|ep|ss` 编号，例如 `av170001`、`BV1uv411q7Mv`、`ep1`、`ss1`。
 
-| 参数                   | 简写     | 说明                                                                                      |
-| ---------------------- | -------- | ----------------------------------------------------------------------------------------- |
-| `--tv-api`             | `-tv`    | 使用 TV 端解析模式                                                                        |
-| `--app-api`            | `-app`   | 使用 APP 端解析模式                                                                       |
-| `--intl-api`           | `-intl`  | 使用国际版（东南亚视频）解析模式                                                          |
-| `--mp4box`             |          | 使用 MP4Box 来混流                                                                        |
-| `--encoding-priority`  | `-e`     | 视频及音频编码选择优先级，逗号分隔，如 `hevc,av1,avc,flac,eac3,m4a`                       |
-| `--dfn-priority`       | `-q`     | 画质优先级，逗号分隔，如 `8K 超高清, 1080P 高码率, HDR 真彩, 杜比视界`                    |
-| `--show-info`          | `-info`  | 仅解析而不进行下载                                                                        |
-| `--all`                |          | 展示所有分 P 标题                                                                           |
-| `--aria2c`             | `-aria2` | 调用 aria2c 进行下载                                                                      |
-| `--interactive`        | `-ia`    | 交互式选择清晰度                                                                          |
-| `--select-page`        | `-p`     | 选择指定分 P 或分 P 范围，如 `-p 8`、`-p 1,2`、`-p 3-5`、`-p ALL`、`-p LAST`、`-p 3,5,LATEST` |
-| `--video-only`         | `-v`     | 仅下载视频                                                                                |
-| `--audio-only`         | `-a`     | 仅下载音频                                                                                |
-| `--danmaku-only`       | `-d`     | 仅下载弹幕                                                                                |
-| `--cover-only`         | `-c`     | 仅下载封面                                                                                |
-| `--sub-only`           | `-s`     | 仅下载字幕                                                                                |
-| `--danmaku`            | `-dd`    | 下载弹幕                                                                                  |
-| `--danmaku-formats`    | `-ddf`   | 指定需下载的弹幕格式，如 `xml,ass`                                                        |
-| `--skip-mux`           |          | 跳过混流步骤                                                                              |
-| `--skip-subtitle`      |          | 跳过字幕下载                                                                              |
-| `--skip-cover`         |          | 跳过封面下载                                                                              |
-| `--skip-ai`            |          | 跳过 AI 字幕下载                                                                          |
-| `--multi-thread`       | `-mt`    | 使用多线程下载（默认开启）                                                                |
-| `--file-pattern`       | `-F`     | 自定义单 P 存储文件名（支持内置变量）                                                       |
-| `--multi-file-pattern` | `-M`     | 自定义多 P 存储文件名                                                                       |
-| `--user-agent`         | `-ua`    | 指定 user-agent                                                                           |
-| `--cookie`             |          | 设置字符串 cookie 用以下载会员内容                                                        |
-| `--access-token`       | `-token` | 设置 access_token 用以下载 TV/APP 会员内容                                                |
-| `--config`             |          | 读取指定的本地配置文件（默认为 `BBDown.config`）                                          |
+## 参数说明
 
-> 完整参数请运行 `BBDown --help` 查看。
+> 完整参数及最新描述以 `BBDown --help` 为准。下表按用途分组，方括号为简写（alias）。
 
-### 子命令
+### 解析模式
 
-| 子命令    | 说明                                                |
-| --------- | --------------------------------------------------- |
-| `login`   | 通过 APP 扫描二维码登录 WEB 账号                    |
-| `logintv` | 通过 APP 扫描二维码登录 TV 账号                     |
-| `serve`   | 以服务器模式运行（默认监听 `http://127.0.0.1:23333`，接口无认证，切勿暴露公网） |
+| 参数 | 简写 | 说明 |
+| --- | --- | --- |
+| `--tv-api` | `-tv` | 使用 TV 端解析模式（用于番剧 / 大会员等内容） |
+| `--app-api` | `-app` | 使用 APP 端解析模式 |
+| `--intl-api` | `-intl` | 使用国际版（东南亚视频）解析模式 |
+| `--host` | | 指定 BiliPlus host（需 `access_token`，不需要 `cookie`；解析服务器可获取你账号的大部分权限，请谨慎使用） |
+| `--ep-host` | | 指定 BiliPlus EP host（代理 `api.bilibili.com/pgc/view/web/season`，多数解析服务器不支持代理该接口） |
+| `--tv-host` | | 自定义 TV 端接口请求 Host（用于代理 `api.snm0516.aisee.tv`） |
+| `--area` | | 使用 BiliPlus 时必选，指定区域：`hk` / `tw` / `th` |
+
+### 清晰度与编码
+
+| 参数 | 简写 | 说明 |
+| --- | --- | --- |
+| `--encoding-priority` | `-e` | 视频及音频编码选择优先级，逗号分隔，如 `hevc,av1,avc,flac,eac3,m4a` |
+| `--dfn-priority` | `-q` | 画质优先级，逗号分隔，如 `8K 超高清, 1080P 高码率, HDR 真彩, 杜比视界` |
+| `--video-ascending` | | 视频升序（最小体积优先） |
+| `--audio-ascending` | | 音频升序（最小体积优先） |
+| `--interactive` | `-ia` | 交互式选择清晰度 |
+| `--hide-streams` | `-hs` | 不显示所有可用音视频流 |
+| `--show-info` | `-info` | 仅解析而不进行下载 |
+| `--all` | | 展示所有分 P 标题 |
+
+> 同时指定 `-e` 与 `-q` 时，以命令行书写的先后为准（写在前的优先）。`-q` 仅作用于清晰度筛选，编码仍由 `-e` 控制。
+
+### 下载内容
+
+| 参数 | 简写 | 说明 |
+| --- | --- | --- |
+| `--video-only` | `-v` | 仅下载视频 |
+| `--audio-only` | `-a` | 仅下载音频 |
+| `--danmaku-only` | `-d` | 仅下载弹幕 |
+| `--cover-only` | `-c` | 仅下载封面 |
+| `--sub-only` | `-s` | 仅下载字幕 |
+| `--danmaku` | `-dd` | 下载弹幕（与音视频一并下载） |
+| `--danmaku-formats` | `-ddf` | 指定需下载的弹幕格式，逗号分隔，可选 `xml` / `ass`，默认 `xml,ass` |
+| `--skip-mux` | | 跳过混流步骤 |
+| `--skip-subtitle` | | 跳过字幕下载 |
+| `--skip-cover` | | 跳过封面下载 |
+| `--skip-ai` | | 跳过 AI 字幕下载（默认开启，即默认不下载 AI 字幕） |
+| `--simply-mux` | | 精简混流，不写入描述、作者等元数据 |
+| `--language` | | 设置混流音频语言代码，如 `chi`、`jpn` 等 |
+
+### 下载方式与性能
+
+| 参数 | 简写 | 说明 |
+| --- | --- | --- |
+| `--aria2c` | `-aria2` | 调用 aria2c 进行下载（需自行准备二进制） |
+| `--aria2c-args` | | 调用 aria2c 的附加参数（默认值含 `-x16 -s16 -j16 -k 5M`，含空格的参数用引号包裹） |
+| `--multi-thread` | `-mt` | 使用多线程下载（默认开启） |
+| `--single-thread` | `-st` | 使用单线程下载（等价于关闭 `--multi-thread`，用于不支持 Range 的服务器） |
+| `--delay-per-page` | | 分 P 之间下载的间隔时间，单位秒，默认 `0`（无间隔） |
+| `--upos-host` | | 自定义 upos（CDN）服务器 |
+| `--force-replace-host` | | 强制替换下载服务器 host（默认开启） |
+| `--allow-pcdn` | | 不替换 PCDN 域名，仅在正常情况与 `--upos-host` 均无法下载时使用 |
+| `--force-http` | | 下载音视频时强制以 HTTP 替换 HTTPS（默认开启） |
+
+### 账号与凭据
+
+| 参数 | 简写 | 说明 |
+| --- | --- | --- |
+| `--cookie` | | 字符串 cookie，用于下载网页接口的会员内容 |
+| `--access-token` | `-token` | access_token，用于下载 TV / APP 接口的会员内容 |
+| `--user-agent` | `-ua` | 指定 user-agent；不指定则使用随机 user-agent |
+
+> 推荐用 `login` / `logintv` 扫码登录后自动保存凭据，避免手动粘贴 `--cookie` / `--access-token`。
+
+### 文件、路径与调试
+
+| 参数 | 简写 | 说明 |
+| --- | --- | --- |
+| `--file-pattern` | `-F` | 自定义单 P 存储文件名（支持内置变量，见下） |
+| `--multi-file-pattern` | `-M` | 自定义多 P 存储文件名（支持内置变量，见下） |
+| `--select-page` | `-p` | 选择分 P 或分 P 范围：`-p 8`、`-p 1,2`、`-p 3-5`、`-p ALL`、`-p LAST`、`-p 3,5,LATEST` |
+| `--work-dir` | | 设置程序工作目录 |
+| `--ffmpeg-path` | | 指定 ffmpeg 路径 |
+| `--mp4box` | | 使用 MP4Box 来混流 |
+| `--mp4box-path` | | 指定 mp4box 路径 |
+| `--aria2c-path` | | 指定 aria2c 路径 |
+| `--save-archives-to-file` | | 将下载过的视频记录到本地文件，用于后续跳过同一视频 |
+| `--config` | | 读取指定的 BBDown 本地配置文件（默认为程序目录下的 `BBDown.config`） |
+| `--debug` | | 输出调试日志 |
+
+#### 文件名内置变量
+
+单 P 默认文件名：`<videoTitle>`；多 P 默认文件名：`<videoTitle>/[P<pageNumberWithZero>]<pageTitle>`。
+
+可用变量：
+
+| 变量 | 含义 |
+| --- | --- |
+| `<videoTitle>` | 视频主标题 |
+| `<pageNumber>` | 分 P 序号 |
+| `<pageNumberWithZero>` | 分 P 序号（前缀补零） |
+| `<pageTitle>` | 分 P 标题 |
+| `<bvid>` | 视频 BV 号 |
+| `<aid>` | 视频 aid |
+| `<cid>` | 视频 cid |
+| `<dfn>` | 视频清晰度 |
+| `<res>` | 视频分辨率 |
+| `<fps>` | 视频帧率 |
+| `<videoCodecs>` | 视频编码 |
+| `<videoBandwidth>` | 视频码率 |
+| `<audioCodecs>` | 音频编码 |
+| `<audioBandwidth>` | 音频码率 |
+| `<ownerName>` | 上传者名称 |
+| `<ownerMid>` | 上传者 mid |
+| `<publishDate>` | 收藏夹 / 番剧 / 合集发布时间 |
+| `<videoDate>` | 视频发布时间（分 P 视频与 `<publishDate>` 相同） |
+| `<apiType>` | API 类型（TV / APP / INTL / WEB） |
+
+示例：
+
+```bash
+# 单 P：标题 + 清晰度
+BBDown "BV1xx" -F "<videoTitle>[<dfn>]"
+
+# 多 P：按序号子目录归档
+BBDown "BV1xx" -M "<videoTitle>/[P<pageNumberWithZero>]<pageTitle>"
+```
+
+## 子命令
+
+| 子命令 | 说明 |
+| --- | --- |
+| `login` | 通过 APP 扫描二维码登录 WEB 账号（凭据自动保存） |
+| `logintv` | 通过 APP 扫描二维码登录 TV 账号（凭据自动保存） |
+| `serve` | 以服务器模式运行，提供 HTTP JSON API（详见 [API.md](./API.md)） |
+
+### `serve` 参数
+
+| 参数 | 简写 | 说明 |
+| --- | --- | --- |
+| `--listen` | `-l` | 监听地址，默认 `http://127.0.0.1:23333`。**接口无认证，切勿暴露公网**；如需跨机访问请自行加反向代理与鉴权 |
+| `--work-dir` | | 所有任务的工作目录（请求中的同名 `WorkDir` 字段会被忽略，一律以服务端为准） |
+
+```bash
+# 以默认地址启动服务器
+BBDown serve
+
+# 指定监听地址与工作目录
+BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
+```
 
 ## 配置文件
 
 BBDown 支持从配置文件读取参数，避免每次都在命令行重复输入。默认读取程序目录下的 `BBDown.config`，也可通过 `--config` 指定其他路径。
 
-配置文件每行一个参数，以 `#` 开头的行为注释：
+配置文件每行一个参数（与命令行写法一致），以 `#` 开头的行为注释。视频地址也可写在配置文件里。**配置文件只补齐命令行未指定的选项**，同一选项以命令行为准。
 
 ```ini
 # BBDown.config 示例
@@ -117,15 +262,24 @@ BBDown 支持从配置文件读取参数，避免每次都在命令行重复输�
 --dfn-priority 1080P 高码率, 720P 流畅
 --multi-thread
 --cookie SESSDATA=xxxxxx
+
+# 也支持把地址写进配置文件
+BV1uv411q7Mv
 ```
 
-配置文件只补齐命令行未指定的选项，同一选项以命令行为准。视频地址也可以写在配置文件里。
+> 带空格的参数（如 `--dfn-priority 1080P 高码率`）在配置文件中直接按原样书写即可，BBDown 会自动按空格切分并去除引号。
+
+## 服务器模式
+
+`BBDown serve` 会在本地启动一个 HTTP 服务器，对外暴露任务增删查的 JSON API，适合与下载器面板、自动化脚本集成。完整接口定义、数据结构与请求示例见 **[API.md](./API.md)**。
+
+> ⚠️ 该接口**没有任何认证机制**，默认只监听 `http://127.0.0.1:23333`，切勿直接暴露到公网。需要跨机器访问时请自行加反向代理与鉴权，并显式指定 `serve -l http://0.0.0.0:23333`。
 
 ## 常见问题
 
 **Q：下载提示需要大会员？**
 
-部分番剧、课程需要大会员权限。请使用 `login` / `logintv` 登录对应账号，并通过 `--cookie` 或 `--access-token` 传入凭据。
+部分番剧、课程需要大会员权限。请使用 `login` / `logintv` 登录对应账号，或通过 `--cookie` / `--access-token` 传入凭据。
 
 **Q：为什么有时只能下到最低清晰度？**
 
@@ -133,7 +287,15 @@ BBDown 支持从配置文件读取参数，避免每次都在命令行重复输�
 
 **Q：如何让下载更快？**
 
-可配合 `--aria2c` 调用 aria2c 多线程下载，或使用 `--multi-thread` 内置多线程（默认开启）。
+可配合 `--aria2c` 调用 aria2c 多线程下载，或使用内置的 `--multi-thread`（默认开启）。分 P 视频可用 `--delay-per-page` 控制间隔以免触发风控。
+
+**Q：aria2c 怎么用？**
+
+下载 aria2c 二进制并放在 BBDown 同目录或 `PATH` 中，然后加 `--aria2c` 即可。可用 `--aria2c-args` 追加自定义参数（默认已含 `-x16 -s16 -j16 -k 5M`）。
+
+**Q：配置文件和命令行的优先级？**
+
+命令行未显式给出的选项，才会由配置文件补齐；命令行已给出的以命令行为准。
 
 ## 许可证
 
@@ -141,4 +303,4 @@ BBDown 支持从配置文件读取参数，避免每次都在命令行重复输�
 
 ---
 
-*BBDown 2.0 · 仅供个人学习与研究使用，请遵守相关平台的服务条款。*
+*BBDown 2.0 · 仅供个人学习与研究使用，请遵守 B 站相关服务条款，勿将下载内容用于商业或侵权用途。*

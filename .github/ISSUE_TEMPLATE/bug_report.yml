@@ -1,0 +1,75 @@
+name: Bug 报告 / 反馈问题
+description: 报告 BBDown 的缺陷或异常行为
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请确认你使用的是**最新版本**，并不要拿过时版本来咨询“为什么某某功能失效”。
+        涉及登录/会员下载时，日志里会包含 Cookie、SESSDATA、access_token 等敏感信息，**请务必自行打码**（如 `SESSDATA=xxxxxx`）。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 你遇到了什么问题？
+      description: 简明扼要地描述期望行为与实际行为。
+      placeholder: 例如：下载番剧时进度到 99% 后报错退出。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: 使用的 BBDown 版本来源
+      options:
+        - Release（GitHub Releases 发布的压缩包）
+        - Actions 自动构建（本仓库 CI 产物）
+        - .NET 全局工具（dotnet tool install --global BBDown）
+        - 源码编译（自行 build / publish）
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 运行系统
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - 其他 / 未知
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: 使用的完整命令
+      description: 请贴出你实际运行的完整命令（可省略敏感 cookie 值）。
+      render: shell
+      placeholder: |
+        BBDown "BV1xx" --tv-api --dfn-priority "1080P 高码率"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 运行日志 / 截图
+      description: 建议加上 `--debug` 复现并贴出关键日志。注意隐藏 Cookie / Token 等敏感信息。
+      render: shell
+      placeholder: |
+        BBDown --debug "BV1xx" ...
+        # 在此粘贴输出，敏感信息请打码
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 提交前自查
+      options:
+        - label: 我使用的确实是最新版本
+          required: true
+        - label: 我已隐藏 / 打码日志中的 Cookie、SESSDATA、access_token 等敏感信息
+          required: true
