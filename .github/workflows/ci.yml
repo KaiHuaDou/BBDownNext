@@ -111,13 +111,17 @@ jobs:
           retention-days: 7
 
   build-linux:
-    name: Build Linux (${{ matrix.rid }})
+    name: Build Linux (glibc) (${{ matrix.rid }})
     needs: [test]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        rid: [linux-x64, linux-arm64, linux-musl-x64, linux-musl-arm64]
+        include:
+          - rid: linux-x64
+            runner: ubuntu-latest
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
 
@@ -128,10 +132,49 @@ jobs:
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
 
-      # AOT 交叉编译（含 musl / arm64）由 PublishAotClang 提供 musl sysroot、静态 libz 与 objcopy，
-      # 复用 runner 自带的 clang，无需 Alpine 容器或交叉工具链 apt 安装。
+      # linux-arm64 在原生 arm64 runner 上构建，避免 x64 交叉编译需额外工具链。
+      # GitHub arm64 runner 未预装 clang，且 .NET AOT 剥离符号需要 aarch64-linux-gnu-objcopy。
+      - name: Install native AOT tools (arm64)
+        if: matrix.rid == 'linux-arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang binutils-aarch64-linux-gnu zlib1g-dev
+
       - name: Publish (AOT)
         run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
+
+      - name: Stage artifact
+        run: mv artifact/BBDown BBDown-${{ matrix.rid }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: BBDown_${{ matrix.rid }}
+          path: artifact
+          retention-days: 7
+
+  build-linux-musl:
+    name: Build Linux (musl) (${{ matrix.rid }})
+    needs: [test]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [linux-musl-x64, linux-musl-arm64]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+          cache: true
+          cache-dependency-path: "**/Directory.Packages.props"
+
+      # PublishAotCross（基于 Zig）在 Linux 宿主上交叉编译 musl 目标：内置 musl sysroot、
+      # 链接器与静态 libz，无需 Alpine 容器或交叉 apt。StripSymbols=false 避免对 objcopy 的依赖。
+      - name: Publish (AOT via Zig/PublishAotCross)
+        run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact -p:StripSymbols=false
 
       - name: Stage artifact
         run: mv artifact/BBDown BBDown-${{ matrix.rid }}
@@ -171,7 +214,7 @@ jobs:
   release:
     name: Publish GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-windows, build-macos, build-linux, pack]
+    needs: [build-windows, build-macos, build-linux, build-linux-musl, pack]
     runs-on: ubuntu-latest
     permissions:
       contents: write

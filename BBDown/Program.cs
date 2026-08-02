@@ -31,6 +31,9 @@ internal sealed partial class Program
     private static readonly CancellationTokenSource s_cts = new();
     internal static CancellationToken CancellationToken => s_cts.Token;
 
+    // Web Cookie 主动续期只跑一次，避免批量下载时每个视频都打 /cookie/info
+    private static int _cookieRefreshed;
+
     private static string FormatTimeStamp(long ts, string format)
     {
         try
@@ -229,6 +232,12 @@ internal sealed partial class Program
     {
         // 加载认证信息
         var (cookie, token) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, myOption.UseTvApi, myOption.UseAppApi);
+
+        // 主动续期 web cookie（best-effort，持有 refresh_token 才尝试；进程内仅一次）
+        if (Interlocked.CompareExchange(ref _cookieRefreshed, 1, 0) == 0)
+        {
+            cookie = await Login.TryRefreshWebCookieIfStaleAsync(ct: ct);
+        }
 
         var cfg = new AppConfig(cookie, token, myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
 

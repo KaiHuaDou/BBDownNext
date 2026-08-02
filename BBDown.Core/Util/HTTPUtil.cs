@@ -65,31 +65,35 @@ public static partial class HTTPUtil
     [GeneratedRegex(@"^(ep|ss)\d+$")]
     private static partial Regex BangumiSegmentRegex( );
 
-    public static async Task<string> GetWebSourceAsync(string url, AppConfig cfg, string? userAgent = null, CancellationToken ct = default)
+    private static void ApplyStandardGetHeaders(HttpRequestMessage request, string url, AppConfig cfg, string? userAgent = null)
     {
-        using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
-        webRequest.Headers.TryAddWithoutValidation("User-Agent", userAgent ?? UserAgent);
-        webRequest.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
+        request.Headers.TryAddWithoutValidation("User-Agent", userAgent ?? UserAgent);
+        request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
         var cookie = cfg.Cookie;
         if (Buvid.Fragment.Length != 0) cookie += ";" + Buvid.Fragment;
-        webRequest.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? cookie + ";CURRENT_FNVAL=4048;" : cookie);
+        request.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? cookie + ";CURRENT_FNVAL=4048;" : cookie);
 
         var host = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : "";
         // passport 系接口（扫码登录 generate/poll 等）同样校验 Referer，浏览器从 www.bilibili.com 发起，
         // 不带 Referer 会被服务端在拿到 data.url 之前就挡下，导致 Web 登录拿不到 SESSDATA
-        if (host == BiliApi.MainHost || host == BiliApi.PassportHost)
+        if (host == BiliApi.MainHost || host == BiliApi.PassportHost || host == "www.bilibili.com")
         {
-            webRequest.Headers.TryAddWithoutValidation("Referer", BiliApi.Site + "/");
+            request.Headers.TryAddWithoutValidation("Referer", BiliApi.Site + "/");
         }
 
         if (host == BiliApi.IntlAppHost)
         {
-            webRequest.Headers.TryAddWithoutValidation("sec-ch-ua", "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"");
+            request.Headers.TryAddWithoutValidation("sec-ch-ua", "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"");
         }
 
-        webRequest.Headers.CacheControl = CacheControlHeaderValue.Parse("no-cache");
-        webRequest.Headers.Connection.Clear( );
+        request.Headers.CacheControl = CacheControlHeaderValue.Parse("no-cache");
+        request.Headers.Connection.Clear( );
+    }
 
+    public static async Task<string> GetWebSourceAsync(string url, AppConfig cfg, string? userAgent = null, CancellationToken ct = default)
+    {
+        using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
+        ApplyStandardGetHeaders(webRequest, url, cfg, userAgent);
         LogDebug("获取网页内容: Url: {0}, Headers: {1}", url, webRequest.Headers);
         using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         webResponse.EnsureSuccessStatusCode( );
@@ -97,6 +101,62 @@ public static partial class HTTPUtil
         var htmlCode = await webResponse.Content.ReadAsStringAsync(ct);
         LogDebug("Response: {0}", htmlCode);
         return htmlCode;
+    }
+
+    /// <summary>
+    /// 登录专用：发 GET 并返回未释放的响应，便于调用方读取 <c>Set-Cookie</c> 响应头。调用方负责 Dispose。
+    /// </summary>
+    public static async Task<HttpResponseMessage> GetRawResponseAsync(string url, AppConfig cfg, CancellationToken ct = default)
+    {
+        using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
+        ApplyStandardGetHeaders(webRequest, url, cfg);
+        LogDebug("登录请求: {0}", url);
+        var resp = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
+        resp.EnsureSuccessStatusCode( );
+        return resp;
+    }
+
+    /// <summary>
+    /// 登录专用：发 POST 表单并返回未释放的响应，便于读取 <c>Set-Cookie</c> 与响应体（cookie 主动续期用）。调用方负责 Dispose。
+    /// </summary>
+    public static async Task<HttpResponseMessage> PostFormRawAsync(string url, Dictionary<string, string> form, AppConfig cfg, CancellationToken ct = default)
+    {
+        using var webRequest = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new FormUrlEncodedContent(form)
+        };
+        ApplyStandardGetHeaders(webRequest, url, cfg);
+        LogDebug("登录请求(POST): {0}", url);
+        var resp = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
+        resp.EnsureSuccessStatusCode( );
+        return resp;
+    }
+
+    /// <summary>
+    /// 登录专用：GET 指定地址（通常是 poll 成功返回的 crossDomain 端点），通过独立 <see cref="CookieContainer"/>
+    /// 接收其 <c>Set-Cookie</c> 并返回容器。这是 B 站下发登录 cookie 的正规通道——浏览器正是靠「导航到该 URL」
+    /// 拿到 cookie，而 BBDown 之前从未执行这步，只从 <c>data.url</c> 的 query 解析（该通道已被移除），
+    /// 因此拿不到 cookie。AllowAutoRedirect 确保重定向链上的 Set-Cookie 也一并进入容器。
+    /// </summary>
+    public static async Task<CookieContainer> GetCookieJarAsync(string url, AppConfig cfg, CancellationToken ct = default)
+    {
+        var jar = new CookieContainer( );
+        using var handler = new HttpClientHandler
+        {
+            AllowAutoRedirect = true,
+            AutomaticDecompression = DecompressionMethods.All,
+            CookieContainer = jar,
+            ServerCertificateCustomValidationCallback = (_, _, _, ssl) =>
+                ssl == System.Net.Security.SslPolicyErrors.None ||
+                Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1"
+        };
+        using var client = new HttpClient(handler) { Timeout = DefaultTimeout };
+        using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
+        ApplyStandardGetHeaders(webRequest, url, cfg);
+        LogDebug("crossDomain GET: {0}", url);
+        using var resp = await client.SendAsync(webRequest, ct);
+        resp.EnsureSuccessStatusCode( );
+        return jar;
     }
 
     // 重写重定向处理, 自动跟随多次重定向

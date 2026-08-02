@@ -9,7 +9,7 @@
     <ItemGroup>
         <PackageVersion Include="Google.Protobuf" Version="3.35.1" />
         <PackageVersion Include="Grpc.Tools" Version="2.83.0" />
-        <PackageVersion Include="PublishAotClang" Version="1.0.5" />
+        <PackageVersion Include="PublishAotCross" Version="1.0.0" />
         <PackageVersion Include="QRCoder" Version="1.8.0" />
         <PackageVersion Include="System.CommandLine" Version="2.0.10" />
     </ItemGroup>

@@ -14,7 +14,7 @@
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="QRCoder" />
-        <PackageReference Include="PublishAotClang" PrivateAssets="all" />
+        <PackageReference Include="PublishAotCross" PrivateAssets="all" />
         <PackageReference Include="System.CommandLine" />
     </ItemGroup>
     <ItemGroup>
