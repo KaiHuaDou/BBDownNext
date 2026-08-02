@@ -276,32 +276,40 @@ BV1uv411q7Mv
 
 ## 数据文件格式
 
-BBDown 在程序目录下写入若干数据文件。以下两个格式为**当前唯一规范**，均不兼容任何旧版本格式。
+BBDown 在程序目录下写入若干数据文件。以下格式为**当前唯一规范**，均不兼容任何旧版本格式。
 
-### WEB 登录凭据：`BBDown.data`
+### 凭据：`BBDown.data`（单文件合并所有凭据）
 
-由 `login` 子命令扫码登录后写入，JSON 格式，内容结构如下：
+WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个 JSON 对象**，由 `login` / `logintv` 扫码登录后写入。对应类型未登录时其字段为 `null`。手写 JSON（规避 AOT 裁剪），结构如下：
 
 ```json
 {
   "cookie": "DedeUserID=xxx; DedeUserID__ckMd5=xxx; SESSDATA=xxx; bili_jct=xxx",
   "refresh_token": "登录时 B 站下发的刷新令牌",
-  "ts": 1700000000
+  "ts": 1700000000,
+  "tv_access_token": "TV 扫码登录获取的令牌（未登录为 null）",
+  "tv_ts": 1700000000,
+  "app_access_token": "APP 扫码登录获取的令牌（未登录为 null）",
+  "app_ts": 1700000000
 }
 ```
 
-| 字段           | 类型            | 说明                                                                                     |
-| -------------- | --------------- | ---------------------------------------------------------------------------------------- |
-| `cookie`       | string          | 完整 Cookie 字符串，用于 WEB 接口鉴权下载大会员内容（含 `DedeUserID` / `SESSDATA` / `bili_jct` 等） |
-| `refresh_token`| string \| null  | 登录时由 B 站下发的刷新令牌，用于**主动续期** Cookie，避免登录过期                                        |
-| `ts`           | number \| null  | 凭据签发时间戳（Unix 秒）。为 `null` 时视为未知签发时间，续期权重按保守策略处理                        |
+| 字段               | 类型           | 说明                                                                                                |
+| ------------------ | -------------- | --------------------------------------------------------------------------------------------------- |
+| `cookie`           | string \| null | 完整 Cookie 字符串，用于 WEB 接口鉴权下载大会员内容（含 `DedeUserID` / `SESSDATA` / `bili_jct` 等） |
+| `refresh_token`    | string \| null | 登录时由 B 站下发的刷新令牌，用于**主动续期** Cookie，避免登录过期                                  |
+| `ts`               | number \| null | WEB 凭据签发时间戳（Unix 秒）。为 `null` 时视为未知签发时间，续期权重按保守策略处理                 |
+| `tv_access_token`  | string \| null | TV 扫码登录获取的 `access_token`                                                                    |
+| `tv_ts`            | number \| null | TV 凭据签发时间戳（Unix 秒）                                                                        |
+| `app_access_token` | string \| null | APP 扫码登录获取的 `access_token`                                                                   |
+| `app_ts`           | number \| null | APP 凭据签发时间戳（Unix 秒）                                                                       |
 
 规范要点：
 
-- **仅 JSON**。文件缺失或非合法 JSON 时一律视为无凭据，不会回退到旧版的「纯字符串 Cookie」格式。
-- `refresh_token` 与 `cookie` 合并存放在同一文件，不再单独写入 `BBDownRefresh.data`。
-- 下载过程中若检测到 Cookie 可能过旧，会在后台 best-effort 调用续期接口刷新 `cookie` 与 `refresh_token` 并回写本文件；续期失败不影响正常下载（回退到已有 Cookie）。
-- 同目录下的 `BBDownTV.data`（TV 凭据）与 `BBDownApp.data`（APP 凭据）为另外两套独立凭据，格式与 WEB 不同，互不影响。
+- **单文件单 JSON**。WEB / TV / APP 三类凭据在同一文件同一对象内；每次保存只更新对应字段并**合并保留**其余字段，互不覆盖（例如登录 TV 不会清掉已存的 WEB Cookie）。
+- **仅 JSON**。文件缺失或非合法 JSON 时一律视为无凭据，不会回退到旧版的「纯字符串 Cookie」或 `access_token=` 前缀纯文本格式。
+- `refresh_token` 与 `cookie` 合并存放在同一文件，不再单独写入 `BBDownRefresh.data`；TV / APP 也不再使用独立的 `BBDownTV.data` / `BBDownApp.data`。
+- 下载过程中若检测到 WEB Cookie 可能过旧，会在后台 best-effort 调用续期接口刷新 `cookie` 与 `refresh_token` 并回写本文件；续期失败不影响正常下载（回退到已有 Cookie）。
 
 ### 下载归档记录：`BBDown.archives`
 
@@ -311,10 +319,10 @@ BBDown 在程序目录下写入若干数据文件。以下两个格式为**当�
 <aid>\t<cid>\t<保存路径>
 ```
 
-| 字段     | 说明                                                                                 |
-| -------- | ------------------------------------------------------------------------------------ |
-| `<aid>`  | 视频 av 号（数字字符串）                                                             |
-| `<cid>`  | 分 P 的 cid                                                                          |
+| 字段         | 说明                                                                             |
+| ------------ | -------------------------------------------------------------------------------- |
+| `<aid>`      | 视频 av 号（数字字符串）                                                         |
+| `<cid>`      | 分 P 的 cid                                                                      |
 | `<保存路径>` | 该分 P 完整下载成功（含混流）后的本地文件路径；可选，记录被删/移动后会被重新下载 |
 
 规范要点：

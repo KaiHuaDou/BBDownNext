@@ -146,7 +146,8 @@ public static partial class Login
         using PngByteQRCode pngByteCode = new(qrCodeData);
         await File.WriteAllBytesAsync(qrPath, pngByteCode.GetGraphic(7));
         Log("生成二维码成功，请打开并扫描，或扫描打印的二维码。");
-        new ConsoleQRCode(qrCodeData).GetGraphic( );
+        using var ascii = new AsciiQRCode(qrCodeData);
+        Console.WriteLine(ascii.GetGraphic(1, "█", " ", false));
     }
 
     private static void DeleteQrCode(string path)
@@ -448,7 +449,7 @@ public static partial class Login
                 Persist: async data =>
                 {
                     Log($"登录成功：AccessToken={MaskSecret(data)}");
-                    await CredentialStore.SaveTvToken("access_token=" + data);
+                    await CredentialStore.SaveTvToken(data, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds());
                     success = true;
                 },
                 ExpiredText: "二维码已过期，请重新执行登录指令。"), qrPath);

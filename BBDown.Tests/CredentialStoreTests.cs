@@ -30,10 +30,39 @@ public class CredentialStoreTests
         Directory.CreateDirectory(dir);
         try
         {
-            await CredentialStore.SaveTvToken("access_token=fromfile", dir);
+            await CredentialStore.SaveTvToken("fromfile", null, dir);
             var (cookie, token) = CredentialStore.LoadAll("cliCookie", "access_token=cli", false, true, dir);
             Assert.Equal("cliCookie", cookie);
             Assert.Equal("cli", token);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public async Task WebAndTvMergeIntoSingleFile( )
+    {
+        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_cred_" + Path.GetRandomFileName( ));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            // 先存 Web
+            await CredentialStore.SaveWebCookie("web-cookie", dir, "rt", 1700000000);
+            Assert.Equal("web-cookie", CredentialStore.LoadWebCookie(dir));
+            Assert.Equal("rt", CredentialStore.LoadWebCredential(dir).refreshToken);
+            Assert.Equal("", CredentialStore.LoadTvToken(dir));
+
+            // 再存 TV，应合并进同一文件、保留 Web 字段
+            await CredentialStore.SaveTvToken("tv-tok", 1700000001, dir);
+            Assert.Equal("web-cookie", CredentialStore.LoadWebCookie(dir));
+            Assert.Equal("tv-tok", CredentialStore.LoadTvToken(dir));
+
+            // 损坏 / 旧格式文件视为无效
+            await File.WriteAllTextAsync(Path.Combine(dir, "BBDown.data"), "access_token=legacy", TestContext.Current.CancellationToken);
+            Assert.Equal("", CredentialStore.LoadWebCookie(dir));
+            Assert.Equal("", CredentialStore.LoadTvToken(dir));
         }
         finally
         {
@@ -66,7 +95,7 @@ public class CredentialStoreTests
         Directory.CreateDirectory(dir);
         try
         {
-            await CredentialStore.SaveTvToken("access_token=fromfile", dir);
+            await CredentialStore.SaveTvToken("access_token=fromfile", dir: dir);
             var (_, token) = CredentialStore.LoadAll(null, null, false, false, dir);
             Assert.Equal("", token);
         }
