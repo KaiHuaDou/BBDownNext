@@ -34,7 +34,7 @@ public class MuxerArgsTests
             "-metadata", $"comment={Url}",
             "-metadata", "artist=UP主",
             "-c:v", "copy", "-c:a", "copy",
-            "-movflags", "faststart", "-strict", "unofficial", "-strict", "-2", "-f", "mp4", "--", "/out/x.mp4"
+            "-movflags", "faststart", "-strict", "-2", "-f", "mp4", "--", "/out/x.mp4"
         ], args);
     }
 

@@ -164,7 +164,8 @@ internal static class BBDownMuxer
         if (subs.Count != 0) args.AddRange(["-c:s", "mov_text"]);
         // fix macOS hev1, see https://discussions.apple.com/thread/253081863?sortBy=rank
         if (tagHvc1) args.AddRange(["-tag:v:0", "hvc1"]);
-        args.AddRange(["-movflags", "faststart", "-strict", "unofficial", "-strict", "-2", "-f", "mp4", "--", outPath]);
+        // -strict -2：允许实验性编码器/封装（如 mp4 容器内 hev1/hvc1 之外的实验性流）
+        args.AddRange(["-movflags", "faststart", "-strict", "-2", "-f", "mp4", "--", outPath]);
         return args;
     }
 

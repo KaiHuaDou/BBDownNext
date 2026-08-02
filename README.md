@@ -160,7 +160,7 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 | `--upos-host`      |          | 自定义 upos（CDN）服务器                                          |
 | `--no-force-host`  |          | 不强制替换下载服务器 host（默认强制替换，加此选项才不替换）       |
 | `--allow-pcdn`     |          | 不替换 PCDN 域名，仅在正常情况与 `--upos-host` 均无法下载时使用   |
-| `--force-http`     |          | 下载音视频时强制以 HTTP 替换 HTTPS（默认开启）                    |
+| `--no-force-http` |          | 下载音视频默认以 HTTP 替换 HTTPS；加此选项则不降级（保持 HTTPS） |
 
 ### 账号与凭据
 
@@ -184,7 +184,7 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 | `--mp4box`                |      | 使用 MP4Box 来混流                                                   |
 | `--mp4box-path`           |      | 指定 mp4box 路径                                                     |
 | `--aria2c-path`           |      | 指定 aria2c 路径                                                     |
-| `--save-archives-to-file` |      | 将下载过的视频记录到本地文件，用于后续跳过同一视频                   |
+| `--save-records`          |      | 将下载过的视频记录到本地文件，用于后续跳过同一视频                   |
 | `--stop-on-error`         |      | 遇到分 P 下载失败时立即停止（详见脚注 [^stoponerror]）               |
 | `--config`                |      | 读取指定的 BBDown 本地配置文件（默认为程序目录下的 `BBDown.config`） |
 | `--debug`                 |      | 输出调试日志                                                         |
@@ -313,7 +313,7 @@ WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个
 
 ### 下载归档记录：`BBDown.archives`
 
-启用 `--save-archives-to-file` 后写入，纯文本，**每行一条记录，字段以制表符（Tab，`\t`）分隔**：
+启用 `--save-records` 后写入，纯文本，**每行一条记录，字段以制表符（Tab，`\t`）分隔**：
 
 ```
 <aid>\t<cid>\t<保存路径>

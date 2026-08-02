@@ -35,6 +35,16 @@ public static partial class HTTPUtil
         Timeout = DefaultTimeout
     };
 
+    // BBDOWN_INSECURE_TLS=1 是逃生舱口：关闭 TLS 证书校验，仅用于本地抓包/调试；
+    // 启用后任意中间人都能窃听或篡改 HTTPS 通信，绝不可在暴露网络或生产环境使用
+    static HTTPUtil( )
+    {
+        if (Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1")
+        {
+            Logger.LogWarn("⚠️ BBDOWN_INSECURE_TLS=1 已关闭 TLS 证书校验，HTTPS 通信可被中间人攻击，仅限本地调试。");
+        }
+    }
+
     private static readonly string[] platforms = ["Windows NT 10.0; Win64", "Macintosh; Intel Mac OS X 10_15", "X11; Linux x86_64"];
 
     private static string RandomVersion(int min, int max)
@@ -94,12 +104,12 @@ public static partial class HTTPUtil
     {
         using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
         ApplyStandardGetHeaders(webRequest, url, cfg, userAgent);
-        LogDebug("获取网页内容: Url: {0}, Headers: {1}", url, webRequest.Headers);
+        LogDebug("获取网页内容: Url: {0}, Headers: {1}", RedactText(url), RedactHeaders(webRequest.Headers));
         using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         webResponse.EnsureSuccessStatusCode( );
 
         var htmlCode = await webResponse.Content.ReadAsStringAsync(ct);
-        LogDebug("Response: {0}", htmlCode);
+        LogDebug("Response: {0}", RedactText(htmlCode));
         return htmlCode;
     }
 
@@ -110,7 +120,7 @@ public static partial class HTTPUtil
     {
         using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
         ApplyStandardGetHeaders(webRequest, url, cfg);
-        LogDebug("登录请求: {0}", url);
+        LogDebug("登录请求: {0}", RedactText(url));
         var resp = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         resp.EnsureSuccessStatusCode( );
         return resp;
@@ -126,7 +136,7 @@ public static partial class HTTPUtil
             Content = new FormUrlEncodedContent(form)
         };
         ApplyStandardGetHeaders(webRequest, url, cfg);
-        LogDebug("登录请求(POST): {0}", url);
+        LogDebug("登录请求(POST): {0}", RedactText(url));
         var resp = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         resp.EnsureSuccessStatusCode( );
         return resp;
@@ -153,7 +163,7 @@ public static partial class HTTPUtil
         using var client = new HttpClient(handler) { Timeout = DefaultTimeout };
         using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
         ApplyStandardGetHeaders(webRequest, url, cfg);
-        LogDebug("crossDomain GET: {0}", url);
+        LogDebug("crossDomain GET: {0}", RedactText(url));
         using var resp = await client.SendAsync(webRequest, ct);
         resp.EnsureSuccessStatusCode( );
         return jar;
@@ -168,18 +178,18 @@ public static partial class HTTPUtil
         webRequest.Headers.CacheControl = CacheControlHeaderValue.Parse("no-cache");
         webRequest.Headers.Connection.Clear( );
 
-        LogDebug("获取网页重定向地址: Url: {0}, Headers: {1}", url, webRequest.Headers);
+        LogDebug("获取网页重定向地址: Url: {0}, Headers: {1}", RedactText(url), RedactHeaders(webRequest.Headers));
         using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         webResponse.EnsureSuccessStatusCode( );
         var location = webResponse.RequestMessage!.RequestUri!.AbsoluteUri;
-        LogDebug("Location: {0}", location);
+        LogDebug("Location: {0}", RedactText(location));
         return location;
     }
 
     // 逃生舱：需要自行控制 Header/Range/平台分支时直接构造 HttpRequestMessage 走这里
     public static Task<HttpResponseMessage> SendRawAsync(HttpRequestMessage request, CancellationToken ct = default)
     {
-        LogDebug("发送请求: {0} {1}, Headers: {2}", request.Method, request.RequestUri?.AbsoluteUri ?? "", request.Headers);
+        LogDebug("发送请求: {0} {1}, Headers: {2}", request.Method, RedactText(request.RequestUri?.AbsoluteUri ?? ""), RedactHeaders(request.Headers));
         return AppHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
     }
 
@@ -229,7 +239,7 @@ public static partial class HTTPUtil
 
     public static async Task<byte[]> GetPostResponseAsync(string Url, byte[] postData, Dictionary<string, string>? headers = null, CancellationToken ct = default)
     {
-        LogDebug("Post to: {0}, data: {1}", Url, Convert.ToBase64String(postData));
+        LogDebug("Post to: {0}, data: {1}", RedactText(Url), Convert.ToBase64String(postData));
 
         ByteArrayContent content = new(postData);
         content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/grpc");
@@ -281,5 +291,34 @@ public static partial class HTTPUtil
         }
 
         return null;
+    }
+
+    // ── debug 日志脱敏：凭据不落明文（与 MyOption.WithSecretsRedacted 同一安全意图，P0-3）──
+
+    private static readonly HashSet<string> SecretHeaderNames = ["Cookie", "Set-Cookie", "Authorization"];
+
+    // 头里凭据字段只打印字段名，值打码
+    private static string RedactHeaders(HttpHeaders? headers)
+    {
+        if (headers is null) return "";
+        var parts = new List<string>( );
+        foreach (var header in headers)
+        {
+            var value = SecretHeaderNames.Contains(header.Key, StringComparer.OrdinalIgnoreCase)
+                ? "[redacted]"
+                : string.Join(", ", header.Value);
+            parts.Add($"{header.Key}: {value}");
+        }
+        return string.Join("; ", parts);
+    }
+
+    // 自由文本（URL / 响应体）里的凭据键值对打码
+    [GeneratedRegex(@"(SESSDATA|bili_jct|access_token|refresh_token|csrf)(""?:|"":\s*""?|=)([^&\s""'<>,]+)")]
+    private static partial Regex SecretTextRegex( );
+
+    private static string RedactText(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        return SecretTextRegex( ).Replace(text, m => $"{m.Groups[1].Value}{m.Groups[2].Value}[redacted]");
     }
 }

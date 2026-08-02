@@ -9,6 +9,9 @@ public static class Config
     //日志级别（进程级 ambient，仅由 SetDebugLog 在启动时设置一次；日志调用遍及全局，不适合逐层透传）
     public static bool DebugLog { get; private set; }
 
+    // 杜比视界清晰度标识，下载时需据此判断 ffmpeg 版本是否支持并切换 mp4box 封装
+    public const string DolbyVisionQn = "126";
+
     // 按画质从高到低排列，MaxQn 依赖该顺序；B 站新增档位时按档位插入正确位置
     private static readonly (string Qn, string Name)[] Qualities =
     [

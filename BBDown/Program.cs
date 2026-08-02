@@ -84,14 +84,18 @@ internal sealed partial class Program
         {
             new Option<string>("--listen", "-l")
             {
-                Description = "服务器监听地址，默认 http://127.0.0.1:23333；该接口无任何认证，切勿暴露公网"
+                Description = "服务器监听地址，默认 http://127.0.0.1:23333（仅本机可访问，无需令牌）；绑定到非回环地址时会强制要求令牌"
+            },
+            new Option<string>("--serve-token")
+            {
+                Description = "serve 模式鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 X-BBDown-Token 头或 ?token= 查询参数"
             },
             new Option<string>("--work-dir")
             {
                 Description = "所有任务的工作目录，请求中的同名字段会被忽略"
             }
         };
-        serverCommand.SetAction(result => StartServer(result.GetValue<string>("--listen"), result.GetValue<string>("--work-dir")));
+        serverCommand.SetAction(result => StartServer(result.GetValue<string>("--listen"), result.GetValue<string>("--work-dir"), result.GetValue<string>("--serve-token")));
         rootCommand.Subcommands.Add(serverCommand);
 
         var parserConfiguration = new ParserConfiguration( )
@@ -167,11 +171,11 @@ internal sealed partial class Program
         return DoWorkAsync(myOption, s_cts.Token);
     }
 
-    private static void StartServer(string? listenUrl, string? workDir)
+    private static void StartServer(string? listenUrl, string? workDir, string? serveToken = null)
     {
         var defaultListenUrl = "http://127.0.0.1:23333";
         var server = new BBDownApiServer( );
-        server.SetUpServer(workDir);
+        server.SetUpServer(workDir, serveToken: serveToken);
 #pragma warning disable CA2234 // 保留 Run(string) 内的 URL 合法性校验与友好退出
         server.Run(string.IsNullOrEmpty(listenUrl) ? defaultListenUrl : listenUrl);
 #pragma warning restore CA2234

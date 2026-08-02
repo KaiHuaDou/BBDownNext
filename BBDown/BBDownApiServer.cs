@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -32,6 +33,9 @@ public class BBDownApiServer
     private readonly ConcurrentDictionary<string, DownloadTask> runningTasks = new( );
     private readonly ConcurrentDictionary<string, DownloadTask> finishedTasks = new( );
     private static readonly object s_workContextGate = new( );
+    private string? _serveToken;
+    private bool _authRequired;
+    private bool _authFinalized;
 
     /// <summary>
     /// serve 模式没有任何认证，这几个字段直接决定被拉起的进程及其参数与落盘位置，
@@ -85,10 +89,45 @@ public class BBDownApiServer
         };
     }
 
-    public void SetUpServer(string? workDir = null, string? listenUrl = null)
+    private static bool IsLoopbackUrl(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        if (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)) return true;
+        return IPAddress.TryParse(uri.Host, out var ip) && IPAddress.IsLoopback(ip);
+    }
+
+    private static string GenerateServeToken( )
+        => Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+
+    // 决定是否需要鉴权：显式提供令牌 / 绑定非回环地址 => 强制；仅本机回环 => 免令牌
+    private void FinalizeAuth(string url)
+    {
+        if (_authFinalized) return;
+        _authFinalized = true;
+        if (_serveToken is not null) { _authRequired = true; return; }
+        if (IsLoopbackUrl(url)) { _authRequired = false; return; }
+        _serveToken = GenerateServeToken( );
+        _authRequired = true;
+        Console.BackgroundColor = ConsoleColor.DarkYellow;
+        Console.ForegroundColor = ConsoleColor.Black;
+        Console.WriteLine($"serve 模式绑定到非回环地址，已生成鉴权令牌，客户端需带 X-BBDown-Token: {_serveToken}");
+        Console.ResetColor( );
+    }
+
+    private bool TokenMatches(HttpRequest request)
+    {
+        if (_serveToken is null) return false;
+        if (request.Headers.TryGetValue("X-BBDown-Token", out var headerToken) && headerToken == _serveToken) return true;
+        if (request.Query.TryGetValue("token", out var queryToken) && queryToken == _serveToken) return true;
+        return false;
+    }
+
+    public void SetUpServer(string? workDir = null, string? listenUrl = null, string? serveToken = null)
     {
         if (app is not null) return;
         serveWorkDir = workDir ?? "";
+        _serveToken = serveToken;
+        if (!string.IsNullOrEmpty(listenUrl)) FinalizeAuth(listenUrl);
         var builder = WebApplication.CreateSlimBuilder( );
         // 仅供集成测试：在指定地址（通常为 http://127.0.0.1:0 随机端口）绑定，避免占用生产默认端口
         if (!string.IsNullOrEmpty(listenUrl))
@@ -108,6 +147,13 @@ public class BBDownApiServer
         });
         app = builder.Build( );
         app.UseCors("AllowAnyOrigin");
+        app.Use(async (context, next) =>
+        {
+            if (!_authRequired) { await next( ); return; }
+            if (TokenMatches(context.Request)) { await next( ); return; }
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsync("401 Unauthorized: 缺少或错误的 X-BBDown-Token");
+        });
         var taskStatusApi = app.MapGroup("/get-tasks");
         taskStatusApi.MapGet("/", handler: ( ) => Results.Json(new DownloadTaskSnapshot(Snapshot(runningTasks), Snapshot(finishedTasks)), AppJsonSerializerContext.Default.DownloadTaskSnapshot));
         taskStatusApi.MapGet("/running", handler: ( ) => Results.Json(Snapshot(runningTasks), AppJsonSerializerContext.Default.ListDownloadTask));
@@ -194,6 +240,7 @@ public class BBDownApiServer
     public void Run(string url)
     {
         if (app is null) return;
+        FinalizeAuth(url);
         var result = Uri.TryCreate(url, UriKind.Absolute, out var uriResult)
             && uriResult.Scheme == Uri.UriSchemeHttp;
         if (!result)

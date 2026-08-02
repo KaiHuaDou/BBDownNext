@@ -95,7 +95,7 @@ public class CredentialStoreTests
         Directory.CreateDirectory(dir);
         try
         {
-            await CredentialStore.SaveTvToken("access_token=fromfile", dir: dir);
+            await CredentialStore.SaveTvToken("fromfile", dir: dir);
             var (_, token) = CredentialStore.LoadAll(null, null, false, false, dir);
             Assert.Equal("", token);
         }

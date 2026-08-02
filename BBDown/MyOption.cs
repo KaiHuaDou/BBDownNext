@@ -5,6 +5,12 @@ using BBDown.Core;
 
 namespace BBDown;
 
+/// <summary>
+/// 命令行选项绑定 + 运行时下载配置 + serve 模式请求契约 三者共用的单一模型。
+/// 注意：<see cref="ServeRequestOptions"/> 直接继承此类，因此每一个 CLI 选项都会自动成为 serve API 的可注入字段；
+/// 所有主机可控字段（FFmpegPath/WorkDir/FilePattern/...）必须在 <see cref="BBDownApiServer.OverrideHostControlledOptions"/> 中被清零，
+/// 新增选项时务必确认它不会成为意外的安全注入点。这是已知的过度耦合点，未来应拆为「CLI 绑定」「下载配置」「serve 请求 DTO」三套独立模型。
+/// </summary>
 internal class MyOption
 {
     public string Url { get; set; } = default!;

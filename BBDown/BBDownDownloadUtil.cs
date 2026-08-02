@@ -17,6 +17,8 @@ internal static class BBDownDownloadUtil
 {
     private const int BlockSize = 1024 * 1024;
     private const int ManifestSaveIntervalMs = 2000;
+    // CMCC 的 CDN 节点不支持 Range/多线程分片，强行并发会整体失败，故对其强制单线程
+    private const string CmccCdnMarker = "-cmcc-";
 
     public sealed class DownloadConfig
     {
@@ -65,7 +67,7 @@ internal static class BBDownDownloadUtil
         }
 
         var singleThread = !resumable || config.SingleThread;
-        if (!singleThread && url.Contains("-cmcc-"))
+        if (!singleThread && url.Contains(CmccCdnMarker))
         {
             LogWarn("检测到 CMCC 域名 CDN，已经禁用多线程。");
             singleThread = true;

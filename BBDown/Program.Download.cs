@@ -37,7 +37,7 @@ internal sealed partial class Program
         var selectedPages = GetSelectedPages(myOption, vInfo, ctx.Input);
 
         Log($"共计 {pagesInfo.Count} 个分P，已选择：" + (selectedPages == null ? "ALL" : string.Join(",", selectedPages)));
-        var pagesCount = pagesInfo.Count;
+        var totalPages = pagesInfo.Count;
 
         //过滤不需要的分P
         if (selectedPages != null)
@@ -45,7 +45,7 @@ internal sealed partial class Program
             pagesInfo = pagesInfo.Where(p => selectedPages.Contains(p.index.ToString( ))).ToList( );
         }
 
-        ctx = ctx with { SavePathFormat = ResolveSavePathFormat(myOption, pagesCount, vInfo.IsBangumi, vInfo.IsBangumiEnd) };
+        ctx = ctx with { SavePathFormat = ResolveSavePathFormat(myOption, totalPages, vInfo.IsBangumi, vInfo.IsBangumiEnd) };
 
         var errors = await RunPagesAsync(pagesInfo, myOption.StopOnError, async (p, token) =>
         {
@@ -203,21 +203,21 @@ internal sealed partial class Program
     private static PageContext BuildPageContext(Page p, WorkContext ctx, List<Page> selectedPagesInfo)
     {
         var vInfo = ctx.VInfo!;
-        var pagesCount = selectedPagesInfo.Count;
+        var selectedPagesCount = selectedPagesInfo.Count;
         var tempDir = Path.Combine(ctx.WorkDir, p.aid);
         return new PageContext(
             Page: p,
             // 原始标题，落盘前统一交给 GetValidFileName 清洗；这里保持原样是因为它还要写进容器元数据
             Title: vInfo.Title,
             Desc: string.IsNullOrEmpty(p.desc) ? vInfo.Desc : p.desc,
-            EpisodeTitle: BuildEpisodeTitle(p, pagesCount, vInfo.IsBangumi, vInfo.IsBangumiEnd),
+            EpisodeTitle: BuildEpisodeTitle(p, selectedPagesCount, vInfo.IsBangumi, vInfo.IsBangumiEnd),
             TempDir: tempDir,
             VideoPath: Path.Combine(tempDir, $"{p.aid}.P{p.index}.{p.cid}.mp4"),
             AudioPath: Path.Combine(tempDir, $"{p.aid}.P{p.index}.{p.cid}.m4a"),
             CoverPath: Path.Combine(tempDir, $"{p.aid}.jpg"),
             CoverUrl: vInfo.Pic is { Length: 0 } ? p.cover! : vInfo.Pic,
             PubTime: vInfo.PubTime,
-            PagesCount: pagesCount,
+            PagesCount: selectedPagesCount,
             DeleteCoverAfterMux: ShouldDeleteCover(p, selectedPagesInfo));
     }
 
@@ -409,7 +409,7 @@ internal sealed partial class Program
         if (selectedVideo != null)
         {
             //杜比视界(id=126), 若 ffmpeg 版本小于 5.0, 使用 mp4box 封装
-            if (selectedVideo.id == "126" && !useMp4box && !CheckFFmpegDOVI( ))
+            if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !CheckFFmpegDOVI( ))
             {
                 LogWarn($"检测到杜比视界清晰度且您的 ffmpeg 版本小于 5.0，将使用 mp4box 混流...");
                 useMp4box = true;
