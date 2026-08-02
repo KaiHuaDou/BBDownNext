@@ -64,14 +64,14 @@ public class UtilsTests
     [InlineData("/a/b/name.with.dots.ts", "name.with.dots")]
     public void RSubString_TakesFileNameWithoutExtension(string input, string expected)
     {
-        Assert.Equal(expected, Utils.RSubString(input));
+        Assert.Equal(expected, Account.RSubString(input));
     }
 
     // 无扩展名时 LastIndexOf('.') 返回 -1，直接越界
     [Fact]
     public void RSubString_NoExtensionThrows()
     {
-        Assert.ThrowsAny<ArgumentException>(() => Utils.RSubString("https://cdn.example.com/a/b/video"));
+        Assert.ThrowsAny<ArgumentException>(() => Account.RSubString("https://cdn.example.com/a/b/video"));
     }
 
     // wbi 签名用的固定置换表，长度 32，索引最大 58
@@ -80,7 +80,7 @@ public class UtilsTests
     {
         // 用 0-9a-z... 这类可辨识字符构造 64 位原始 key，便于直接核对置换结果
         const string orig = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01";
-        var mixin = Utils.GetMixinKey(orig);
+        var mixin = Account.GetMixinKey(orig);
 
         Assert.Equal(32, mixin.Length);
         int[] table =
@@ -97,6 +97,6 @@ public class UtilsTests
     [Fact]
     public void GetMixinKey_TooShortThrows()
     {
-        Assert.Throws<IndexOutOfRangeException>(() => Utils.GetMixinKey("short"));
+        Assert.Throws<IndexOutOfRangeException>(() => Account.GetMixinKey("short"));
     }
 }

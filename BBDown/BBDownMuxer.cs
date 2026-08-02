@@ -191,7 +191,7 @@ internal static class BBDownMuxer
         if (points != null && points.Count != 0)
         {
             chapterFile = Path.Combine(Path.GetDirectoryName(videoPath.Length == 0 ? audioPath : videoPath)!, "chapters");
-            File.WriteAllText(chapterFile, useMp4box ? GetMp4boxMetaString(points) : GetFFmpegMetaString(points));
+            File.WriteAllText(chapterFile, useMp4box ? ChapterMeta.GetMp4boxMetaString(points) : ChapterMeta.GetFFmpegMetaString(points));
         }
 
         return useMp4box

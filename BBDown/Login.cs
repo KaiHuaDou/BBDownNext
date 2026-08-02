@@ -12,6 +12,7 @@ using System.Threading;
 using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Web;
 
 using BBDown.Core;
 using BBDown.Core.Util;
@@ -407,11 +408,110 @@ public static partial class Login
             : fallback;
     }
 
+    // appkey / 签名密钥必须配对；TV 用云视听小电视，APP 用手机粉版
+    private const string TvAppKey = "4409e2ce8ffd12b8";
+    private const string TvAppSecret = "59b43e04ad6965f34319062b478f83dd";
+    private const string PhoneAppKey = "783bbb7264451d82";
+    private const string PhoneAppSecret = "2653583c8873dea268ab9386918b1d65";
+
     public static async Task<int> TV( )
+    {
+        var token = await LoginWithAppKey(TvAppKey, "android_tv_yst", TvAppSecret);
+        if (token is null) return 1;
+        await CredentialStore.SaveTvToken(token, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        return 0;
+    }
+
+    public static async Task<int> App( )
+    {
+        var token = await LoginWithAppKey(PhoneAppKey, "android", PhoneAppSecret);
+        if (token is null) return 1;
+        await CredentialStore.SaveAppToken(token, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        return 0;
+    }
+
+    // 签名 / QR 登录参数相关辅助方法（仅 TV/APP 登录流程使用）
+    public static string GetSign(string parms)
+        => GetSign(parms, TvAppSecret);
+
+    // appkey 与签名密钥必须配对；手机端登录使用粉版 appkey 时须传入对应密钥
+    public static string GetSign(string parms, string secret)
+    {
+        var toEncode = parms + secret;
+        return string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(toEncode)).Select(i => i.ToString("x2")));
+    }
+
+    public static string GetTimeStamp(bool bflag)
+    {
+        var ts = DateTimeOffset.Now;
+        return (bflag ? ts.ToUnixTimeSeconds( ) : ts.ToUnixTimeMilliseconds( )).ToString( );
+    }
+
+    //https://stackoverflow.com/questions/1344221/how-can-i-generate-random-alphanumeric-strings
+    private static readonly Random random = new( );
+    public static string GetRandomString(int length)
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789";
+        return new string(Enumerable.Repeat(chars, length)
+            .Select(s => s[random.Next(s.Length)]).ToArray( ));
+    }
+
+    //https://stackoverflow.com/a/45088333
+    public static string ToQueryString(NameValueCollection nameValueCollection)
+    {
+        var httpValueCollection = HttpUtility.ParseQueryString(string.Empty);
+        httpValueCollection.Add(nameValueCollection);
+        return httpValueCollection.ToString( )!;
+    }
+
+    public static Dictionary<string, string> ToDictionary(this NameValueCollection nameValueCollection)
+    {
+        Dictionary<string, string> dict = [];
+        foreach (var key in nameValueCollection.AllKeys)
+        {
+            dict[key!] = nameValueCollection[key]!;
+        }
+
+        return dict;
+    }
+
+    public static NameValueCollection GetTVLoginParms( )
+    {
+        NameValueCollection sb = [];
+        var now = DateTime.Now;
+        var deviceId = GetRandomString(20);
+        var buvid = GetRandomString(37);
+        var fingerprint = $"{now:yyyyMMddHHmmssfff}{GetRandomString(45)}";
+        sb.Add("appkey", "4409e2ce8ffd12b8");
+        sb.Add("auth_code", "");
+        sb.Add("bili_local_id", deviceId);
+        sb.Add("build", "102801");
+        sb.Add("buvid", buvid);
+        sb.Add("channel", "master");
+        sb.Add("device", "OnePlus");
+        sb.Add("device_id", deviceId);
+        sb.Add("device_name", "OnePlus7TPro");
+        sb.Add("device_platform", "Android10OnePlusHD1910");
+        sb.Add("fingerprint", fingerprint);
+        sb.Add("guid", buvid);
+        sb.Add("local_fingerprint", fingerprint);
+        sb.Add("local_id", buvid);
+        sb.Add("mobi_app", "android_tv_yst");
+        sb.Add("networkstate", "wifi");
+        sb.Add("platform", "android");
+        sb.Add("sys_ver", "29");
+        sb.Add("ts", GetTimeStamp(true));
+        sb.Add("sign", GetSign(ToQueryString(sb)));
+
+        return sb;
+    }
+
+    // 纯扫码流程：生成二维码、轮询、解释状态，成功后返回 access_token；落盘由各自入口负责
+    private static async Task<string?> LoginWithAppKey(string appKey, string mobiApp, string appSecret)
     {
         var qrPath = Path.Combine(Path.GetTempPath( ), "BBDown_qrcode.png");
         NameValueCollection? tvParms = null;
-        var success = false;
+        string? token = null;
         try
         {
             await RunQrLoginAsync(new QrLoginPlan(
@@ -420,6 +520,9 @@ public static partial class Login
                     Log("获取登录地址...");
                     Uri loginUrl = new(BiliApi.TvQrCodeAuth);
                     var parms = GetTVLoginParms( );
+                    parms.Set("appkey", appKey);
+                    parms.Set("mobi_app", mobiApp);
+                    parms.Set("sign", GetSign(ToQueryString(parms), appSecret));
                     using var loginContent = new FormUrlEncodedContent(parms.ToDictionary( ));
                     using var loginRequest = new HttpRequestMessage(HttpMethod.Post, loginUrl) { Content = loginContent };
                     loginRequest.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
@@ -431,7 +534,7 @@ public static partial class Login
                     parms.Set("auth_code", authCode);
                     parms.Set("ts", GetTimeStamp(true));
                     parms.Remove("sign");
-                    parms.Add("sign", GetSign(ToQueryString(parms)));
+                    parms.Add("sign", GetSign(ToQueryString(parms), appSecret));
                     tvParms = parms;
                     return (url, authCode);
                 },
@@ -446,16 +549,16 @@ public static partial class Login
                     return doc.RootElement.Clone( );
                 },
                 Interpret: InterpretTv,
-                Persist: async data =>
+                Persist: data =>
                 {
                     Log($"登录成功：AccessToken={MaskSecret(data)}");
-                    await CredentialStore.SaveTvToken(data, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-                    success = true;
+                    token = data;
+                    return Task.CompletedTask;
                 },
                 ExpiredText: "二维码已过期，请重新执行登录指令。"), qrPath);
         }
         catch (Exception e) { LogError(e.Message); }
         finally { DeleteQrCode(qrPath); }
-        return success ? 0 : 1;
+        return token;
     }
 }

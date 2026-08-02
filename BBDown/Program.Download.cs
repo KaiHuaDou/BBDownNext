@@ -132,7 +132,7 @@ internal sealed partial class Program
             try
             {
                 LogDebug("尝试获取章节信息...");
-                p.points = await FetchPointsAsync(p.cid, p.aid, ctx.Cfg);
+                p.points = await ChapterMeta.FetchPointsAsync(p.cid, p.aid, ctx.Cfg);
 
                 if (!myOption.OnlyShowInfo)
                 {
@@ -409,7 +409,7 @@ internal sealed partial class Program
         if (selectedVideo != null)
         {
             //杜比视界(id=126), 若 ffmpeg 版本小于 5.0, 使用 mp4box 封装
-            if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !CheckFFmpegDOVI( ))
+            if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI( ))
             {
                 LogWarn($"检测到杜比视界清晰度且您的 ffmpeg 版本小于 5.0，将使用 mp4box 混流...");
                 useMp4box = true;

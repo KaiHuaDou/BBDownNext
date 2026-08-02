@@ -14,6 +14,8 @@
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="QRCoder" />
+        <!-- 仅 Windows 宿主生效（targets 内有 IsOSPlatform 判断，且垫片是 clang.cmd），需本机装 zig；
+             用于本地交叉 publish Linux 目标，CI 的 musl 构建走 Alpine 容器不依赖它 -->
         <PackageReference Include="PublishAotCross" PrivateAssets="all" />
         <PackageReference Include="System.CommandLine" />
     </ItemGroup>

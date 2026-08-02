@@ -72,13 +72,18 @@ internal sealed partial class Program
         rootCommand.Description = "BBDown 是一个免费且便捷高效的哔哩哔哩下载/解析软件。";
         rootCommand.TreatUnmatchedTokensAsErrors = false;
 
-        Command loginCommand = new("login", "通过 APP 扫描二维码以登录您的账号");
-        loginCommand.SetAction(_ => Login.Web( ));
+        var loginTvOption = new Option<bool>("--tv") { Description = "登录 TV 账号（默认登录 WEB 账号）" };
+        var loginAppOption = new Option<bool>("--app") { Description = "登录 APP 账号（默认登录 WEB 账号）" };
+        Command loginCommand = new("login", "通过 APP 扫描二维码以登录您的账号（默认 WEB，加 --tv 登录 TV，加 --app 登录 APP）");
+        loginCommand.Options.Add(loginTvOption);
+        loginCommand.Options.Add(loginAppOption);
+        loginCommand.SetAction(result =>
+        {
+            if (result.GetValue(loginTvOption)) return Login.TV( );
+            if (result.GetValue(loginAppOption)) return Login.App( );
+            return Login.Web( );
+        });
         rootCommand.Subcommands.Add(loginCommand);
-
-        Command loginTVCommand = new("logintv", "通过 APP 扫描二维码以登录您的 TV 账号");
-        loginTVCommand.SetAction(_ => Login.TV( ));
-        rootCommand.Subcommands.Add(loginTVCommand);
 
         Command serverCommand = new("serve", "以服务器模式运行")
         {
@@ -248,7 +253,7 @@ internal sealed partial class Program
         // nav 无需登录即可返回 wbi 密钥；TV/国际版模式同样会命中 wbi 接口（view、player/wbi/v2），
         // 跳过取密钥会让签名为空而被服务端拒绝（P1-27）
         Log("检测账号登录...");
-        var (info, wbi) = await ProbeAccountAsync(cfg, ct);
+        var (info, wbi) = await Account.ProbeAccountAsync(cfg, ct);
         cfg = cfg with { Wbi = wbi };
 
         if (myOption is { UseIntlApi: false, UseTvApi: false })
@@ -262,7 +267,7 @@ internal sealed partial class Program
 
         await Buvid.InitAsync(ct);
         Log("获取 aid...");
-        var aid = await GetAvIdAsync(ctx.Input, cfg);
+        var aid = await InputResolver.GetAvIdAsync(ctx.Input, cfg);
         Log($"获取 aid 结束：{aid}");
 
         if (string.IsNullOrEmpty(aid))

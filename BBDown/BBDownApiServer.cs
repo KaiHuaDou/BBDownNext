@@ -260,7 +260,7 @@ public class BBDownApiServer
     private async Task<DownloadTask> AddDownloadTaskAsync(DownloadOptions option)
     {
         var (cookie, token) = CredentialStore.LoadAll(option.Cookie, option.AccessToken, option.UseTvApi, option.UseAppApi);
-        var aid = await Utils.GetAvIdAsync(option.Url, new AppConfig(cookie, token, option.Host, option.EpHost, option.TvHost, option.Area, ""));
+        var aid = await InputResolver.GetAvIdAsync(option.Url, new AppConfig(cookie, token, option.Host, option.EpHost, option.TvHost, option.Area, ""));
         var task = new DownloadTask(aid, option.Url, DateTimeOffset.Now.ToUnixTimeMilliseconds( ));
         var claimed = runningTasks.GetOrAdd(aid, task);
         if (!ReferenceEquals(claimed, task))
