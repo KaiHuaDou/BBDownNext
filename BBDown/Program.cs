@@ -165,7 +165,7 @@ internal sealed partial class Program
         """);
     }
 
-    private static Task<int> RunApp(MyOption myOption)
+    private static Task<int> RunApp(DownloadOptions myOption)
     {
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         return DoWorkAsync(myOption, s_cts.Token);
@@ -181,7 +181,7 @@ internal sealed partial class Program
 #pragma warning restore CA2234
     }
 
-    public static WorkContext BuildWorkContext(MyOption myOption)
+    public static WorkContext BuildWorkContext(DownloadOptions myOption)
     {
         Config.SetDebugLog(myOption.Debug);
 
@@ -213,7 +213,7 @@ internal sealed partial class Program
         var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
 
         LogDebug("AppDirectory: {0}", APP_DIR);
-        LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption.WithSecretsRedacted( ), MyOptionJsonContext.Default.MyOption));
+        LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption.WithSecretsRedacted( ), DownloadOptionsJsonContext.Default.DownloadOptions));
         return new WorkContext(
             EncodingPriority: encodingPriority,
             DfnPriority: dfnPriority,
@@ -232,7 +232,7 @@ internal sealed partial class Program
             WorkDir: workDir);
     }
 
-    public static async Task<WorkContext> GetVideoInfoAsync(MyOption myOption, WorkContext ctx, CancellationToken ct = default)
+    public static async Task<WorkContext> GetVideoInfoAsync(DownloadOptions myOption, WorkContext ctx, CancellationToken ct = default)
     {
         // 加载认证信息
         var (cookie, token) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, myOption.UseTvApi, myOption.UseAppApi);
@@ -297,7 +297,7 @@ internal sealed partial class Program
     /// 与 HandleConflictingOptions 分工：后者只处理不依赖视频信息的冲突，
     /// 此处处理需要 vInfo 才能判断的冲突 (如互动视频不支持 TV 下载)。
     /// </summary>
-    private static void NormalizeOptionsAfterFetch(MyOption myOption, VInfo vInfo)
+    private static void NormalizeOptionsAfterFetch(DownloadOptions myOption, VInfo vInfo)
     {
         if (vInfo.IsSteinGate && myOption.UseTvApi)
         {
@@ -313,7 +313,7 @@ internal sealed partial class Program
         return (aid, vInfo);
     }
 
-    private static void PrintVideoSummary(VInfo vInfo, MyOption myOption)
+    private static void PrintVideoSummary(VInfo vInfo, DownloadOptions myOption)
     {
         var title = vInfo.Title;
         var pubTime = vInfo.PubTime;
@@ -336,10 +336,10 @@ internal sealed partial class Program
         }
     }
 
-    internal static string DetermineApiType(MyOption myOption)
+    internal static string DetermineApiType(DownloadOptions myOption)
         => myOption.UseTvApi ? "TV" : (myOption.UseAppApi ? "APP" : (myOption.UseIntlApi ? "INTL" : "WEB"));
 
-    private static void PrintPagesInfo(VInfo vInfo, MyOption myOption)
+    private static void PrintPagesInfo(VInfo vInfo, DownloadOptions myOption)
     {
         //打印分 P 信息
         var pagesInfo = vInfo.PagesInfo;
@@ -361,7 +361,7 @@ internal sealed partial class Program
         }
     }
 
-    private static async Task<int> DoWorkAsync(MyOption myOption, CancellationToken ct = default)
+    private static async Task<int> DoWorkAsync(DownloadOptions myOption, CancellationToken ct = default)
     {
         try
         {

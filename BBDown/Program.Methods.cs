@@ -22,7 +22,7 @@ internal sealed partial class Program
     /// <summary>
     /// 解析用户指定的编码优先级，返回优先级表与首个编码
     /// </summary>
-    internal static (Dictionary<string, byte> EncodingPriority, string FirstEncoding) ParseEncodingPriority(MyOption myOption)
+    internal static (Dictionary<string, byte> EncodingPriority, string FirstEncoding) ParseEncodingPriority(DownloadOptions myOption)
     {
         var encodingPriority = new Dictionary<string, byte>( );
         var firstEncoding = "";
@@ -48,7 +48,7 @@ internal sealed partial class Program
         return (encodingPriority, firstEncoding);
     }
 
-    internal static BBDownDanmakuFormat[] ParseDownloadDanmakuFormats(MyOption myOption)
+    internal static BBDownDanmakuFormat[] ParseDownloadDanmakuFormats(DownloadOptions myOption)
     {
         if (string.IsNullOrEmpty(myOption.DownloadDanmakuFormats)) return BBDownDanmakuFormatInfo.DefaultFormats;
 
@@ -65,7 +65,7 @@ internal sealed partial class Program
     /// <summary>
     /// 解析用户输入的清晰度规格优先级
     /// </summary>
-    internal static Dictionary<string, int> ParseDfnPriority(MyOption myOption)
+    internal static Dictionary<string, int> ParseDfnPriority(DownloadOptions myOption)
     {
         var dfnPriority = new Dictionary<string, int>( );
         if (myOption.DfnPriority != null)
@@ -89,7 +89,7 @@ internal sealed partial class Program
     /// </summary>
     /// <param name="myOption"></param>
     /// <exception cref="Exception"></exception>
-    private static void FindBinaries(MyOption myOption)
+    private static void FindBinaries(DownloadOptions myOption)
     {
         if (!string.IsNullOrEmpty(myOption.FFmpegPath) && File.Exists(myOption.FFmpegPath))
         {
@@ -143,7 +143,7 @@ internal sealed partial class Program
     /// <summary>
     /// 处理有冲突的选项
     /// </summary>
-    internal static void HandleConflictingOptions(MyOption myOption)
+    internal static void HandleConflictingOptions(DownloadOptions myOption)
     {
         //手动选择时不能隐藏流
         if (myOption.Interactive)
@@ -166,7 +166,7 @@ internal sealed partial class Program
     /// <summary>
     /// 解析用户输入的自定义工作目录，返回绝对路径。未指定时回落到进程当前目录。
     /// </summary>
-    private static string ResolveWorkDir(MyOption myOption)
+    private static string ResolveWorkDir(DownloadOptions myOption)
     {
         if (string.IsNullOrEmpty(myOption.WorkDir)) return Environment.CurrentDirectory;
 
@@ -232,7 +232,7 @@ internal sealed partial class Program
     /// 1,2,3-3,4-5,6-10,15-latest（混合）｜latest/new=最后一集｜last/LAST=倒数第二集。
     /// 关键字大小写不敏感；表达式首尾、项内空白与尾逗号均忽略；越界数字夹紧到有效边界并提醒；倒序区间自动交换。
     /// </summary>
-    internal static List<string>? GetSelectedPages(MyOption myOption, VInfo vInfo, string input)
+    internal static List<string>? GetSelectedPages(DownloadOptions myOption, VInfo vInfo, string input)
     {
         if (string.IsNullOrWhiteSpace(myOption.SelectPage))
         {
@@ -346,14 +346,14 @@ internal sealed partial class Program
     /// 3. 海外 akamaized 源规避（仅在指定 --area 时）；
     /// 4. 默认强制替换为备用 host，除非 --no-force-host。
     /// </summary>
-    internal static void HandleCdnHost(MyOption myOption, Video? selectedVideo, Audio? selectedAudio, AppConfig cfg)
+    internal static void HandleCdnHost(DownloadOptions myOption, Video? selectedVideo, Audio? selectedAudio, AppConfig cfg)
     {
         if (selectedVideo != null) selectedVideo.baseUrl = ApplyCdnHostPolicy(selectedVideo.baseUrl, myOption, cfg, "视频流");
         if (selectedAudio != null) selectedAudio.baseUrl = ApplyCdnHostPolicy(selectedAudio.baseUrl, myOption, cfg, "音频流");
     }
 
     // FLV 走分段直链，同样需要按 upos-host / PCDN / 海外源策略换域名（P1-21）
-    internal static void HandleCdnHost(MyOption myOption, List<string> clips, AppConfig cfg)
+    internal static void HandleCdnHost(DownloadOptions myOption, List<string> clips, AppConfig cfg)
     {
         ArgumentNullException.ThrowIfNull(clips);
         for (var i = 0; i < clips.Count; i++)
@@ -365,7 +365,7 @@ internal sealed partial class Program
     /// <summary>
     /// 按优先级替换下载域名。<paramref name="label"/> 为 null 时静默处理（批量分段只提示一次）。
     /// </summary>
-    private static string ApplyCdnHostPolicy(string url, MyOption myOption, AppConfig cfg, string? label)
+    private static string ApplyCdnHostPolicy(string url, DownloadOptions myOption, AppConfig cfg, string? label)
     {
         // 1. --upos-host 显式指定：无条件替换并结束
         if (myOption.UposHost is { Length: > 0 })

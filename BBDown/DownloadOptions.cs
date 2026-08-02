@@ -6,12 +6,12 @@ using BBDown.Core;
 namespace BBDown;
 
 /// <summary>
-/// 命令行选项绑定 + 运行时下载配置 + serve 模式请求契约 三者共用的单一模型。
-/// 注意：<see cref="ServeRequestOptions"/> 直接继承此类，因此每一个 CLI 选项都会自动成为 serve API 的可注入字段；
-/// 所有主机可控字段（FFmpegPath/WorkDir/FilePattern/...）必须在 <see cref="BBDownApiServer.OverrideHostControlledOptions"/> 中被清零，
-/// 新增选项时务必确认它不会成为意外的安全注入点。这是已知的过度耦合点，未来应拆为「CLI 绑定」「下载配置」「serve 请求 DTO」三套独立模型。
+/// 下载任务的运行时配置：由命令行解析（<see cref="CommandLineInvoker"/>）或 serve 请求（<see cref="ServeRequestOptions"/>）构造，
+/// 贯穿解析与下载全流程（<see cref="Program.BuildWorkContext"/> / <see cref="Program.DownloadPagesAsync"/> 等）。
+/// 注意：它不是 serve 的请求契约——serve 端使用的是经过裁剪的 <see cref="ServeRequestOptions"/>，
+/// 主机可控字段（路径、外部程序路径、UserAgent、Debug）不会出现在该 DTO 中，从结构上杜绝远程注入。
 /// </summary>
-internal class MyOption
+internal class DownloadOptions
 {
     public string Url { get; set; } = default!;
     public bool UseTvApi { get; set; }
@@ -71,17 +71,17 @@ internal class MyOption
     /// <summary>
     /// 返回遮蔽了 Cookie / AccessToken 的副本，用于调试日志，避免凭据明文泄露（P0-3）
     /// </summary>
-    internal MyOption WithSecretsRedacted( )
+    internal DownloadOptions WithSecretsRedacted( )
     {
         var clone = JsonSerializer.Deserialize(
-            JsonSerializer.Serialize(this, MyOptionJsonContext.Default.MyOption),
-            MyOptionJsonContext.Default.MyOption)!;
+            JsonSerializer.Serialize(this, DownloadOptionsJsonContext.Default.DownloadOptions),
+            DownloadOptionsJsonContext.Default.DownloadOptions)!;
         clone.Cookie = "";
         clone.AccessToken = "";
         return clone;
     }
 }
 
-[JsonSerializable(typeof(MyOption))]
+[JsonSerializable(typeof(DownloadOptions))]
 [JsonSerializable(typeof(ServeRequestOptions))]
-internal sealed partial class MyOptionJsonContext : JsonSerializerContext;
+internal sealed partial class DownloadOptionsJsonContext : JsonSerializerContext;

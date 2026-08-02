@@ -166,7 +166,7 @@ internal static class CommandLineInvoker
         DefaultValueFactory = _ => "BBDown.config"
     };
 
-    public static RootCommand GetRootCommand(Func<MyOption, Task<int>> action)
+    public static RootCommand GetRootCommand(Func<DownloadOptions, Task<int>> action)
     {
         var rootCommand = new RootCommand
         {
@@ -226,7 +226,7 @@ internal static class CommandLineInvoker
 
         rootCommand.SetAction(async parseResult =>
         {
-            var option = new MyOption
+            var option = new DownloadOptions
             {
                 UseTvApi = parseResult.GetValue(UseTvApi)!,
                 Url = parseResult.GetValue(Url) ?? "",

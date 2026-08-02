@@ -30,7 +30,7 @@ public class SelectedPagesTests
     };
 
     private static List<string>? Select(string selectPage, int pageCount = 10, string? url = null, string? index = null)
-        => Program.GetSelectedPages(new MyOption { SelectPage = selectPage }, MakeVInfo(pageCount, index), url ?? TestVideos.PickRandom());
+        => Program.GetSelectedPages(new DownloadOptions { SelectPage = selectPage }, MakeVInfo(pageCount, index), url ?? TestVideos.PickRandom());
 
     [Fact]
     public void NoSelection_ReturnsNull()

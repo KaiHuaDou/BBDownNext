@@ -37,24 +37,8 @@ public class BBDownApiServer
     private bool _authRequired;
     private bool _authFinalized;
 
-    /// <summary>
-    /// serve 模式没有任何认证，这几个字段直接决定被拉起的进程及其参数与落盘位置，
-    /// 接受请求注入等同于把远程命令执行开放给任何能访问该端口的人，故一律以服务端配置为准
-    /// </summary>
-    internal void OverrideHostControlledOptions(ServeRequestOptions option)
-    {
-        option.FFmpegPath = "";
-        option.Mp4boxPath = "";
-        option.Aria2cPath = "";
-        option.Aria2cArgs = "";
-        option.WorkDir = serveWorkDir;
-        // FilePattern / MultiFilePattern 决定落盘文件名，若允许请求注入可借 ../ 逃逸工作目录写任意位置（P0-2）
-        option.FilePattern = "";
-        option.MultiFilePattern = "";
-        // Debug 与 UserAgent 在 BuildWorkContext 里写进程级全局，逐请求取值会让并发任务互相改配置（P1-16）
-        option.Debug = false;
-        option.UserAgent = "";
-    }
+    // 主机可控字段（外部程序路径、落盘目录/文件名、进程级 Debug/UserAgent、本地配置）一律由服务端决定，
+    // 不会出现在 ServeRequestOptions 中，因此不存在远程注入这些字段的入口（P0-2 / P1-16）。
 
     /// <summary>
     /// CallBackWebHook 仅允许公网 http/https，拒绝回环与内网地址，避免 SSRF 探活 169.254.169.254 等元数据服务（P1-14）
@@ -167,7 +151,7 @@ public class BBDownApiServer
 
             return Results.Json(task, AppJsonSerializerContext.Default.DownloadTask);
         });
-        app.MapPost("/add-task", (MyOptionBindingResult<ServeRequestOptions> bindingResult) =>
+        app.MapPost("/add-task", (ServeBindingResult<ServeRequestOptions> bindingResult) =>
         {
             if (!bindingResult.IsValid)
             {
@@ -176,7 +160,6 @@ public class BBDownApiServer
             }
 
             var req = bindingResult.Result!;
-            OverrideHostControlledOptions(req);
             _ = RunTaskAndCallBackAsync(req);
             return Results.Ok( );
         });
@@ -203,7 +186,7 @@ public class BBDownApiServer
         DownloadTask? downloadTask;
         try
         {
-            downloadTask = await AddDownloadTaskAsync(req);
+            downloadTask = await AddDownloadTaskAsync(req.ToDownloadOptions());
         }
         catch (Exception e)
         {
@@ -274,7 +257,7 @@ public class BBDownApiServer
         return app is null ? Task.CompletedTask : app.StopAsync( );
     }
 
-    private async Task<DownloadTask> AddDownloadTaskAsync(MyOption option)
+    private async Task<DownloadTask> AddDownloadTaskAsync(DownloadOptions option)
     {
         var (cookie, token) = CredentialStore.LoadAll(option.Cookie, option.AccessToken, option.UseTvApi, option.UseAppApi);
         var aid = await Utils.GetAvIdAsync(option.Url, new AppConfig(cookie, token, option.Host, option.EpHost, option.TvHost, option.Area, ""));
@@ -350,15 +333,15 @@ public record DownloadTask(string Aid, string Url, long TaskCreateTime)
 };
 public record DownloadTaskSnapshot(IReadOnlyList<DownloadTask> Running, IReadOnlyList<DownloadTask> Finished);
 
-internal record struct MyOptionBindingResult<T>(T? Result, Exception? Exception)
+internal record struct ServeBindingResult<T>(T? Result, Exception? Exception)
 {
     public bool IsValid => Exception is null;
 
-    public static async ValueTask<MyOptionBindingResult<T>> BindAsync(HttpContext httpContext)
+    public static async ValueTask<ServeBindingResult<T>> BindAsync(HttpContext httpContext)
     {
         try
         {
-            var jsonTypeInfo = MyOptionJsonContext.Default.GetTypeInfo(typeof(T));
+            var jsonTypeInfo = DownloadOptionsJsonContext.Default.GetTypeInfo(typeof(T));
             if (jsonTypeInfo is null)
             {
                 return new(default, new InvalidOperationException($"Cannot find TypeInfo for type {typeof(T)}"));

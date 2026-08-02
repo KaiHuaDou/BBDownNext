@@ -19,12 +19,12 @@ public sealed class BBDownConfigParserTests : IDisposable
         if (File.Exists(configPath)) File.Delete(configPath);
     }
 
-    private MyOption Merge(string configContent, params string[] cliArgs)
+    private DownloadOptions Merge(string configContent, params string[] cliArgs)
     {
         File.WriteAllText(configPath, configContent);
         string[] args = [.. cliArgs, "--config", configPath];
 
-        MyOption? captured = null;
+        DownloadOptions? captured = null;
         var root = CommandLineInvoker.GetRootCommand(o =>
         {
             captured = o;

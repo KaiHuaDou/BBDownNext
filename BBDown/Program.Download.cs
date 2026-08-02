@@ -29,7 +29,7 @@ internal sealed partial class Program
         public static PageOutcome Done(string savePath, bool selected) => new(false, savePath, selected);
     }
 
-    public static async Task DownloadPagesAsync(MyOption myOption, WorkContext ctx, DownloadTask? relatedTask = null, CancellationToken ct = default)
+    public static async Task DownloadPagesAsync(DownloadOptions myOption, WorkContext ctx, DownloadTask? relatedTask = null, CancellationToken ct = default)
     {
         var vInfo = ctx.VInfo!;
         var pagesInfo = vInfo.PagesInfo;
@@ -113,14 +113,14 @@ internal sealed partial class Program
     }
 
     // 1. 多P; 2. 只有1P, 但是是番剧, 尚未完结时 按照多P处理
-    internal static string ResolveSavePathFormat(MyOption myOption, int pagesCount, bool isBangumi, bool isBangumiEnd)
+    internal static string ResolveSavePathFormat(DownloadOptions myOption, int pagesCount, bool isBangumi, bool isBangumiEnd)
     {
         return pagesCount > 1 || (isBangumi && !isBangumiEnd)
             ? (string.IsNullOrEmpty(myOption.MultiFilePattern) ? MultiPageDefaultSavePath : myOption.MultiFilePattern)
             : (string.IsNullOrEmpty(myOption.FilePattern) ? SinglePageDefaultSavePath : myOption.FilePattern);
     }
 
-    private static async Task<PageOutcome> DownloadPageAsync(Page p, MyOption myOption, WorkContext ctx, List<Page> selectedPagesInfo, DownloadTask? relatedTask = null, CancellationToken ct = default)
+    private static async Task<PageOutcome> DownloadPageAsync(Page p, DownloadOptions myOption, WorkContext ctx, List<Page> selectedPagesInfo, DownloadTask? relatedTask = null, CancellationToken ct = default)
     {
         var pageCtx = BuildPageContext(p, ctx, selectedPagesInfo);
         List<Subtitle> subtitleInfo = [];
@@ -233,7 +233,7 @@ internal sealed partial class Program
             || p.aid != selectedPagesInfo.Last( ).aid;
     }
 
-    internal static DownloadConfig BuildDownloadConfig(MyOption myOption, AppConfig cfg, DownloadTask? relatedTask)
+    internal static DownloadConfig BuildDownloadConfig(DownloadOptions myOption, AppConfig cfg, DownloadTask? relatedTask)
     {
         return new DownloadConfig
         {
@@ -246,7 +246,7 @@ internal sealed partial class Program
         };
     }
 
-    private static async Task<List<Subtitle>> PrepareCoverAndSubtitlesAsync(MyOption myOption, WorkContext ctx, PageContext pageCtx, CancellationToken ct = default)
+    private static async Task<List<Subtitle>> PrepareCoverAndSubtitlesAsync(DownloadOptions myOption, WorkContext ctx, PageContext pageCtx, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
         Directory.CreateDirectory(pageCtx.TempDir);
@@ -294,7 +294,7 @@ internal sealed partial class Program
         File.Move(s.path, outSubPath, true);
     }
 
-    private static async Task<PageOutcome> DownloadTracksAsync(ParsedResult parsedResult, MyOption myOption, WorkContext ctx, PageContext pageCtx,
+    private static async Task<PageOutcome> DownloadTracksAsync(ParsedResult parsedResult, DownloadOptions myOption, WorkContext ctx, PageContext pageCtx,
         List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
     {
         if ((parsedResult.VideoTracks.Count != 0 || parsedResult.AudioTracks.Count != 0) && parsedResult.Clips.Count == 0)
@@ -317,7 +317,7 @@ internal sealed partial class Program
         return PageOutcome.Done("", selected);
     }
 
-    private static async Task<PageOutcome> DownloadDashAsync(ParsedResult parsedResult, MyOption myOption, WorkContext ctx, PageContext pageCtx,
+    private static async Task<PageOutcome> DownloadDashAsync(ParsedResult parsedResult, DownloadOptions myOption, WorkContext ctx, PageContext pageCtx,
         List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
@@ -469,7 +469,7 @@ internal sealed partial class Program
         return PageOutcome.Done(savePath, selected);
     }
 
-    private static async Task<PageOutcome> DownloadFlvAsync(ParsedResult parsedResult, MyOption myOption, WorkContext ctx, PageContext pageCtx,
+    private static async Task<PageOutcome> DownloadFlvAsync(ParsedResult parsedResult, DownloadOptions myOption, WorkContext ctx, PageContext pageCtx,
         List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
@@ -595,7 +595,7 @@ internal sealed partial class Program
     }
 
     // 返回 true 表示 --danmaku-only 已完成任务，应结束该分P
-    private static async Task<bool> DownloadDanmakuAsync(MyOption myOption, WorkContext ctx, PageContext pageCtx, string savePath, DownloadConfig downloadConfig, CancellationToken ct = default)
+    private static async Task<bool> DownloadDanmakuAsync(DownloadOptions myOption, WorkContext ctx, PageContext pageCtx, string savePath, DownloadConfig downloadConfig, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
         var danmakuXmlPath = Path.ChangeExtension(savePath, ".xml");
@@ -631,7 +631,7 @@ internal sealed partial class Program
         return true;
     }
 
-    private static void SortDashTracks(ParsedResult parsedResult, WorkContext ctx, MyOption myOption)
+    private static void SortDashTracks(ParsedResult parsedResult, WorkContext ctx, DownloadOptions myOption)
     {
         parsedResult.VideoTracks = SortTracks(parsedResult.VideoTracks, ctx.DfnPriority, ctx.EncodingPriority, myOption.VideoAscending, ctx.EncodingFirst);
         parsedResult.AudioTracks = SortTracks(parsedResult.AudioTracks, ctx.EncodingPriority, myOption.AudioAscending);

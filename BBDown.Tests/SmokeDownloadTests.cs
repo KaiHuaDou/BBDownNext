@@ -29,7 +29,7 @@ public class SmokeDownloadTests
         var workDir = Path.Combine(Path.GetTempPath(), "bbdown-smoke-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(workDir);
 
-        var option = new MyOption
+        var option = new DownloadOptions
         {
             Url = url,
             WorkDir = workDir,

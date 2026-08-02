@@ -11,9 +11,9 @@ public class CommandLineInvokerTests
 {
     private static readonly string SampleUrl = TestVideos.PickRandom();
 
-    private static async Task<MyOption> ParseAsync(params string[] args)
+    private static async Task<DownloadOptions> ParseAsync(params string[] args)
     {
-        MyOption? captured = null;
+        DownloadOptions? captured = null;
         var root = CommandLineInvoker.GetRootCommand(o =>
         {
             captured = o;

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Text.Json;
 
 using BBDown;
 
@@ -12,80 +13,66 @@ namespace BBDown.Tests;
 
 /// <summary>
 /// P0-9：为 <see cref="BBDownApiServer"/> 补回归测试。
-/// 重点是安全过滤 <see cref="BBDownApiServer.OverrideHostControlledOptions"/>（防止漏清字段静默重开 RCE）
+/// 重点是 serve 请求契约 <see cref="ServeRequestOptions"/>（受控子集，结构上无法注入主机可控字段）
 /// 与 <see cref="BBDownApiServer.IsSafeWebHook"/>（SSRF 防护），以及变更类端点必须是 POST（P1-15）。
 /// </summary>
 public class BBDownApiServerTests
 {
-    #region OverrideHostControlledOptions（P0-2 / P0-9）
+    #region ServeRequestOptions 受控子集（P0-2 / P0-9）
 
     [Fact]
-    public void OverrideHostControlledOptions_ClearsAllHostControlledFields( )
+    public void ServeRequestOptions_ToDownloadOptions_IgnoresHostControlledInjection( )
     {
-        var server = new BBDownApiServer( );
-        server.SetUpServer(null);
-        var req = new ServeRequestOptions
+        // 模拟攻击者试图在请求体中注入主机可控字段；这些字段不在 ServeRequestOptions 中，
+        // 反序列化时被忽略，转换后的 DownloadOptions 回落为安全默认值，结构上杜绝 RCE / 路径逃逸
+        const string maliciousJson = """
         {
-            // 模拟攻击者通过请求注入的恶意主机可控字段
-            FFmpegPath = "/evil/ffmpeg",
-            Mp4boxPath = "/evil/mp4box",
-            Aria2cPath = "/evil/aria2c",
-            Aria2cArgs = "--on-download-complete /evil.sh",
-            WorkDir = "/tmp/escape",
-            FilePattern = "../../../etc/cron.d/pwn",
-            MultiFilePattern = "../../../root/.bashrc",
-            Debug = true,
-            UserAgent = "Mozilla/5.0 (attacker)",
-            Url = "https://www.bilibili.com/video/BV1xx411c7XD"
-        };
-
-        server.OverrideHostControlledOptions(req);
+            "Url": "https://www.bilibili.com/video/BV1xx411c7XD",
+            "FFmpegPath": "/evil/ffmpeg",
+            "Mp4boxPath": "/evil/mp4box",
+            "Aria2cPath": "/evil/aria2c",
+            "Aria2cArgs": "--on-download-complete /evil.sh",
+            "WorkDir": "/tmp/escape",
+            "FilePattern": "../../../etc/cron.d/pwn",
+            "MultiFilePattern": "../../../root/.bashrc",
+            "Debug": true,
+            "UserAgent": "Mozilla/5.0 (attacker)",
+            "ConfigFile": "/etc/passwd"
+        }
+        """;
+        var req = JsonSerializer.Deserialize<ServeRequestOptions>(maliciousJson, DownloadOptionsJsonContext.Default.ServeRequestOptions)!;
+        var opts = req.ToDownloadOptions( );
 
         // 这些字段直接决定被拉起的进程、参数与落盘位置，必须以服务端为准，绝不允许请求注入
-        Assert.Equal("", req.FFmpegPath);
-        Assert.Equal("", req.Mp4boxPath);
-        Assert.Equal("", req.Aria2cPath);
-        Assert.Equal("", req.Aria2cArgs);
-        Assert.Equal("", req.FilePattern);
-        Assert.Equal("", req.MultiFilePattern);
-        Assert.False(req.Debug);
-        Assert.Equal("", req.UserAgent);
-        // 非主机可控字段不受影响
-        Assert.Equal("https://www.bilibili.com/video/BV1xx411c7XD", req.Url);
+        Assert.Equal("", opts.FFmpegPath);
+        Assert.Equal("", opts.Mp4boxPath);
+        Assert.Equal("", opts.Aria2cPath);
+        Assert.Equal("", opts.Aria2cArgs);
+        Assert.Equal("", opts.WorkDir);
+        Assert.Equal("", opts.FilePattern);
+        Assert.Equal("", opts.MultiFilePattern);
+        Assert.False(opts.Debug);
+        Assert.Equal("", opts.UserAgent);
+        Assert.Null(opts.ConfigFile);
+        // 正常字段仍正确透传
+        Assert.Equal("https://www.bilibili.com/video/BV1xx411c7XD", opts.Url);
     }
 
     [Fact]
-    public void OverrideHostControlledOptions_UsesServerWorkDirNotInjected( )
+    public void ServeRequestOptions_ToDownloadOptions_PreservesClientFields( )
     {
-        const string workDir = "/srv/bbdown/work";
-        var server = new BBDownApiServer( );
-        server.SetUpServer(workDir);
-        var req = new ServeRequestOptions { WorkDir = "/attacker/want/this" };
-
-        server.OverrideHostControlledOptions(req);
-
-        // WorkDir 必须被强制改为服务端配置的工作目录，忽略请求注入值
-        Assert.Equal(workDir, req.WorkDir);
-    }
-
-    [Fact]
-    public void OverrideHostControlledOptions_RepeatedCallStillSafe( )
-    {
-        var server = new BBDownApiServer( );
-        server.SetUpServer(null);
         var req = new ServeRequestOptions
         {
-            FFmpegPath = "/x",
-            FilePattern = "../../pwn",
-            Aria2cArgs = "rm -rf /"
+            Url = "https://www.bilibili.com/video/BV1xx411c7XD",
+            UseTvApi = true,
+            Cookie = "SESSDATA=abc",
+            Host = "https://biliplus.example.com"
         };
+        var opts = req.ToDownloadOptions( );
 
-        server.OverrideHostControlledOptions(req);
-        server.OverrideHostControlledOptions(req);
-
-        Assert.Equal("", req.FFmpegPath);
-        Assert.Equal("", req.FilePattern);
-        Assert.Equal("", req.Aria2cArgs);
+        Assert.True(opts.UseTvApi);
+        Assert.Equal("SESSDATA=abc", opts.Cookie);
+        Assert.Equal("https://biliplus.example.com", opts.Host);
     }
 
     #endregion
