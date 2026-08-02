@@ -18,6 +18,7 @@
   <a href="#子命令">子命令</a> ·
   <a href="#配置文件">配置文件</a> ·
   <a href="#服务器模式">服务器模式</a> ·
+  <a href="#数据文件格式">数据文件格式</a> ·
   <a href="#常见问题">常见问题</a>
 </p>
 
@@ -25,15 +26,15 @@
 
 ## 特性
 
-- 支持下载普通视频、番剧、课程（cheese）、直播回放、收藏夹、合集等多种内容
+- 支持下载普通视频、番剧、课程（cheese）、直播回放、收藏夹、合集 / 系列、UP 主空间列表等多种内容
 - 支持 **TV / APP / INTL / WEB** 四种解析模式，自动应对不同区域的限制，并兼容 BiliPlus 代理
 - 支持 **DASH** 与 **FLV** 两种封装，可按清晰度、编码优先级自由选择
 - 支持杜比视界、HDR、8K、高码率等高质量音视频流
 - 支持弹幕（XML / ASS）、字幕、封面、AI 字幕的下载与嵌入
 - 支持 aria2c 多线程加速、断点续传与自定义混流参数
-- 支持扫码登录 WEB / TV 账号，自动保存凭据用于下载大会员内容
-- 支持服务器模式（`serve`），提供 HTTP JSON API 便于与下载器 / 前端集成
-- 纯命令行，跨平台（Windows / Linux / macOS），无图形界面依赖
+- 支持扫码登录 WEB / TV / APP 账号，自动保存凭据用于下载大会员内容
+- 支持服务器模式（`serve`），提供带鉴权令牌的 HTTP JSON API，便于与下载器 / 前端集成
+- 纯命令行，跨平台（Windows / Linux / macOS），无图形界面依赖；面向 .NET 9 并兼容 AOT 发布
 
 ## 安装
 
@@ -53,7 +54,7 @@ dotnet tool install --global BBDown
 
 ### 方式三：从源码构建
 
-需要先安装 [.NET SDK](https://dot.net)（版本 ≥ 9.0，本仓库 `global.json` 锁定 `9.0.300`）。
+需要先安装 [.NET SDK](https://dot.net)（版本 ≥ 9.0，具体版本以仓库 `global.json` 为准）。
 
 ```bash
 # 克隆仓库
@@ -67,7 +68,7 @@ dotnet build -c Release
 dotnet run --project BBDown -c Release -- "https://www.bilibili.com/video/BV1uv411q7Mv"
 ```
 
-构建产物位于各项目的 `bin/Release/net9.0/` 目录下。也可用 `dotnet pack` 生成 NuGet 包（已配置 `PackAsTool`，工具命令名为 `BBDown`）。
+构建产物位于各项目的 `bin/Release/net9.0/` 目录下。也可用 `dotnet pack` 生成 NuGet 包（已配置 `PackAsTool`，工具命令名为 `BBDown`）；`dotnet publish -c Release -r <RID> /p:PublishAot=true` 可产出 AOT 单文件可执行体。
 
 ### 依赖
 
@@ -98,7 +99,19 @@ BBDown "BV1uv411q7Mv" -q "1080P 高码率" -e "avc,flac"
 BBDown "BV1xx" --tv-api --access-token "你的token"
 ```
 
-地址参数支持完整 URL，也支持裸 `av|bv|BV|ep|ss` 编号，例如 `av170001`、`BV1uv411q7Mv`、`ep1`、`ss1`。
+### 支持的输入
+
+地址参数支持完整 URL，也支持裸编号与多种列表页。常见形式：
+
+- **视频页 URL**：`https://www.bilibili.com/video/BV...`（可用 `?p=` 指定分 P）
+- **短链**：`b23.tv/...`
+- **裸编号**：`av{数字}`、`BV{字符}`、`ep{数字}`、`ss{数字}`
+- **番剧 / 影视 / 课程**：`/bangumi/play/...`、`/cheese/...`、番剧 `md{数字}` 详情页、`/ss{季_id}`
+- **合集 / 系列**：UP 主空间的 `lists/` 页面（`business=space_collection` 为合集，`business=space_series` 为系列）
+- **收藏夹**：UP 主空间的 `favlist` 页面
+- **空间投稿列表**：UP 主空间首页
+
+> 以上各类 URL 与编号都由 `InputResolver` 统一解析为内部 `avid`，因此命令行、配置文件与 `serve` 接口使用同一套写法。
 
 ## 参数说明
 
@@ -109,12 +122,14 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 | 参数         | 简写    | 说明                                                         |
 | ------------ | ------- | ------------------------------------------------------------ |
 | `--tv-api`   | `-tv`   | 使用 TV 端解析模式（用于番剧 / 大会员等内容）                |
-| `--app-api`  | `-app`  | 使用 APP 端解析模式                                          |
+| `--app-api`  | `-app`  | 使用 APP 端解析模式（gRPC，番剧仅 HEVC）                     |
 | `--intl-api` | `-intl` | 使用国际版（东南亚视频）解析模式                             |
 | `--host`     |         | 指定 BiliPlus host（详见脚注 [^host]）                       |
 | `--ep-host`  |         | 指定 BiliPlus EP host（详见脚注 [^ep-host]）                 |
 | `--tv-host`  |         | 自定义 TV 端接口请求 Host（用于代理 `api.snm0516.aisee.tv`） |
 | `--area`     |         | 使用 BiliPlus 时必选，指定区域：`hk` / `tw` / `th`           |
+
+> 同时指定多个解析模式时，优先级为 **TV > APP > INTL > WEB**（见 `DetermineApiType`）。例如 `--app-api --intl-api` 同时给出时实际走 **APP**。
 
 ### 清晰度与编码
 
@@ -130,6 +145,11 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 | `--all`               |         | 展示所有分 P 标题                                        |
 
 > 同时指定 `-e` 与 `-q` 时，以命令行书写的先后为准（写在前的优先）。`-q` 仅作用于清晰度筛选，编码仍由 `-e` 控制。
+
+> **封装对 `-q` 的影响：**
+>
+> - **DASH**：先按 `-q` 请求一次，再额外以最高清晰度（qn=127）请求一次以取得「免二压 / 原始画质」视频轨（两次结果取并集）。因此 DASH 比 FLV 多一次播放地址请求。
+> - **FLV**：固定以最高清晰度（qn=127）请求播放地址，用户通过 `-q` 指定的清晰度优先级对它**不生效**——FLV 只会产出单一最高清视频流（仍可按 `-e` 选编码）。
 
 ### 下载内容
 
@@ -160,7 +180,7 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 | `--upos-host`      |          | 自定义 upos（CDN）服务器                                          |
 | `--no-force-host`  |          | 不强制替换下载服务器 host（默认强制替换，加此选项才不替换）       |
 | `--allow-pcdn`     |          | 不替换 PCDN 域名，仅在正常情况与 `--upos-host` 均无法下载时使用   |
-| `--no-force-http` |          | 下载音视频默认以 HTTP 替换 HTTPS；加此选项则不降级（保持 HTTPS） |
+| `--no-force-http`  |          | 下载音视频默认以 HTTP 替换 HTTPS；加此选项则不降级（保持 HTTPS）  |
 
 ### 账号与凭据
 
@@ -170,24 +190,24 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 | `--access-token` | `-token` | access_token，用于下载 TV / APP 接口的会员内容 |
 | `--user-agent`   | `-ua`    | 指定 user-agent；不指定则使用随机 user-agent   |
 
-> 推荐用 `login` / `logintv` 扫码登录后自动保存凭据，避免手动粘贴 `--cookie` / `--access-token`。
+> 推荐用 `login`（WEB）/ `login --tv` / `login --app` 扫码登录后自动保存凭据，避免手动粘贴 `--cookie` / `--access-token`。
 
 ### 文件、路径与调试
 
-| 参数                      | 简写 | 说明                                                                 |
-| ------------------------- | ---- | -------------------------------------------------------------------- |
-| `--file-pattern`          | `-F` | 自定义单 P 存储文件名（支持内置变量，见下）                          |
-| `--multi-file-pattern`    | `-M` | 自定义多 P 存储文件名（支持内置变量，见下）                          |
-| `--select-page`           | `-p` | 选择分 P（语法详见脚注 [^selectpage]）                               |
-| `--work-dir`              |      | 设置程序工作目录                                                     |
-| `--ffmpeg-path`           |      | 指定 ffmpeg 路径                                                     |
-| `--mp4box`                |      | 使用 MP4Box 来混流                                                   |
-| `--mp4box-path`           |      | 指定 mp4box 路径                                                     |
-| `--aria2c-path`           |      | 指定 aria2c 路径                                                     |
-| `--save-records`          |      | 将下载过的视频记录到本地文件，用于后续跳过同一视频                   |
-| `--stop-on-error`         |      | 遇到分 P 下载失败时立即停止（详见脚注 [^stoponerror]）               |
-| `--config`                |      | 读取指定的 BBDown 本地配置文件（默认为程序目录下的 `BBDown.config`） |
-| `--debug`                 |      | 输出调试日志                                                         |
+| 参数                   | 简写 | 说明                                                                 |
+| ---------------------- | ---- | -------------------------------------------------------------------- |
+| `--file-pattern`       | `-F` | 自定义单 P 存储文件名（支持内置变量，见下）                          |
+| `--multi-file-pattern` | `-M` | 自定义多 P 存储文件名（支持内置变量，见下）                          |
+| `--select-page`        | `-p` | 选择分 P（语法详见脚注 [^selectpage]）                               |
+| `--work-dir`           |      | 设置程序工作目录                                                     |
+| `--ffmpeg-path`        |      | 指定 ffmpeg 路径                                                     |
+| `--mp4box`             |      | 使用 MP4Box 来混流                                                   |
+| `--mp4box-path`        |      | 指定 mp4box 路径                                                     |
+| `--aria2c-path`        |      | 指定 aria2c 路径                                                     |
+| `--save-records`       |      | 将下载过的视频记录到本地文件，用于后续跳过同一视频                   |
+| `--stop-on-error`      |      | 遇到分 P 下载失败时立即停止（详见脚注 [^stoponerror]）               |
+| `--config`             |      | 读取指定的 BBDown 本地配置文件（默认为程序目录下的 `BBDown.config`） |
+| `--debug`              |      | 输出调试日志                                                         |
 
 #### 文件名内置变量
 
@@ -217,6 +237,10 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 | `<videoDate>`          | 视频发布时间（分 P 视频与 `<publishDate>` 相同） |
 | `<apiType>`            | API 类型（TV / APP / INTL / WEB）                |
 
+> **自定义日期格式**：`<publishDate>` / `<videoDate>` 后可接 `:` + .NET 的 `DateTime` 格式串，例如 `<publishDate:yyyyMMdd>`、`<videoDate:yyyy-MM-dd HH:mm>`。省略格式串时使用默认格式。
+>
+> **长度限制**：最终文件名按 **UTF-8 字节数截断，上限 200 字节**（约 66 个汉字），超出部分会被裁掉，避免过长路径导致写入失败。
+
 示例：
 
 ```bash
@@ -225,29 +249,35 @@ BBDown "BV1xx" -F "<videoTitle>[<dfn>]"
 
 # 多 P：按序号子目录归档
 BBDown "BV1xx" -M "<videoTitle>/[P<pageNumberWithZero>]<pageTitle>"
+
+# 用发布日期组织目录
+BBDown "BV1xx" -M "<publishDate:yyyy>/<publishDate:MMdd> <pageTitle>"
 ```
 
 ## 子命令
 
-| 子命令    | 说明                                                            |
-| --------- | --------------------------------------------------------------- |
-| `login`   | 通过 APP 扫描二维码登录 WEB 账号（凭据自动保存）                |
-| `logintv` | 通过 APP 扫描二维码登录 TV 账号（凭据自动保存）                 |
-| `serve`   | 以服务器模式运行，提供 HTTP JSON API（详见 [API.md](./API.md)） |
+| 子命令  | 说明                                                                                          |
+| ------- | --------------------------------------------------------------------------------------------- |
+| `login` | 通过 APP 扫描二维码登录账号（默认 WEB；加 `--tv` 登录 TV，加 `--app` 登录 APP），凭据自动保存 |
+| `serve` | 以服务器模式运行，提供带鉴权令牌的 HTTP JSON API（详见 [API.md](./API.md)）                   |
 
 ### `serve` 参数
 
-| 参数         | 简写 | 说明                                                                                                      |
-| ------------ | ---- | --------------------------------------------------------------------------------------------------------- |
-| `--listen`   | `-l` | 监听地址，默认 `http://127.0.0.1:23333`。**接口无认证，切勿暴露公网**；如需跨机访问请自行加反向代理与鉴权 |
-| `--work-dir` |      | 所有任务的工作目录（请求中的同名 `WorkDir` 字段会被忽略，一律以服务端为准）                               |
+| 参数            | 简写 | 说明                                                                                                          |
+| --------------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| `--listen`      | `-l` | 监听地址，默认 `http://127.0.0.1:23333`。回环地址免令牌；绑定非回环地址（如 `0.0.0.0`）时**强制令牌鉴权**     |
+| `--serve-token` |      | serve 鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 `X-BBDown-Token` 头或 `?token=` 查询参数 |
+| `--work-dir`    |      | 所有任务的工作目录（请求中的同名 `WorkDir` 字段会被忽略，一律以服务端为准）                                   |
 
 ```bash
-# 以默认地址启动服务器
+# 以默认地址启动服务器（本地回环，免令牌）
 BBDown serve
 
-# 指定监听地址与工作目录
+# 指定监听地址与工作目录（非回环将自动要求令牌）
 BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
+
+# 显式指定令牌
+BBDown serve --serve-token "你的令牌"
 ```
 
 ## 配置文件
@@ -272,7 +302,7 @@ BV1uv411q7Mv
 
 `BBDown serve` 会在本地启动一个 HTTP 服务器，对外暴露任务增删查的 JSON API，适合与下载器面板、自动化脚本集成。完整接口定义、数据结构与请求示例见 **[API.md](./API.md)**。
 
-> ⚠️ 该接口**没有任何认证机制**，默认只监听 `http://127.0.0.1:23333`，切勿直接暴露到公网。需要跨机器访问时请自行加反向代理与鉴权，并显式指定 `serve -l http://0.0.0.0:23333`。
+> ⚠️ **鉴权说明**：默认监听 `http://127.0.0.1:23333`（回环地址）时**免令牌**即可调用，便于本机脚本使用。一旦绑定到**非回环地址**（如 `0.0.0.0`），BBDown 会强制要求令牌鉴权：若未通过 `--serve-token` 指定，会自动生成一个令牌并打印到控制台，客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数；令牌不匹配一律返回 `401`。即使如此，服务器仍默认开启 CORS（`AllowAnyOrigin`），且令牌只防未授权调用、不验证调用方身份，因此**切勿直接暴露到公网**。需要跨机器访问时请自行加反向代理与 TLS，并显式指定 `serve -l http://0.0.0.0:23333`。
 
 ## 数据文件格式
 
@@ -280,7 +310,7 @@ BBDown 在程序目录下写入若干数据文件。以下格式为**当前唯�
 
 ### 凭据：`BBDown.data`（单文件合并所有凭据）
 
-WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个 JSON 对象**，由 `login` / `logintv` 扫码登录后写入。对应类型未登录时其字段为 `null`。手写 JSON（规避 AOT 裁剪），结构如下：
+WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个 JSON 对象**，由 `login`（默认 WEB）、`login --tv`、`login --app` 扫码登录后写入。对应类型未登录时其字段为 `null`。手写 JSON（规避 AOT 裁剪），结构如下：
 
 ```json
 {
@@ -306,7 +336,7 @@ WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个
 
 规范要点：
 
-- **单文件单 JSON**。WEB / TV / APP 三类凭据在同一文件同一对象内；每次保存只更新对应字段并**合并保留**其余字段，互不覆盖（例如登录 TV 不会清掉已存的 WEB Cookie）。
+- **单文件单 JSON**。WEB / TV / APP 三类凭据在同一文件同一对象内；每次保存只更新对应字段并**合并保留**其余字段，互不覆盖（例如登录 TV / APP 不会清掉已存的 WEB Cookie）。
 - **仅 JSON**。文件缺失或非合法 JSON 时一律视为无凭据，不会回退到旧版的「纯字符串 Cookie」或 `access_token=` 前缀纯文本格式。
 - `refresh_token` 与 `cookie` 合并存放在同一文件，不再单独写入 `BBDownRefresh.data`；TV / APP 也不再使用独立的 `BBDownTV.data` / `BBDownApp.data`。
 - 下载过程中若检测到 WEB Cookie 可能过旧，会在后台 best-effort 调用续期接口刷新 `cookie` 与 `refresh_token` 并回写本文件；续期失败不影响正常下载（回退到已有 Cookie）。
@@ -335,11 +365,15 @@ WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个
 
 **Q：下载提示需要大会员？**
 
-部分番剧、课程需要大会员权限。请使用 `login` / `logintv` 登录对应账号，或通过 `--cookie` / `--access-token` 传入凭据。
+部分番剧、课程需要大会员权限。请使用 `login`（WEB）/`login --tv`/`login --app` 登录对应账号，或通过 `--cookie` / `--access-token` 传入凭据。
 
 **Q：为什么有时只能下到最低清晰度？**
 
 部分视频的非会员下载会被限制为低清晰度，这是 B 站服务端策略，与工具无关。登录大会员账号通常可解除限制。
+
+**Q：FLV 模式下 `-q` 怎么没生效？**
+
+FLV 封装固定以最高清晰度（qn=127）请求播放地址，用户的清晰度优先级对它不生效；如需按清晰度选择，请使用默认的 **DASH** 封装，并通过 `-q` 指定。
 
 **Q：如何让下载更快？**
 

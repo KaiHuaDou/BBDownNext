@@ -56,7 +56,7 @@ internal static class BBDownDownloadUtil
 
         if (config.UseAria2c)
         {
-            await BBDownAria2c.DownloadFileByAria2cAsync(url, path, config.Aria2cArgs, config.Cookie, ct);
+            await BBDownAria2c.RunCommandCodeAsync(BBDownAria2c.ARIA2C, BBDownAria2c.BuildArgs(url, path, config.Aria2cArgs, config.Cookie), ct);
             if (File.Exists(path + ".aria2") || !File.Exists(path))
             {
                 throw new InvalidOperationException("aria2 下载可能存在错误");

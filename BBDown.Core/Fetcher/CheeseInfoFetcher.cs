@@ -16,7 +16,6 @@ public static class CheeseInfoFetcher
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
         id = id[IdPrefix.Cheese.Length..];
-        var index = "";
         var api = $"{BiliApi.SeasonPugv}?ep_id={id}";
         var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
@@ -26,11 +25,10 @@ public static class CheeseInfoFetcher
         var desc = data.GetProperty("subtitle").ToString( );
         var ownerName = data.GetProperty("up_info").GetProperty("uname").ToString( );
         var ownerMid = data.GetProperty("up_info").GetProperty("mid").ToString( );
-        var pages = data.GetProperty("episodes").EnumerateArray( );
         List<Page> pagesInfo = [];
-        foreach (var page in pages)
+        foreach (var page in EnumerateArrayOrEmpty(data.GetProperty("episodes")))
         {
-            Page p = new( )
+            pagesInfo.Add(new Page
             {
                 index = page.GetProperty("index").GetInt32( ),
                 aid = page.GetProperty("aid").ToString( ),
@@ -44,15 +42,10 @@ public static class CheeseInfoFetcher
                 desc = "",
                 ownerName = ownerName,
                 ownerMid = ownerMid,
-            };
-            if (p.epid == id)
-            {
-                index = p.index.ToString( );
-            }
-
-            pagesInfo.Add(p);
+            });
         }
 
+        var index = pagesInfo.Find(p => p.epid == id)?.index.ToString( ) ?? "";
         var pubTime = pagesInfo.Count != 0 ? pagesInfo[0].pubTime : 0;
 
         var info = new VInfo

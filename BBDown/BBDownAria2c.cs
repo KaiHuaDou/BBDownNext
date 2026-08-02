@@ -14,7 +14,7 @@ internal static class BBDownAria2c
 {
     public static string ARIA2C = "aria2c";
 
-    private static async Task<int> RunCommandCodeAsync(string command, List<string> args, CancellationToken ct = default)
+    internal static async Task<int> RunCommandCodeAsync(string command, List<string> args, CancellationToken ct = default)
     {
         using Process p = new( );
         p.StartInfo.UseShellExecute = false;
@@ -95,10 +95,5 @@ internal static class BBDownAria2c
 
         if (quoted || current.Length != 0) result.Add(current.ToString( ));
         return result;
-    }
-
-    public static async Task DownloadFileByAria2cAsync(string url, string path, string extraArgs, string cookie, CancellationToken ct = default)
-    {
-        await RunCommandCodeAsync(ARIA2C, BuildArgs(url, path, extraArgs, cookie), ct);
     }
 }
