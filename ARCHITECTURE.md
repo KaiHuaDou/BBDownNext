@@ -26,7 +26,7 @@ BBDown/
 │   ├── Program.Methods.cs  # 分辨率/优先级解析、归档、CDN host 策略等工具方法
 │   ├── BBDownApiServer.cs  # serve 的 ASP.NET Minimal API + 鉴权 + SSRF 防护
 │   ├── DownloadUtil.cs     # 唯一下载入口 (续传、CDN 策略)
-│   ├── Muxer.cs            # ffmpeg/mp4box 混流、FLV 合并
+│   ├── Muxer.cs            # FFmpeg/MP4Box 混流、FLV 合并
 │   ├── PartFile.cs         # 断点续传状态 (.bbdown.part/.bbdown.json)
 │   ├── CredentialStore.cs  # 单一 JSON 凭据读写 (源生成器 AOT 安全)
 │   ├── Login.cs            # WEB/TV/APP 扫码登录与 refresh_token 续期
@@ -76,7 +76,7 @@ Program.Download 编排分 P
   │  ├─ DownloadDashAsync / DownloadFlvAsync
   │  ├─ DownloadUtil.DownloadAsync (续传写入 .bbdown.part)
   │  ├─ SubUtil / DanmakuUtil (字幕/弹幕)
-  │  └─ Muxer (ffmpeg/mp4box 混流 + 嵌入元数据/章节/字幕)
+  │  └─ Muxer (FFmpeg/MP4Box 混流 + 嵌入元数据/章节/字幕)
   ▼
 落盘 (FilePattern 经 FileNameUtil 截断) + 写入 BBDown.archives (--save-records)
 ```
@@ -146,7 +146,7 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 
 ### 7.3 传输与接口安全
 
-- **TLS 逃生舱**：`BBDOWN_INSECURE_TLS=1` 是唯一可关闭证书校验的环境变量（无常规代理配置项，HTTPUtil 不读取系统代理）。
+- **TLS 逃生舱**：`BBDOWN_INSECURE_TLS=1` 用于关闭证书校验（无常规代理配置项，HTTPUtil 不读取系统代理）。
 - **SSRF**：仅 `CallBackWebHook` 回调做内网 / 回环地址校验。
 - **serve 令牌**：见第 5 节。
 - **设备标识**：`buvid3` / `buvid4` 纯远端获取，失败时不本地伪造设备标识。

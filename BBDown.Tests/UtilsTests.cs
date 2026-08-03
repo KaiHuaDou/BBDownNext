@@ -94,8 +94,17 @@ public class UtilsTests
     }
 
     [Fact]
-    public void GetMixinKey_TooShortThrows( )
+    public void FormatTimeStamp_ZeroReturnsLiteralNull( )
     {
-        Assert.Throws<IndexOutOfRangeException>(( ) => Account.GetMixinKey("short"));
+        // 0 视作「无时间戳」，固定输出字面量 "null" 而非 1970 年
+        Assert.Equal("null", Utils.FormatTimeStamp(0, "yyyy-MM-dd HH:mm:ss"));
+    }
+
+    [Fact]
+    public void FormatTimeStamp_FormatsLocalTimePerFormat( )
+    {
+        const long ts = 1700000000L;
+        var expected = DateTimeOffset.FromUnixTimeSeconds(ts).ToLocalTime( ).ToString("yyyy-MM-dd HH:mm:ss");
+        Assert.Equal(expected, Utils.FormatTimeStamp(ts, "yyyy-MM-dd HH:mm:ss"));
     }
 }

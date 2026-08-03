@@ -132,4 +132,23 @@ public class DanmakuUtilTests
             File.Delete(path);
         }
     }
+
+    // B 站 XML 颜色是整数 RGB，ASS 的 \c&H...& 却是 BGR 字节序，直接照搬会让红蓝对调 (P0-5)
+    [Theory]
+    [InlineData("FFFFFF", "FFFFFF")]   // 白：BGR 不变
+    [InlineData("FF0000", "0000FF")]   // 红 → 蓝
+    [InlineData("0000FF", "FF0000")]   // 蓝 → 红
+    [InlineData("00FF00", "00FF00")]   // 绿：BGR 不变
+    [InlineData("123456", "563412")]   // 通用：低位换高位
+    public void ToAssColor_SwapsRgbToBgr(string rgb, string expected)
+    {
+        Assert.Equal(expected, DanmakuUtil.ToAssColor(rgb));
+    }
+
+    [Fact]
+    public void ToAssColor_ReturnsInputWhenNotHex( )
+    {
+        // 解析失败原样返回，交由下游 ASS 渲染器报错，而非静默改成错误颜色
+        Assert.Equal("nothex", DanmakuUtil.ToAssColor("nothex"));
+    }
 }

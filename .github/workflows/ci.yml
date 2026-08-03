@@ -217,6 +217,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang binutils-aarch64-linux-gnu zlib1g-dev
+          sudo chown -R "$(id -u):$(id -g)" /var/cache/apt/archives
 
       - name: Publish (AOT)
         run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
@@ -276,6 +277,7 @@ jobs:
               export GRPC_PROTOC_PLUGIN=/usr/bin/grpc_csharp_plugin &&
               dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact'
           sudo chown -R "$(id -u):$(id -g)" artifact
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/apk"
 
       - name: Stage artifact
         run: mv artifact/BBDown artifact/BBDown-${{ matrix.rid }}

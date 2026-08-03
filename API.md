@@ -90,7 +90,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 > **安全限制：** 出于安全考虑，请求体只接受受控子集字段，以下主机可控字段**不会**出现在 `ServeRequestOptions` 中（即便传入也会被忽略），一律以服务端启动时的配置为准：
 > `FFmpegPath`、`Mp4boxPath`、`Aria2cPath`、`Aria2cArgs`、`WorkDir`、`FilePattern`、`MultiFilePattern`、`Debug`、`UserAgent`、`ConfigFile`。
-> 工作目录请在启动服务时用 `serve --work-dir` 指定；ffmpeg / mp4box / aria2c 请放在 BBDown 同目录或系统 `PATH` 中。
+> 工作目录请在启动服务时用 `serve --work-dir` 指定；FFmpeg / MP4Box / aria2c 请放在 BBDown 同目录或系统 `PATH` 中。
 >
 > **回调：** 请求体可携带 `CallBackWebHook`（字符串），任务**完成**后会以 `POST` 方式向该地址回传 `DownloadTask` 的 JSON；留空或不传则不回调。
 

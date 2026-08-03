@@ -1,9 +1,9 @@
-# 与原版 BBDown（nilaoda/BBDown）的差异对照
+# 与原版 BBDown 的差异对照
 
 本仓库是 [nilaoda/BBDown](https://github.com/nilaoda/BBDown) 的一个增强分支（fork，远程 `KaiHuaDou/BBDown`）。
 本文档逐项列出本分支相对原版的新增能力与行为改进，供选用 / 迁移时参考。
 
-> 对照基准：原版 `nilaoda/BBDown` 主干 README（功能清单、参数表、TODO）。
+> 对照基准：原版 `nilaoda/BBDown` 提交 `259a5558cee0a349a7ebb60bd31e40c88e5bc1ed` 的 README 与源码（功能清单、参数表、TODO）。
 > 能力声明均已对照本仓库源码核实（见各条目后的核实点）。
 
 ## 能力对照表

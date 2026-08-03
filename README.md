@@ -27,35 +27,28 @@
 
 ## 特性
 
-- 支持下载普通视频、番剧、课程（cheese）、直播回放、收藏夹、合集 / 系列、UP 主空间列表等多种内容
-- 支持 **TV / APP / INTL / WEB** 四种解析模式，自动应对不同区域的限制，并兼容 BiliPlus 代理
-- 支持 **DASH** 与 **FLV** 两种封装，可按清晰度、编码优先级自由选择
-- 支持杜比视界、HDR、8K、高码率等高质量音视频流
-- 支持弹幕（XML / ASS）、字幕、封面、AI 字幕的下载与嵌入
-- 支持 aria2c 多线程加速、断点续传与自定义混流参数
-- 支持扫码登录 WEB / TV / APP 账号，自动保存凭据用于下载大会员内容
-- 支持服务器模式（`serve`），提供带鉴权令牌的 HTTP JSON API，便于与下载器 / 前端集成
+- 支持下载普通视频、番剧、课程（cheese）、直播回放、收藏夹、合集 / 系列、UP 主空间列表等多种内容；多 P 与批量内容支持丰富的分 P 选择语法（`-p`，含单集 / 列表 / 区间 / `latest`）
+- 支持 **TV / APP / INTL / WEB** 四种解析模式，自动应对不同区域限制，并兼容 BiliPlus 代理；WEB 模式自动 WBI 签名以降低风控
+- 支持 **DASH** 与 **FLV** 两种封装，可按清晰度、编码优先级自由选择，并支持杜比视界、HDR、8K、高码率等高质量音视频流
+- 支持交互式选择清晰度（`-ia`）；提供 `--show-info` 仅解析查看可用流而不下载
+- 支持弹幕（XML / ASS）、字幕、封面、AI 字幕的下载与嵌入；混流时写入元数据与章节
+- 支持 aria2c 多线程加速与内置默认多线程下载；支持**断点续传**，并可开启 `--save-records` 归档记录、跳过已下载内容
+- 支持扫码登录 WEB / TV / APP 账号并自动保存凭据；WEB Cookie 过期时可用 `refresh_token` 自动续期。
+- 高度可定制：自定义文件名与日期格式、配置文件补齐命令行选项、CDN / PCDN 自定义（`--upos-host` / `--allow-pcdn`）
+- 支持服务器模式（`serve`），提供带鉴权令牌的 HTTP JSON API：回环地址免令牌、非回环强制令牌、回调做 SSRF 防护，便于与下载器 / 前端集成
 - 纯命令行，跨平台（Windows / Linux / macOS），无图形界面依赖；面向 .NET 9 并兼容 AOT 发布
 
 ## 与原版 BBDown 的差异
 
-本仓库是 [nilaoda/BBDown](https://github.com/nilaoda/BBDown) 的 fork，在保留原版全部下载能力的基础上做了一些改进，详细对照见 [docs/compared-to-upstream.md](./docs/compared-to-upstream.md)：
-
-- **WEB Cookie 自动续期**：登录时保存 `refresh_token`，下载前用 RSA-OAEP 加密请求主动刷新 `cookie`，避免大会员下载因 Cookie 过期失败（原版未实现）。
-- **统一单文件凭据 `BBDown.data`**：WEB / TV / APP 三类凭据合并进同一 JSON 文件（源生成器序列化，AOT 安全），不再需要 `BBDownTV.data` / `BBDownApp.data` 分离文件，三类登录互不覆盖。
-- **`login --app` 扫码登录 APP 账号**：APP 端鉴权支持二维码扫码，不再需要抓包获取 `access_token`（原版需手动抓包并复制 `BBDownTV.data` → `BBDownApp.data`）。
-- **自定义文件名日期格式**：`<publishDate:yyyyMMdd>` / `<videoDate:格式>` 支持任意 .NET `DateTime` 格式；原版仅固定 `yyyy-MM-dd_HH-mm-ss`。
-- **文件名 200 字节截断**：超长标题按 UTF-8 字节自动截断，避免 Windows / 类 Unix 路径过长导致写入失败。
-- **serve 安全加固**：请求契约收窄为受控子集（防路径 / 命令注入）、回调地址 SSRF 防护、工作目录强制由服务端控制、回环地址免令牌 / 非回环强制令牌。
-- **断点续传**：每条流维护 `<路径>.bbdown.part` 与 SHA256 指纹清单 `<路径>.bbdown.json`，支持单流与合集 / 多 P 粒度续传。
-- **cheese 课程**：消除冗余 `ss` 请求、`--intl-api` 自动回退 WEB、过滤锁定分集。
-- **代码层面**：拆分 god-class、命名收敛、改用 `System.Threading.Lock`、开启 nullable 与 `TreatWarningsAsErrors`，并有 480+ 单元测试。
+参见 [与原版 BBDown 的差异对照](./docs/compared-to-upstream.md)：
 
 ## 安装
 
 ### 下载预编译二进制
 
-前往本仓库 [Releases](https://github.com/KaiHuaDou/BBDown/releases) 页面，下载对应平台的最新版本压缩包，解压后即可使用。
+前往 [Releases](https://github.com/KaiHuaDou/BBDown/releases) 页面，下载最新发布版本。
+
+前往 [Actions](https://github.com/KaiHuaDou/BBDown/actions) 页面，下载构建版本。
 
 ### 从源码构建
 
@@ -77,36 +70,34 @@ dotnet run --project BBDown -c Release -- "https://www.bilibili.com/video/BV1uv4
 
 ### 依赖
 
-下载与混流依赖以下二进制工具（任选其一，建议使用 ffmpeg）：
+下载/混流依赖以下工具：
 
-- **ffmpeg**：用于音视频下载与混流（推荐）。BBDown 会在 `PATH` 与程序所在目录中自动查找；也可用 `--ffmpeg-path` 显式指定。
-- **mp4box**：可选，用于杜比视界等特殊封装的混流。可用 `--mp4box` 切换为 MP4Box 混流，或用 `--mp4box-path` 指定路径。
+- **FFmpeg**：用于音视频下载与混流（推荐）。BBDown 会在 `PATH` 与程序所在目录中自动查找；也可用 `--ffmpeg-path` 显式指定。
+- **MP4Box**：可选，用于杜比视界等特殊封装的混流。可用 `--mp4box` 切换为 MP4Box 混流，或用 `--mp4box-path` 指定路径。
 - **aria2c**：可选，用于多线程加速下载。可用 `--aria2c` 启用，或用 `--aria2c-path` 指定路径。
 
-> 以上三个二进制只要放在 BBDown 同目录或系统 `PATH` 中即可被自动识别，无需额外配置。
+> 放在 BBDown 同目录或系统 `PATH` 中即可被自动识别
 
 ## 快速开始
 
 ```bash
 # 下载一个视频（默认下载最高清晰度）
-BBDown "https://www.bilibili.com/video/BV1uv411q7Mv"
+BBDown "https://www.bilibili.com/video/BV16h4y137YS"
 
 # 仅解析，不下载，查看可用流
-BBDown "BV1uv411q7Mv" --show-info
+BBDown "BV16h4y137YS" --show-info
 
 # 仅下载音频
-BBDown "BV1uv411q7Mv" -a
+BBDown "BV16h4y137YS" -a
 
 # 指定清晰度与编码优先级
-BBDown "BV1uv411q7Mv" -q "1080P 高码率" -e "avc,flac"
+BBDown "BV16h4y137YS" -q "1080P 高码率" -e "avc,flac"
 
 # 下载番剧 / 课程（需要会员凭据）
-BBDown "BV1xx" --tv-api --access-token "你的token"
+BBDown "ep68540" --tv-api --access-token "你的token"
 ```
 
 ### 支持的输入
-
-地址参数支持完整 URL，也支持裸编号与多种列表页。常见形式：
 
 - **视频页 URL**：`https://www.bilibili.com/video/BV...`（可用 `?p=` 指定分 P）
 - **短链**：`b23.tv/...`
@@ -116,11 +107,9 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 - **收藏夹**：UP 主空间的 `favlist` 页面
 - **空间投稿列表**：UP 主空间首页
 
-> 以上各类 URL 与编号都由 `InputResolver` 统一解析为内部 `avid`，因此命令行、配置文件与 `serve` 接口使用同一套写法。
+> 命令行、配置文件与 `serve` 接口使用同一套写法。
 
 ## 参数说明
-
-> 完整参数及最新描述以 `BBDown --help` 为准。下表按用途分组，方括号为简写（alias）。
 
 ### 解析模式
 
@@ -205,9 +194,9 @@ BBDown "BV1xx" --tv-api --access-token "你的token"
 | `--multi-file-pattern` | `-M` | 自定义多 P 存储文件名（支持内置变量，见下）                          |
 | `--select-page`        | `-p` | 选择分 P（语法详见脚注 [^selectpage]）                               |
 | `--work-dir`           |      | 设置程序工作目录                                                     |
-| `--ffmpeg-path`        |      | 指定 ffmpeg 路径                                                     |
+| `--ffmpeg-path`        |      | 指定 FFmpeg 路径                                                     |
 | `--mp4box`             |      | 使用 MP4Box 来混流                                                   |
-| `--mp4box-path`        |      | 指定 mp4box 路径                                                     |
+| `--mp4box-path`        |      | 指定 MP4Box 路径                                                     |
 | `--aria2c-path`        |      | 指定 aria2c 路径                                                     |
 | `--save-records`       |      | 将下载过的视频记录到本地文件，用于后续跳过同一视频                   |
 | `--stop-on-error`      |      | 遇到分 P 下载失败时立即停止（详见脚注 [^stoponerror]）               |
@@ -311,11 +300,9 @@ BV1uv411q7Mv
 
 ## 数据文件格式
 
-BBDown 在程序目录下写入若干数据文件。以下格式为**当前唯一规范**，均不兼容任何旧版本格式。
+### 凭据：`BBDown.data`
 
-### 凭据：`BBDown.data`（单文件合并所有凭据）
-
-WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个 JSON 对象**，由 `login`（默认 WEB）、`login --tv`、`login --app` 扫码登录后写入。对应类型未登录时其字段为 `null`。手写 JSON（规避 AOT 裁剪），结构如下：
+WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个 JSON 对象**，由 `login`（默认 WEB）、`login --tv`、`login --app` 扫码登录后写入。对应类型未登录时其字段为 `null`，结构如下：
 
 ```json
 {
@@ -329,22 +316,15 @@ WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个
 }
 ```
 
-| 字段               | 类型           | 说明                                                                                                |
-| ------------------ | -------------- | --------------------------------------------------------------------------------------------------- |
-| `cookie`           | string \| null | 完整 Cookie 字符串，用于 WEB 接口鉴权下载大会员内容（含 `DedeUserID` / `SESSDATA` / `bili_jct` 等） |
-| `refresh_token`    | string \| null | 登录时由 B 站下发的刷新令牌，用于**主动续期** Cookie，避免登录过期                                  |
-| `ts`               | number \| null | WEB 凭据签发时间戳（Unix 秒）。为 `null` 时视为未知签发时间，续期权重按保守策略处理                 |
-| `tv_access_token`  | string \| null | TV 扫码登录获取的 `access_token`                                                                    |
-| `tv_ts`            | number \| null | TV 凭据签发时间戳（Unix 秒）                                                                        |
-| `app_access_token` | string \| null | APP 扫码登录获取的 `access_token`                                                                   |
-| `app_ts`           | number \| null | APP 凭据签发时间戳（Unix 秒）                                                                       |
-
-规范要点：
-
-- **单文件单 JSON**。WEB / TV / APP 三类凭据在同一文件同一对象内；每次保存只更新对应字段并**合并保留**其余字段，互不覆盖（例如登录 TV / APP 不会清掉已存的 WEB Cookie）。
-- **仅 JSON**。文件缺失或非合法 JSON 时一律视为无凭据，不会回退到旧版的「纯字符串 Cookie」或 `access_token=` 前缀纯文本格式。
-- `refresh_token` 与 `cookie` 合并存放在同一文件，不再单独写入 `BBDownRefresh.data`；TV / APP 也不再使用独立的 `BBDownTV.data` / `BBDownApp.data`。
-- 下载过程中若检测到 WEB Cookie 可能过旧，会在后台尝试调用续期接口刷新 `cookie` 与 `refresh_token` 并回写本文件；续期失败不影响正常下载（回退到已有 Cookie）。
+| 字段               | 类型    | 说明                              |
+| ------------------ | ------- | --------------------------------- |
+| `cookie`           | string? | 完整 Cookie 字符串                |
+| `refresh_token`    | string? | 刷新令牌，用于主动续期 Cookie     |
+| `ts`               | number? | WEB 凭据签发时间戳（Unix 秒）     |
+| `tv_access_token`  | string? | TV 扫码登录获取的 `access_token`  |
+| `tv_ts`            | number? | TV 凭据签发时间戳（Unix 秒）      |
+| `app_access_token` | string? | APP 扫码登录获取的 `access_token` |
+| `app_ts`           | number? | APP 凭据签发时间戳（Unix 秒）     |
 
 ### 下载归档记录：`BBDown.archives`
 
@@ -360,9 +340,6 @@ WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个
 | `<cid>`      | 分 P 的 cid                                                                      |
 | `<保存路径>` | 该分 P 完整下载成功（含混流）后的本地文件路径；可选，记录被删/移动后会被重新下载 |
 
-规范要点：
-
-- **仅 `aid\tcid\t路径` 这一种格式**。旧版的 `aid\|...`（竖线拼接 / 无制表符）记录一律不再识别，无法解析的行直接跳过，不再弹出兼容提示。
 - 仅在该分 P 完整成功（含混流）后才**追加**写入；键为 `(aid, cid)`，同一视频不同分 P 互不干扰。
 - 再次运行同一视频时，`CheckArchive` 会跳过已记录且文件仍存在的分 P；文件被删/移走则视为未下载，重新下载。
 
@@ -392,21 +369,27 @@ FLV 封装固定以最高清晰度（qn=127）请求播放地址，用户的清�
 
 命令行未显式给出的选项，才会由配置文件补齐；命令行已给出的以命令行为准。
 
-## 脚注
+## 许可证
+
+本项目基于 [MIT](LICENSE) 许可证开源。
+
+---
+
+*BBDown 2.0 · 仅供个人学习与研究使用，请遵守 B 站相关服务条款，勿将下载内容用于商业或侵权用途。*
 
 [^selectpage]: 选择分 P 语法：
 
-- `all` 全部
-- `8` 单集
-- `1,2,5` 逗号列表
-- `3-5` 闭区间（含两端：3,4,5）；`3-3` 仅第 3 集
-- `16-` 开区间，到末集
-- `-22` 开区间，从首集到 22
-- `1,2,3-3,4-5,6-10,15-latest` 混合写法
-- `latest` / `new` 最后一集（最新一集）
-- `last` / `LAST` 倒数第二集
-- 关键字大小写不敏感；`latest` 可写作 `new`；越界数字自动夹紧到有效边界；非法项忽略并提醒
-- 以 `-` 开头的表达式需在命令行加引号：`-p "-22,25-27,33"`
+    - `all` 全部
+    - `8` 单集
+    - `1,2,5` 逗号列表
+    - `3-5` 闭区间（含两端：3,4,5）；`3-3` 仅第 3 集
+    - `16-` 开区间，到末集
+    - `-22` 开区间，从首集到 22
+    - `1,2,3-3,4-5,6-10,15-latest` 混合写法
+    - `latest` / `new` 最后一集（最新一集）
+    - `last` / `LAST` 倒数第二集
+    - 关键字大小写不敏感；`latest` 可写作 `new`；越界数字自动夹紧到有效边界；非法项忽略并提醒
+    - 以 `-` 开头的表达式需在命令行加引号：`-p "-22,25-27,33"`
 
 [^aria2cargs]: 调用 aria2c 的附加参数，含空格的参数用引号包裹。默认参数包含 `-x16 -s16 -j16 -k 5M`。
 
@@ -421,11 +404,3 @@ FLV 封装固定以最高清晰度（qn=127）请求播放地址，用户的清�
 [^host]: 指定 BiliPlus host。使用 BiliPlus 需要 access_token、不需要 cookie；解析服务器能够获取你账号的大部分权限，请谨慎使用！
 
 [^ep-host]: 指定 BiliPlus EP host，用于代理 `api.bilibili.com/pgc/view/web/season`；大部分解析服务器不支持代理该接口。
-
-## 许可证
-
-本项目基于 [MIT](LICENSE) 许可证开源。
-
----
-
-*BBDown 2.0 · 仅供个人学习与研究使用，请遵守 B 站相关服务条款，勿将下载内容用于商业或侵权用途。*
