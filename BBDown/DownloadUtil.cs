@@ -7,13 +7,12 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
 
 namespace BBDown;
 
-internal static class BBDownDownloadUtil
+internal static class DownloadUtil
 {
     private const int BlockSize = 1024 * 1024;
     private const int ManifestSaveIntervalMs = 2000;
@@ -47,16 +46,27 @@ internal static class BBDownDownloadUtil
     /// </summary>
     public static async Task DownloadAsync(string url, string path, DownloadConfig config, bool resumable = true, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(url)) return;
-        if (!config.NoForceHttp) url = ReplaceUrl(url);
+        if (string.IsNullOrEmpty(url))
+        {
+            return;
+        }
+
+        if (!config.NoForceHttp)
+        {
+            url = ReplaceUrl(url);
+        }
+
         LogDebug("Start downloading: {0}", url);
 
         var destDir = Path.GetDirectoryName(path)!;
-        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
+        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
 
         if (config.UseAria2c)
         {
-            await BBDownAria2c.RunCommandCodeAsync(BBDownAria2c.ARIA2C, BBDownAria2c.BuildArgs(url, path, config.Aria2cArgs, config.Cookie), ct);
+            await BBDownAria2c.RunAsync(BBDownAria2c.aria2c, BBDownAria2c.BuildArgs(url, path, config.Aria2cArgs, config.Cookie), ct);
             if (File.Exists(path + ".aria2") || !File.Exists(path))
             {
                 throw new InvalidOperationException("aria2 下载可能存在错误");
@@ -93,7 +103,7 @@ internal static class BBDownDownloadUtil
 
         long totalSize;
         string? ifRange;
-        if (manifest is not null && manifest.TotalSize > 0)
+        if (manifest?.TotalSize > 0)
         {
             totalSize = manifest.TotalSize;
             ifRange = manifest.IfRange;
@@ -106,7 +116,11 @@ internal static class BBDownDownloadUtil
             if (IsCompleteOnDisk(path, totalSize))
             {
                 LogDebug("文件已下载过，跳过下载");
-                if (resumable) PartFile.Save(path, Completed(fingerprint, totalSize, ifRange));
+                if (resumable)
+                {
+                    PartFile.Save(path, Completed(fingerprint, totalSize, ifRange));
+                }
+
                 return;
             }
         }
@@ -114,7 +128,10 @@ internal static class BBDownDownloadUtil
         var chunkSize = !singleThread && config.ChunkSize > 0 ? config.ChunkSize : long.MaxValue;
         var ranges = PartFile.Ranges(totalSize, chunkSize);
         // 远端没给 Content-Length，退化为一条开放区间：仍可续传，只是进度没有分母
-        if (ranges.Count == 0) ranges.Add((0, -1));
+        if (ranges.Count == 0)
+        {
+            ranges.Add((0, -1));
+        }
 
         manifest ??= new PartManifest
         {
@@ -143,7 +160,11 @@ internal static class BBDownDownloadUtil
         void Report( )
         {
             var downloaded = 0L;
-            foreach (var c in completed) downloaded += c;
+            foreach (var c in completed)
+            {
+                downloaded += c;
+            }
+
             progress.Report(manifest.TotalSize > 0 ? (double) downloaded / manifest.TotalSize : 0, downloaded);
         }
 
@@ -152,7 +173,11 @@ internal static class BBDownDownloadUtil
             lock (manifestLock)
             {
                 var now = Environment.TickCount64;
-                if (!force && now - lastSaveTick < ManifestSaveIntervalMs) return;
+                if (!force && now - lastSaveTick < ManifestSaveIntervalMs)
+                {
+                    return;
+                }
+
                 lastSaveTick = now;
                 // completed 的每个下标只由一个分片线程写，这里读到的最坏情况是稍旧的值，
                 // 代价只是崩溃后多下几个字节，不会错位
@@ -162,7 +187,11 @@ internal static class BBDownDownloadUtil
 
         using (var handle = File.OpenHandle(partPath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite, FileOptions.Asynchronous))
         {
-            if (manifest.TotalSize > 0) RandomAccess.SetLength(handle, manifest.TotalSize);
+            if (manifest.TotalSize > 0)
+            {
+                RandomAccess.SetLength(handle, manifest.TotalSize);
+            }
+
             Persist(force: true);
 
             var parallelOptions = new ParallelOptions
@@ -202,7 +231,10 @@ internal static class BBDownDownloadUtil
             throw new IOException($"下载不完整：{partLength} / {manifest.TotalSize} bytes");
         }
 
-        if (partLength == 0) throw new IOException("下载结果为空");
+        if (partLength == 0)
+        {
+            throw new IOException("下载结果为空");
+        }
 
         File.Move(partPath, path, true);
         if (!resumable)
@@ -243,6 +275,7 @@ internal static class BBDownDownloadUtil
             {
                 throw new IOException($"分片 {index} 收到 416 但磁盘数据不足（{onDisk} < {from + completed[index]}），放弃不安全的续传假定");
             }
+
             return;
         }
 
@@ -251,7 +284,11 @@ internal static class BBDownDownloadUtil
             if (response.StatusCode == HttpStatusCode.OK)
             {
                 // 服务器无视了 Range（或 If-Range 判定内容已变），只能从头来过
-                if (requireRangeSupport) throw new NotSupportedException("Range request is not supported.");
+                if (requireRangeSupport)
+                {
+                    throw new NotSupportedException("Range request is not supported.");
+                }
+
                 completed[index] = 0;
             }
             else
@@ -260,21 +297,25 @@ internal static class BBDownDownloadUtil
             }
 
             var contentLength = response.Content.Headers.ContentLength;
-            using var stream = await response.Content.ReadAsStreamAsync(ct);
+            await using var stream = await response.Content.ReadAsStreamAsync(ct);
             var buffer = new byte[BlockSize];
             var offset = from + completed[index];
             var received = 0L;
-            while (true)
+            do
             {
                 var read = await stream.ReadAsync(buffer, ct);
-                if (read == 0) break;
+                if (read == 0)
+                {
+                    break;
+                }
+
                 await RandomAccess.WriteAsync(handle, buffer.AsMemory(0, read), offset, ct);
                 offset += read;
                 received += read;
                 completed[index] += read;
                 report( );
-                if (expected >= 0 && completed[index] >= expected) break;
             }
+            while (expected < 0 || completed[index] < expected);
 
             if (expected >= 0 && completed[index] != expected)
             {

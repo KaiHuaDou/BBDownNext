@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core.Entity;
 using BBDown.Core.Fetcher;
 using BBDown.Core.Util;
 
@@ -59,12 +58,14 @@ public class HttpStubFetcherTests
     }
     """;
 
-    private sealed class StubHttpMessageHandler : HttpMessageHandler
+    private sealed class StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
-        private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
-        public StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) => _responder = responder;
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> responder = responder;
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(_responder(request));
+        {
+            return Task.FromResult(responder(request));
+        }
     }
 
     private static async Task<T> WithStubClient<T>(HttpStatusCode status, string body, Func<Task<T>> act)
@@ -112,7 +113,7 @@ public class HttpStubFetcherTests
     public async Task FavList_NonSuccessStatus_PropagatesError( )
     {
         // 负向对照：桩返回 404 必须穿透为异常，证明请求确实走了桩而非真实网络
-        await Assert.ThrowsAsync<HttpRequestException>( ( ) =>
+        await Assert.ThrowsAsync<HttpRequestException>(( ) =>
             WithStubClient(HttpStatusCode.NotFound, "",
                 ( ) => FavListFetcher.FetchAsync("https://space.bilibili.com/3/favlist?fid=12345:678", AppConfig.Empty)));
     }

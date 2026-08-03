@@ -191,8 +191,6 @@ internal static class AppHelper
     /// <summary>
     /// 读取gRPC响应流 通过前5字节信息 解析/解压后面的报文体
     /// </summary>
-    /// <param name="data"></param>
-    /// <returns>字节流</returns>
     public static byte[] ReadMessage(byte[] data)
     {
         if (data.Length < 5)
@@ -214,8 +212,6 @@ internal static class AppHelper
     /// <summary>
     /// 给请求载荷添加头部信息
     /// </summary>
-    /// <param name="input"></param>
-    /// <returns></returns>
     public static byte[] PackMessage(byte[] input)
     {
         using var stream = new MemoryStream( );
@@ -232,11 +228,6 @@ internal static class AppHelper
         return stream.ToArray( );
     }
 
-    /// <summary>
-    /// gzip压缩
-    /// </summary>
-    /// <param name="data"></param>
-    /// <returns></returns>
     private static byte[] GzipCompress(byte[] data)
     {
         using var output = new MemoryStream( );
@@ -248,11 +239,6 @@ internal static class AppHelper
         return output.ToArray( );
     }
 
-    /// <summary>
-    /// gzip解压
-    /// </summary>
-    /// <param name="data"></param>
-    /// <returns></returns>
     private static byte[] GzipDecompress(byte[] data)
     {
         using var output = new MemoryStream( );
@@ -269,4 +255,4 @@ internal static class AppHelper
 [JsonSerializable(typeof(PlayViewReq))]
 [JsonSerializable(typeof(PlayViewReply))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
-internal partial class JsonContext : JsonSerializerContext { }
+internal partial class JsonContext : JsonSerializerContext;

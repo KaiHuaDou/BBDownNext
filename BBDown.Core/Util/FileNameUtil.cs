@@ -32,17 +32,26 @@ public static class FileNameUtil
 
         // Windows 会静默吃掉结尾的点与空格，索性自己去掉；开头的点在 Unix 上是隐藏文件
         var name = builder.ToString( ).Trim( ).TrimEnd('.').Trim( );
-        if (name.StartsWith('.')) name = "_" + name;
+        if (name.StartsWith('.'))
+        {
+            name = "_" + name;
+        }
 
         var stem = name.Contains('.') ? name[..name.IndexOf('.')] : name;
-        if (ReservedNames.Contains(stem)) name = "_" + name;
+        if (ReservedNames.Contains(stem))
+        {
+            name = "_" + name;
+        }
 
         return TruncateToBytes(name, MaxBytes);
     }
 
     private static string TruncateToBytes(string input, int maxBytes)
     {
-        if (Encoding.UTF8.GetByteCount(input) <= maxBytes) return input;
+        if (Encoding.UTF8.GetByteCount(input) <= maxBytes)
+        {
+            return input;
+        }
 
         var used = 0;
         for (var i = 0; i < input.Length; i++)
@@ -50,7 +59,11 @@ public static class FileNameUtil
             // 代理对必须整体保留，否则会切出无效字符
             var runeLength = char.IsHighSurrogate(input[i]) && i + 1 < input.Length ? 2 : 1;
             var bytes = Encoding.UTF8.GetByteCount(input.AsSpan(i, runeLength));
-            if (used + bytes > maxBytes) return input[..i].TrimEnd( );
+            if (used + bytes > maxBytes)
+            {
+                return input[..i].TrimEnd( );
+            }
+
             used += bytes;
             i += runeLength - 1;
         }

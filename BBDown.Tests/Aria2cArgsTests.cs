@@ -1,6 +1,4 @@
 using System.IO;
-using System.Linq;
-using Xunit;
 
 namespace BBDown.Tests;
 
@@ -21,7 +19,7 @@ public class Aria2cArgsTests
     }
 
     [Fact]
-    public void BuildArgs_PutsHeadersAndTargetInSeparateTokens()
+    public void BuildArgs_PutsHeadersAndTargetInSeparateTokens( )
     {
         var path = Path.Combine(Path.GetTempPath( ), "bbdown", "video.m4s");
 
@@ -46,7 +44,7 @@ public class Aria2cArgsTests
     }
 
     [Fact]
-    public void BuildArgs_KeepsQuotedExtraArgumentAsOneToken()
+    public void BuildArgs_KeepsQuotedExtraArgumentAsOneToken( )
     {
         var args = BBDownAria2c.BuildArgs("https://cdn.example.com/v.m4s", "/tmp/v.m4s",
             "--user-agent=\"Mozilla 5.0 fake\" --max-tries=3", "");
@@ -56,7 +54,7 @@ public class Aria2cArgsTests
     }
 
     [Fact]
-    public void BuildArgs_DoesNotLetCookieForgeExtraOptions()
+    public void BuildArgs_DoesNotLetCookieForgeExtraOptions( )
     {
         var args = BBDownAria2c.BuildArgs("https://cdn.example.com/v.m4s", "/tmp/v.m4s", "",
             "SESSDATA=abc\" --on-download-complete=/bin/sh \"");

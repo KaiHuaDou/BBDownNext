@@ -1,6 +1,5 @@
 using System.IO;
 using System.Threading.Tasks;
-using BBDown;
 
 namespace BBDown.Tests;
 
@@ -19,7 +18,10 @@ public class CredentialStoreTests
         }
         finally
         {
-            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, true);
+            }
         }
     }
 
@@ -31,13 +33,17 @@ public class CredentialStoreTests
         try
         {
             await CredentialStore.SaveTvToken("fromfile", null, dir);
-            var (cookie, token) = CredentialStore.LoadAll("cliCookie", "access_token=cli", false, true, dir);
+            // LoadAll 有意不剥离 access_token= 前缀：调用方须传入纯令牌（前缀剥离已移除）。
+            var (cookie, token) = CredentialStore.LoadAll("cliCookie", "cli", false, true, dir);
             Assert.Equal("cliCookie", cookie);
             Assert.Equal("cli", token);
         }
         finally
         {
-            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, true);
+            }
         }
     }
 
@@ -66,7 +72,10 @@ public class CredentialStoreTests
         }
         finally
         {
-            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, true);
+            }
         }
     }
 
@@ -84,7 +93,10 @@ public class CredentialStoreTests
         }
         finally
         {
-            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, true);
+            }
         }
     }
 
@@ -101,7 +113,10 @@ public class CredentialStoreTests
         }
         finally
         {
-            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, true);
+            }
         }
     }
 }

@@ -10,7 +10,7 @@ using BBDown.Core;
 using BBDown.Core.Entity;
 using BBDown.Core.Util;
 
-using static BBDown.BBDownDownloadUtil;
+using static BBDown.DownloadUtil;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Parser;
@@ -24,9 +24,15 @@ internal sealed partial class Program
     // Aborted 为 true 表示该分P应立即结束（不再登记 SavePath）；Selected 需回传以跨重试保留用户已手动选轨的状态
     private readonly record struct PageOutcome(bool Aborted, string SavePath, bool Selected)
     {
-        public static PageOutcome Abort(bool selected) => new(true, "", selected);
+        public static PageOutcome Abort(bool selected)
+        {
+            return new(true, "", selected);
+        }
 
-        public static PageOutcome Done(string savePath, bool selected) => new(false, savePath, selected);
+        public static PageOutcome Done(string savePath, bool selected)
+        {
+            return new(false, savePath, selected);
+        }
     }
 
     public static async Task DownloadPagesAsync(DownloadOptions myOption, WorkContext ctx, DownloadTask? relatedTask = null, CancellationToken ct = default)
@@ -42,7 +48,7 @@ internal sealed partial class Program
         //过滤不需要的分P
         if (selectedPages != null)
         {
-            pagesInfo = pagesInfo.Where(p => selectedPages.Contains(p.index.ToString( ))).ToList( );
+            pagesInfo = [.. pagesInfo.Where(p => selectedPages.Contains(p.index.ToString( )))];
         }
 
         ctx = ctx with { SavePathFormat = ResolveSavePathFormat(myOption, totalPages, vInfo.IsBangumi, vInfo.IsBangumiEnd) };
@@ -105,7 +111,10 @@ internal sealed partial class Program
             catch (Exception ex)
             {
                 errors.Add((page, ex));
-                if (stopOnError) break;
+                if (stopOnError)
+                {
+                    break;
+                }
             }
         }
 
@@ -161,7 +170,11 @@ internal sealed partial class Program
                 outcome = await DownloadTracksAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
 
                 selected = outcome.Selected;
-                if (outcome.Aborted) return outcome;
+                if (outcome.Aborted)
+                {
+                    return outcome;
+                }
+
                 if (!string.IsNullOrWhiteSpace(outcome.SavePath))
                 {
                     relatedTask?.SavePaths.Add(outcome.SavePath);
@@ -169,7 +182,11 @@ internal sealed partial class Program
             }
             catch (Exception ex) when (ShouldRetry(ex))
             {
-                if (++retryCount > 2) throw;
+                if (++retryCount > 2)
+                {
+                    throw;
+                }
+
                 LogError(ex.Message);
                 var backoff = TimeSpan.FromSeconds(1 << retryCount);
                 LogWarn($"下载出现异常，{backoff.TotalSeconds:0} 秒后将进行自动重试...");
@@ -198,7 +215,10 @@ internal sealed partial class Program
                || (ex is AggregateException agg && agg.InnerExceptions.Any(e => e is OperationCanceledException));
     }
 
-    internal static bool ShouldRetry(Exception ex) => !IsRangeUnsupported(ex) && !IsCancellation(ex);
+    internal static bool ShouldRetry(Exception ex)
+    {
+        return !IsRangeUnsupported(ex) && !IsCancellation(ex);
+    }
 
     private static PageContext BuildPageContext(Page p, WorkContext ctx, List<Page> selectedPagesInfo)
     {
@@ -229,8 +249,8 @@ internal sealed partial class Program
     internal static bool ShouldDeleteCover(Page p, List<Page> selectedPagesInfo)
     {
         return selectedPagesInfo.Count == 1
-            || p.index == selectedPagesInfo.Last( ).index
-            || p.aid != selectedPagesInfo.Last( ).aid;
+            || p.index == selectedPagesInfo[ ^1].index
+            || p.aid != selectedPagesInfo[ ^1].aid;
     }
 
     internal static DownloadConfig BuildDownloadConfig(DownloadOptions myOption, AppConfig cfg, DownloadTask? relatedTask)
@@ -265,8 +285,8 @@ internal sealed partial class Program
         var subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.UseIntlApi, ctx.Cfg, ct);
         if (!myOption.AllowAi && subtitleInfo.Count != 0)
         {
-            Log($"跳过下载 AI 字幕。");
-            subtitleInfo = subtitleInfo.Where(s => !s.lan.StartsWith("ai-")).ToList( );
+            Log("跳过下载 AI 字幕。");
+            subtitleInfo = [.. subtitleInfo.Where(s => !s.lan.StartsWith("ai-"))];
         }
 
         foreach (var s in subtitleInfo)
@@ -288,7 +308,10 @@ internal sealed partial class Program
     {
         var outSubPath = FormatSavePath(ctx, pageCtx, null, null);
         var outDir = Path.GetDirectoryName(outSubPath);
-        if (!string.IsNullOrEmpty(outDir)) Directory.CreateDirectory(outDir);
+        if (!string.IsNullOrEmpty(outDir))
+        {
+            Directory.CreateDirectory(outDir);
+        }
 
         outSubPath = Path.ChangeExtension(outSubPath, $".{s.lan}.srt");
         File.Move(s.path, outSubPath, true);
@@ -325,13 +348,19 @@ internal sealed partial class Program
         if (parsedResult.VideoTracks.Count == 0)
         {
             LogWarn("没有找到符合要求的视频流。");
-            if (myOption.VideoOnly) return PageOutcome.Abort(selected);
+            if (myOption.VideoOnly)
+            {
+                return PageOutcome.Abort(selected);
+            }
         }
 
         if (parsedResult.AudioTracks.Count == 0)
         {
             LogWarn("没有找到符合要求的音频流。");
-            if (myOption.AudioOnly) return PageOutcome.Abort(selected);
+            if (myOption.AudioOnly)
+            {
+                return PageOutcome.Abort(selected);
+            }
         }
 
         if (myOption.AudioOnly)
@@ -388,7 +417,7 @@ internal sealed partial class Program
             relatedTask?.SavePaths.Add(newCoverPath);
         }
 
-        Log($"已选择的流：");
+        Log("已选择的流：");
         PrintSelectedTrackInfo(selectedVideo, selectedAudio, p.dur);
 
         HandleCdnHost(myOption, selectedVideo, selectedAudio, ctx.Cfg);
@@ -408,10 +437,10 @@ internal sealed partial class Program
         var useMp4box = myOption.UseMP4box;
         if (selectedVideo != null)
         {
-            //杜比视界(id=126), 若 ffmpeg 版本小于 5.0, 使用 mp4box 封装
+            // 杜比视界(id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
             if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI( ))
             {
-                LogWarn($"检测到杜比视界清晰度且您的 ffmpeg 版本小于 5.0，将使用 mp4box 混流...");
+                LogWarn("检测到杜比视界清晰度且您的 FFmpeg 版本小于 5.0，将使用 mp4box 混流...");
                 useMp4box = true;
             }
 
@@ -442,16 +471,29 @@ internal sealed partial class Program
         }
 
         Log($"下载 P{p.index} 完毕。");
-        if (parsedResult.VideoTracks.Count == 0) videoPath = "";
-        if (parsedResult.AudioTracks.Count == 0) audioPath = "";
-        if (myOption.SkipMux) return PageOutcome.Abort(selected);
+        if (parsedResult.VideoTracks.Count == 0)
+        {
+            videoPath = "";
+        }
+
+        if (parsedResult.AudioTracks.Count == 0)
+        {
+            audioPath = "";
+        }
+
+        if (myOption.SkipMux)
+        {
+            return PageOutcome.Abort(selected);
+        }
 
         Log($"开始合并音视频{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
         if (myOption.AudioOnly)
+        {
             savePath = ToAudioOnlyPath(savePath);
+        }
 
         var isHevc = selectedVideo?.codecs == "HEVC";
-        int code = await BBDownMuxer.MuxAV(useMp4box, p.bvid, videoPath, audioPath, audioMaterial, savePath,
+        var code = await Muxer.MuxAV(useMp4box, p.bvid, videoPath, audioPath, audioMaterial, savePath,
             pageCtx.Desc,
             pageCtx.Title,
             p.ownerName ?? "",
@@ -490,7 +532,11 @@ internal sealed partial class Program
                 parsedResult.VideoTracks.Clear( );
                 parsedResult = await ExtractTracksAsync(ctx.FetchedAid, p.aid, p.cid, p.epid,
                     myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.FirstEncoding, ctx.Cfg, dfns[vIndex], ct);
-                if (p.points.Count == 0) p.points = parsedResult.ExtraPoints;
+                if (p.points.Count == 0)
+                {
+                    p.points = parsedResult.ExtraPoints;
+                }
+
                 reParsed = true;
                 selected = true;
                 continue;
@@ -509,7 +555,10 @@ internal sealed partial class Program
                 }
             }
 
-            if (myOption.OnlyShowInfo) return PageOutcome.Abort(selected);
+            if (myOption.OnlyShowInfo)
+            {
+                return PageOutcome.Abort(selected);
+            }
 
             var savePath = FormatSavePath(ctx, pageCtx, parsedResult.VideoTracks.ElementAtOrDefault(vIndex), null);
             if (File.Exists(savePath) && new FileInfo(savePath).Length != 0)
@@ -531,7 +580,7 @@ internal sealed partial class Program
             var videoPath = pageCtx.VideoPath;
             try
             {
-                await BBDownMuxer.MergeFLV([.. clipPaths], videoPath, ct);
+                await Muxer.MergeFLV([.. clipPaths], videoPath, ct);
             }
             finally
             {
@@ -541,13 +590,19 @@ internal sealed partial class Program
                     PartFile.Discard(file);
                 }
             }
-            if (myOption.SkipMux) return PageOutcome.Abort(selected);
+
+            if (myOption.SkipMux)
+            {
+                return PageOutcome.Abort(selected);
+            }
 
             Log($"开始混流视频{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
             if (myOption.AudioOnly)
+            {
                 savePath = ToAudioOnlyPath(savePath);
+            }
 
-            int code = await BBDownMuxer.MuxAV(false, p.bvid, videoPath, "", audioMaterial, savePath,
+            var code = await Muxer.MuxAV(false, p.bvid, videoPath, "", audioMaterial, savePath,
                 pageCtx.Desc,
                 pageCtx.Title,
                 p.ownerName ?? "",
@@ -573,7 +628,11 @@ internal sealed partial class Program
         Log("请选择最想要的清晰度（输入序号）：", false);
         Console.ForegroundColor = ConsoleColor.Cyan;
         var vIndex = Convert.ToInt32(Console.ReadLine( ));
-        if (vIndex > dfns.Count || vIndex < 0) vIndex = 0;
+        if (vIndex > dfns.Count || vIndex < 0)
+        {
+            vIndex = 0;
+        }
+
         Console.ResetColor( );
         return vIndex;
     }
@@ -613,18 +672,21 @@ internal sealed partial class Program
             Log("当前视频没有弹幕，删除 XML...");
             File.Delete(danmakuXmlPath);
         }
-        else if (ctx.DownloadDanmakuFormats.Contains(BBDownDanmakuFormat.Ass))
+        else if (ctx.DownloadDanmakuFormats.Contains(DanmakuFormat.Ass))
         {
             Log("正在保存弹幕 ASS 文件...");
             await DanmakuUtil.SaveAsAssAsync(danmakus, danmakuAssPath, ct);
         }
 
-        if (!ctx.DownloadDanmakuFormats.Contains(BBDownDanmakuFormat.Xml) && File.Exists(danmakuXmlPath))
+        if (!ctx.DownloadDanmakuFormats.Contains(DanmakuFormat.Xml) && File.Exists(danmakuXmlPath))
         {
             File.Delete(danmakuXmlPath);
         }
 
-        if (!myOption.DanmakuOnly) return false;
+        if (!myOption.DanmakuOnly)
+        {
+            return false;
+        }
 
         TryDeleteEmptyDir(pageCtx.TempDir);
 
@@ -653,14 +715,26 @@ internal sealed partial class Program
         PartFile.Discard(audioPath);
         var trackPath = string.IsNullOrEmpty(videoPath) ? audioPath : videoPath;
         if (pageCtx.Page.points.Count != 0 && !string.IsNullOrEmpty(trackPath))
+        {
             SafeDelete(Path.Combine(Path.GetDirectoryName(trackPath) ?? "", "chapters"));
-        foreach (var s in subtitleInfo) SafeDelete(s.path);
+        }
+
+        foreach (var s in subtitleInfo)
+        {
+            SafeDelete(s.path);
+        }
+
         foreach (var a in audioMaterial)
         {
             SafeDelete(a.path);
             PartFile.Discard(a.path);
         }
-        if (pageCtx.DeleteCoverAfterMux) SafeDelete(pageCtx.CoverPath);
+
+        if (pageCtx.DeleteCoverAfterMux)
+        {
+            SafeDelete(pageCtx.CoverPath);
+        }
+
         TryDeleteEmptyDir(pageCtx.TempDir);
     }
 
@@ -734,8 +808,8 @@ internal sealed partial class Program
                 "videoBandwidth" => videoTrack == null ? "" : videoTrack.bandwidth.ToString( ),
                 "audioCodecs" => audioTrack == null ? "" : audioTrack.codecs,
                 "audioBandwidth" => audioTrack == null ? "" : audioTrack.bandwidth.ToString( ),
-                "publishDate" => FormatTimeStamp(pubTime, defaultDateFormat),
-                "videoDate" => FormatTimeStamp(p.pubTime, defaultDateFormat),
+                "publishDate" => Utils.FormatTimeStamp(pubTime, defaultDateFormat),
+                "videoDate" => Utils.FormatTimeStamp(p.pubTime, defaultDateFormat),
                 "apiType" => apiType,
                 _ => UnknownPlaceholder(key)
             };
@@ -759,12 +833,17 @@ internal sealed partial class Program
         return $"<{key}>";
     }
 
-    internal static string ToAudioOnlyPath(string savePath) => Path.ChangeExtension(savePath, ".m4a");
+    internal static string ToAudioOnlyPath(string savePath)
+    {
+        return Path.ChangeExtension(savePath, ".m4a");
+    }
 
     private static void TryDeleteEmptyDir(string path)
     {
         if (Directory.Exists(path) && Directory.GetFiles(path).Length == 0)
+        {
             Directory.Delete(path, true);
+        }
     }
 
     [GeneratedRegex("<([\\w:\\-.]+?)>")]

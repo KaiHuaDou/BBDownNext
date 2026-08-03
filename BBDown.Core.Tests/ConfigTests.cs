@@ -1,5 +1,3 @@
-using Xunit;
-
 namespace BBDown.Core.Tests;
 
 public class ConfigTests
@@ -26,7 +24,7 @@ public class ConfigTests
     }
 
     [Fact]
-    public void MaxQn_IsHighestQuality()
+    public void MaxQn_IsHighestQuality( )
     {
         Assert.Equal("127", Config.MaxQn);
     }

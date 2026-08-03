@@ -28,13 +28,19 @@ public static partial class Parser
     internal static ParsedResult BuildAppParsedResult(PlayViewReply resp, bool isEpisode, string aid, string cid)
     {
         ParsedResult result = new( );
-        if (resp.VideoInfo == null) return result;
+        if (resp.VideoInfo == null)
+        {
+            return result;
+        }
 
         var pDur = (int) (resp.VideoInfo.Timelength / 1000);
         CollectAppVideoTracks(result, resp.VideoInfo, pDur);
         CollectAppAudioTracks(result, resp.VideoInfo, pDur);
 
-        if (!isEpisode) return result;
+        if (!isEpisode)
+        {
+            return result;
+        }
 
         CollectAppDubbingTracks(result, resp.PlayExtInfo?.PlayDubbingInfo, pDur, aid, cid);
         if (resp.Business != null)
@@ -55,7 +61,10 @@ public static partial class Parser
         foreach (var stream in info.StreamList)
         {
             // 仅提供分段(flv)地址的档位没有 dashVideo, 直接跳过
-            if (stream.DashVideo == null) continue;
+            if (stream.DashVideo == null)
+            {
+                continue;
+            }
 
             var quality = (stream.StreamInfo?.Quality ?? 0).ToString( );
             Video v = new( )
@@ -93,7 +102,10 @@ public static partial class Parser
 
     private static void CollectAppDubbingTracks(ParsedResult result, PlayDubbingInfo? dubbing, int pDur, string aid, string cid)
     {
-        if (dubbing == null) return;
+        if (dubbing == null)
+        {
+            return;
+        }
 
         if (dubbing.BackgroundAudio != null)
         {

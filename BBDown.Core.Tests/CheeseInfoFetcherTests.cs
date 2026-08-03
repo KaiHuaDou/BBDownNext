@@ -1,14 +1,13 @@
 using System.Text.Json;
-using BBDown.Core.Entity;
+
 using BBDown.Core.Fetcher;
-using Xunit;
 
 namespace BBDown.Core.Tests;
 
 public class CheeseInfoFetcherTests
 {
     [Fact]
-    public void BuildPages_IncludesWatchableAndSkipsLocked()
+    public void BuildPages_IncludesWatchableAndSkipsLocked( )
     {
         const string json = """
         {
@@ -33,7 +32,7 @@ public class CheeseInfoFetcherTests
     }
 
     [Fact]
-    public void BuildPages_MissingStatus_DefaultsToWatchable()
+    public void BuildPages_MissingStatus_DefaultsToWatchable( )
     {
         // 接口偶尔省略 status 字段，应默认视为可观看，避免误删。
         const string json = """
@@ -47,7 +46,7 @@ public class CheeseInfoFetcherTests
     }
 
     [Fact]
-    public void BuildPages_AllLocked_ReturnsEmpty()
+    public void BuildPages_AllLocked_ReturnsEmpty( )
     {
         // 全部锁定时返回空列表，FetchAsync 据此抛出明确错误而非逐集报 -403。
         const string json = """

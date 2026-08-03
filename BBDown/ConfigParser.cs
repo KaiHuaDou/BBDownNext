@@ -9,7 +9,7 @@ using static BBDown.Core.Logger;
 
 namespace BBDown;
 
-internal static class BBDownConfigParser
+internal static class ConfigParser
 {
     /// <summary>
     /// 用配置文件补齐命令行未显式指定的选项，返回待解析的完整参数表。
@@ -26,8 +26,15 @@ internal static class BBDownConfigParser
         try
         {
             var configPath = cliResult.GetValue<string>("--config");
-            if (string.IsNullOrEmpty(configPath)) configPath = Path.Combine(Program.APP_DIR, "BBDown.config");
-            if (!File.Exists(configPath)) return cliArgs;
+            if (string.IsNullOrEmpty(configPath))
+            {
+                configPath = Path.Combine(Program.AppDir, "BBDown.config");
+            }
+
+            if (!File.Exists(configPath))
+            {
+                return cliArgs;
+            }
 
             Log($"加载配置文件：{configPath}");
             var configResult = rootCommand.Parse(TokenizeConfigLines(configPath));
@@ -40,7 +47,11 @@ internal static class BBDownConfigParser
             List<string> extraOptions = [];
             foreach (var o in configResult.CommandResult.Children.OfType<OptionResult>( ))
             {
-                if (o.Implicit || specified.Contains(o.Option.Name)) continue;
+                if (o.Implicit || specified.Contains(o.Option.Name))
+                {
+                    continue;
+                }
+
                 extraOptions.Add(o.Option.Name);
                 extraOptions.AddRange(o.Tokens.Select(t => t.Value));
             }
@@ -75,11 +86,14 @@ internal static class BBDownConfigParser
                 .Where(s => !string.IsNullOrWhiteSpace(s) && !s.TrimStart( ).StartsWith('#'))
                 .SelectMany(s =>
                 {
-                    var trimLine = s.Trim( );
-                    if (!trimLine.StartsWith('-') || !trimLine.Contains(' ')) return [trimLine.Trim('"')];
+                    var line = s.Trim( );
+                    if (!line.StartsWith('-') || !line.Contains(' '))
+                    {
+                        return [line.Trim('"')];
+                    }
 
-                    var spaceIndex = trimLine.IndexOf(' ');
-                    string[] paramsGroup = [trimLine[..spaceIndex], trimLine[spaceIndex..]];
+                    var spaceIndex = line.IndexOf(' ');
+                    string[] paramsGroup = [line[..spaceIndex], line[spaceIndex..]];
                     return paramsGroup.Where(x => !string.IsNullOrEmpty(x)).Select(x => x.Trim(' ').Trim('"'));
                 })
         ];

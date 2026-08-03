@@ -1,7 +1,6 @@
 using System.Threading.Tasks;
-using BBDown;
+
 using BBDown.Core;
-using Xunit;
 
 namespace BBDown.Tests;
 
@@ -23,7 +22,7 @@ public class InputResolverCheeseTests
     }
 
     [Fact]
-    public async Task GetAvIdAsync_CheeseSs_KeepsSeasonMarkerForFetcher()
+    public async Task GetAvIdAsync_CheeseSs_KeepsSeasonMarkerForFetcher( )
     {
         // ss 形态必须保留 "ss" 前缀，CheeseInfoFetcher 才能按 season_id 直接拉取整季、避免二次请求。
         var result = await InputResolver.GetAvIdAsync("https://www.bilibili.com/cheese/play/ss61", AppConfig.Empty);

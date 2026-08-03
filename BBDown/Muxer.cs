@@ -17,10 +17,10 @@ using static BBDown.Utils;
 
 namespace BBDown;
 
-internal static class BBDownMuxer
+internal static class Muxer
 {
-    public static string FFMPEG = "ffmpeg";
-    public static string MP4BOX = "mp4box";
+    public static string ffmpeg = "ffmpeg";
+    public static string mp4box = "mp4box";
 
     private static async Task<int> RunExe(string app, List<string> args, CancellationToken ct = default)
     {
@@ -36,7 +36,7 @@ internal static class BBDownMuxer
         p.StartInfo.RedirectStandardError = true;
         p.StartInfo.CreateNoWindow = true;
         p.StartInfo.StandardErrorEncoding = Encoding.UTF8;
-        p.ErrorDataReceived += delegate (object sendProcess, DataReceivedEventArgs output)
+        p.ErrorDataReceived += (sendProcess, output) =>
         {
             if (!string.IsNullOrWhiteSpace(output.Data))
             {
@@ -46,18 +46,24 @@ internal static class BBDownMuxer
         p.Start( );
         p.BeginErrorReadLine( );
         // 取消时杀掉子进程, 避免 ffmpeg 在 WaitForExitAsync 已取消后仍挂起
-        using var _ = ct.Register(() => { try { p.Kill( ); } catch { } });
+        await using var _ = ct.Register(( ) => { try { p.Kill( ); } catch { } });
         await p.WaitForExitAsync(ct);
         return p.ExitCode;
     }
 
     private static string FormatArgs(List<string> args)
-        => string.Join(' ', args.Select(a => a.Length == 0 || a.Contains(' ') ? $"\"{a}\"" : a));
+    {
+        return string.Join(' ', args.Select(a => a.Length == 0 || a.Contains(' ') ? $"\"{a}\"" : a));
+    }
 
     internal static List<string> BuildMp4boxArgs(string url, string videoPath, string audioPath, string outPath, string desc, string title, string author, string episodeId, string pic, string lang, List<Subtitle> subs, bool audioOnly, string? chapterFile, bool debugLog)
     {
         List<string> args = [];
-        if (debugLog) args.Add("-v");
+        if (debugLog)
+        {
+            args.Add("-v");
+        }
+
         args.AddRange(["-inter", "500", "-noprog"]);
 
         var trackId = 0;
@@ -73,7 +79,10 @@ internal static class BBDownMuxer
             trackId++;
         }
 
-        if (chapterFile != null) args.AddRange(["-chap", chapterFile]);
+        if (chapterFile != null)
+        {
+            args.AddRange(["-chap", chapterFile]);
+        }
 
         foreach (var sub in subs)
         {
@@ -84,9 +93,20 @@ internal static class BBDownMuxer
         }
 
         var tags = new StringBuilder("tool=");
-        if (pic.Length != 0) tags.Append($":cover={pic}");
-        if (episodeId.Length != 0) tags.Append($":album={title}:title={episodeId}");
-        else tags.Append($":title={title}");
+        if (pic.Length != 0)
+        {
+            tags.Append($":cover={pic}");
+        }
+
+        if (episodeId.Length != 0)
+        {
+            tags.Append($":album={title}:title={episodeId}");
+        }
+        else
+        {
+            tags.Append($":title={title}");
+        }
+
         tags.Append($":sdesc={desc}");
         tags.Append($":comment={url}");
         tags.Append($":artist={author}");
@@ -104,7 +124,11 @@ internal static class BBDownMuxer
 
         foreach (var path in new[] { videoPath, audioPath })
         {
-            if (path.Length == 0) continue;
+            if (path.Length == 0)
+            {
+                continue;
+            }
+
             inputCount++;
             args.AddRange(["-i", path]);
         }
@@ -118,8 +142,15 @@ internal static class BBDownMuxer
                 inputCount++;
                 audioIndex++;
                 args.AddRange(["-i", audio.path]);
-                if (!string.IsNullOrWhiteSpace(audio.title)) meta.AddRange([$"-metadata:s:a:{audioIndex}", $"title={audio.title}"]);
-                if (!string.IsNullOrWhiteSpace(audio.personName)) meta.AddRange([$"-metadata:s:a:{audioIndex}", $"artist={audio.personName}"]);
+                if (!string.IsNullOrWhiteSpace(audio.title))
+                {
+                    meta.AddRange([$"-metadata:s:a:{audioIndex}", $"title={audio.title}"]);
+                }
+
+                if (!string.IsNullOrWhiteSpace(audio.personName))
+                {
+                    meta.AddRange([$"-metadata:s:a:{audioIndex}", $"artist={audio.personName}"]);
+                }
             }
         }
 
@@ -137,9 +168,15 @@ internal static class BBDownMuxer
             meta.AddRange([$"-metadata:s:s:{i}", $"title={name}", $"-metadata:s:s:{i}", $"language={code}"]);
         }
 
-        if (pic.Length != 0) meta.AddRange([$"-disposition:v:{(audioOnly ? 0 : 1)}", "attached_pic"]);
+        if (pic.Length != 0)
+        {
+            meta.AddRange([$"-disposition:v:{(audioOnly ? 0 : 1)}", "attached_pic"]);
+        }
 
-        if (chapterFile != null) args.AddRange(["-i", chapterFile, "-map_chapters", inputCount.ToString( )]);
+        if (chapterFile != null)
+        {
+            args.AddRange(["-i", chapterFile, "-map_chapters", inputCount.ToString( )]);
+        }
 
         for (var i = 0; i < inputCount; i++)
         {
@@ -152,18 +189,47 @@ internal static class BBDownMuxer
         {
             args.AddRange(["-metadata", $"title={(episodeId.Length == 0 ? title : episodeId)}"]);
             args.AddRange(["-metadata", $"comment={url}"]);
-            if (lang.Length != 0) args.AddRange(["-metadata:s:a:0", $"language={lang}"]);
-            if (!string.IsNullOrWhiteSpace(desc)) args.AddRange(["-metadata", $"description={desc}"]);
-            if (author.Length != 0) args.AddRange(["-metadata", $"artist={author}"]);
-            if (episodeId.Length != 0) args.AddRange(["-metadata", $"album={title}"]);
-            if (pubTime != 0) args.AddRange(["-metadata", $"creation_time={DateTimeOffset.FromUnixTimeSeconds(pubTime):yyyy-MM-ddTHH:mm:ss.ffffffZ}"]);
+            if (lang.Length != 0)
+            {
+                args.AddRange(["-metadata:s:a:0", $"language={lang}"]);
+            }
+
+            if (!string.IsNullOrWhiteSpace(desc))
+            {
+                args.AddRange(["-metadata", $"description={desc}"]);
+            }
+
+            if (author.Length != 0)
+            {
+                args.AddRange(["-metadata", $"artist={author}"]);
+            }
+
+            if (episodeId.Length != 0)
+            {
+                args.AddRange(["-metadata", $"album={title}"]);
+            }
+
+            if (pubTime != 0)
+            {
+                args.AddRange(["-metadata", $"creation_time={DateTimeOffset.FromUnixTimeSeconds(pubTime):yyyy-MM-ddTHH:mm:ss.ffffffZ}"]);
+            }
         }
 
         args.AddRange(["-c:v", "copy", "-c:a", "copy"]);
-        if (audioOnly && audioPath.Length == 0) args.Add("-vn");
-        if (subs.Count != 0) args.AddRange(["-c:s", "mov_text"]);
+        if (audioOnly && audioPath.Length == 0)
+        {
+            args.Add("-vn");
+        }
+
+        if (subs.Count != 0)
+        {
+            args.AddRange(["-c:s", "mov_text"]);
+        }
         // fix macOS hev1, see https://discussions.apple.com/thread/253081863?sortBy=rank
-        if (tagHvc1) args.AddRange(["-tag:v:0", "hvc1"]);
+        if (tagHvc1)
+        {
+            args.AddRange(["-tag:v:0", "hvc1"]);
+        }
         // -strict -2：允许实验性编码器/封装（如 mp4 容器内 hev1/hvc1 之外的实验性流）
         args.AddRange(["-movflags", "faststart", "-strict", "-2", "-f", "mp4", "--", outPath]);
         return args;
@@ -185,7 +251,10 @@ internal static class BBDownMuxer
         var validSubs = subs?.Where(s => File.Exists(s.path) && File.ReadAllText(s.path).Length != 0).ToList( ) ?? [];
 
         var outDir = Path.GetDirectoryName(outPath);
-        if (!string.IsNullOrEmpty(outDir)) Directory.CreateDirectory(outDir);
+        if (!string.IsNullOrEmpty(outDir))
+        {
+            Directory.CreateDirectory(outDir);
+        }
 
         string? chapterFile = null;
         if (points != null && points.Count != 0)
@@ -195,14 +264,18 @@ internal static class BBDownMuxer
         }
 
         return useMp4box
-            ? await RunExe(MP4BOX, BuildMp4boxArgs(url, videoPath, audioPath, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, Config.DebugLog), ct)
-            : await RunExe(FFMPEG, BuildFFmpegArgs(url, videoPath, audioPath, audioMaterial, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, pubTime, noMetadata, isHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog), ct);
+            ? await RunExe(mp4box, BuildMp4boxArgs(url, videoPath, audioPath, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, Config.DebugLog), ct)
+            : await RunExe(ffmpeg, BuildFFmpegArgs(url, videoPath, audioPath, audioMaterial, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, pubTime, noMetadata, isHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog), ct);
     }
 
     public static async Task MergeFLV(string[] files, string outPath, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(files);
-        if (files.Length == 0) return;
+        if (files.Length == 0)
+        {
+            return;
+        }
+
         if (files.Length == 1)
         {
             File.Move(files[0], outPath, true);
@@ -216,7 +289,7 @@ internal static class BBDownMuxer
             foreach (var file in files)
             {
                 var tmpFile = Path.Combine(Path.GetDirectoryName(file)!, Path.GetFileNameWithoutExtension(file) + ".ts");
-                await RunExe(FFMPEG, ["-loglevel", "warning", "-y", "-i", file, "-map", "0", "-c", "copy", "-f", "mpegts", "-bsf:v", "h264_mp4toannexb", tmpFile], ct);
+                await RunExe(ffmpeg, ["-loglevel", "warning", "-y", "-i", file, "-map", "0", "-c", "copy", "-f", "mpegts", "-bsf:v", "h264_mp4toannexb", tmpFile], ct);
                 tsFiles.Add(tmpFile);
                 SafeDelete(file);
             }

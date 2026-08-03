@@ -1,16 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading;
-using System.Text.RegularExpressions;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -45,19 +45,29 @@ public static partial class Login
         """;
 
     // code 字段在 Web 与 TV 两套接口间类型不一致（整数/字符串），ToString 对两种 ValueKind 都能取到原文
-    private static int ReadCode(JsonElement element) => int.Parse(element.ToString( ));
+    private static int ReadCode(JsonElement element)
+    {
+        return int.Parse(element.ToString( ));
+    }
 
     private static string ReadMessage(JsonElement element)
-        => element.TryGetProperty("message", out var m) ? (m.GetString( ) ?? "") : "";
+    {
+        return element.TryGetProperty("message", out var m) ? (m.GetString( ) ?? "") : "";
+    }
 
     // 日志中只展示凭据首尾，避免明文泄露（P0-3）
     private static string MaskSecret(string? s)
-        => string.IsNullOrEmpty(s) || s.Length <= 8 ? "***" : $"{s[..4]}****{s[^4..]}";
+    {
+        return string.IsNullOrEmpty(s) || s.Length <= 8 ? "***" : $"{s[..4]}****{s[^4..]}";
+    }
 
     public static (QrState State, string? Data) InterpretWeb(JsonElement root)
     {
         var outer = ReadCode(root.GetProperty("code"));
-        if (outer != 0) throw new InvalidOperationException($"轮询失败：{outer} {ReadMessage(root)}");
+        if (outer != 0)
+        {
+            throw new InvalidOperationException($"轮询失败：{outer} {ReadMessage(root)}");
+        }
 
         var data = root.GetProperty("data");
         var state = ReadCode(data.GetProperty("code")) switch
@@ -111,7 +121,7 @@ public static partial class Login
 
     private static async Task RunQrLoginAsync(QrLoginPlan plan, string qrPath)
     {
-        var (url, key) = await plan.Generate();
+        var (url, key) = await plan.Generate( );
         await ShowQrCodeAsync(url, qrPath);
         var confirmed = false;
         while (true)
@@ -131,9 +141,14 @@ public static partial class Login
                         Log("扫码成功，请确认...");
                         confirmed = true;
                     }
+
                     break;
                 case QrState.Success:
-                    if (data is not null) await plan.Persist(data);
+                    if (data is not null)
+                    {
+                        await plan.Persist(data);
+                    }
+
                     return;
             }
         }
@@ -153,7 +168,10 @@ public static partial class Login
 
     private static void DeleteQrCode(string path)
     {
-        if (File.Exists(path)) File.Delete(path);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
     }
 
     public static async Task<int> Web( )
@@ -166,6 +184,7 @@ public static partial class Login
         {
             // 设备指纹（buvid3/4）非登录必需，但 B 站风控可能核查；尽力初始化，失败不阻断
             try { await Buvid.InitAsync( ); } catch { }
+
             await RunQrLoginAsync(new QrLoginPlan(
                 Generate: async ( ) =>
                 {
@@ -191,15 +210,19 @@ public static partial class Login
                     {
                         refreshToken = rt.ValueKind == JsonValueKind.String ? rt.GetString( ) : null;
                     }
+
                     return (state, url);
                 },
                 Persist: async url =>
                 {
                     var cookie = await BuildWebCookieResilient(url, pollResp);
                     Log($"登录成功：SESSDATA={MaskSecret(GetCookieValue("SESSDATA", cookie))}");
-                    await CredentialStore.SaveWebCookie(cookie, refreshToken: refreshToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    await CredentialStore.SaveWebCookie(cookie, refreshToken: refreshToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
                     if (!string.IsNullOrEmpty(refreshToken))
+                    {
                         Log("已保存 refresh_token，将用于后续 SESSDATA 主动续期。");
+                    }
+
                     success = true;
                 },
                 ExpiredText: "二维码已过期，请重新执行登录指令。"), qrPath);
@@ -210,6 +233,7 @@ public static partial class Login
             pollResp?.Dispose( );
             DeleteQrCode(qrPath);
         }
+
         return success ? 0 : 1;
     }
 
@@ -277,11 +301,16 @@ public static partial class Login
         return string.Join(';', WebCookieNames.Select(n => $"{n}={EscapeCookieValue(values[n])}"));
     }
 
-    private static string EscapeCookieValue(string value) => value.Replace(",", "%2C");
+    private static string EscapeCookieValue(string value)
+    {
+        return value.Replace(",", "%2C");
+    }
 
     private static string? GetCookieValue(string name, string cookie)
-        => cookie.Split(';').Select(p => p.Trim( ).Split('=', 2))
-            .FirstOrDefault(kv => kv.Length == 2 && kv[0] == name)?[1];
+    {
+        return cookie.Split(';').Select(p => p.Trim( ).Split('=', 2))
+                .FirstOrDefault(kv => kv.Length == 2 && kv[0] == name)?[1];
+    }
 
     // ── Web Cookie 主动续期（cookie_refresh）───────────────────────────────────
 
@@ -302,7 +331,7 @@ public static partial class Login
             var (newCookie, newRefresh) = await RefreshWebCookieAsync(cookie, refreshToken, ct);
             if (!string.IsNullOrEmpty(newCookie))
             {
-                await CredentialStore.SaveWebCookie(newCookie, refreshToken: newRefresh ?? refreshToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds(), dir: dir);
+                await CredentialStore.SaveWebCookie(newCookie, dir: dir, refreshToken: newRefresh ?? refreshToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
                 Log("Web Cookie 已通过 refresh_token 主动续期。");
                 return newCookie;
             }
@@ -327,6 +356,7 @@ public static partial class Login
         {
             return (null, null);
         }
+
         var timestamp = data.GetProperty("timestamp").GetInt64( );
 
         // 2) CorrespondPath = RSA-OAEP(SHA-256)("refresh_{ts}") 小写 hex
@@ -340,6 +370,7 @@ public static partial class Login
         {
             throw new InvalidOperationException("无法从 correspond 页面解析 refresh_csrf");
         }
+
         var refreshCsrf = m.Groups[1].Value;
 
         // 4) 刷新 Cookie
@@ -356,6 +387,7 @@ public static partial class Login
         {
             throw new InvalidOperationException($"Cookie 刷新失败：{refreshDoc.RootElement.GetProperty("message").GetString( )}");
         }
+
         var newRefresh = refreshDoc.RootElement.GetProperty("data").GetProperty("refresh_token").GetString( );
         var newCookie = ExtractCookiesFromSetCookie(refreshResp.Headers, cookie);
 
@@ -417,22 +449,32 @@ public static partial class Login
     public static async Task<int> TV( )
     {
         var token = await LoginWithAppKey(TvAppKey, "android_tv_yst", TvAppSecret);
-        if (token is null) return 1;
-        await CredentialStore.SaveTvToken(token, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        if (token is null)
+        {
+            return 1;
+        }
+
+        await CredentialStore.SaveTvToken(token, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
         return 0;
     }
 
     public static async Task<int> App( )
     {
         var token = await LoginWithAppKey(PhoneAppKey, "android", PhoneAppSecret);
-        if (token is null) return 1;
-        await CredentialStore.SaveAppToken(token, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        if (token is null)
+        {
+            return 1;
+        }
+
+        await CredentialStore.SaveAppToken(token, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
         return 0;
     }
 
     // 签名 / QR 登录参数相关辅助方法（仅 TV/APP 登录流程使用）
     public static string GetSign(string parms)
-        => GetSign(parms, TvAppSecret);
+    {
+        return GetSign(parms, TvAppSecret);
+    }
 
     // appkey 与签名密钥必须配对；手机端登录使用粉版 appkey 时须传入对应密钥
     public static string GetSign(string parms, string secret)
@@ -447,16 +489,15 @@ public static partial class Login
         return (bflag ? ts.ToUnixTimeSeconds( ) : ts.ToUnixTimeMilliseconds( )).ToString( );
     }
 
-    //https://stackoverflow.com/questions/1344221/how-can-i-generate-random-alphanumeric-strings
-    private static readonly Random random = new( );
+    //  https://stackoverflow.com/questions/1344221/how-can-i-generate-random-alphanumeric-strings
+
     public static string GetRandomString(int length)
     {
-        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789";
-        return new string(Enumerable.Repeat(chars, length)
-            .Select(s => s[random.Next(s.Length)]).ToArray( ));
+        const string Chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789";
+        return new string([.. Enumerable.Repeat(Chars, length).Select(s => s[Random.Shared.Next(s.Length)])]);
     }
 
-    //https://stackoverflow.com/a/45088333
+    // https://stackoverflow.com/a/45088333
     public static string ToQueryString(NameValueCollection nameValueCollection)
     {
         var httpValueCollection = HttpUtility.ParseQueryString(string.Empty);
@@ -477,33 +518,33 @@ public static partial class Login
 
     public static NameValueCollection GetTVLoginParms( )
     {
-        NameValueCollection sb = [];
+        NameValueCollection paras = [];
         var now = DateTime.Now;
         var deviceId = GetRandomString(20);
         var buvid = GetRandomString(37);
         var fingerprint = $"{now:yyyyMMddHHmmssfff}{GetRandomString(45)}";
-        sb.Add("appkey", "4409e2ce8ffd12b8");
-        sb.Add("auth_code", "");
-        sb.Add("bili_local_id", deviceId);
-        sb.Add("build", "102801");
-        sb.Add("buvid", buvid);
-        sb.Add("channel", "master");
-        sb.Add("device", "OnePlus");
-        sb.Add("device_id", deviceId);
-        sb.Add("device_name", "OnePlus7TPro");
-        sb.Add("device_platform", "Android10OnePlusHD1910");
-        sb.Add("fingerprint", fingerprint);
-        sb.Add("guid", buvid);
-        sb.Add("local_fingerprint", fingerprint);
-        sb.Add("local_id", buvid);
-        sb.Add("mobi_app", "android_tv_yst");
-        sb.Add("networkstate", "wifi");
-        sb.Add("platform", "android");
-        sb.Add("sys_ver", "29");
-        sb.Add("ts", GetTimeStamp(true));
-        sb.Add("sign", GetSign(ToQueryString(sb)));
+        paras.Add("appkey", "4409e2ce8ffd12b8");
+        paras.Add("auth_code", "");
+        paras.Add("bili_local_id", deviceId);
+        paras.Add("build", "102801");
+        paras.Add("buvid", buvid);
+        paras.Add("channel", "master");
+        paras.Add("device", "OnePlus");
+        paras.Add("device_id", deviceId);
+        paras.Add("device_name", "OnePlus7TPro");
+        paras.Add("device_platform", "Android10OnePlusHD1910");
+        paras.Add("fingerprint", fingerprint);
+        paras.Add("guid", buvid);
+        paras.Add("local_fingerprint", fingerprint);
+        paras.Add("local_id", buvid);
+        paras.Add("mobi_app", "android_tv_yst");
+        paras.Add("networkstate", "wifi");
+        paras.Add("platform", "android");
+        paras.Add("sys_ver", "29");
+        paras.Add("ts", GetTimeStamp(true));
+        paras.Add("sign", GetSign(ToQueryString(paras)));
 
-        return sb;
+        return paras;
     }
 
     // 纯扫码流程：生成二维码、轮询、解释状态，成功后返回 access_token；落盘由各自入口负责
@@ -557,8 +598,9 @@ public static partial class Login
                 },
                 ExpiredText: "二维码已过期，请重新执行登录指令。"), qrPath);
         }
-        catch (Exception e) { LogError(e.Message); }
+        catch (Exception ex) { LogError(ex.Message); }
         finally { DeleteQrCode(qrPath); }
+
         return token;
     }
 }

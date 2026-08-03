@@ -42,16 +42,23 @@ internal static class CredentialStore
         [property: JsonPropertyName("tv_access_token")] string? TvAccessToken,
         [property: JsonPropertyName("tv_ts")] long? TvTs,
         [property: JsonPropertyName("app_access_token")] string? AppAccessToken,
-        [property: JsonPropertyName("app_ts")] long? AppTs);
+        [property: JsonPropertyName("app_ts")] long? AppTs
+    );
 
     public static string LoadWebCookie(string? dir = null)
-        => LoadCredential(dir).Cookie ?? "";
+    {
+        return LoadCredential(dir).Cookie ?? "";
+    }
 
     public static string LoadTvToken(string? dir = null)
-        => LoadCredential(dir).TvAccessToken ?? "";
+    {
+        return LoadCredential(dir).TvAccessToken ?? "";
+    }
 
     public static string LoadAppToken(string? dir = null)
-        => LoadCredential(dir).AppAccessToken ?? "";
+    {
+        return LoadCredential(dir).AppAccessToken ?? "";
+    }
 
     /// <summary>
     /// 读取 Web 凭据三元组：cookie、refresh_token（可能为空）、签发时间戳（可能为空）。
@@ -92,6 +99,7 @@ internal static class CredentialStore
         {
             return Empty;
         }
+
         try
         {
             return JsonSerializer.Deserialize(raw, CredentialJsonContext.Default.Credential) ?? Empty;
@@ -105,7 +113,7 @@ internal static class CredentialStore
 
     private static async Task WriteCredential(string? dir, Credential c)
     {
-        var path = Path.Combine(dir ?? Program.APP_DIR, DataFile);
+        var path = Path.Combine(dir ?? Program.AppDir, DataFile);
         await File.WriteAllTextAsync(path, JsonSerializer.Serialize(c, CredentialJsonContext.Default.Credential));
         HardenFilePermissions(path);
     }
@@ -133,8 +141,7 @@ internal static class CredentialStore
         string? cliCookie, string? cliToken, bool useTvApi, bool useAppApi, string? dir = null)
     {
         var cookie = cliCookie ?? "";
-        // CLI 容忍用户把 access_token= 前缀一并粘贴进来；文件内已是纯 token，无需再剥离
-        var token = cliToken?.Replace("access_token=", "") ?? "";
+        var token = cliToken ?? "";
 
         if (string.IsNullOrEmpty(cookie) && LoadWebCookie(dir) is { Length: > 0 } localCookie)
         {
@@ -159,7 +166,7 @@ internal static class CredentialStore
 
     private static string TryRead(string? dir, string name)
     {
-        var path = Path.Combine(dir ?? Program.APP_DIR, name);
+        var path = Path.Combine(dir ?? Program.AppDir, name);
         return File.Exists(path) ? File.ReadAllText(path) : "";
     }
 }

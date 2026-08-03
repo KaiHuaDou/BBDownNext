@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using Xunit;
 
 using static BBDown.Core.Entity.Entity;
 
@@ -8,9 +7,12 @@ namespace BBDown.Tests;
 
 public class MuxerArgsTests
 {
-    private static readonly string Url = TestVideos.PickRandom();
+    private static readonly string Url = TestVideos.PickRandom( );
 
-    private static Subtitle Sub(string lan, string path) => new( ) { lan = lan, url = "", path = path };
+    private static Subtitle Sub(string lan, string path)
+    {
+        return new( ) { lan = lan, url = "", path = path };
+    }
 
     private static string? ValueAfter(List<string> args, string flag)
     {
@@ -19,9 +21,9 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildFFmpegArgs_EmitsMinimalCommandForVideoPlusAudio()
+    public void BuildFFmpegArgs_EmitsMinimalCommandForVideoPlusAudio( )
     {
-        var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
+        var args = Muxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
             desc: "", title: "标题", author: "UP主", episodeId: "", pic: "", lang: "",
             subs: [], audioOnly: false, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
@@ -39,12 +41,12 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildFFmpegArgs_KeepsInjectedQuotesInsideOneArgument()
+    public void BuildFFmpegArgs_KeepsInjectedQuotesInsideOneArgument( )
     {
         // UP 主昵称来自 B 站接口，含引号时旧的字符串拼装会被 ffmpeg 解析成额外参数
         const string evil = "恶意UP\" -f null - \"";
 
-        var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.mp4",
+        var args = Muxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.mp4",
             desc: "", title: "t", author: evil, episodeId: "", pic: "", lang: "",
             subs: [], audioOnly: false, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
@@ -56,9 +58,9 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildFFmpegArgs_SimplyMuxDropsAllMetadataFlags()
+    public void BuildFFmpegArgs_SimplyMuxDropsAllMetadataFlags( )
     {
-        var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
+        var args = Muxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
             desc: "简介", title: "标题", author: "UP主", episodeId: "第1话", pic: "", lang: "zh",
             subs: [], audioOnly: false, chapterFile: null, pubTime: 1600000000, noMetadata: true,
             tagHvc1: false, debugLog: false);
@@ -68,9 +70,9 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildFFmpegArgs_WritesFullMetadataWhenNotSimplyMux()
+    public void BuildFFmpegArgs_WritesFullMetadataWhenNotSimplyMux( )
     {
-        var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
+        var args = Muxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
             desc: "简介", title: "标题", author: "UP主", episodeId: "第1话", pic: "", lang: "zh",
             subs: [], audioOnly: false, chapterFile: null, pubTime: 1600000000, noMetadata: false,
             tagHvc1: false, debugLog: false);
@@ -83,11 +85,11 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildFFmpegArgs_NumbersInputsAndChaptersConsistently()
+    public void BuildFFmpegArgs_NumbersInputsAndChaptersConsistently( )
     {
         List<AudioMaterial> material = [new( ) { title = "配音", personName = "甲", path = "/tmp/m1.m4a" }];
 
-        var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", material, "/out/x.mp4",
+        var args = Muxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", material, "/out/x.mp4",
             desc: "", title: "标题", author: "", episodeId: "", pic: "/tmp/c.jpg", lang: "",
             subs: [Sub("zh-Hans", "/tmp/s0.srt"), Sub("en-US", "/tmp/s1.srt")],
             audioOnly: false, chapterFile: "/tmp/chapters", pubTime: 0, noMetadata: false,
@@ -101,9 +103,9 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildFFmpegArgs_IndexesSubtitleMetadataByStreamOrder()
+    public void BuildFFmpegArgs_IndexesSubtitleMetadataByStreamOrder( )
     {
-        var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.mp4",
+        var args = Muxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.mp4",
             desc: "", title: "t", author: "", episodeId: "", pic: "", lang: "",
             subs: [Sub("zh-Hans", "/tmp/s0.srt"), Sub("en-US", "/tmp/s1.srt")],
             audioOnly: false, chapterFile: null, pubTime: 0, noMetadata: false,
@@ -120,9 +122,9 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildFFmpegArgs_AudioOnlyWithoutAudioTrackDropsVideo()
+    public void BuildFFmpegArgs_AudioOnlyWithoutAudioTrackDropsVideo( )
     {
-        var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.m4a",
+        var args = Muxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.m4a",
             desc: "", title: "t", author: "", episodeId: "", pic: "", lang: "",
             subs: [], audioOnly: true, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
@@ -131,13 +133,13 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildFFmpegArgs_CoverAddsAttachedPicDisposition()
+    public void BuildFFmpegArgs_CoverAddsAttachedPicDisposition( )
     {
-        var withVideo = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
+        var withVideo = Muxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", [], "/out/x.mp4",
             desc: "", title: "t", author: "", episodeId: "", pic: "/tmp/c.jpg", lang: "",
             subs: [], audioOnly: false, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
-        var audioOnly = BBDownMuxer.BuildFFmpegArgs(Url, "", "/tmp/a.m4a", [], "/out/x.m4a",
+        var audioOnly = Muxer.BuildFFmpegArgs(Url, "", "/tmp/a.m4a", [], "/out/x.m4a",
             desc: "", title: "t", author: "", episodeId: "", pic: "/tmp/c.jpg", lang: "",
             subs: [], audioOnly: true, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: false);
@@ -151,7 +153,7 @@ public class MuxerArgsTests
     [InlineData(false, "warning")]
     public void BuildFFmpegArgs_SwitchesLogLevelWithDebugFlag(bool debugLog, string expected)
     {
-        var args = BBDownMuxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.mp4",
+        var args = Muxer.BuildFFmpegArgs(Url, "/tmp/v.mp4", "", [], "/out/x.mp4",
             desc: "", title: "t", author: "", episodeId: "", pic: "", lang: "",
             subs: [], audioOnly: false, chapterFile: null, pubTime: 0, noMetadata: false,
             tagHvc1: false, debugLog: debugLog);
@@ -160,9 +162,9 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildMp4boxArgs_EmitsMinimalCommandForVideoPlusAudio()
+    public void BuildMp4boxArgs_EmitsMinimalCommandForVideoPlusAudio( )
     {
-        var args = BBDownMuxer.BuildMp4boxArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", "/out/x.mp4",
+        var args = Muxer.BuildMp4boxArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", "/out/x.mp4",
             desc: "简介", title: "标题", author: "UP主", episodeId: "", pic: "", lang: "",
             subs: [], audioOnly: false, chapterFile: null, debugLog: false);
 
@@ -176,9 +178,9 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildMp4boxArgs_AudioOnlyWithoutAudioUsesTrackTwo()
+    public void BuildMp4boxArgs_AudioOnlyWithoutAudioUsesTrackTwo( )
     {
-        var args = BBDownMuxer.BuildMp4boxArgs(Url, "/tmp/v.mp4", "", "/out/x.m4a",
+        var args = Muxer.BuildMp4boxArgs(Url, "/tmp/v.mp4", "", "/out/x.m4a",
             desc: "", title: "t", author: "", episodeId: "", pic: "", lang: "",
             subs: [], audioOnly: true, chapterFile: null, debugLog: false);
 
@@ -186,9 +188,9 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildMp4boxArgs_NumbersSubtitleUdtaAfterExistingTracks()
+    public void BuildMp4boxArgs_NumbersSubtitleUdtaAfterExistingTracks( )
     {
-        var args = BBDownMuxer.BuildMp4boxArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", "/out/x.mp4",
+        var args = Muxer.BuildMp4boxArgs(Url, "/tmp/v.mp4", "/tmp/a.m4a", "/out/x.mp4",
             desc: "", title: "t", author: "", episodeId: "", pic: "", lang: "zh",
             subs: [Sub("zh-Hans", "/tmp/s0.srt")], audioOnly: false,
             chapterFile: "/tmp/chapters", debugLog: true);
@@ -201,9 +203,9 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildMp4boxArgs_EpisodeIdBecomesTitleAndAlbumHoldsSeries()
+    public void BuildMp4boxArgs_EpisodeIdBecomesTitleAndAlbumHoldsSeries( )
     {
-        var args = BBDownMuxer.BuildMp4boxArgs(Url, "/tmp/v.mp4", "", "/out/x.mp4",
+        var args = Muxer.BuildMp4boxArgs(Url, "/tmp/v.mp4", "", "/out/x.mp4",
             desc: "d", title: "剧集名", author: "a", episodeId: "第1话", pic: "/tmp/c.jpg", lang: "",
             subs: [], audioOnly: false, chapterFile: null, debugLog: false);
 
@@ -212,9 +214,9 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildMp4boxArgs_KeepsInjectedQuotesInsideOneArgument()
+    public void BuildMp4boxArgs_KeepsInjectedQuotesInsideOneArgument( )
     {
-        var args = BBDownMuxer.BuildMp4boxArgs(Url, "/tmp/v.mp4", "", "/out/x.mp4",
+        var args = Muxer.BuildMp4boxArgs(Url, "/tmp/v.mp4", "", "/out/x.mp4",
             desc: "", title: "标题\" -new /etc/passwd \"", author: "", episodeId: "", pic: "", lang: "",
             subs: [], audioOnly: false, chapterFile: null, debugLog: false);
 

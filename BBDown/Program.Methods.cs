@@ -4,12 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 
 using BBDown.Core;
 using BBDown.Core.Entity;
 
-using static BBDown.BBDownDownloadUtil;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Utils;
@@ -39,7 +37,10 @@ internal sealed partial class Program
             foreach (var encoding in encodingPriorityTemp)
             {
                 if (encodingPriority.ContainsKey(encoding))
+                {
                     continue;
+                }
+
                 encodingPriority[encoding] = index;
                 index++;
             }
@@ -48,18 +49,21 @@ internal sealed partial class Program
         return (encodingPriority, firstEncoding);
     }
 
-    internal static BBDownDanmakuFormat[] ParseDownloadDanmakuFormats(DownloadOptions myOption)
+    internal static DanmakuFormat[] ParseDownloadDanmakuFormats(DownloadOptions myOption)
     {
-        if (string.IsNullOrEmpty(myOption.DownloadDanmakuFormats)) return BBDownDanmakuFormatInfo.DefaultFormats;
-
-        var formats = myOption.DownloadDanmakuFormats.Replace("，", ",").ToLower( ).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        if (formats.Any(format => !BBDownDanmakuFormatInfo.AllFormatNames.Contains(format)))
+        if (string.IsNullOrEmpty(myOption.DownloadDanmakuFormats))
         {
-            LogError($"包含不支持的下载弹幕格式：{myOption.DownloadDanmakuFormats}。");
-            return BBDownDanmakuFormatInfo.DefaultFormats;
+            return DanmakuFormatInfo.DefaultFormats;
         }
 
-        return formats.Select(BBDownDanmakuFormatInfo.FromFormatName).ToArray( );
+        var formats = myOption.DownloadDanmakuFormats.Replace("，", ",").ToLower( ).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (formats.Any(format => !DanmakuFormatInfo.AllFormatNames.Contains(format)))
+        {
+            LogError($"包含不支持的下载弹幕格式：{myOption.DownloadDanmakuFormats}。");
+            return DanmakuFormatInfo.DefaultFormats;
+        }
+
+        return [.. formats.Select(DanmakuFormatInfo.FromFormatName)];
     }
 
     /// <summary>
@@ -93,49 +97,58 @@ internal sealed partial class Program
     {
         if (!string.IsNullOrEmpty(myOption.FFmpegPath) && File.Exists(myOption.FFmpegPath))
         {
-            BBDownMuxer.FFMPEG = myOption.FFmpegPath;
+            Muxer.ffmpeg = myOption.FFmpegPath;
         }
 
         if (!string.IsNullOrEmpty(myOption.Mp4boxPath) && File.Exists(myOption.Mp4boxPath))
         {
-            BBDownMuxer.MP4BOX = myOption.Mp4boxPath;
+            Muxer.mp4box = myOption.Mp4boxPath;
         }
 
         if (!string.IsNullOrEmpty(myOption.Aria2cPath) && File.Exists(myOption.Aria2cPath))
         {
-            BBDownAria2c.ARIA2C = myOption.Aria2cPath;
+            BBDownAria2c.aria2c = myOption.Aria2cPath;
         }
-        //寻找 ffmpeg 或 mp4box
+        // 寻找 FFmpeg 或 mp4box
         if (!myOption.SkipMux)
         {
-            //ffmpeg 与 mp4box 都探测，以便下载时按需选择 (杜比视界可能临时改用 mp4box)
-            if (string.IsNullOrEmpty(BBDownMuxer.FFMPEG) || !File.Exists(BBDownMuxer.FFMPEG))
+            // FFmpeg 与 mp4box 都探测，以便下载时按需选择 (杜比视界可能临时改用 mp4box)
+            if (string.IsNullOrEmpty(Muxer.ffmpeg) || !File.Exists(Muxer.ffmpeg))
             {
                 var binPath = FindExecutable("ffmpeg");
-                if (!string.IsNullOrEmpty(binPath)) BBDownMuxer.FFMPEG = binPath;
+                if (!string.IsNullOrEmpty(binPath))
+                {
+                    Muxer.ffmpeg = binPath;
+                }
             }
 
-            if (string.IsNullOrEmpty(BBDownMuxer.MP4BOX) || !File.Exists(BBDownMuxer.MP4BOX))
+            if (string.IsNullOrEmpty(Muxer.mp4box) || !File.Exists(Muxer.mp4box))
             {
                 var binPath = FindExecutable("mp4box", "MP4Box", "MP4box");
-                if (!string.IsNullOrEmpty(binPath)) BBDownMuxer.MP4BOX = binPath;
+                if (!string.IsNullOrEmpty(binPath))
+                {
+                    Muxer.mp4box = binPath;
+                }
             }
 
-            if (string.IsNullOrEmpty(BBDownMuxer.FFMPEG) || !File.Exists(BBDownMuxer.FFMPEG))
+            if (string.IsNullOrEmpty(Muxer.ffmpeg) || !File.Exists(Muxer.ffmpeg))
             {
                 throw new InvalidOperationException("找不到可执行的 ffmpeg 文件");
             }
         }
 
-        //寻找 aria2c
+        // 寻找 aria2c
         if (myOption.UseAria2c)
         {
-            if (string.IsNullOrEmpty(BBDownAria2c.ARIA2C) || !File.Exists(BBDownAria2c.ARIA2C))
+            if (string.IsNullOrEmpty(BBDownAria2c.aria2c) || !File.Exists(BBDownAria2c.aria2c))
             {
                 var binPath = FindExecutable("aria2c");
                 if (string.IsNullOrEmpty(binPath))
+                {
                     throw new InvalidOperationException("找不到可执行的 aria2c 文件");
-                BBDownAria2c.ARIA2C = binPath;
+                }
+
+                BBDownAria2c.aria2c = binPath;
             }
         }
     }
@@ -145,12 +158,12 @@ internal sealed partial class Program
     /// </summary>
     internal static void HandleConflictingOptions(DownloadOptions myOption)
     {
-        //手动选择时不能隐藏流
+        // 手动选择时不能隐藏流
         if (myOption.Interactive)
         {
             myOption.HideStreams = false;
         }
-        //audioOnly 和 videoOnly 同时开启则全部忽视
+        // audioOnly 和 videoOnly 同时开启则全部忽视
         if (myOption.AudioOnly && myOption.VideoOnly)
         {
             myOption.AudioOnly = false;
@@ -168,7 +181,10 @@ internal sealed partial class Program
     /// </summary>
     private static string ResolveWorkDir(DownloadOptions myOption)
     {
-        if (string.IsNullOrEmpty(myOption.WorkDir)) return Environment.CurrentDirectory;
+        if (string.IsNullOrEmpty(myOption.WorkDir))
+        {
+            return Environment.CurrentDirectory;
+        }
 
         myOption.WorkDir = Environment.ExpandEnvironmentVariables(myOption.WorkDir);
         var dir = Path.GetFullPath(myOption.WorkDir);
@@ -181,17 +197,17 @@ internal sealed partial class Program
         return dir;
     }
 
-    private static readonly object archiveLock = new( );
-    private static Dictionary<(string Aid, string Cid), string>? _archiveCache;
+    private static readonly Lock archiveLock = new( );
+    private static Dictionary<(string Aid, string Cid), string>? archiveCache;
 
     // 仅在该分 P 完整成功（含混流）后写入；键为 (aid, cid)，同 aid 不同分 P 互不干扰
     public static void SaveArchive(string aid, string cid, string savePath)
     {
         lock (archiveLock)
         {
-            _archiveCache ??= LoadArchives( );
-            _archiveCache[(aid, cid)] = savePath;
-            var filePath = Path.Combine(APP_DIR, "BBDown.archives");
+            archiveCache ??= LoadArchives( );
+            archiveCache[(aid, cid)] = savePath;
+            var filePath = Path.Combine(AppDir, "BBDown.archives");
             File.AppendAllText(filePath, $"{Environment.NewLine}{aid}\t{cid}\t{savePath}");
         }
     }
@@ -200,12 +216,13 @@ internal sealed partial class Program
     {
         lock (archiveLock)
         {
-            _archiveCache ??= LoadArchives( );
-            if (_archiveCache.TryGetValue((aid, cid), out var savePath))
+            archiveCache ??= LoadArchives( );
+            if (archiveCache.TryGetValue((aid, cid), out var savePath))
             {
                 // 文件被删/移走 → 视为未下载，重新下
                 return string.IsNullOrEmpty(savePath) || File.Exists(savePath);
             }
+
             return false;
         }
     }
@@ -214,15 +231,28 @@ internal sealed partial class Program
     private static Dictionary<(string Aid, string Cid), string> LoadArchives( )
     {
         var dict = new Dictionary<(string, string), string>( );
-        var filePath = Path.Combine(APP_DIR, "BBDown.archives");
-        if (!File.Exists(filePath)) return dict;
+        var filePath = Path.Combine(AppDir, "BBDown.archives");
+        if (!File.Exists(filePath))
+        {
+            return dict;
+        }
+
         foreach (var line in File.ReadAllLines(filePath))
         {
-            if (string.IsNullOrWhiteSpace(line)) continue;
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
             var parts = line.Split('\t');
-            if (parts.Length < 2) continue;
+            if (parts.Length < 2)
+            {
+                continue;
+            }
+
             dict[(parts[0], parts[1])] = parts.Length > 2 ? parts[2] : "";
         }
+
         return dict;
     }
 
@@ -242,16 +272,18 @@ internal sealed partial class Program
                 Log("程序已自动选择你输入的集数，如果要下载其他集数请自行指定分 P（如可使用 -p ALL 代表全部）。");
                 return [vInfo.Index];
             }
+
             var urlPage = GetQueryString("p", input);
             if (!string.IsNullOrEmpty(urlPage))
             {
                 Log("程序已自动选择你输入的集数，如果要下载其他集数请自行指定分 P（如可使用 -p ALL 代表全部）。");
                 return [urlPage];
             }
+
             return null;
         }
 
-        if (myOption.SelectPage.Trim().Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        if (myOption.SelectPage.Trim( ).Equals("ALL", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -266,38 +298,57 @@ internal sealed partial class Program
 
         foreach (var rawToken in myOption.SelectPage.Split(','))
         {
-            var token = rawToken.Trim();
-            if (token.Length == 0) continue;
+            var token = rawToken.Trim( );
+            if (token.Length == 0)
+            {
+                continue;
+            }
 
             if (token.Contains('-'))
             {
                 var parts = token.Split('-', 2);
-                var startStr = parts[0].Trim();
-                var endStr = parts.Length > 1 ? parts[1].Trim() : "";
+                var startStr = parts[0].Trim( );
+                var endStr = parts.Length > 1 ? parts[1].Trim( ) : "";
 
                 var startValid = startStr.Length == 0;
                 var start = startValid ? firstIndex : ResolveIndex(startStr, firstIndex, lastIndex, secondLastIndex, out startValid);
                 var endValid = endStr.Length == 0;
                 var end = endValid ? lastIndex : ResolveIndex(endStr, firstIndex, lastIndex, secondLastIndex, out endValid);
 
-                if (!startValid || !endValid) continue;
+                if (!startValid || !endValid)
+                {
+                    continue;
+                }
 
-                if (start > end) (start, end) = (end, start);   // 倒序区间归一化
+                if (start > end)
+                {
+                    (start, end) = (end, start);   // 倒序区间归一化
+                }
 
                 for (var i = start; i <= end; i++)
                 {
-                    if (seen.Add(i.ToString())) anyValid = true;
+                    if (seen.Add(i.ToString( )))
+                    {
+                        anyValid = true;
+                    }
                 }
             }
             else
             {
                 var value = ResolveIndex(token, firstIndex, lastIndex, secondLastIndex, out var valid);
-                if (!valid) continue;
-                if (seen.Add(value.ToString())) anyValid = true;
+                if (!valid)
+                {
+                    continue;
+                }
+
+                if (seen.Add(value.ToString( )))
+                {
+                    anyValid = true;
+                }
             }
         }
 
-        return anyValid ? [.. seen.OrderBy(x => int.Parse(x))] : [];
+        return anyValid ? [.. seen.OrderBy(int.Parse)] : [];
     }
 
     // 解析单个分 P 片段：latest/new → 最后一集；last/LAST → 倒数第二集；数字越界则夹紧到有效边界并提醒。
@@ -305,11 +356,12 @@ internal sealed partial class Program
     private static int ResolveIndex(string part, int firstIndex, int lastIndex, int secondLastIndex, out bool valid)
     {
         valid = true;
-        var upper = part.ToUpperInvariant();
+        var upper = part.ToUpperInvariant( );
         if (upper is "LATEST" or "NEW")
         {
             return lastIndex;
         }
+
         if (upper is "LAST")
         {
             if (secondLastIndex < 0)
@@ -318,8 +370,10 @@ internal sealed partial class Program
                 valid = false;
                 return 0;
             }
+
             return secondLastIndex;
         }
+
         if (int.TryParse(part, out var n))
         {
             if (n < firstIndex)
@@ -327,13 +381,16 @@ internal sealed partial class Program
                 Log($"分 P 选择「{part}」小于最小分 P {firstIndex}，已夹紧到 {firstIndex}。");
                 return firstIndex;
             }
+
             if (n > lastIndex)
             {
                 Log($"分 P 选择「{part}」超出最大分 P {lastIndex}，已夹紧到 {lastIndex}。");
                 return lastIndex;
             }
+
             return n;
         }
+
         LogError($"分 P 选择「{part}」不是合法的分 P 编号或关键字（可用：latest/new/last），已忽略。");
         valid = false;
         return 0;
@@ -348,8 +405,15 @@ internal sealed partial class Program
     /// </summary>
     internal static void HandleCdnHost(DownloadOptions myOption, Video? selectedVideo, Audio? selectedAudio, AppConfig cfg)
     {
-        if (selectedVideo != null) selectedVideo.baseUrl = ApplyCdnHostPolicy(selectedVideo.baseUrl, myOption, cfg, "视频流");
-        if (selectedAudio != null) selectedAudio.baseUrl = ApplyCdnHostPolicy(selectedAudio.baseUrl, myOption, cfg, "音频流");
+        if (selectedVideo != null)
+        {
+            selectedVideo.baseUrl = ApplyCdnHostPolicy(selectedVideo.baseUrl, myOption, cfg, "视频流");
+        }
+
+        if (selectedAudio != null)
+        {
+            selectedAudio.baseUrl = ApplyCdnHostPolicy(selectedAudio.baseUrl, myOption, cfg, "音频流");
+        }
     }
 
     // FLV 走分段直链，同样需要按 upos-host / PCDN / 海外源策略换域名（P1-21）
@@ -397,8 +461,16 @@ internal sealed partial class Program
 
         string Replace(Regex pattern, string host, string reason)
         {
-            if (!pattern.IsMatch(url)) return url;
-            if (label is not null) LogWarn($"{label}：{reason}为 {host}……");
+            if (!pattern.IsMatch(url))
+            {
+                return url;
+            }
+
+            if (label is not null)
+            {
+                LogWarn($"{label}：{reason}为 {host}……");
+            }
+
             return pattern.Replace(url, $"://{host}/", 1);
         }
     }
@@ -406,8 +478,6 @@ internal sealed partial class Program
     /// <summary>
     /// 打印解析到的各个轨道信息
     /// </summary>
-    /// <param name="parsedResult"></param>
-    /// <param name="pageDur"></param>
     private static void PrintAllTracksInfo(ParsedResult parsedResult, int pageDur, bool onlyShowInfo)
     {
         if (parsedResult.BackgroundAudioTracks.Count != 0 && parsedResult.RoleAudioList.Count != 0)
@@ -438,7 +508,10 @@ internal sealed partial class Program
                 var pDur = pageDur == 0 ? v.dur : pageDur;
                 var size = v.size > 0 ? v.size : pDur * v.bandwidth * 1024 / 8;
                 LogColor($"{index++}. [{v.dfn}] [{v.res}] [{v.codecs}] [{v.fps}] [{v.bandwidth} kbps] [~{FormatFileSize(size)}]".Replace("[] ", ""), false);
-                if (onlyShowInfo) Console.WriteLine(v.baseUrl);
+                if (onlyShowInfo)
+                {
+                    Console.WriteLine(v.baseUrl);
+                }
             }
         }
 
@@ -450,7 +523,10 @@ internal sealed partial class Program
             {
                 var pDur = pageDur == 0 ? a.dur : pageDur;
                 LogColor($"{index++}. [{a.codecs}] [{a.bandwidth} kbps] [~{FormatFileSize(pDur * a.bandwidth * 1024 / 8)}]", false);
-                if (onlyShowInfo) Console.WriteLine(a.baseUrl);
+                if (onlyShowInfo)
+                {
+                    Console.WriteLine(a.baseUrl);
+                }
             }
         }
     }
@@ -474,9 +550,6 @@ internal sealed partial class Program
     /// <summary>
     /// 引导用户进行手动选择轨道
     /// </summary>
-    /// <param name="parsedResult"></param>
-    /// <param name="vIndex"></param>
-    /// <param name="aIndex"></param>
     private static void SelectTrackManually(ParsedResult parsedResult, ref int vIndex, ref int aIndex)
     {
         if (parsedResult.VideoTracks.Count != 0)
@@ -484,7 +557,11 @@ internal sealed partial class Program
             Log("请选择一条视频流（输入序号）：", false);
             Console.ForegroundColor = ConsoleColor.Cyan;
             vIndex = Convert.ToInt32(Console.ReadLine( ));
-            if (vIndex > parsedResult.VideoTracks.Count || vIndex < 0) vIndex = 0;
+            if (vIndex > parsedResult.VideoTracks.Count || vIndex < 0)
+            {
+                vIndex = 0;
+            }
+
             Console.ResetColor( );
         }
 
@@ -493,7 +570,11 @@ internal sealed partial class Program
             Log("请选择一条音频流（输入序号）：", false);
             Console.ForegroundColor = ConsoleColor.Cyan;
             aIndex = Convert.ToInt32(Console.ReadLine( ));
-            if (aIndex > parsedResult.AudioTracks.Count || aIndex < 0) aIndex = 0;
+            if (aIndex > parsedResult.AudioTracks.Count || aIndex < 0)
+            {
+                aIndex = 0;
+            }
+
             Console.ResetColor( );
         }
     }

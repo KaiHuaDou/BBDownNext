@@ -24,6 +24,7 @@ public static class BangumiInfoFetcher
         {
             throw new BangumiNotFoundException($"未找到 EP/SS 对应的番剧信息：ep_id={id}");
         }
+
         var cover = result.GetProperty("cover").ToString( );
         var title = result.GetProperty("title").ToString( );
         var desc = result.GetProperty("evaluate").ToString( );

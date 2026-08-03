@@ -19,7 +19,7 @@ public static partial class NormalInfoFetcher
 {
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
-        var wts = DateTimeOffset.Now.ToUnixTimeSeconds().ToString();
+        var wts = DateTimeOffset.Now.ToUnixTimeSeconds( ).ToString( );
         var api = $"{BiliApi.ViewWbi}?{Parser.WbiSign($"aid={id}&wts={wts}", cfg)}";
         var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);

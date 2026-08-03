@@ -1,13 +1,9 @@
 using System;
-using System.Linq;
+using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Threading.Tasks;
 using System.Text.Json;
-
-using BBDown;
-
-using Xunit;
+using System.Threading.Tasks;
 
 namespace BBDown.Tests;
 
@@ -84,7 +80,9 @@ public class BBDownApiServerTests
     [InlineData("https://example.com/callback")]
     [InlineData("https://1.2.3.4/report")]
     public void IsSafeWebHook_AllowsPublicHttpHttps(string url)
-        => Assert.True(BBDownApiServer.IsSafeWebHook(new Uri(url)));
+    {
+        Assert.True(BBDownApiServer.IsSafeWebHook(new Uri(url)));
+    }
 
     [Theory]
     [InlineData("http://localhost/hook")]
@@ -101,7 +99,9 @@ public class BBDownApiServerTests
     [InlineData("ftp://example.com/x")]
     [InlineData("file:///etc/passwd")]
     public void IsSafeWebHook_RejectsLoopbackPrivateAndNonHttp(string url)
-        => Assert.False(BBDownApiServer.IsSafeWebHook(new Uri(url)));
+    {
+        Assert.False(BBDownApiServer.IsSafeWebHook(new Uri(url)));
+    }
 
     #endregion
 
@@ -138,10 +138,8 @@ public class BBDownApiServerTests
                 Assert.Equal(HttpStatusCode.MethodNotAllowed, get.StatusCode);
             }
 
-            using (var post = await client.PostAsync("/remove-finished", null, TestContext.Current.CancellationToken))
-            {
-                Assert.True(post.IsSuccessStatusCode);
-            }
+            using var post = await client.PostAsync("/remove-finished", null, TestContext.Current.CancellationToken);
+            Assert.True(post.IsSuccessStatusCode);
         }
         finally
         {
@@ -213,6 +211,25 @@ public class BBDownApiServerTests
             using var content = new StringContent("\"not-an-object\"", System.Text.Encoding.UTF8, "application/json");
             using var resp = await client.PostAsync("/add-task", content, TestContext.Current.CancellationToken);
             Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        }
+        finally
+        {
+            await server.StopForTestAsync( );
+        }
+    }
+
+    [Fact]
+    public async Task Serve_WorkDir_FallsBackToServerConfig( )
+    {
+        // 缺陷回归：此前 SetUpServer 丢弃了 --work-dir，serve 任务始终落到进程当前目录。
+        // 验证服务端配置的工作目录会被注入到每个任务（且请求体不含该字段，无法被客户端覆盖）。
+        var server = new BBDownApiServer( );
+        var tmp = Path.Combine(Path.GetTempPath( ), "bbdown-workdir-" + Guid.NewGuid( ).ToString("N"));
+        server.SetUpServer(tmp);
+        try
+        {
+            var opts = server.ApplyServeWorkDir(new DownloadOptions { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
+            Assert.Equal(tmp, opts.WorkDir);
         }
         finally
         {

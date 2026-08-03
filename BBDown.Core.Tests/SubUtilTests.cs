@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Text.Json;
 
 using BBDown.Core.Util;
-using Xunit;
 
 namespace BBDown.Core.Tests;
 
@@ -15,7 +14,7 @@ public class SubUtilTests
     }
 
     [Fact]
-    public void ReadSubtitles_MapsLanUrlAndPath()
+    public void ReadSubtitles_MapsLanUrlAndPath( )
     {
         var subs = Read("""[{"lan":"zh-CN","subtitle_url":"//i0.hdslb.com/a.json"}]""",
             "lan", "subtitle_url", "114/114.514", false);
@@ -28,7 +27,7 @@ public class SubUtilTests
 
     // 非国际版一律按 srt 落盘，即使 url 看着像 ass
     [Fact]
-    public void ReadSubtitles_NonIntlAlwaysUsesSrtExtension()
+    public void ReadSubtitles_NonIntlAlwaysUsesSrtExtension( )
     {
         var subs = Read("""[{"lan":"en","subtitle_url":"https://x/a.ass"}]""", "lan", "subtitle_url", "1/1.2", false);
         Assert.Equal("1/1.2.en.srt", subs[0].path);
@@ -45,20 +44,20 @@ public class SubUtilTests
 
     // 国际版 app 接口返回的是转义过的斜杠
     [Fact]
-    public void ReadSubtitles_UnescapesBackslashSlash()
+    public void ReadSubtitles_UnescapesBackslashSlash( )
     {
         var subs = Read("""[{"key":"en","url":"https:\\\\/\\\\/x\\\\/a.ass"}]""", "key", "url", "1/1.2", true);
         Assert.Equal("https://x/a.ass", subs[0].url);
     }
 
     [Fact]
-    public void ReadSubtitles_EmptyArrayProducesEmptyList()
+    public void ReadSubtitles_EmptyArrayProducesEmptyList( )
     {
         Assert.Empty(Read("[]", "lan", "subtitle_url", "1/1.2", false));
     }
 
     [Fact]
-    public void ReadSubtitles_PreservesOrder()
+    public void ReadSubtitles_PreservesOrder( )
     {
         var subs = Read("""[{"lan":"a","subtitle_url":"1"},{"lan":"b","subtitle_url":"2"},{"lan":"c","subtitle_url":"3"}]""",
             "lan", "subtitle_url", "p", false);
@@ -67,7 +66,7 @@ public class SubUtilTests
 
     // 字段缺失直接抛，由 GetSubtitlesAsync 的候选循环判定该接口不可用
     [Fact]
-    public void ReadSubtitles_ThrowsWhenFieldMissing()
+    public void ReadSubtitles_ThrowsWhenFieldMissing( )
     {
         Assert.ThrowsAny<System.Exception>(( ) =>
             Read("""[{"lan":"zh-CN"}]""", "lan", "subtitle_url", "p", false));
@@ -105,7 +104,7 @@ public class SubUtilTests
     }
 
     [Fact]
-    public void ConvertSubFromJson_EmitsSequentiallyNumberedSrtBlocks()
+    public void ConvertSubFromJson_EmitsSequentiallyNumberedSrtBlocks( )
     {
         const string json = """
         {"body":[
@@ -124,7 +123,7 @@ public class SubUtilTests
 
     // from 缺失时按 0 起算
     [Fact]
-    public void ConvertSubFromJson_MissingFromDefaultsToZero()
+    public void ConvertSubFromJson_MissingFromDefaultsToZero( )
     {
         var srt = SubUtil.ConvertSubFromJson("""{"body":[{"to":1.0,"content":"x"}]}""");
         Assert.Contains("00:00:00,000 --> 00:00:01,000", srt);
@@ -132,20 +131,20 @@ public class SubUtilTests
 
     // content 缺失时只留空行，不应崩
     [Fact]
-    public void ConvertSubFromJson_MissingContentProducesEmptyLine()
+    public void ConvertSubFromJson_MissingContentProducesEmptyLine( )
     {
         var srt = SubUtil.ConvertSubFromJson("""{"body":[{"from":0.0,"to":1.0}]}""");
         Assert.Equal("1\r\n00:00:00,000 --> 00:00:01,000\r\n\r\n", srt.ReplaceLineEndings("\r\n"));
     }
 
     [Fact]
-    public void ConvertSubFromJson_EmptyBodyProducesEmptyString()
+    public void ConvertSubFromJson_EmptyBodyProducesEmptyString( )
     {
         Assert.Equal("", SubUtil.ConvertSubFromJson("""{"body":[]}"""));
     }
 
     [Fact]
-    public void ConvertSubFromJson_HoursAreRendered()
+    public void ConvertSubFromJson_HoursAreRendered( )
     {
         var srt = SubUtil.ConvertSubFromJson("""{"body":[{"from":3661.5,"to":3662.0,"content":"x"}]}""");
         Assert.Contains("01:01:01,500 --> 01:01:02,000", srt);

@@ -37,44 +37,44 @@ public class DownloadTests
 
     // 服务器不支持 Range 时不应该再退避重试，Parallel.ForEachAsync 会把分片异常裹一层
     [Fact]
-    public void IsRangeUnsupported_SeesThroughAggregateException()
+    public void IsRangeUnsupported_SeesThroughAggregateException( )
     {
-        Assert.True(Program.IsRangeUnsupported(new NotSupportedException()));
-        Assert.True(Program.IsRangeUnsupported(new AggregateException(new IOException(), new NotSupportedException())));
-        Assert.False(Program.IsRangeUnsupported(new IOException()));
-        Assert.False(Program.IsRangeUnsupported(new AggregateException(new IOException())));
+        Assert.True(Program.IsRangeUnsupported(new NotSupportedException( )));
+        Assert.True(Program.IsRangeUnsupported(new AggregateException(new IOException( ), new NotSupportedException( ))));
+        Assert.False(Program.IsRangeUnsupported(new IOException( )));
+        Assert.False(Program.IsRangeUnsupported(new AggregateException(new IOException( ))));
     }
 
     [Fact]
-    public void ResolveSavePathFormat_SinglePageUsesSingleDefault()
+    public void ResolveSavePathFormat_SinglePageUsesSingleDefault( )
     {
-        var o = new DownloadOptions();
+        var o = new DownloadOptions( );
         Assert.Equal(Program.SinglePageDefaultSavePath, Program.ResolveSavePathFormat(o, 1, false, false));
     }
 
     [Fact]
-    public void ResolveSavePathFormat_MultiPageUsesMultiDefault()
+    public void ResolveSavePathFormat_MultiPageUsesMultiDefault( )
     {
-        var o = new DownloadOptions();
+        var o = new DownloadOptions( );
         Assert.Equal(Program.MultiPageDefaultSavePath, Program.ResolveSavePathFormat(o, 3, false, false));
     }
 
     [Fact]
-    public void ResolveSavePathFormat_UnfinishedBangumiTreatedAsMultiPage()
+    public void ResolveSavePathFormat_UnfinishedBangumiTreatedAsMultiPage( )
     {
-        var o = new DownloadOptions();
+        var o = new DownloadOptions( );
         Assert.Equal(Program.MultiPageDefaultSavePath, Program.ResolveSavePathFormat(o, 1, true, false));
     }
 
     [Fact]
-    public void ResolveSavePathFormat_FinishedSinglePageBangumiUsesSingleDefault()
+    public void ResolveSavePathFormat_FinishedSinglePageBangumiUsesSingleDefault( )
     {
-        var o = new DownloadOptions();
+        var o = new DownloadOptions( );
         Assert.Equal(Program.SinglePageDefaultSavePath, Program.ResolveSavePathFormat(o, 1, true, true));
     }
 
     [Fact]
-    public void ResolveSavePathFormat_UserPatternsWin()
+    public void ResolveSavePathFormat_UserPatternsWin( )
     {
         var o = new DownloadOptions { FilePattern = "<aid>", MultiFilePattern = "<aid>/<cid>" };
         Assert.Equal("<aid>", Program.ResolveSavePathFormat(o, 1, false, false));
@@ -82,32 +82,32 @@ public class DownloadTests
     }
 
     [Fact]
-    public void BuildEpisodeTitle_SinglePageReturnsEmpty()
+    public void BuildEpisodeTitle_SinglePageReturnsEmpty( )
     {
-        Assert.Equal("", Program.BuildEpisodeTitle(MakePage(), 1, false, false));
+        Assert.Equal("", Program.BuildEpisodeTitle(MakePage( ), 1, false, false));
     }
 
     [Fact]
-    public void BuildEpisodeTitle_MultiPageReturnsPageTitle()
+    public void BuildEpisodeTitle_MultiPageReturnsPageTitle( )
     {
-        Assert.Equal("第一话", Program.BuildEpisodeTitle(MakePage(), 5, false, false));
+        Assert.Equal("第一话", Program.BuildEpisodeTitle(MakePage( ), 5, false, false));
     }
 
     [Fact]
-    public void BuildEpisodeTitle_UnfinishedBangumiReturnsPageTitle()
+    public void BuildEpisodeTitle_UnfinishedBangumiReturnsPageTitle( )
     {
-        Assert.Equal("第一话", Program.BuildEpisodeTitle(MakePage(), 1, true, false));
+        Assert.Equal("第一话", Program.BuildEpisodeTitle(MakePage( ), 1, true, false));
     }
 
     [Fact]
-    public void ShouldDeleteCover_SinglePage()
+    public void ShouldDeleteCover_SinglePage( )
     {
-        var p = MakePage();
+        var p = MakePage( );
         Assert.True(Program.ShouldDeleteCover(p, [p]));
     }
 
     [Fact]
-    public void ShouldDeleteCover_LastPageOfSameAid()
+    public void ShouldDeleteCover_LastPageOfSameAid( )
     {
         var p1 = MakePage(1);
         var p2 = MakePage(2, cid: "2");
@@ -115,7 +115,7 @@ public class DownloadTests
     }
 
     [Fact]
-    public void ShouldDeleteCover_MiddlePageOfSameAidKeepsCover()
+    public void ShouldDeleteCover_MiddlePageOfSameAidKeepsCover( )
     {
         var p1 = MakePage(1);
         var p2 = MakePage(2, cid: "2");
@@ -123,7 +123,7 @@ public class DownloadTests
     }
 
     [Fact]
-    public void ShouldDeleteCover_DifferentAidAlwaysDeletes()
+    public void ShouldDeleteCover_DifferentAidAlwaysDeletes( )
     {
         var p1 = MakePage(1, aid: "1");
         var p2 = MakePage(2, aid: "2");
@@ -131,13 +131,13 @@ public class DownloadTests
     }
 
     [Fact]
-    public void ToAudioOnlyPath_ReplacesExtension()
+    public void ToAudioOnlyPath_ReplacesExtension( )
     {
         Assert.Equal("out/video.m4a", Program.ToAudioOnlyPath("out/video.mp4"));
     }
 
     [Fact]
-    public void ToAudioOnlyPath_DoesNotAssumeFourCharExtension()
+    public void ToAudioOnlyPath_DoesNotAssumeFourCharExtension( )
     {
         Assert.Equal("out/video.m4a", Program.ToAudioOnlyPath("out/video.MP4"));
         Assert.Equal("out/video.m4a", Program.ToAudioOnlyPath("out/video.mkv"));
@@ -145,7 +145,7 @@ public class DownloadTests
     }
 
     [Fact]
-    public void BuildDownloadConfig_CopiesOptionsAndCookie()
+    public void BuildDownloadConfig_CopiesOptionsAndCookie( )
     {
         var o = new DownloadOptions
         {
@@ -166,7 +166,7 @@ public class DownloadTests
     }
 
     [Fact]
-    public void FormatSavePath_ReplacesBasicPlaceholdersAndAppendsExtension()
+    public void FormatSavePath_ReplacesBasicPlaceholdersAndAppendsExtension( )
     {
         var p = MakePage(index: 3, aid: "114514", cid: "1919810", title: "分P标题");
         var result = Program.FormatSavePath("<videoTitle>/[P<pageNumber>]<pageTitle>", "视频标题", null, null, p, 3, "WEB", 0);
@@ -174,7 +174,7 @@ public class DownloadTests
     }
 
     [Fact]
-    public void FormatSavePath_PadsPageNumberWithZero()
+    public void FormatSavePath_PadsPageNumberWithZero( )
     {
         var p = MakePage(index: 3);
         var result = Program.FormatSavePath("<pageNumberWithZero>", "t", null, null, p, 100, "WEB", 0);
@@ -182,25 +182,25 @@ public class DownloadTests
     }
 
     [Fact]
-    public void FormatSavePath_NormalizesBackslashAndKeepsMp4()
+    public void FormatSavePath_NormalizesBackslashAndKeepsMp4( )
     {
-        var p = MakePage();
+        var p = MakePage( );
         var result = Program.FormatSavePath("<aid>\\<cid>.mp4", "t", null, null, p, 1, "WEB", 0);
         Assert.Equal("114514/1919810.mp4", result);
     }
 
     [Fact]
-    public void FormatSavePath_EmptyTrackPlaceholdersResolveToEmpty()
+    public void FormatSavePath_EmptyTrackPlaceholdersResolveToEmpty( )
     {
-        var p = MakePage();
+        var p = MakePage( );
         var result = Program.FormatSavePath("<aid><dfn><videoCodecs><audioCodecs>", "t", null, null, p, 1, "WEB", 0);
         Assert.Equal("114514.mp4", result);
     }
 
     [Fact]
-    public void FormatSavePath_UsesTrackInfoWhenAvailable()
+    public void FormatSavePath_UsesTrackInfoWhenAvailable( )
     {
-        var p = MakePage();
+        var p = MakePage( );
         var v = MakeVideo("120", "4K 超清", "HEVC", 8000);
         var a = MakeAudio("30280", "mp4a.40.2", 320);
         var result = Program.FormatSavePath("<dfn>-<videoCodecs>-<videoBandwidth>-<audioCodecs>-<audioBandwidth>", "t", v, a, p, 1, "WEB", 0);
@@ -208,22 +208,22 @@ public class DownloadTests
     }
 
     [Fact]
-    public void FormatSavePath_UnknownPlaceholderIsPreserved()
+    public void FormatSavePath_UnknownPlaceholderIsPreserved( )
     {
-        var p = MakePage();
+        var p = MakePage( );
         var result = Program.FormatSavePath("<aid>-<nope>", "t", null, null, p, 1, "WEB", 0);
         Assert.Equal("114514-<nope>.mp4", result);
     }
 
     [Fact]
-    public void FormatSavePath_ApiTypePlaceholder()
+    public void FormatSavePath_ApiTypePlaceholder( )
     {
-        var p = MakePage();
+        var p = MakePage( );
         Assert.Equal("TV.mp4", Program.FormatSavePath("<apiType>", "t", null, null, p, 1, "TV", 0));
     }
 
     [Fact]
-    public void FormatSavePath_CustomDateFormat()
+    public void FormatSavePath_CustomDateFormat( )
     {
         var p = MakePage(pubTime: 1600000000);
         var result = Program.FormatSavePath("<videoDate:yyyy>", "t", null, null, p, 1, "WEB", 0);
@@ -231,39 +231,39 @@ public class DownloadTests
     }
 
     [Fact]
-    public void FormatSavePath_StripsSlashFromTitle()
+    public void FormatSavePath_StripsSlashFromTitle( )
     {
-        var p = MakePage();
+        var p = MakePage( );
         var result = Program.FormatSavePath("<videoTitle>", "a/b", null, null, p, 1, "WEB", 0);
         Assert.DoesNotContain('/', result);
     }
 
     // 替换值本身长得像占位符时，按位置替换才不会被后续迭代二次展开
     [Fact]
-    public void FormatSavePath_DoesNotReexpandSubstitutedValues()
+    public void FormatSavePath_DoesNotReexpandSubstitutedValues( )
     {
-        var p = MakePage();
+        var p = MakePage( );
         var v = MakeVideo("120", "<aid>", "AVC", 1000);
         var result = Program.FormatSavePath("<dfn>-<aid>", "t", v, null, p, 1, "WEB", 0);
         Assert.Equal("<aid>-114514.mp4", result);
     }
 
     [Fact]
-    public void FormatSavePath_KeepsUppercaseExtension()
+    public void FormatSavePath_KeepsUppercaseExtension( )
     {
-        var p = MakePage();
+        var p = MakePage( );
         Assert.Equal("114514.MP4", Program.FormatSavePath("<aid>.MP4", "t", null, null, p, 1, "WEB", 0));
     }
 
     [Fact]
-    public void FormatSavePath_EscapesWindowsReservedTitle()
+    public void FormatSavePath_EscapesWindowsReservedTitle( )
     {
-        var p = MakePage();
+        var p = MakePage( );
         Assert.Equal("_CON.mp4", Program.FormatSavePath("<videoTitle>", "CON", null, null, p, 1, "WEB", 0));
     }
 
     [Fact]
-    public void SortVideoTracks_ByDfnPriorityThenEncoding()
+    public void SortVideoTracks_ByDfnPriorityThenEncoding( )
     {
         List<Video> tracks =
         [
@@ -279,7 +279,7 @@ public class DownloadTests
     }
 
     [Fact]
-    public void SortVideoTracks_NoPriorityPrefersHigherIdThenLargerBandwidth()
+    public void SortVideoTracks_NoPriorityPrefersHigherIdThenLargerBandwidth( )
     {
         List<Video> tracks =
         [
@@ -295,7 +295,7 @@ public class DownloadTests
     }
 
     [Fact]
-    public void SortVideoTracks_AscendingPrefersSmallerBandwidth()
+    public void SortVideoTracks_AscendingPrefersSmallerBandwidth( )
     {
         List<Video> tracks =
         [
@@ -307,7 +307,7 @@ public class DownloadTests
     }
 
     [Fact]
-    public void SortAudioTracks_ByEncodingPriority()
+    public void SortAudioTracks_ByEncodingPriority( )
     {
         List<Audio> tracks =
         [
@@ -320,7 +320,7 @@ public class DownloadTests
     }
 
     [Fact]
-    public void SortAudioTracks_NoPriorityPrefersLargerBandwidth()
+    public void SortAudioTracks_NoPriorityPrefersLargerBandwidth( )
     {
         List<Audio> tracks =
         [
@@ -332,7 +332,7 @@ public class DownloadTests
     }
 
     [Fact]
-    public void SortAudioTracks_AscendingPrefersSmallerBandwidth()
+    public void SortAudioTracks_AscendingPrefersSmallerBandwidth( )
     {
         List<Audio> tracks =
         [
@@ -344,7 +344,7 @@ public class DownloadTests
     }
 
     [Fact]
-    public void SortVideoTracks_EncodingFirst_WhenRequested()
+    public void SortVideoTracks_EncodingFirst_WhenRequested( )
     {
         List<Video> tracks =
         [

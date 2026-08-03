@@ -43,7 +43,7 @@ public static class FavListFetcher
                 : throw new InvalidOperationException($"用户 {mid} 没有可下载的收藏夹");
         }
 
-        var pageSize = 20;
+        const int pageSize = 20;
         var index = 1;
         List<Page> pagesInfo = [];
 

@@ -1,15 +1,16 @@
 using System;
+using System.Threading;
 
 namespace BBDown.Core;
 
 public static class Logger
 {
     // 日志输出需保证「设色 → 写 → 复位」三步成原子，否则并发下载（Parallel.ForEachAsync）下颜色会错乱、文本会交错（P1-3）
-    private static readonly object _gate = new();
+    private static readonly Lock gate = new( );
 
     public static void Log(object text, bool enter = true)
     {
-        lock (_gate)
+        lock (gate)
         {
             Console.Write(DateTime.Now.ToString("[HH:mm:ss]") + " - " + text);
             if (enter)
@@ -21,7 +22,7 @@ public static class Logger
 
     public static void LogError(object text)
     {
-        lock (_gate)
+        lock (gate)
         {
             Console.Write(DateTime.Now.ToString("[HH:mm:ss]") + " - ");
             Console.ForegroundColor = ConsoleColor.Red;
@@ -33,7 +34,7 @@ public static class Logger
 
     public static void LogColor(object text, bool time = true)
     {
-        lock (_gate)
+        lock (gate)
         {
             if (time)
             {
@@ -57,7 +58,7 @@ public static class Logger
 
     public static void LogWarn(object text, bool time = true)
     {
-        lock (_gate)
+        lock (gate)
         {
             if (time)
             {
@@ -83,7 +84,7 @@ public static class Logger
     {
         if (Config.DebugLog)
         {
-            lock (_gate)
+            lock (gate)
             {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.Write(DateTime.Now.ToString("[HH:mm:ss]") + " - ");

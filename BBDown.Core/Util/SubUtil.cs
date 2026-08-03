@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -183,7 +182,7 @@ public static partial class SubUtil
     #region 字幕接口
 
     // 任一环节抛异常或返回空 URL 都视为该接口不可用，由调用方回退到下一个候选
-    private static async Task<List<Subtitle>?> TryFetchAsync(Func<Task<List<Subtitle>>> fetch, CancellationToken ct = default)
+    private static async Task<List<Subtitle>?> TryFetchAsync(Func<Task<List<Subtitle>>> fetch)
     {
         try
         {
@@ -200,14 +199,14 @@ public static partial class SubUtil
 
     internal static List<Subtitle> ReadSubtitles(JsonElement array, string lanKey, string urlKey, string pathPrefix, bool intl)
     {
-        return array.EnumerateArray( ).Select(sub =>
+        return [.. array.EnumerateArray( ).Select(sub =>
         {
             var lan = sub.GetProperty(lanKey).ToString( );
             var url = sub.GetProperty(urlKey).ToString( ).Replace("\\\\/", "/");
             // 国际版只有 json 接口给的是可转 srt 的结构，其余是 ass 成品
             var ext = !intl || url.Contains(".json") ? ".srt" : ".ass";
             return new Subtitle { lan = lan, url = url, path = $"{pathPrefix}.{lan}{ext}" };
-        }).ToList( );
+        })];
     }
 
     #endregion
@@ -256,7 +255,7 @@ public static partial class SubUtil
             ]
             : cfg.Cookie.Length == 0
                 // 未登录只有 APP 端能拿到字幕
-                ? [() => FromAppAsync(ct)]
+                ? [( ) => FromAppAsync(ct)]
                 :
                 [
                     // wbi 接口未签名会被服务端拒绝（P1-27）
@@ -269,7 +268,7 @@ public static partial class SubUtil
 
         foreach (var candidate in candidates)
         {
-            if (await TryFetchAsync(candidate, ct) is not { } subtitles)
+            if (await TryFetchAsync(candidate) is not { } subtitles)
             {
                 continue;
             }
@@ -332,5 +331,4 @@ public static partial class SubUtil
     {
         return TimeSpan.FromSeconds(sec).ToString(@"hh\:mm\:ss\,fff");
     }
-
 }

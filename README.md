@@ -19,7 +19,8 @@
   <a href="#配置文件">配置文件</a> ·
   <a href="#服务器模式">服务器模式</a> ·
   <a href="#数据文件格式">数据文件格式</a> ·
-  <a href="#常见问题">常见问题</a>
+  <a href="#常见问题">常见问题</a> ·
+  <a href="#与原版-bbdown-的差异">与原版差异</a>
 </p>
 
 ---
@@ -36,29 +37,33 @@
 - 支持服务器模式（`serve`），提供带鉴权令牌的 HTTP JSON API，便于与下载器 / 前端集成
 - 纯命令行，跨平台（Windows / Linux / macOS），无图形界面依赖；面向 .NET 9 并兼容 AOT 发布
 
+## 与原版 BBDown 的差异
+
+本仓库是 [nilaoda/BBDown](https://github.com/nilaoda/BBDown) 的 fork，在保留原版全部下载能力的基础上做了一些改进，详细对照见 [docs/compared-to-upstream.md](./docs/compared-to-upstream.md)：
+
+- **WEB Cookie 自动续期**：登录时保存 `refresh_token`，下载前用 RSA-OAEP 加密请求主动刷新 `cookie`，避免大会员下载因 Cookie 过期失败（原版未实现）。
+- **统一单文件凭据 `BBDown.data`**：WEB / TV / APP 三类凭据合并进同一 JSON 文件（源生成器序列化，AOT 安全），不再需要 `BBDownTV.data` / `BBDownApp.data` 分离文件，三类登录互不覆盖。
+- **`login --app` 扫码登录 APP 账号**：APP 端鉴权支持二维码扫码，不再需要抓包获取 `access_token`（原版需手动抓包并复制 `BBDownTV.data` → `BBDownApp.data`）。
+- **自定义文件名日期格式**：`<publishDate:yyyyMMdd>` / `<videoDate:格式>` 支持任意 .NET `DateTime` 格式；原版仅固定 `yyyy-MM-dd_HH-mm-ss`。
+- **文件名 200 字节截断**：超长标题按 UTF-8 字节自动截断，避免 Windows / 类 Unix 路径过长导致写入失败。
+- **serve 安全加固**：请求契约收窄为受控子集（防路径 / 命令注入）、回调地址 SSRF 防护、工作目录强制由服务端控制、回环地址免令牌 / 非回环强制令牌。
+- **断点续传**：每条流维护 `<路径>.bbdown.part` 与 SHA256 指纹清单 `<路径>.bbdown.json`，支持单流与合集 / 多 P 粒度续传。
+- **cheese 课程**：消除冗余 `ss` 请求、`--intl-api` 自动回退 WEB、过滤锁定分集。
+- **代码层面**：拆分 god-class、命名收敛、改用 `System.Threading.Lock`、开启 nullable 与 `TreatWarningsAsErrors`，并有 480+ 单元测试。
+
 ## 安装
 
-### 方式一：直接下载可执行文件
+### 下载预编译二进制
 
-前往 [Releases](https://github.com/nilaoda/BBDown/releases) 页面，下载对应平台的最新 `2.0` 版本压缩包，解压后即可使用。
+前往本仓库 [Releases](https://github.com/KaiHuaDou/BBDown/releases) 页面，下载对应平台的最新版本压缩包，解压后即可使用。
 
-### 方式二：作为 .NET 全局工具安装
-
-需要先安装 [.NET SDK](https://dotnet.microsoft.com/download)（版本 ≥ 9.0），然后在命令行执行：
-
-```bash
-dotnet tool install --global BBDown
-```
-
-安装后，终端任意位置均可直接使用 `BBDown` 命令。
-
-### 方式三：从源码构建
+### 从源码构建
 
 需要先安装 [.NET SDK](https://dot.net)（版本 ≥ 9.0，具体版本以仓库 `global.json` 为准）。
 
 ```bash
 # 克隆仓库
-git clone https://github.com/nilaoda/BBDown.git
+git clone https://github.com/KaiHuaDou/BBDown.git
 cd BBDown
 
 # 构建 Release 版本
@@ -68,7 +73,7 @@ dotnet build -c Release
 dotnet run --project BBDown -c Release -- "https://www.bilibili.com/video/BV1uv411q7Mv"
 ```
 
-构建产物位于各项目的 `bin/Release/net9.0/` 目录下。也可用 `dotnet pack` 生成 NuGet 包（已配置 `PackAsTool`，工具命令名为 `BBDown`）；`dotnet publish -c Release -r <RID> /p:PublishAot=true` 可产出 AOT 单文件可执行体。
+构建产物位于各项目的 `bin/Release/net9.0/` 目录下；`dotnet publish -c Release -r <RID> /p:PublishAot=true` 可产出 AOT 单文件可执行体。
 
 ### 依赖
 
@@ -339,7 +344,7 @@ WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个
 - **单文件单 JSON**。WEB / TV / APP 三类凭据在同一文件同一对象内；每次保存只更新对应字段并**合并保留**其余字段，互不覆盖（例如登录 TV / APP 不会清掉已存的 WEB Cookie）。
 - **仅 JSON**。文件缺失或非合法 JSON 时一律视为无凭据，不会回退到旧版的「纯字符串 Cookie」或 `access_token=` 前缀纯文本格式。
 - `refresh_token` 与 `cookie` 合并存放在同一文件，不再单独写入 `BBDownRefresh.data`；TV / APP 也不再使用独立的 `BBDownTV.data` / `BBDownApp.data`。
-- 下载过程中若检测到 WEB Cookie 可能过旧，会在后台 best-effort 调用续期接口刷新 `cookie` 与 `refresh_token` 并回写本文件；续期失败不影响正常下载（回退到已有 Cookie）。
+- 下载过程中若检测到 WEB Cookie 可能过旧，会在后台尝试调用续期接口刷新 `cookie` 与 `refresh_token` 并回写本文件；续期失败不影响正常下载（回退到已有 Cookie）。
 
 ### 下载归档记录：`BBDown.archives`
 

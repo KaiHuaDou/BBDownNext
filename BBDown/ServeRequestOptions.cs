@@ -65,7 +65,9 @@ internal sealed class ServeRequestOptions
     /// <see cref="DownloadOptions"/> 的安全默认值（空路径、进程级配置由服务端决定）。
     /// </summary>
     internal DownloadOptions ToDownloadOptions( )
-        => JsonSerializer.Deserialize(
-            JsonSerializer.Serialize(this, DownloadOptionsJsonContext.Default.ServeRequestOptions),
-            DownloadOptionsJsonContext.Default.DownloadOptions)!;
+    {
+        return JsonSerializer.Deserialize(
+                JsonSerializer.Serialize(this, DownloadOptionsJsonContext.Default.ServeRequestOptions),
+                DownloadOptionsJsonContext.Default.DownloadOptions)!;
+    }
 }

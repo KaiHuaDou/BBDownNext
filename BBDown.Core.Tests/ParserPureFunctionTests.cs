@@ -213,8 +213,8 @@ public class ParserPureFunctionTests
     public void WbiSign_MatchesOfficialAsciiVector( )
     {
         // 官方 Rust 用例：foo/bar/zab + wts=1702204169，mixinKey 如上
-        var api = "foo=114&bar=514&zab=1919810&wts=1702204169";
-        var signed = Parser.WbiSign(api, WbiTestConfig);
+        const string Api = "foo=114&bar=514&zab=1919810&wts=1702204169";
+        var signed = Parser.WbiSign(Api, WbiTestConfig);
         Assert.Equal("foo=114&bar=514&zab=1919810&wts=1702204169&w_rid=8f6f2b5b3d485fe1886cec6a0be8c5d4", signed);
     }
 
@@ -222,8 +222,8 @@ public class ParserPureFunctionTests
     public void WbiSign_MatchesOfficialUnicodeVector( )
     {
         // 官方 Haskell 用例：值含中文与空格，验证编码大写十六进制 + 空格 -> %20 + 过滤 !'()*
-        var api = "foo=114&bar=514&hello=世 界&wts=1744823207";
-        var signed = Parser.WbiSign(api, WbiTestConfig);
+        const string Api = "foo=114&bar=514&hello=世 界&wts=1744823207";
+        var signed = Parser.WbiSign(Api, WbiTestConfig);
         Assert.Equal("foo=114&bar=514&hello=世 界&wts=1744823207&w_rid=93acf59d85f74453e40cea00056c3daf", signed);
     }
 
@@ -240,7 +240,7 @@ public class ParserPureFunctionTests
     [Fact]
     public void WbiSign_EmptyWbi_ReturnsApiUnchanged( )
     {
-        var api = "aid=1&cid=2&wts=1702204169";
+        const string api = "aid=1&cid=2&wts=1702204169";
         Assert.Same(api, Parser.WbiSign(api, AppConfig.Empty));
     }
 
@@ -248,7 +248,7 @@ public class ParserPureFunctionTests
     public void WbiSign_StripsExistingWridFromInput( )
     {
         // 重新签名时不该把旧的 w_rid 也算进 canonical（否则校验失败）
-        var api = "foo=114&bar=514&wts=1702204169&w_rid=deadbeef";
+        const string api = "foo=114&bar=514&wts=1702204169&w_rid=deadbeef";
         var signed = Parser.WbiSign(api, WbiTestConfig);
         Assert.Equal("foo=114&bar=514&wts=1702204169&w_rid=ed791ce4979dfe1e2aad3b03b73b13cc", signed);
     }

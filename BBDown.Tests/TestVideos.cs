@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace BBDown.Tests;
 
@@ -28,7 +27,8 @@ public static class TestVideos
         "https://www.bilibili.com/video/BV1Zf7fzZE8w/",
     ];
 
-    private static readonly Random Rng = Random.Shared;
-
-    public static string PickRandom() => Candidates[Rng.Next(Candidates.Length)];
+    public static string PickRandom( )
+    {
+        return Candidates[Random.Shared.Next(Candidates.Length)];
+    }
 }

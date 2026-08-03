@@ -12,9 +12,9 @@ namespace BBDown;
 
 internal static class BBDownAria2c
 {
-    public static string ARIA2C = "aria2c";
+    public static string aria2c = "aria2c";
 
-    internal static async Task<int> RunCommandCodeAsync(string command, List<string> args, CancellationToken ct = default)
+    internal static async Task<int> RunAsync(string command, List<string> args, CancellationToken ct = default)
     {
         using Process p = new( );
         p.StartInfo.UseShellExecute = false;
@@ -27,7 +27,7 @@ internal static class BBDownAria2c
 
         p.Start( );
         // 取消时杀掉子进程, 避免 aria2c 在 WaitForExitAsync 已取消后仍挂起
-        using var _ = ct.Register(() =>
+        await using var _ = ct.Register(( ) =>
         {
             try { p.Kill( ); } catch { }
         });
@@ -70,8 +70,14 @@ internal static class BBDownAria2c
         {
             if (quote != '\0')
             {
-                if (c == quote) quote = '\0';
-                else current.Append(c);
+                if (c == quote)
+                {
+                    quote = '\0';
+                }
+                else
+                {
+                    current.Append(c);
+                }
             }
             else if (c is '"' or '\'')
             {
@@ -93,7 +99,11 @@ internal static class BBDownAria2c
             }
         }
 
-        if (quoted || current.Length != 0) result.Add(current.ToString( ));
+        if (quoted || current.Length != 0)
+        {
+            result.Add(current.ToString( ));
+        }
+
         return result;
     }
 }

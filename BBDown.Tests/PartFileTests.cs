@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Linq;
 
@@ -48,18 +47,18 @@ public class PartFileTests
     {
         var ranges = PartFile.Ranges(totalSize, PerSize);
 
-        var only = Assert.Single(ranges);
-        Assert.Equal(0, only.From);
-        Assert.Equal(totalSize - 1, only.To);
+        var (From, To) = Assert.Single(ranges);
+        Assert.Equal(0, From);
+        Assert.Equal(totalSize - 1, To);
     }
 
     // 旧实现末片 To=-1，导致「已下完的末片」永远判不出完成，每次续传都白发一个必然 416 的请求
     [Fact]
     public void Ranges_LastRangeEndsAtRealOffset( )
     {
-        var ranges = PartFile.Ranges((PerSize * 5) + 12345, PerSize);
+        var ranges = PartFile.Ranges(PerSize * 5 + 12345, PerSize);
 
-        Assert.Equal((PerSize * 5) + 12344, ranges[^1].To);
+        Assert.Equal(PerSize * 5 + 12344, ranges[^1].To);
         Assert.Equal(6, ranges.Count);
     }
 
@@ -67,7 +66,7 @@ public class PartFileTests
     [Fact]
     public void Ranges_AreContiguousWithoutGapOrOverlap( )
     {
-        var ranges = PartFile.Ranges((PerSize * 4) + 999, PerSize);
+        var ranges = PartFile.Ranges(PerSize * 4 + 999, PerSize);
 
         Assert.Equal(0, ranges[0].From);
         for (var i = 1; i < ranges.Count; i++)
@@ -75,13 +74,13 @@ public class PartFileTests
             Assert.Equal(ranges[i - 1].To + 1, ranges[i].From);
         }
 
-        Assert.Equal((PerSize * 4) + 998, ranges[^1].To);
+        Assert.Equal(PerSize * 4 + 998, ranges[^1].To);
     }
 
     [Fact]
     public void Ranges_CoverExactlyTotalSize( )
     {
-        const long total = (PerSize * 3) + 7;
+        const long total = PerSize * 3 + 7;
         Assert.Equal(total, PartFile.Ranges(total, PerSize).Sum(r => r.To - r.From + 1));
     }
 

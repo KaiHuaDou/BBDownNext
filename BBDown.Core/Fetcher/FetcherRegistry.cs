@@ -12,11 +12,25 @@ public static class FetcherRegistry
 {
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, bool useIntlApi = false, CancellationToken ct = default)
     {
-        if (id.StartsWith(IdPrefix.Cheese)) return await CheeseInfoFetcher.FetchAsync(id, cfg, ct);
-        if (id.StartsWith(IdPrefix.EpColon)) return await FetchEpisodeAsync(id, cfg, useIntlApi, ct);
+        if (id.StartsWith(IdPrefix.Cheese))
+        {
+            return await CheeseInfoFetcher.FetchAsync(id, cfg, ct);
+        }
+
+        if (id.StartsWith(IdPrefix.EpColon))
+        {
+            return await FetchEpisodeAsync(id, cfg, useIntlApi, ct);
+        }
+
         if (id.StartsWith(IdPrefix.SeriesBizId))
+        {
             return await MediaListFetcher.FetchListAsync(id[IdPrefix.SeriesBizId.Length..], 5, true, "系列", cfg, ct);
-        if (id.StartsWith(IdPrefix.FavId)) return await FavListFetcher.FetchAsync(id, cfg, ct);
+        }
+
+        if (id.StartsWith(IdPrefix.FavId))
+        {
+            return await FavListFetcher.FetchAsync(id, cfg, ct);
+        }
 
         // 合集与系列共用 medialist 接口; 合集解析失败（被删/私密/无权，或"系列"被误识别为合集）时回退按系列重试。
         // 候选链集中在此处，各 Fetcher 保持单向、无互相调用。

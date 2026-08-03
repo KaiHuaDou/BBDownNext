@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.IO;
@@ -25,27 +24,14 @@ internal sealed partial class Program
     public static string MultiPageDefaultSavePath { get; } = "<videoTitle>/[P<pageNumberWithZero>]<pageTitle>";
 
     // AppContext.BaseDirectory 指向入口程序集所在目录；Environment.ProcessPath 在 `dotnet BBDown.dll` 下返回宿主路径，会写错位置（P1-13）
-    public static readonly string APP_DIR = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+    public static readonly string AppDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
 
     // 全局取消源: Ctrl+C 时取消, 令牌沿 Fetcher → Parser → HTTP → 下载 → 外部进程 全链路透传
-    private static readonly CancellationTokenSource s_cts = new();
-    internal static CancellationToken CancellationToken => s_cts.Token;
+    private static readonly CancellationTokenSource cancelSource = new( );
+    internal static CancellationToken CancellationToken => cancelSource.Token;
 
     // Web Cookie 主动续期只跑一次，避免批量下载时每个视频都打 /cookie/info
-    private static int _cookieRefreshed;
-
-    private static string FormatTimeStamp(long ts, string format)
-    {
-        try
-        {
-            return ts == 0 ? "null" : DateTimeOffset.FromUnixTimeSeconds(ts).ToLocalTime( ).ToString(format);
-        }
-        catch (Exception ex)
-        {
-            LogError($"格式化日期出错：{ex.Message}。");
-            return ts.ToString( );
-        }
-    }
+    private static int cookieRefreshed;
 
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
@@ -57,11 +43,13 @@ internal sealed partial class Program
             Console.ResetColor( );
             Console.CursorVisible = true;
             if (!OperatingSystem.IsWindows( ))
+            {
                 System.Diagnostics.Process.Start("stty", "echo");
+            }
         }
         catch { }
 
-        s_cts.Cancel( );
+        cancelSource.Cancel( );
     }
 
     public static async Task<int> Main(params string[] args)
@@ -79,8 +67,16 @@ internal sealed partial class Program
         loginCommand.Options.Add(loginAppOption);
         loginCommand.SetAction(result =>
         {
-            if (result.GetValue(loginTvOption)) return Login.TV( );
-            if (result.GetValue(loginAppOption)) return Login.App( );
+            if (result.GetValue(loginTvOption))
+            {
+                return Login.TV( );
+            }
+
+            if (result.GetValue(loginAppOption))
+            {
+                return Login.App( );
+            }
+
             return Login.Web( );
         });
         rootCommand.Subcommands.Add(loginCommand);
@@ -120,7 +116,7 @@ internal sealed partial class Program
         //配置文件只补齐命令行未显式指定的选项，补齐后需重新解析一次
         if (rootResult.CommandResult.Command == rootCommand)
         {
-            var mergedArgs = BBDownConfigParser.MergeWithConfig(args, rootResult, rootCommand);
+            var mergedArgs = ConfigParser.MergeWithConfig(args, rootResult, rootCommand);
             if (!ReferenceEquals(mergedArgs, args))
             {
                 rootResult = rootCommand.Parse(mergedArgs, parserConfiguration);
@@ -134,7 +130,10 @@ internal sealed partial class Program
             }
         }
 
-        if (!TryReportParseErrors(rootResult)) return 1;
+        if (!TryReportParseErrors(rootResult))
+        {
+            return 1;
+        }
 
         return await rootResult.InvokeAsync(new InvocationConfiguration( ) { EnableDefaultExceptionHandler = true });
     }
@@ -148,7 +147,10 @@ internal sealed partial class Program
 
     private static bool TryReportParseErrors(ParseResult parseResult)
     {
-        if (parseResult.Errors.Count == 0) return true;
+        if (parseResult.Errors.Count == 0)
+        {
+            return true;
+        }
 
         Console.ForegroundColor = ConsoleColor.Red;
         Console.Error.WriteLine(parseResult.Errors[0].Message);
@@ -157,7 +159,7 @@ internal sealed partial class Program
         return false;
     }
 
-    private static void PrintUsageExample()
+    private static void PrintUsageExample( )
     {
         Console.WriteLine("""
         BBDown 哔哩哔哩下载器
@@ -173,16 +175,16 @@ internal sealed partial class Program
     private static Task<int> RunApp(DownloadOptions myOption)
     {
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        return DoWorkAsync(myOption, s_cts.Token);
+        return DoWorkAsync(myOption, cancelSource.Token);
     }
 
     private static void StartServer(string? listenUrl, string? workDir, string? serveToken = null)
     {
-        var defaultListenUrl = "http://127.0.0.1:23333";
+        const string DefaultListenUrl = "http://127.0.0.1:23333";
         var server = new BBDownApiServer( );
         server.SetUpServer(workDir, serveToken: serveToken);
 #pragma warning disable CA2234 // 保留 Run(string) 内的 URL 合法性校验与友好退出
-        server.Run(string.IsNullOrEmpty(listenUrl) ? defaultListenUrl : listenUrl);
+        server.Run(string.IsNullOrEmpty(listenUrl) ? DefaultListenUrl : listenUrl);
 #pragma warning restore CA2234
     }
 
@@ -217,7 +219,7 @@ internal sealed partial class Program
         var lang = myOption.Lang;
         var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
 
-        LogDebug("AppDirectory: {0}", APP_DIR);
+        LogDebug("AppDirectory: {0}", AppDir);
         LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption.WithSecretsRedacted( ), DownloadOptionsJsonContext.Default.DownloadOptions));
         return new WorkContext(
             EncodingPriority: encodingPriority,
@@ -243,7 +245,7 @@ internal sealed partial class Program
         var (cookie, token) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, myOption.UseTvApi, myOption.UseAppApi);
 
         // 主动续期 web cookie（best-effort，持有 refresh_token 才尝试；进程内仅一次）
-        if (Interlocked.CompareExchange(ref _cookieRefreshed, 1, 0) == 0)
+        if (Interlocked.CompareExchange(ref cookieRefreshed, 1, 0) == 0)
         {
             cookie = await Login.TryRefreshWebCookieIfStaleAsync(ct: ct);
         }
@@ -333,7 +335,7 @@ internal sealed partial class Program
         LogColor("视频标题：" + title);
         if (pubTime != 0)
         {
-            Log("发布时间：" + FormatTimeStamp(pubTime, "yyyy-MM-dd HH:mm:ss zzz"));
+            Log("发布时间：" + Utils.FormatTimeStamp(pubTime, "yyyy-MM-dd HH:mm:ss zzz"));
         }
 
         var bvid = vInfo.PagesInfo.FirstOrDefault( )?.bvid;
@@ -350,7 +352,9 @@ internal sealed partial class Program
     }
 
     internal static string DetermineApiType(DownloadOptions myOption)
-        => myOption.UseTvApi ? "TV" : (myOption.UseAppApi ? "APP" : (myOption.UseIntlApi ? "INTL" : "WEB"));
+    {
+        return myOption.UseTvApi ? "TV" : (myOption.UseAppApi ? "APP" : (myOption.UseIntlApi ? "INTL" : "WEB"));
+    }
 
     private static void PrintPagesInfo(VInfo vInfo, DownloadOptions myOption)
     {
@@ -361,7 +365,11 @@ internal sealed partial class Program
         {
             if (!myOption.ShowAll)
             {
-                if (more && p.index != pagesInfo.Count) continue;
+                if (more && p.index != pagesInfo.Count)
+                {
+                    continue;
+                }
+
                 if (!more && p.index > 5)
                 {
                     Log("...");

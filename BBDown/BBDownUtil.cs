@@ -12,6 +12,57 @@ namespace BBDown;
 
 internal static partial class Utils
 {
+    /// <summary>
+    /// 输入一堆已存在的文件, 合并到新文件
+    /// </summary>
+    public static void CombineMultipleFilesIntoSingleFile(string[] files, string outputFilePath)
+    {
+        if (files.Length == 0)
+        {
+            return;
+        }
+
+        if (files.Length == 1)
+        {
+            FileInfo fi = new(files[0]);
+            fi.MoveTo(outputFilePath, true);
+            return;
+        }
+
+        if (!Directory.Exists(Path.GetDirectoryName(outputFilePath)))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(outputFilePath)!);
+        }
+
+        var inputFilePaths = files;
+        using var outputStream = File.Create(outputFilePath);
+        foreach (var inputFilePath in inputFilePaths)
+        {
+            if (inputFilePath.Length == 0)
+            {
+                continue;
+            }
+
+            using var inputStream = File.OpenRead(inputFilePath);
+            // Buffer size can be passed as the second argument.
+            inputStream.CopyTo(outputStream);
+        }
+    }
+
+    /// <summary>
+    /// 按 APP_DIR → PATH 的顺序查找可执行文件。刻意不搜索当前工作目录，
+    /// 否则在下载目录里放一个同名程序即可劫持 ffmpeg/aria2c 调用。
+    /// </summary>
+    public static string? FindExecutable(params string[] names)
+    {
+        var fileExt = OperatingSystem.IsWindows( ) ? ".exe" : "";
+        var envPath = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? [];
+        return new[] { Program.AppDir }.Concat(envPath)
+            .Where(dir => !string.IsNullOrWhiteSpace(dir))
+            .SelectMany(dir => names.Select(name => Path.Combine(dir, name + fileExt)))
+            .FirstOrDefault(File.Exists);
+    }
+
     public static string FormatFileSize(double fileSize)
     {
         return fileSize switch
@@ -37,58 +88,6 @@ internal static partial class Utils
         }
 
         return totalHours == 0 ? $"{minutes:D2}m{seconds:D2}s" : $"{totalHours}h{minutes:D2}m{seconds:D2}s";
-    }
-
-    /// <summary>
-    /// 输入一堆已存在的文件, 合并到新文件
-    /// </summary>
-    public static void CombineMultipleFilesIntoSingleFile(string[] files, string outputFilePath)
-    {
-        if (files.Length == 0) return;
-        if (files.Length == 1)
-        {
-            FileInfo fi = new(files[0]);
-            fi.MoveTo(outputFilePath, true);
-            return;
-        }
-
-        if (!Directory.Exists(Path.GetDirectoryName(outputFilePath)))
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(outputFilePath)!);
-        }
-
-        var inputFilePaths = files;
-        using var outputStream = File.Create(outputFilePath);
-        foreach (var inputFilePath in inputFilePaths)
-        {
-            if (inputFilePath.Length == 0)
-                continue;
-            using var inputStream = File.OpenRead(inputFilePath);
-            // Buffer size can be passed as the second argument.
-            inputStream.CopyTo(outputStream);
-        }
-    }
-
-    /// <summary>
-    /// 带重试的文件删除：Windows 上杀软/资源管理器可能短暂持锁导致 IOException，
-    /// 用短暂退避重试替代 Thread.Sleep 硬等。删除失败仅记录，不抛出（避免掩盖主流程异常）。
-    /// </summary>
-    public static void SafeDelete(string path)
-    {
-        if (string.IsNullOrEmpty(path)) return;
-        for (var attempt = 0; attempt < 3; attempt++)
-        {
-            try
-            {
-                File.Delete(path);
-                return;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                if (attempt == 2) { LogDebug("删除失败（已忽略）: {0}", path); return; }
-                Thread.Sleep(50 * (attempt + 1));
-            }
-        }
     }
 
     /// <summary>
@@ -131,17 +130,43 @@ internal static partial class Utils
     }
 
     /// <summary>
-    /// 按 APP_DIR → PATH 的顺序查找可执行文件。刻意不搜索当前工作目录，
-    /// 否则在下载目录里放一个同名程序即可劫持 ffmpeg/aria2c 调用。
+    /// 带重试的文件删除：Windows 上杀软/资源管理器可能短暂持锁导致 IOException，
+    /// 用短暂退避重试替代 Thread.Sleep 硬等。删除失败仅记录，不抛出（避免掩盖主流程异常）。
     /// </summary>
-    public static string? FindExecutable(params string[] names)
+    public static void SafeDelete(string path)
     {
-        var fileExt = OperatingSystem.IsWindows( ) ? ".exe" : "";
-        var envPath = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? [];
-        return new[] { Program.APP_DIR }.Concat(envPath)
-            .Where(dir => !string.IsNullOrWhiteSpace(dir))
-            .SelectMany(dir => names.Select(name => Path.Combine(dir, name + fileExt)))
-            .FirstOrDefault(File.Exists);
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                File.Delete(path);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt == 2) { LogDebug("删除失败（已忽略）: {0}", path); return; }
+
+                Thread.Sleep(50 * (attempt + 1));
+            }
+        }
+    }
+
+    public static string FormatTimeStamp(long ts, string format)
+    {
+        try
+        {
+            return ts == 0 ? "null" : DateTimeOffset.FromUnixTimeSeconds(ts).ToLocalTime( ).ToString(format);
+        }
+        catch (Exception ex)
+        {
+            LogError($"格式化日期出错：{ex.Message}。");
+            return ts.ToString( );
+        }
     }
 
     [GeneratedRegex("(^|&)?(\\w+)=([^&]+)(&|$)?", RegexOptions.Compiled)]

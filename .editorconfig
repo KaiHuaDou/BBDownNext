@@ -19,39 +19,36 @@ dotnet_diagnostic.CS8618.severity = warning
 dotnet_diagnostic.SYSLIB0014.severity = warning
 
 dotnet_diagnostic.CA1001.severity = none
-dotnet_diagnostic.CA1031.severity = none
 dotnet_diagnostic.CA1034.severity = none
-dotnet_diagnostic.CA1062.severity = none
 dotnet_diagnostic.CA1303.severity = none
-dotnet_diagnostic.CA1304.severity = none
-dotnet_diagnostic.CA1307.severity = none
-dotnet_diagnostic.CA1310.severity = none
 dotnet_diagnostic.CA1311.severity = none
 dotnet_diagnostic.CA1515.severity = none
 dotnet_diagnostic.CA1724.severity = none
-dotnet_diagnostic.CA1849.severity = none
-dotnet_diagnostic.CA1862.severity = none
 dotnet_diagnostic.CA2008.severity = none
 dotnet_diagnostic.CA2227.severity = none
+
+dotnet_diagnostic.CA1002.severity = none # 设计约束：核心实体（Entity/ParsedResult/VInfo）需跨项目可变集合，保留 List<T>（主项目对其 Add/Clear/Sort 回写）
+dotnet_diagnostic.CA1031.severity = none
+dotnet_diagnostic.CA1054.severity = none # 设计约束：B站 URL 以字符串在多处拼接 / JSON 序列化，Uri 化需跨项目改造，暂保留 string 形参与属性
+dotnet_diagnostic.CA1056.severity = none
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1304.severity = none
+dotnet_diagnostic.CA1305.severity = none # 区域敏感格式，本工具显示层不涉及多语言格式化
+dotnet_diagnostic.CA1307.severity = none
+dotnet_diagnostic.CA1308.severity = none # ToLowerInvariant 风格提示
+dotnet_diagnostic.CA1310.severity = none
+dotnet_diagnostic.CA1812.severity = none # 内部类从未实例化，可能与源生成/反射路径误报
+dotnet_diagnostic.CA1848.severity = none # 建议用 LoggerMessage 委托，本工具使用自定义轻量日志封装
+dotnet_diagnostic.CA1849.severity = none
+dotnet_diagnostic.CA1862.severity = none
+dotnet_diagnostic.CA2007.severity = none # ConfigureAwait，控制台单线程同步上下文无需
+dotnet_diagnostic.CA2234.severity = none
+dotnet_diagnostic.CA5351.severity = none # B站 WBI / APPKEY 签名强制使用 MD5，不可替换为 SHA（替换将导致鉴权失败）
 dotnet_diagnostic.CA5394.severity = none
 dotnet_diagnostic.IDE0130.severity = none
+dotnet_diagnostic.IDE1006.severity = none
 dotnet_diagnostic.RCS1123.severity = none
 dotnet_diagnostic.RCS1155.severity = none
-
-dotnet_diagnostic.CA1305.severity = none   # 区域敏感格式，本工具显示层不涉及多语言格式化
-dotnet_diagnostic.CA1308.severity = none   # ToLowerInvariant 风格提示
-dotnet_diagnostic.CA2007.severity = none   # ConfigureAwait，控制台单线程同步上下文无需
-dotnet_diagnostic.CA1848.severity = none   # 建议用 LoggerMessage 委托，本工具使用自定义轻量日志封装
-dotnet_diagnostic.CA1812.severity = none   # 内部类从未实例化，可能与源生成/反射路径误报
-
-# 设计约束：核心实体（Entity/ParsedResult/VInfo）需跨项目可变集合，保留 List<T>（主项目对其 Add/Clear/Sort 回写）
-dotnet_diagnostic.CA1002.severity = none
-# 设计约束：B站 URL 以字符串在多处拼接 / JSON 序列化，Uri 化需跨项目改造，暂保留 string 形参与属性
-dotnet_diagnostic.CA1054.severity = none
-dotnet_diagnostic.CA1056.severity = none
-dotnet_diagnostic.CA2234.severity = none
-# B站 WBI / APPKEY 签名强制使用 MD5，不可替换为 SHA（替换将导致鉴权失败）
-dotnet_diagnostic.CA5351.severity = none
 
 dotnet_code_quality_unused_parameters = all:suggestion
 

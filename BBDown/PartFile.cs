@@ -33,9 +33,15 @@ internal static class PartFile
     internal const int CurrentVersion = 1;
     internal const long DefaultChunkSize = 20 * 1024 * 1024;
 
-    internal static string PartPath(string destPath) => destPath + ".bbdown.part";
+    internal static string PartPath(string destPath)
+    {
+        return destPath + ".bbdown.part";
+    }
 
-    internal static string ManifestPath(string destPath) => destPath + ".bbdown.json";
+    internal static string ManifestPath(string destPath)
+    {
+        return destPath + ".bbdown.json";
+    }
 
     /// <summary>
     /// B站 CDN 的 host 和 query（deadline/oi/trid）每次解析都不同，只有 path 里的
@@ -52,8 +58,16 @@ internal static class PartFile
     internal static List<(long From, long To)> Ranges(long totalSize, long chunkSize)
     {
         List<(long From, long To)> ranges = [];
-        if (totalSize <= 0) return ranges;
-        if (chunkSize <= 0) chunkSize = DefaultChunkSize;
+        if (totalSize <= 0)
+        {
+            return ranges;
+        }
+
+        if (chunkSize <= 0)
+        {
+            chunkSize = DefaultChunkSize;
+        }
+
         for (var from = 0L; from < totalSize; from += chunkSize)
         {
             ranges.Add((from, Math.Min(from + chunkSize, totalSize) - 1));
@@ -69,12 +83,19 @@ internal static class PartFile
                && manifest.Completed.Length == Math.Max(Ranges(manifest.TotalSize, manifest.ChunkSize).Count, 1);
     }
 
-    internal static long DownloadedBytes(PartManifest manifest) => manifest.Completed.Sum( );
+    internal static long DownloadedBytes(PartManifest manifest)
+    {
+        return manifest.Completed.Sum( );
+    }
 
     internal static PartManifest? TryLoad(string destPath)
     {
         var path = ManifestPath(destPath);
-        if (!File.Exists(path)) return null;
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
         try
         {
             var manifest = JsonSerializer.Deserialize(File.ReadAllText(path), PartJsonContext.Default.PartManifest);
@@ -103,6 +124,4 @@ internal static class PartFile
 }
 
 [JsonSerializable(typeof(PartManifest))]
-internal sealed partial class PartJsonContext : JsonSerializerContext
-{
-}
+internal sealed partial class PartJsonContext : JsonSerializerContext;

@@ -7,7 +7,10 @@ namespace BBDown.Core.Tests;
 // 国内番剧与 INTL 番剧共用的分集构造
 public class EpisodePagesTests
 {
-    private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement.Clone( );
+    private static JsonElement Parse(string json)
+    {
+        return JsonDocument.Parse(json).RootElement.Clone( );
+    }
 
     private const string Episodes = """
         [

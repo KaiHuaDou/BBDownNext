@@ -44,7 +44,10 @@ public static partial class Parser
     // 当前 playurl 参数均为数字/固定字面量，编码为恒等变换；排序是关键修正点（旧实现按书写序拼接，与服务端不一致）。
     public static string WbiSign(string api, AppConfig cfg)
     {
-        if (cfg.Wbi.Length == 0) return api;
+        if (cfg.Wbi.Length == 0)
+        {
+            return api;
+        }
 
         // 先剔除任何已存在的 w_rid：既用于计算 canonical，也避免重签名时把旧 w_rid 残留在输出里
         var withoutWrid = string.Join("&",
@@ -82,14 +85,14 @@ public static partial class Parser
             }
             else
             {
-                foreach (var b in Encoding.UTF8.GetBytes(new[] { ch }))
+                foreach (var b in Encoding.UTF8.GetBytes([ch]))
                 {
                     sb.Append('%').Append(b.ToString("X2"));
                 }
             }
         }
 
-        return sb.ToString();
+        return sb.ToString( );
     }
 
     private static async Task<string> GetPlayJsonAsync(PlayUrlRequest req, string qn = "0", CancellationToken ct = default)
@@ -123,7 +126,10 @@ public static partial class Parser
         try
         {
             using var doc = JsonDocument.Parse(webJson);
-            if (doc.RootElement.ValueKind != JsonValueKind.Object) return false;
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
 
             foreach (var key in VipRestrictionMessageKeys)
             {
@@ -174,7 +180,11 @@ public static partial class Parser
         };
         // 课程（cheese）与番剧共用同一套 playurl 网关，仅域名路径中的 /pgc/ 需替换为 /pugv/。
         // 因此直接复用 PGC 的 v2 路径（含 DASH 支持），再整体换域名——并非文档里写的非 v2 端点，属有意设计。
-        if (cheese) prefix = prefix.Replace("/pgc/", "/pugv/");
+        if (cheese)
+        {
+            prefix = prefix.Replace("/pgc/", "/pugv/");
+        }
+
         return $"https://{prefix}?";
     }
 
@@ -272,10 +282,16 @@ public static partial class Parser
         for (var intlAttempt = 0; intlAttempt < 2; intlAttempt++)
         {
             using var intlDoc = JsonDocument.Parse(parsedResult.RawResponse);
-            if (!TryGetIntlVideoInfo(intlDoc.RootElement, out var videoInfo)) break;
+            if (!TryGetIntlVideoInfo(intlDoc.RootElement, out var videoInfo))
+            {
+                break;
+            }
 
             CollectIntlTracks(parsedResult, videoInfo);
-            if (intlAttempt == 1) return parsedResult;
+            if (intlAttempt == 1)
+            {
+                return parsedResult;
+            }
 
             parsedResult.RawResponse = await GetIntlPlayJsonAsync(aid, cid, epId, qn, cfg, "1", ct);
         }
@@ -305,7 +321,10 @@ public static partial class Parser
     // data 节点一次性判断完；v2 接口把有效载荷藏在 result.video_info 下
     internal static string? ResolveDataNodeName(JsonElement data)
     {
-        if (data.ValueKind != JsonValueKind.Object) return null;
+        if (data.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
 
         if (data.TryGetProperty("result", out var result) && result.ValueKind == JsonValueKind.Object)
         {
@@ -319,10 +338,16 @@ public static partial class Parser
     private static bool TryGetIntlVideoInfo(JsonElement root, out JsonElement videoInfo)
     {
         videoInfo = default;
-        if (!HasObject(root, "data")) return false;
+        if (!HasObject(root, "data"))
+        {
+            return false;
+        }
 
         var data = root.GetProperty("data");
-        if (!HasObject(data, "video_info")) return false;
+        if (!HasObject(data, "video_info"))
+        {
+            return false;
+        }
 
         videoInfo = data.GetProperty("video_info");
         return TryGetArray(videoInfo, "stream_list", out _);
@@ -345,8 +370,15 @@ public static partial class Parser
 
         foreach (var stream in videoInfo.GetProperty("stream_list").EnumerateArray( ))
         {
-            if (!stream.TryGetProperty("dash_video", out var dashVideo)) continue;
-            if (dashVideo.GetProperty("base_url").ToString( ).Length == 0) continue;
+            if (!stream.TryGetProperty("dash_video", out var dashVideo))
+            {
+                continue;
+            }
+
+            if (dashVideo.GetProperty("base_url").ToString( ).Length == 0)
+            {
+                continue;
+            }
 
             var videoId = stream.GetProperty("stream_info").GetProperty("quality").ToString( );
             Video v = new( )
@@ -401,7 +433,10 @@ public static partial class Parser
 
     internal static int ReadDashDuration(JsonElement root)
     {
-        if (root.ValueKind != JsonValueKind.Object) return 0;
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            return 0;
+        }
 
         if (root.TryGetProperty("timelength", out var timelength) && timelength.TryGetInt32(out var ms))
         {
@@ -420,7 +455,10 @@ public static partial class Parser
     private static void CollectDashVideoTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi)
     {
         var video = TryEnumerateArray(root, "dash", "video");
-        if (video == null) return;
+        if (video == null)
+        {
+            return;
+        }
 
         foreach (var node in video)
         {
@@ -451,7 +489,10 @@ public static partial class Parser
     private static void CollectDashAudioTracks(ParsedResult parsedResult, JsonElement root, int pDur, bool tvApi)
     {
         var audio = TryEnumerateArray(root, "dash", "audio");
-        if (audio == null) return;
+        if (audio == null)
+        {
+            return;
+        }
 
         AppendDolbyAndHiResAudio(audio, root, tvApi);
         foreach (var node in audio)
@@ -462,8 +503,15 @@ public static partial class Parser
 
     private static void AppendDolbyAndHiResAudio(List<JsonElement> audio, JsonElement root, bool tvApi)
     {
-        if (tvApi || root.ValueKind != JsonValueKind.Object) return;
-        if (!root.TryGetProperty("dash", out var dash) || dash.ValueKind != JsonValueKind.Object) return;
+        if (tvApi || root.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        if (!root.TryGetProperty("dash", out var dash) || dash.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
 
         //处理杜比音频
         if (dash.TryGetProperty("dolby", out var dolby) && dolby.ValueKind == JsonValueKind.Object
@@ -537,7 +585,10 @@ public static partial class Parser
 
     private static void AppendBangumiViewPoints(ParsedResult parsedResult, JsonElement root)
     {
-        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("clip_info_list", out var clipList)) return;
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("clip_info_list", out var clipList))
+        {
+            return;
+        }
 
         AppendViewPoints(parsedResult, clipList.EnumerateArray( ).Select(clip => new ViewPoint( )
         {
@@ -657,7 +708,7 @@ public static partial class Parser
 
     internal static string PickBaseUrl(List<string> urlList)
     {
-        return urlList.FirstOrDefault(i => !BaseUrlRegex( ).IsMatch(i), urlList.First( ));
+        return urlList.FirstOrDefault(i => !BaseUrlRegex( ).IsMatch(i), urlList[0]);
     }
 
     [GeneratedRegex("window.__playinfo__=([\\s\\S]*?)<\\/script>")]

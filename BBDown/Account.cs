@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core;
-using BBDown.Core.Entity;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
@@ -21,8 +20,7 @@ internal static class Account
     {
         try
         {
-            var api = BiliApi.Nav;
-            var source = await GetWebSourceAsync(api, cfg, null, ct);
+            var source = await GetWebSourceAsync(BiliApi.Nav, cfg, null, ct);
             using var doc = JsonDocument.Parse(source);
             var data = doc.RootElement.GetProperty("data");
             var info = ParseNav(data);
@@ -53,7 +51,9 @@ internal static class Account
         {
             isVip = vip.TryGetProperty("vipStatus", out var vs) && vs.GetInt32( ) == 1;
             if (vip.TryGetProperty("label", out var label) && label.TryGetProperty("text", out var lt))
+            {
                 vipLabel = lt.GetString( ) ?? "";
+            }
         }
 
         return new AccountInfo(isLogin, uname, level, isVip, vipLabel);

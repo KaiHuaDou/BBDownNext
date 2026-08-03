@@ -53,7 +53,7 @@ public static class DanmakuUtil
                 foreach (XmlNode node in dNodeList)
                 {
                     var dElement = (XmlElement) node;
-                    var attr = dElement.GetAttribute("p").ToString( );
+                    var attr = dElement.GetAttribute("p");
                     if (attr != null)
                     {
                         var vs = attr.Split(',');
@@ -67,7 +67,7 @@ public static class DanmakuUtil
             }
         }
 
-        return danmakus.ToArray( );
+        return [.. danmakus];
     }
 
     /// <summary>
@@ -229,7 +229,11 @@ public static class DanmakuUtil
         {
             // 先量化到厘秒再拆分，否则末尾格式化的进位会溢出成 0:59:60.00 这种非法时间戳
             var total = (long) Math.Round(second * 100, MidpointRounding.AwayFromZero);
-            if (total < 0) total = 0;
+            if (total < 0)
+            {
+                total = 0;
+            }
+
             return $"{total / 360000}:{total % 360000 / 6000:D2}:{total % 6000 / 100.0:00.00}";
         }
         public string Content { get; set; } = "";
@@ -254,8 +258,16 @@ public static class DanmakuUtil
     {
         public int Compare(DanmakuItem? x, DanmakuItem? y)
         {
-            if (x == null) return -1;
-            if (y == null) return 1;
+            if (x == null)
+            {
+                return -1;
+            }
+
+            if (y == null)
+            {
+                return 1;
+            }
+
             return x.Second.CompareTo(y.Second);
         }
     }

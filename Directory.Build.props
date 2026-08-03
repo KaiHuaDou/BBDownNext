@@ -15,11 +15,11 @@
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-        <DebugType>full</DebugType>
+        <DebugType>portable</DebugType>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-        <DebugType>none</DebugType>
+        <DebugType>portable</DebugType>
     </PropertyGroup>
 
 </Project>

@@ -1,9 +1,6 @@
 using System.Collections.Generic;
 
-using BBDown;
 using BBDown.Core;
-
-using Xunit;
 
 namespace BBDown.Tests;
 

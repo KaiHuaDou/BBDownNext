@@ -1,27 +1,32 @@
 using System;
 using System.Text.Json;
 
-using BBDown;
-
 namespace BBDown.Tests;
 
 public class LoginTests
 {
-    private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement.Clone( );
+    private static JsonElement Parse(string json)
+    {
+        return JsonDocument.Parse(json).RootElement.Clone( );
+    }
 
     private static string TvPoll(string code, string data = "null")
-        => """{"code":CODE,"message":"0","ttl":1,"data":DATA}"""
-            .Replace("CODE", code)
-            .Replace("DATA", data);
+    {
+        return """{"code":CODE,"message":"0","ttl":1,"data":DATA}"""
+                .Replace("CODE", code)
+                .Replace("DATA", data);
+    }
 
     private static string WebPoll(int dataCode, string url = "", int outerCode = 0)
-        => """
+    {
+        return """
         {"code":OUTER,"message":"0","ttl":1,
          "data":{"url":"URL","refresh_token":"rt","timestamp":1769618093579,"code":INNER,"message":""}}
         """
-            .Replace("OUTER", outerCode.ToString( ))
-            .Replace("INNER", dataCode.ToString( ))
-            .Replace("URL", url);
+                .Replace("OUTER", outerCode.ToString( ))
+                .Replace("INNER", dataCode.ToString( ))
+                .Replace("URL", url);
+    }
 
     [Fact]
     public void InterpretTv_NumericSuccessCode_ReturnsAccessToken( )
@@ -46,7 +51,9 @@ public class LoginTests
     [InlineData("-400")]
     [InlineData("-404")]
     public void InterpretTv_UnknownCode_Throws(string code)
-        => Assert.Throws<InvalidOperationException>(( ) => Login.InterpretTv(Parse(TvPoll(code))));
+    {
+        Assert.Throws<InvalidOperationException>(( ) => Login.InterpretTv(Parse(TvPoll(code))));
+    }
 
     [Fact]
     public void InterpretWeb_SuccessCode_ReturnsCrossDomainUrl( )
@@ -69,11 +76,15 @@ public class LoginTests
 
     [Fact]
     public void InterpretWeb_UnknownDataCode_ThrowsInsteadOfReportingSuccess( )
-        => Assert.Throws<InvalidOperationException>(( ) => Login.InterpretWeb(Parse(WebPoll(86083))));
+    {
+        Assert.Throws<InvalidOperationException>(( ) => Login.InterpretWeb(Parse(WebPoll(86083))));
+    }
 
     [Fact]
     public void InterpretWeb_NonZeroOuterCode_Throws( )
-        => Assert.Throws<InvalidOperationException>(( ) => Login.InterpretWeb(Parse(WebPoll(0, outerCode: -400))));
+    {
+        Assert.Throws<InvalidOperationException>(( ) => Login.InterpretWeb(Parse(WebPoll(0, outerCode: -400))));
+    }
 
     [Fact]
     public void BuildWebCookie_KeepsOnlyRealCookies( )
@@ -86,13 +97,19 @@ public class LoginTests
 
     [Fact]
     public void BuildWebCookie_EscapesComma( )
-        => Assert.Equal("SESSDATA=a%2Cb", Login.BuildWebCookie("https://x/y?SESSDATA=a,b"));
+    {
+        Assert.Equal("SESSDATA=a%2Cb", Login.BuildWebCookie("https://x/y?SESSDATA=a,b"));
+    }
 
     [Fact]
     public void BuildWebCookie_PreservesExistingPercentEncoding( )
-        => Assert.Equal("SESSDATA=a%2Cb", Login.BuildWebCookie("https://x/y?SESSDATA=a%2Cb"));
+    {
+        Assert.Equal("SESSDATA=a%2Cb", Login.BuildWebCookie("https://x/y?SESSDATA=a%2Cb"));
+    }
 
     [Fact]
     public void BuildWebCookie_ThrowsWhenNoCookiePresent( )
-        => Assert.Throws<InvalidOperationException>(( ) => Login.BuildWebCookie("https://x/y?gourl=z"));
+    {
+        Assert.Throws<InvalidOperationException>(( ) => Login.BuildWebCookie("https://x/y?gourl=z"));
+    }
 }

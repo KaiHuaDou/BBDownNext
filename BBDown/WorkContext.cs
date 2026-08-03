@@ -16,7 +16,7 @@ internal sealed record WorkContext(
     string FirstEncoding,
     bool EncodingFirst,
     bool DownloadDanmaku,
-    BBDownDanmakuFormat[] DownloadDanmakuFormats,
+    DanmakuFormat[] DownloadDanmakuFormats,
     string Input,
     string SavePathFormat,
     string Lang,

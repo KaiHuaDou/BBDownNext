@@ -9,12 +9,12 @@ namespace BBDown;
 
 internal sealed class ProgressBar : IDisposable, IProgress<double>
 {
-    private const int blockCount = 40;
+    private const int BlockCount = 40;
     private readonly TimeSpan animationInterval = TimeSpan.FromSeconds(1.0 / 8);
-    private const string animation = @"|/-\";
+    private const string Animation = @"|/-\";
 
     private readonly Timer timer;
-    private readonly object timerLock = new( );
+    private readonly Lock timerLock = new( );
 
     private double currentProgress;
     private string currentText = string.Empty;
@@ -23,7 +23,7 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
 
     //速度计算
     private readonly TimeSpan speedCalcInterval = TimeSpan.FromSeconds(1);
-    private readonly object speedTimerLock = new( );
+    private readonly Lock speedTimerLock = new( );
     private long lastDownloadedBytes;
     private long downloadedBytes;
     private string speedString = "";
@@ -36,7 +36,10 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
     {
         timer = new Timer(TimerHandler);
         speedTimer = new Timer(SpeedTimerHandler);
-        if (task is not null) RelatedTask = task;
+        if (task is not null)
+        {
+            RelatedTask = task;
+        }
         // A progress bar is only for temporary display in a console window.
         // If the console output is redirected to a file, draw nothing.
         // Otherwise, we'll end up with a lot of garbage in the target file.
@@ -70,9 +73,12 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
     {
         lock (speedTimerLock)
         {
-            if (disposed) return;
+            if (disposed)
+            {
+                return;
+            }
 
-            if (downloadedBytes > 0 && downloadedBytes - lastDownloadedBytes > 0)
+            if (downloadedBytes > 0 && downloadedBytes > lastDownloadedBytes)
             {
                 var delta = downloadedBytes - lastDownloadedBytes;
                 speedString = " - " + Utils.FormatFileSize(delta) + "/s";
@@ -92,13 +98,16 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
     {
         lock (timerLock)
         {
-            if (disposed) return;
+            if (disposed)
+            {
+                return;
+            }
 
-            var progressBlockCount = (int) (currentProgress * blockCount);
+            var progressBlockCount = (int) (currentProgress * BlockCount);
             var percent = currentProgress * 100;
             var text = string.Format("             [{0}{1}] {2,3:0.00}% {3}{4}",
-                new string('#', progressBlockCount), new string('-', blockCount - progressBlockCount), percent,
-                animation[animationIndex++ % animation.Length],
+                new string('#', progressBlockCount), new string('-', BlockCount - progressBlockCount), percent,
+                Animation[animationIndex++ % Animation.Length],
                 speedString);
             UpdateText(text);
             if (RelatedTask is not null)
@@ -113,7 +122,10 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
     private void UpdateText(string text)
     {
         // Write nothing when output is redirected
-        if (Console.IsOutputRedirected) return;
+        if (Console.IsOutputRedirected)
+        {
+            return;
+        }
         // Get length of common portion
         var commonPrefixLength = 0;
         var commonLength = Math.Min(currentText.Length, text.Length);

@@ -10,7 +10,10 @@ public class AppParserTests
     private const string Aid = "114514";
     private const string Cid = "1919810";
 
-    private static ParsedResult Build(PlayViewReply reply, bool isEpisode) => Parser.BuildAppParsedResult(reply, isEpisode, Aid, Cid);
+    private static ParsedResult Build(PlayViewReply reply, bool isEpisode)
+    {
+        return Parser.BuildAppParsedResult(reply, isEpisode, Aid, Cid);
+    }
 
     [Fact]
     public void Ugc_VideoTracks_SkipsStreamsWithoutDash( )

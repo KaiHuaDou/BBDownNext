@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Text;
-using Xunit;
 
 namespace BBDown.Core.Tests;
 
@@ -22,7 +21,7 @@ public class DanmakuUtilTests
     }
 
     [Fact]
-    public void UpdatePosition_AssignsLinesTopDown()
+    public void UpdatePosition_AssignsLinesTopDown( )
     {
         var controller = new DanmakuUtil.PositionController( );
 
@@ -32,7 +31,7 @@ public class DanmakuUtilTests
     }
 
     [Fact]
-    public void UpdatePosition_ReturnsMinusOneWhenAllLinesBusy()
+    public void UpdatePosition_ReturnsMinusOneWhenAllLinesBusy( )
     {
         var controller = new DanmakuUtil.PositionController( );
 
@@ -46,7 +45,7 @@ public class DanmakuUtilTests
     }
 
     [Fact]
-    public void UpdatePosition_ReusesLineAfterItExpires()
+    public void UpdatePosition_ReusesLineAfterItExpires( )
     {
         var controller = new DanmakuUtil.PositionController( );
 
@@ -57,7 +56,7 @@ public class DanmakuUtilTests
     }
 
     [Fact]
-    public void UpdatePosition_TracksEachModeIndependently()
+    public void UpdatePosition_TracksEachModeIndependently( )
     {
         var controller = new DanmakuUtil.PositionController( );
 
@@ -68,7 +67,7 @@ public class DanmakuUtilTests
     }
 
     [Fact]
-    public void ParseXml_ReadsModeColorAndTiming()
+    public void ParseXml_ReadsModeColorAndTiming( )
     {
         const string xml = """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -106,13 +105,13 @@ public class DanmakuUtilTests
     }
 
     [Fact]
-    public void ParseXml_ReturnsNullOnMalformedDocument()
+    public void ParseXml_ReturnsNullOnMalformedDocument( )
     {
         Assert.Null(WithTempXml("这不是 xml", DanmakuUtil.ParseXml));
     }
 
     [Fact]
-    public void ParseXml_ReturnsEmptyWhenNoDanmakuNode()
+    public void ParseXml_ReturnsEmptyWhenNoDanmakuNode( )
     {
         var danmakus = WithTempXml("<i></i>", DanmakuUtil.ParseXml);
 

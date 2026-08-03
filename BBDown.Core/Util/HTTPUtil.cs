@@ -27,7 +27,7 @@ public static partial class HTTPUtil
     {
         AllowAutoRedirect = true,
         AutomaticDecompression = DecompressionMethods.All,
-        ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) =>
+        ServerCertificateCustomValidationCallback = (_, __, ___, sslPolicyErrors) =>
             sslPolicyErrors == System.Net.Security.SslPolicyErrors.None ||
             Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1"
     })
@@ -62,7 +62,10 @@ public static partial class HTTPUtil
     public static string UserAgent { get; private set; } = GetRandomUserAgent( );
 
     // 仅允许在启动装配阶段设置 UA（构造期一次性设定），避免任意代码点改动全局状态
-    public static void SetUserAgent(string ua) => UserAgent = ua;
+    public static void SetUserAgent(string ua)
+    {
+        UserAgent = ua;
+    }
 
     // 番剧播放页要带 CURRENT_FNVAL 才会吐出 dash 源。只认 /ep123 /ss123 这样完整的路径段，
     // 裸 Contains("/ep") 会把 /episodes、/ssl 之类一并命中
@@ -80,13 +83,17 @@ public static partial class HTTPUtil
         request.Headers.TryAddWithoutValidation("User-Agent", userAgent ?? UserAgent);
         request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
         var cookie = cfg.Cookie;
-        if (Buvid.Fragment.Length != 0) cookie += ";" + Buvid.Fragment;
+        if (Buvid.Fragment.Length != 0)
+        {
+            cookie += ";" + Buvid.Fragment;
+        }
+
         request.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? cookie + ";CURRENT_FNVAL=4048;" : cookie);
 
         var host = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : "";
         // passport 系接口（扫码登录 generate/poll 等）同样校验 Referer，浏览器从 www.bilibili.com 发起，
         // 不带 Referer 会被服务端在拿到 data.url 之前就挡下，导致 Web 登录拿不到 SESSDATA
-        if (host == BiliApi.MainHost || host == BiliApi.PassportHost || host == "www.bilibili.com")
+        if (host is BiliApi.MainHost or BiliApi.PassportHost or "www.bilibili.com")
         {
             request.Headers.TryAddWithoutValidation("Referer", BiliApi.Site + "/");
         }
@@ -217,6 +224,9 @@ public static partial class HTTPUtil
         request.Headers.TryAddWithoutValidation("Cookie", cookie);
     }
 
+    /// <summary>
+    /// GetWithRangeAsync
+    /// </summary>
     /// <param name="ifRange">
     /// 服务器上次给的 ETag 或 Last-Modified 原文。必须原样回传：自己拿本地文件时间戳去造
     /// If-Range 只会让校验恒通过，等于没做校验。为空则不带该头。
@@ -226,11 +236,17 @@ public static partial class HTTPUtil
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         AddDownloadHeaders(request, url, cookie);
         request.Headers.Range = new(from, to);
-        if (!string.IsNullOrEmpty(ifRange)) request.Headers.TryAddWithoutValidation("If-Range", ifRange);
+        if (!string.IsNullOrEmpty(ifRange))
+        {
+            request.Headers.TryAddWithoutValidation("If-Range", ifRange);
+        }
 
         // 失败响应握着连接不放会拖垮重试, 这里先释放再抛
         var response = await SendRawAsync(request, ct);
-        if (response.IsSuccessStatusCode) return response;
+        if (response.IsSuccessStatusCode)
+        {
+            return response;
+        }
 
         var status = response.StatusCode;
         response.Dispose( );
@@ -300,7 +316,11 @@ public static partial class HTTPUtil
     // 头里凭据字段只打印字段名，值打码
     private static string RedactHeaders(HttpHeaders? headers)
     {
-        if (headers is null) return "";
+        if (headers is null)
+        {
+            return "";
+        }
+
         var parts = new List<string>( );
         foreach (var header in headers)
         {
@@ -309,6 +329,7 @@ public static partial class HTTPUtil
                 : string.Join(", ", header.Value);
             parts.Add($"{header.Key}: {value}");
         }
+
         return string.Join("; ", parts);
     }
 
@@ -318,7 +339,11 @@ public static partial class HTTPUtil
 
     private static string RedactText(string text)
     {
-        if (string.IsNullOrEmpty(text)) return text;
+        if (string.IsNullOrEmpty(text))
+        {
+            return text;
+        }
+
         return SecretTextRegex( ).Replace(text, m => $"{m.Groups[1].Value}{m.Groups[2].Value}[redacted]");
     }
 }

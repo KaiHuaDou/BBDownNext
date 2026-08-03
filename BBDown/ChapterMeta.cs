@@ -64,11 +64,11 @@ internal static partial class ChapterMeta
         sb.AppendLine(";FFMETADATA");
         foreach (var p in points)
         {
-            var time = 1000; //固定 1000
+            const int Time = 1000;
             sb.AppendLine("[CHAPTER]");
-            sb.AppendLine($"TIMEBASE=1/{time}");
-            sb.AppendLine($"START={p.start * time}");
-            sb.AppendLine($"END={p.end * time}");
+            sb.AppendLine($"TIMEBASE=1/{Time}");
+            sb.AppendLine($"START={p.start * Time}");
+            sb.AppendLine($"END={p.end * Time}");
             sb.AppendLine($"title={p.title}");
             sb.AppendLine( );
         }
@@ -101,7 +101,7 @@ internal static partial class ChapterMeta
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = BBDownMuxer.FFMPEG,
+                    FileName = Muxer.ffmpeg,
                     Arguments = "-version",
                     UseShellExecute = false,
                     RedirectStandardError = true,
@@ -113,7 +113,11 @@ internal static partial class ChapterMeta
             var info = process.StandardOutput.ReadToEnd( ) + Environment.NewLine + process.StandardError.ReadToEnd( );
             process.WaitForExit( );
             var match = LibavutilRegex( ).Match(info);
-            if (!match.Success) return false;
+            if (!match.Success)
+            {
+                return false;
+            }
+
             if (Convert.ToInt32(match.Groups[1].Value) is (57 and >= 17) or > 57)
             {
                 return true;

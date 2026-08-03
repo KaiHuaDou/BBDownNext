@@ -18,23 +18,24 @@ public static class Buvid
 
     public static string Value { get; private set; } = "";
 
-    private static Task? _initTask;
-    private static bool _initFailed;
-    private static readonly object _gate = new();
+    private static Task? initTask;
+    private static bool initFailed;
+    private static readonly Lock gate = new( );
 
     /// <summary>
     /// 缓存初始化任务，保证只发起一次成功拉取；若拉取失败则标记，下次调用可重试（修复 P1-1：原 Interlocked 方案在首次失败后会永久禁用）。
     /// </summary>
     public static Task InitAsync(CancellationToken ct = default)
     {
-        lock (_gate)
+        lock (gate)
         {
-            if (_initTask is null || _initFailed)
+            if (initTask is null || initFailed)
             {
-                _initFailed = false;
-                _initTask = InitCoreAsync(ct);
+                initFailed = false;
+                initTask = InitCoreAsync(ct);
             }
-            return _initTask;
+
+            return initTask;
         }
     }
 
@@ -50,22 +51,22 @@ public static class Buvid
                 && data.TryGetProperty("b_3", out var b3) && b3.ValueKind == JsonValueKind.String
                 && data.TryGetProperty("b_4", out var b4) && b4.ValueKind == JsonValueKind.String)
             {
-                var buvid3 = b3.GetString()!;
-                var buvid4 = b4.GetString()!;
-                var bNut = DateTimeOffset.Now.ToUnixTimeSeconds().ToString();
+                var buvid3 = b3.GetString( )!;
+                var buvid4 = b4.GetString( )!;
+                var bNut = DateTimeOffset.Now.ToUnixTimeSeconds( ).ToString( );
                 Value = buvid3;
-                Fragment = $"buvid3={buvid3 };buvid4={buvid4 };b_nut={bNut}";
+                Fragment = $"buvid3={buvid3};buvid4={buvid4};b_nut={bNut}";
                 LogDebug("buvid 已生成");
             }
             else
             {
-                _initFailed = true;
+                initFailed = true;
                 LogDebug("获取 buvid 失败：返回结构缺少 b_3/b_4");
             }
         }
         catch (Exception ex)
         {
-            _initFailed = true;
+            initFailed = true;
             LogDebug("获取 buvid 失败（将不附加设备标识）: {0}", ex.Message);
         }
     }

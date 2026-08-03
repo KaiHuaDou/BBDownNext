@@ -25,26 +25,26 @@ BBDown/
 │   ├── Program.Download.cs # 分 P 编排、DASH/FLV 下载、混流路径、文件名格式化
 │   ├── Program.Methods.cs  # 分辨率/优先级解析、归档、CDN host 策略等工具方法
 │   ├── BBDownApiServer.cs  # serve 的 ASP.NET Minimal API + 鉴权 + SSRF 防护
-│   ├── BBDownDownloadUtil.cs # 唯一下载入口 (续传、CDN 策略)
-│   ├── BBDownMuxer.cs      # ffmpeg/mp4box 混流、FLV 合并
+│   ├── DownloadUtil.cs     # 唯一下载入口 (续传、CDN 策略)
+│   ├── Muxer.cs            # ffmpeg/mp4box 混流、FLV 合并
 │   ├── PartFile.cs         # 断点续传状态 (.bbdown.part/.bbdown.json)
 │   ├── CredentialStore.cs  # 单一 JSON 凭据读写 (源生成器 AOT 安全)
 │   ├── Login.cs            # WEB/TV/APP 扫码登录与 refresh_token 续期
 │   ├── InputResolver.cs    # URL/编号 → 内部 avid 解析
-│   ├── BBDownConfigParser.cs # 配置文件解析 (仅补齐命令行未指定项)
+│   ├── ConfigParser.cs     # 配置文件解析 (仅补齐命令行未指定项)
 │   ├── DownloadOptions.cs  # 运行时配置 (含 WithSecretsRedacted)
-│   └── Model/ServeRequestOptions.cs # serve 请求受控子集 + CallBackWebHook
+│   └── ServeRequestOptions.cs # serve 请求受控子集 + CallBackWebHook
 │
 ├── BBDown.Core/            # 核心类库 (library, IsAotCompatible)
 │   ├── BiliApi.cs          # 各接口 Host/Path 常量
 │   ├── Config.cs           # 清晰度档位 (Qualities/MaxQn/DolbyVisionQn)
 │   ├── Parser.cs           # 播放地址解析 (DASH/FLV/APP/INTL)、WBI 签名、playurl 请求
 │   ├── AppHelper.cs        # APP gRPC 手写帧 (PackMessage/ReadMessage)
-│   ├── HTTPUtil.cs         # 统一 HTTP 客户端、TLS 逃生舱、buvid 获取
-│   ├── Fetcher/            # 8 个 static Fetcher + FetcherRegistry (按 IdPrefix 分发)
+│   ├── IdPrefix.cs         # 输入编号前缀常量 (ep:/ss:/lists:/series:/fav:/cheese: 等)
+│   ├── Fetcher/            # 6 个 static Fetcher + FetcherRegistry (按 IdPrefix 分发)
 │   ├── Util/               # BV 转换、FileNameUtil(200 字节截断)、Buvid 等
 │   ├── Entity/             # VInfo / Page / Video / Audio / ParsedResult 等
-│   ├── SubUtil.cs          # 字幕获取 (含 APP gRPC 未登录兜底)
+│   ├── APP/                # APP gRPC 协议 (proto 生成代码)
 │   └── DanmakuUtil.cs      # 弹幕获取 (xml/ass)
 │
 ├── BBDown.Tests/           # 针对 BBDown 的 xUnit 测试
@@ -74,9 +74,9 @@ Parser (按 API 模式发 playurl)  → ParsedResult(视频轨/音频轨/FLV 分
   ▼
 Program.Download 编排分 P
   │  ├─ DownloadDashAsync / DownloadFlvAsync
-  │  ├─ BBDownDownloadUtil.DownloadAsync (续传写入 .bbdown.part)
+  │  ├─ DownloadUtil.DownloadAsync (续传写入 .bbdown.part)
   │  ├─ SubUtil / DanmakuUtil (字幕/弹幕)
-  │  └─ BBDownMuxer (ffmpeg/mp4box 混流 + 嵌入元数据/章节/字幕)
+  │  └─ Muxer (ffmpeg/mp4box 混流 + 嵌入元数据/章节/字幕)
   ▼
 落盘 (FilePattern 经 FileNameUtil 截断) + 写入 BBDown.archives (--save-records)
 ```
@@ -111,8 +111,8 @@ Program.Download 编排分 P
 `BBDown serve` 用 ASP.NET Minimal API 暴露任务增删查接口（完整契约见 [API.md](./API.md)）。设计要点：
 
 - **令牌鉴权**：`SetUpServer` → `FinalizeAuth(url)` 判定监听地址：
-  - 绑定**回环地址**（默认 `127.0.0.1`）→ 免令牌。
-  - 绑定**非回环地址**（如 `0.0.0.0`）且未显式 `--serve-token` → 自动生成令牌并打印，客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，否则返回 `401`。
+    - 绑定**回环地址**（默认 `127.0.0.1`）→ 免令牌。
+    - 绑定**非回环地址**（如 `0.0.0.0`）且未显式 `--serve-token` → 自动生成令牌并打印，客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，否则返回 `401`。
 - **请求契约收窄**：`ServeRequestOptions` 是 `DownloadOptions` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Debug`/`UserAgent`/`ConfigFile`），这些一律以服务端启动配置为准，即便请求传入也会被忽略。
 - **SSRF 防护**：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点。
 - **CORS**：仍默认 `AllowAnyOrigin`（便于本地前端调试），因此公网暴露存在风险，需配合反向代理与 TLS。

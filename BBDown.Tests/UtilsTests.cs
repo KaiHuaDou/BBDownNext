@@ -1,5 +1,4 @@
 using System;
-using Xunit;
 
 namespace BBDown.Tests;
 
@@ -19,9 +18,9 @@ public class UtilsTests
     }
 
     [Fact]
-    public void FormatFileSize_NegativeThrows()
+    public void FormatFileSize_NegativeThrows( )
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => Utils.FormatFileSize(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(( ) => Utils.FormatFileSize(-1));
     }
 
     [Theory]
@@ -69,14 +68,14 @@ public class UtilsTests
 
     // 无扩展名时 LastIndexOf('.') 返回 -1，直接越界
     [Fact]
-    public void RSubString_NoExtensionThrows()
+    public void RSubString_NoExtensionThrows( )
     {
-        Assert.ThrowsAny<ArgumentException>(() => Account.RSubString("https://cdn.example.com/a/b/video"));
+        Assert.ThrowsAny<ArgumentException>(( ) => Account.RSubString("https://cdn.example.com/a/b/video"));
     }
 
     // wbi 签名用的固定置换表，长度 32，索引最大 58
     [Fact]
-    public void GetMixinKey_AppliesFixedPermutation()
+    public void GetMixinKey_AppliesFixedPermutation( )
     {
         // 用 0-9a-z... 这类可辨识字符构造 64 位原始 key，便于直接核对置换结果
         const string orig = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01";
@@ -95,8 +94,8 @@ public class UtilsTests
     }
 
     [Fact]
-    public void GetMixinKey_TooShortThrows()
+    public void GetMixinKey_TooShortThrows( )
     {
-        Assert.Throws<IndexOutOfRangeException>(() => Account.GetMixinKey("short"));
+        Assert.Throws<IndexOutOfRangeException>(( ) => Account.GetMixinKey("short"));
     }
 }

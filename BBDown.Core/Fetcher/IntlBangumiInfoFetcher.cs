@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
 
@@ -26,6 +25,7 @@ public static partial class IntlBangumiInfoFetcher
         {
             throw new BangumiNotFoundException($"未找到 EP/SS 对应的番剧信息：ep_id={id}");
         }
+
         var seasonId = result.GetProperty("season_id").ToString( );
         var cover = result.GetProperty("cover").ToString( );
         var title = result.GetProperty("title").ToString( );

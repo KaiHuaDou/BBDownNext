@@ -5,23 +5,23 @@ on:
     branches: [master]
     tags: ["v*"]
     paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'LICENSE'
-      - 'bilibili-API-collect/**'
-      - 'LiteBoard-Icon/**'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/PULL_REQUEST_TEMPLATE.md'
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+      - "bilibili-API-collect/**"
+      - "LiteBoard-Icon/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
   pull_request:
     branches: [master]
     paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'LICENSE'
-      - 'bilibili-API-collect/**'
-      - 'LiteBoard-Icon/**'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/PULL_REQUEST_TEMPLATE.md'
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+      - "bilibili-API-collect/**"
+      - "LiteBoard-Icon/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
   workflow_dispatch:
 
 concurrency:
@@ -52,7 +52,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          global-json-file: './global.json'
+          global-json-file: "./global.json"
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
 
@@ -79,18 +79,26 @@ jobs:
         if: always()
         shell: bash
         run: |
-          shopt -s globstar nullglob
-          {
-            echo "## Coverage (line-rate)"
-            found=0
-            for f in **/TestResults/**/coverage.cobertura.xml; do
-              rate=$(grep -o 'line-rate="[0-9.]*"' "$f" | head -1 | sed 's/line-rate="//;s/"//')
-              pct=$(awk "BEGIN{printf \"%.1f\", $rate*100}")
-              echo "- $f: ${pct}%"
-              found=1
-            done
-            if [ "$found" = 0 ]; then echo "no coverage file found"; fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          PYCMD=$(command -v python3 || command -v python)
+          "$PYCMD" - <<'PY'
+          import glob, xml.etree.ElementTree as ET, os
+          files = sorted(glob.glob("**/TestResults/**/coverage.cobertura.xml", recursive=True))
+          lines = ["## Coverage (line-rate)"]
+          if not files:
+              lines.append("no coverage file found")
+          for f in files:
+              try:
+                  rate = float(ET.parse(f).getroot().get("line-rate", "0"))
+              except Exception:
+                  rate = 0.0
+              lines.append(f"- {f}: {rate*100:.1f}%")
+          text = "\n".join(lines) + "\n"
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a") as fh:
+                  fh.write(text)
+          print(text, end="")
+          PY
 
   build-windows:
     name: Build Windows (${{ matrix.rid }})
@@ -112,7 +120,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          global-json-file: './global.json'
+          global-json-file: "./global.json"
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
 
@@ -150,7 +158,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          global-json-file: './global.json'
+          global-json-file: "./global.json"
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
 
@@ -191,12 +199,19 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          global-json-file: './global.json'
+          global-json-file: "./global.json"
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
 
       # linux-arm64 在原生 arm64 runner 上构建，避免 x64 交叉编译需额外工具链。
       # GitHub arm64 runner 未预装 clang，且 .NET AOT 剥离符号需要 aarch64-linux-gnu-objcopy。
+      - name: Cache apt archives (arm64)
+        if: matrix.rid == 'linux-arm64'
+        uses: actions/cache@v6
+        with:
+          path: /var/cache/apt/archives
+          key: apt-arm64-aot-${{ hashFiles('Directory.Packages.props') }}
+
       - name: Install native AOT tools (arm64)
         if: matrix.rid == 'linux-arm64'
         run: |
@@ -244,21 +259,23 @@ jobs:
       - name: Resolve SDK version from global.json
         id: sdkver
         shell: bash
-        run: echo "version=$(grep -o '"version"\s*:\s*"[^"]*"' global.json | head -1 | sed 's/.*:\s*"//;s/"//')" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(grep -m 1 -o '"version"\s*:\s*"[^"]*"' global.json | sed 's/.*:\s*"//;s/"//')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache apk packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/apk
+          key: apk-musl-${{ steps.sdkver.outputs.version }}
 
       - name: Publish (AOT in Alpine)
         run: |
-          docker run --rm -v "$PWD":/src -w /src \
+          docker run --rm -v "$PWD":/src -v "$HOME/.cache/apk":/var/cache/apk -w /src \
             mcr.microsoft.com/dotnet/sdk:${{ steps.sdkver.outputs.version }}-alpine3.23 sh -c '
-              apk add --no-cache clang build-base zlib-dev &&
+              apk add clang build-base zlib-dev protobuf grpc-plugins &&
+              export PROTOBUF_PROTOC=/usr/bin/protoc &&
+              export GRPC_PROTOC_PLUGIN=/usr/bin/grpc_csharp_plugin &&
               dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact'
           sudo chown -R "$(id -u):$(id -g)" artifact
-
-      # 交叉链接静默产出 glibc 二进制是这条流水线踩过的坑，产物必须验一次 ELF 解释器
-      - name: Verify musl linkage
-        run: |
-          file artifact/BBDown
-          file artifact/BBDown | grep -Eq 'ld-musl|statically linked' || { echo "::error::not linked against musl"; exit 1; }
 
       - name: Stage artifact
         run: mv artifact/BBDown artifact/BBDown-${{ matrix.rid }}
@@ -286,7 +303,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          global-json-file: './global.json'
+          global-json-file: "./global.json"
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
 

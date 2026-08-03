@@ -7,7 +7,10 @@ namespace BBDown.Core.Tests;
 
 public class JsonUtilTests
 {
-    private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement.Clone( );
+    private static JsonElement Parse(string json)
+    {
+        return JsonDocument.Parse(json).RootElement.Clone( );
+    }
 
     [Theory]
     [InlineData("""{"dash":{}}""", "dash", true)]
