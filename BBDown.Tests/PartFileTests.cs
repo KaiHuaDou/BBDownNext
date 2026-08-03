@@ -14,7 +14,7 @@ public class PartFileTests
         return dir;
     }
 
-    // B站每次解析拿到的 CDN 地址 host/query 都不同，指纹必须只认 path，否则永远续不上
+    // B 站每次解析拿到的 CDN 地址 host/query 都不同，指纹必须只认 path，否则永远续不上
     [Fact]
     public void Fingerprint_IgnoresHostAndQuery( )
     {

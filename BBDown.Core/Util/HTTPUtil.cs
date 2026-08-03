@@ -32,16 +32,17 @@ public static partial class HTTPUtil
             Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1"
     })
     {
-        Timeout = DefaultTimeout
+        Timeout = DefaultTimeout,
+        // 优先协商 HTTP/2，服务端不支持时自动降级到 HTTP/1.1；减少握手与队头阻塞
+        DefaultRequestVersion = HttpVersion.Version20,
+        DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower
     };
 
-    // BBDOWN_INSECURE_TLS=1 是逃生舱口：关闭 TLS 证书校验，仅用于本地抓包/调试；
-    // 启用后任意中间人都能窃听或篡改 HTTPS 通信，绝不可在暴露网络或生产环境使用
     static HTTPUtil( )
     {
         if (Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1")
         {
-            Logger.LogWarn("⚠️ BBDOWN_INSECURE_TLS=1 已关闭 TLS 证书校验，HTTPS 通信可被中间人攻击，仅限本地调试。");
+            Logger.LogWarn("已关闭 TLS 证书校验");
         }
     }
 
@@ -111,7 +112,7 @@ public static partial class HTTPUtil
     {
         using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
         ApplyStandardGetHeaders(webRequest, url, cfg, userAgent);
-        LogDebug("获取网页内容: Url: {0}, Headers: {1}", RedactText(url), RedactHeaders(webRequest.Headers));
+        LogDebug("获取网页内容：Url: {0}, Headers: {1}", RedactText(url), RedactHeaders(webRequest.Headers));
         using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         webResponse.EnsureSuccessStatusCode( );
 
@@ -127,7 +128,7 @@ public static partial class HTTPUtil
     {
         using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
         ApplyStandardGetHeaders(webRequest, url, cfg);
-        LogDebug("登录请求: {0}", RedactText(url));
+        LogDebug("登录请求：{0}", RedactText(url));
         var resp = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         resp.EnsureSuccessStatusCode( );
         return resp;
@@ -143,7 +144,7 @@ public static partial class HTTPUtil
             Content = new FormUrlEncodedContent(form)
         };
         ApplyStandardGetHeaders(webRequest, url, cfg);
-        LogDebug("登录请求(POST): {0}", RedactText(url));
+        LogDebug("登录请求 (POST): {0}", RedactText(url));
         var resp = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         resp.EnsureSuccessStatusCode( );
         return resp;
@@ -176,7 +177,7 @@ public static partial class HTTPUtil
         return jar;
     }
 
-    // 重写重定向处理, 自动跟随多次重定向
+    // 重写重定向处理，自动跟随多次重定向
     public static async Task<string> GetWebLocationAsync(string url, CancellationToken ct = default)
     {
         using var webRequest = new HttpRequestMessage(HttpMethod.Head, url);
@@ -185,7 +186,7 @@ public static partial class HTTPUtil
         webRequest.Headers.CacheControl = CacheControlHeaderValue.Parse("no-cache");
         webRequest.Headers.Connection.Clear( );
 
-        LogDebug("获取网页重定向地址: Url: {0}, Headers: {1}", RedactText(url), RedactHeaders(webRequest.Headers));
+        LogDebug("获取网页重定向地址：Url: {0}, Headers: {1}", RedactText(url), RedactHeaders(webRequest.Headers));
         using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
         webResponse.EnsureSuccessStatusCode( );
         var location = webResponse.RequestMessage!.RequestUri!.AbsoluteUri;
@@ -196,7 +197,7 @@ public static partial class HTTPUtil
     // 逃生舱：需要自行控制 Header/Range/平台分支时直接构造 HttpRequestMessage 走这里
     public static Task<HttpResponseMessage> SendRawAsync(HttpRequestMessage request, CancellationToken ct = default)
     {
-        LogDebug("发送请求: {0} {1}, Headers: {2}", request.Method, RedactText(request.RequestUri?.AbsoluteUri ?? ""), RedactHeaders(request.Headers));
+        LogDebug("发送请求：{0} {1}, Headers: {2}", request.Method, RedactText(request.RequestUri?.AbsoluteUri ?? ""), RedactHeaders(request.Headers));
         return AppHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
     }
 
@@ -241,7 +242,7 @@ public static partial class HTTPUtil
             request.Headers.TryAddWithoutValidation("If-Range", ifRange);
         }
 
-        // 失败响应握着连接不放会拖垮重试, 这里先释放再抛
+        // 失败响应握着连接不放会拖垮重试，这里先释放再抛
         var response = await SendRawAsync(request, ct);
         if (response.IsSuccessStatusCode)
         {
@@ -250,7 +251,7 @@ public static partial class HTTPUtil
 
         var status = response.StatusCode;
         response.Dispose( );
-        throw new HttpRequestException($"下载请求失败: HTTP {(int) status} {status}", null, status);
+        throw new HttpRequestException($"下载请求失败：HTTP {(int) status} {status}", null, status);
     }
 
     public static async Task<byte[]> GetPostResponseAsync(string Url, byte[] postData, Dictionary<string, string>? headers = null, CancellationToken ct = default)
@@ -283,12 +284,12 @@ public static partial class HTTPUtil
         using var response = await AppHttpClient.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)
         {
-            throw new HttpRequestException($"gRPC 请求失败: HTTP {(int) response.StatusCode} {response.ReasonPhrase}", null, response.StatusCode);
+            throw new HttpRequestException($"gRPC 请求失败：HTTP {(int) response.StatusCode} {response.ReasonPhrase}", null, response.StatusCode);
         }
 
         var bytes = await response.Content.ReadAsByteArrayAsync(ct);
 
-        // grpc-status 可能出现在响应头, 也可能出现在读完 body 后的 trailer 中
+        // grpc-status 可能出现在响应头，也可能出现在读完 body 后的 trailer 中
         var status = ReadGrpcMeta(response, "grpc-status");
         if (status is not (null or "0"))
         {

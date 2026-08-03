@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -68,19 +69,41 @@ public static class FavListFetcher
             medias.AddRange(EnumerateArrayOrEmpty(GetApiData(jsonDoc.RootElement, "收藏夹信息").GetProperty("medias")).Select(m => m.Clone( )));
         }
 
+        // 多P视频此前逐个串行发 view 拿分P列表，N 个多P = N 次串行 RTT；改为限并发并行拉取。
+        var multiPIds = medias
+            .Where(m => m.GetProperty("attr").GetInt32( ) == 0 && m.GetProperty("page").GetInt32( ) > 1)
+            .Select(m => m.GetProperty("id").ToString( ))
+            .ToList( );
+        var fetched = new ConcurrentDictionary<string, VInfo>(StringComparer.Ordinal);
+        using (var throttler = new SemaphoreSlim(8))
+        {
+            var tasks = multiPIds.Select(async id =>
+            {
+                await throttler.WaitAsync(ct);
+                try
+                {
+                    fetched[id] = await NormalInfoFetcher.FetchAsync(id, cfg, ct);
+                }
+                finally
+                {
+                    throttler.Release( );
+                }
+            }).ToArray( );
+            await Task.WhenAll(tasks);
+        }
+
+        // 只处理视频类型(可以直接在query param上指定type=2)
+        // 只处理未失效视频
         foreach (var m in medias)
         {
-            //只处理视频类型(可以直接在query param上指定type=2)
-            //只处理未失效视频
             if (m.GetProperty("attr").GetInt32( ) != 0)
             {
                 continue;
             }
 
             var pageCount = m.GetProperty("page").GetInt32( );
-            if (pageCount > 1)
+            if (pageCount > 1 && fetched.TryGetValue(m.GetProperty("id").ToString( ), out var tmpInfo))
             {
-                var tmpInfo = await NormalInfoFetcher.FetchAsync(m.GetProperty("id").ToString( ), cfg, ct);
                 foreach (var item in tmpInfo.PagesInfo)
                 {
                     var p = item.CopyWith(index++);

@@ -26,16 +26,19 @@ internal sealed partial class Program
     // AppContext.BaseDirectory 指向入口程序集所在目录；Environment.ProcessPath 在 `dotnet BBDown.dll` 下返回宿主路径，会写错位置（P1-13）
     public static readonly string AppDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
 
-    // 全局取消源: Ctrl+C 时取消, 令牌沿 Fetcher → Parser → HTTP → 下载 → 外部进程 全链路透传
+    // 全局取消源：Ctrl+C 时取消，令牌沿 Fetcher → Parser → HTTP → 下载 → 外部进程 全链路透传
     private static readonly CancellationTokenSource cancelSource = new( );
     internal static CancellationToken CancellationToken => cancelSource.Token;
 
     // Web Cookie 主动续期只跑一次，避免批量下载时每个视频都打 /cookie/info
     private static int cookieRefreshed;
 
+    // nav 探测（wbi 密钥）缓存：进程内只探测一次，批量下载不再逐 URL 打 nav 接口
+    private static Task<(AccountInfo Info, string Wbi)>? accountProbeTask;
+
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
-        // 抑制运行时默认的进程终止, 改为靠令牌优雅取消
+        // 抑制运行时默认的进程终止，改为靠令牌优雅取消
         e.Cancel = true;
         LogWarn("收到取消信号，正在安全退出...");
         try
@@ -57,7 +60,7 @@ internal sealed partial class Program
         Console.CancelKeyPress += Console_CancelKeyPress;
 
         var rootCommand = CommandLineInvoker.GetRootCommand(RunApp);
-        rootCommand.Description = "BBDown 是一个免费且便捷高效的哔哩哔哩下载/解析软件。";
+        rootCommand.Description = "BBDown 是一个免费、便捷且高效的哔哩哔哩视频下载 / 解析命令行工具。";
         rootCommand.TreatUnmatchedTokensAsErrors = false;
 
         var loginTvOption = new Option<bool>("--tv") { Description = "登录 TV 账号（默认登录 WEB 账号）" };
@@ -113,7 +116,7 @@ internal sealed partial class Program
         Console.ResetColor( );
         Console.WriteLine( );
 
-        //配置文件只补齐命令行未显式指定的选项，补齐后需重新解析一次
+        // 配置文件只补齐命令行未显式指定的选项，补齐后需重新解析一次
         if (rootResult.CommandResult.Command == rootCommand)
         {
             var mergedArgs = ConfigParser.MergeWithConfig(args, rootResult, rootCommand);
@@ -122,7 +125,7 @@ internal sealed partial class Program
                 rootResult = rootCommand.Parse(mergedArgs, parserConfiguration);
             }
 
-            //命令行与配置文件都没给出视频地址时，打印用法而不是抛「缺少必需参数」（--help/--version 不产生错误，仍走原流程）
+            // 命令行与配置文件都没给出视频地址时，打印用法而不是抛「缺少必需参数」（--help/--version 不产生错误，仍走原流程）
             if (rootResult.Errors.Count > 0 && !HasUrlArgument(rootResult))
             {
                 PrintUsageExample( );
@@ -192,20 +195,20 @@ internal sealed partial class Program
     {
         Config.SetDebugLog(myOption.Debug);
 
-        //处理冲突选项
+        // 处理冲突选项
         HandleConflictingOptions(myOption);
 
-        //寻找并设置所需的二进制文件路径
+        // 寻找并设置所需的二进制文件路径
         FindBinaries(myOption);
 
-        //确定本次任务的工作目录（不修改进程全局 CurrentDirectory，serve 模式下多任务会互相踩踏）
+        // 确定本次任务的工作目录（不修改进程全局 CurrentDirectory，serve 模式下多任务会互相踩踏）
         var workDir = ResolveWorkDir(myOption);
 
-        //解析优先级
+        // 解析优先级
         var (encodingPriority, firstEncoding) = ParseEncodingPriority(myOption);
         var dfnPriority = ParseDfnPriority(myOption);
 
-        //优先使用用户设置的 UA
+        // 优先使用用户设置的 UA
         if (!string.IsNullOrEmpty(myOption.UserAgent))
         {
             HTTPUtil.SetUserAgent(myOption.UserAgent);
@@ -253,10 +256,19 @@ internal sealed partial class Program
         var cfg = new AppConfig(cookie, token, myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
 
         // nav 无需登录即可返回 wbi 密钥；TV/国际版模式同样会命中 wbi 接口（view、player/wbi/v2），
-        // 跳过取密钥会让签名为空而被服务端拒绝（P1-27）
+        // 跳过取密钥会让签名为空而被服务端拒绝（P1-27）。nav 探测与 buvid 拉取互不依赖，并行执行；
+        // nav 结果进程内只探测一次（accountProbeTask 缓存），批量下载不再逐 URL 打 nav 接口。
         Log("检测账号登录...");
-        var (info, wbi) = await Account.ProbeAccountAsync(cfg, ct);
+        var navTask = EnsureAccountProbedAsync(cfg, ct);
+        var buvidTask = Buvid.InitAsync(ct);
+        await Task.WhenAll(navTask, buvidTask);
+        var (info, wbi) = await navTask;
         cfg = cfg with { Wbi = wbi };
+        // 未拿到 wbi（网络抖动/未登录）时不缓存，允许后续 URL 重试
+        if (string.IsNullOrEmpty(wbi))
+        {
+            accountProbeTask = null;
+        }
 
         if (myOption is { UseIntlApi: false, UseTvApi: false })
         {
@@ -270,11 +282,11 @@ internal sealed partial class Program
         await Buvid.InitAsync(ct);
         Log("获取 aid...");
         var aid = await InputResolver.GetAvIdAsync(ctx.Input, cfg);
-        Log($"获取 aid 结束：{aid}");
+        Log($"aid: {aid}");
 
         if (string.IsNullOrEmpty(aid))
         {
-            throw new ArgumentException("输入有误");
+            throw new ArgumentException("aid 无效");
         }
 
         (aid, var vInfo) = await FetchVideoInfoAsync(aid, cfg, myOption.UseIntlApi, ct);
@@ -286,37 +298,48 @@ internal sealed partial class Program
         return ctx with { FetchedAid = aid, VInfo = vInfo, ApiType = apiType, Cfg = cfg };
     }
 
+    // nav 探测（wbi 密钥）进程内仅执行一次；后续调用复用同一 Task，避免批量下载时每个 URL 重复打 nav 接口。
+    // 探测失败（wbi 为空）由调用方清空 accountProbeTask 触发重试。
+    private static Task<(AccountInfo Info, string Wbi)> EnsureAccountProbedAsync(Core.AppConfig cfg, CancellationToken ct)
+    {
+        var existing = accountProbeTask;
+        if (existing is null)
+        {
+            var created = Account.ProbeAccountAsync(cfg, ct);
+            existing = Interlocked.CompareExchange(ref accountProbeTask, created, null) ?? created;
+        }
+        return existing;
+    }
+
     private static void PrintAccountStatus(AccountInfo info)
     {
         if (info.IsLogin)
         {
             var vip = info.IsVip ? $" · {info.VipLabel}" : "";
-            Log($"已登录：{info.UserName}（LV{info.Level}{vip}）");
+            Log($"已登录：{info.UserName} (LV{info.Level}{vip})");
         }
         else
         {
-            LogWarn("你尚未登录 B 站账号，解析可能受到限制");
+            LogWarn("你尚未登录 bilibili 账号，解析可能受到限制");
         }
     }
 
     /// <summary>
     /// 视频信息解析完成后，依据视频属性消解选项冲突。
     /// 与 HandleConflictingOptions 分工：后者只处理不依赖视频信息的冲突，
-    /// 此处处理需要 vInfo 才能判断的冲突 (如互动视频不支持 TV 下载)。
+    /// 此处处理需要 vInfo 才能判断的冲突
     /// </summary>
     private static void NormalizeOptionsAfterFetch(DownloadOptions myOption, VInfo vInfo)
     {
         if (vInfo.IsSteinGate && myOption.UseTvApi)
         {
-            Log("视频为互动视频，暂时不支持 TV 下载，修改为默认下载。");
+            Log("视频为互动视频，暂时不支持 TV API，回退到 WEB API。");
             myOption.UseTvApi = false;
         }
 
-        // 课程（cheese）为国内内容，无国际版，--intl-api 对其无效；若放任会走到 intl ogv 网关必然失败。
-        // 此处自动回退 WEB 并明确提示，避免用户得到难以理解的错误（见 cheese-review 的 C2）。
         if (vInfo.IsCheese && myOption.UseIntlApi)
         {
-            LogWarn("课程（cheese）为国内内容，不支持 --intl-api，已自动切换为 WEB 模式下载。");
+            LogWarn("课程为国内内容，不支持 INTL API，回退到 WEB API。");
             myOption.UseIntlApi = false;
         }
     }
@@ -393,7 +416,7 @@ internal sealed partial class Program
         }
         catch (OperationCanceledException)
         {
-            LogWarn("已取消下载。已下载的部分会保留在临时文件中，重跑同一条命令即可从断点继续。");
+            LogWarn("下载已取消。已下载的部分会保留在临时文件中，重新运行命令可断点续传。");
             return 130;
         }
         catch (Exception e)
@@ -401,7 +424,7 @@ internal sealed partial class Program
             Console.BackgroundColor = ConsoleColor.Red;
             Console.ForegroundColor = ConsoleColor.White;
             var msg = Config.DebugLog ? e.ToString( ) : e.Message;
-            Console.Write($"{msg}{Environment.NewLine}请尝试升级到最新版本后重试！");
+            Console.Write($"{msg}{Environment.NewLine}请升级到最新版本后重试。");
             Console.ResetColor( );
             Console.WriteLine( );
             return 1;

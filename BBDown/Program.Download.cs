@@ -21,7 +21,7 @@ namespace BBDown;
 
 internal sealed partial class Program
 {
-    // Aborted 为 true 表示该分P应立即结束（不再登记 SavePath）；Selected 需回传以跨重试保留用户已手动选轨的状态
+    // Aborted 为 true 表示该分 P 应立即结束（不再登记 SavePath）；Selected 需回传以跨重试保留用户已手动选轨的状态
     private readonly record struct PageOutcome(bool Aborted, string SavePath, bool Selected)
     {
         public static PageOutcome Abort(bool selected)
@@ -39,13 +39,13 @@ internal sealed partial class Program
     {
         var vInfo = ctx.VInfo!;
         var pagesInfo = vInfo.PagesInfo;
-        //获取已选择的分P列表
+        //获取已选择的分 P 列表
         var selectedPages = GetSelectedPages(myOption, vInfo, ctx.Input);
 
-        Log($"共计 {pagesInfo.Count} 个分P，已选择：" + (selectedPages == null ? "ALL" : string.Join(",", selectedPages)));
+        Log($"共计 {pagesInfo.Count} 个分 P，已选择：" + (selectedPages == null ? "ALL" : string.Join(",", selectedPages)));
         var totalPages = pagesInfo.Count;
 
-        //过滤不需要的分P
+        //过滤不需要的分 P
         if (selectedPages != null)
         {
             pagesInfo = [.. pagesInfo.Where(p => selectedPages.Contains(p.index.ToString( )))];
@@ -65,7 +65,7 @@ internal sealed partial class Program
 
             if (myOption.SaveArchivesToFile && CheckArchive(p.aid, p.cid))
             {
-                Log($"分P 已下载过（aid：{p.aid} / cid：{p.cid}），跳过下载...");
+                Log($"已下载过（aid：{p.aid} / cid：{p.cid}），跳过下载...");
                 return;
             }
 
@@ -81,15 +81,15 @@ internal sealed partial class Program
         if (errors.Count > 0)
         {
             var list = string.Join(", ", errors.Select(e => $"P{e.Page.index}（{e.Page.aid}）"));
-            LogError($"以下分P 下载失败：{list}");
+            LogError($"以下分 P 下载失败：{list}");
             throw new AggregateException(errors.Select(e => e.Error));
         }
 
-        Log("任务完成。");
+        Log("任务完成");
     }
 
     /// <summary>
-    /// 逐个跑分P 并收集失败：默认（stopOnError=false）遇到异常继续下一个，末尾一并返回；
+    /// 逐个跑分 P 并收集失败：默认（stopOnError=false）遇到异常继续下一个，末尾一并返回；
     /// stopOnError=true 时第一个异常即停。Ctrl+C 的 OperationCanceledException 不被吞，直接上抛。
     /// 具体的延迟、归档校验、下载逻辑都在传入的委托里，本函数只负责"跑 + 聚合失败"。
     /// </summary>
@@ -121,7 +121,7 @@ internal sealed partial class Program
         return errors;
     }
 
-    // 1. 多P; 2. 只有1P, 但是是番剧, 尚未完结时 按照多P处理
+    // 1. 多 P; 2. 只有 1P, 但是是番剧，尚未完结时 按照多 P 处理
     internal static string ResolveSavePathFormat(DownloadOptions myOption, int pagesCount, bool isBangumi, bool isBangumiEnd)
     {
         return pagesCount > 1 || (isBangumi && !isBangumiEnd)
@@ -140,7 +140,7 @@ internal sealed partial class Program
         {
             try
             {
-                LogDebug("尝试获取章节信息...");
+                LogDebug("获取章节信息...");
                 p.points = await ChapterMeta.FetchPointsAsync(p.cid, p.aid, ctx.Cfg);
 
                 if (!myOption.OnlyShowInfo)
@@ -189,7 +189,7 @@ internal sealed partial class Program
 
                 LogError(ex.Message);
                 var backoff = TimeSpan.FromSeconds(1 << retryCount);
-                LogWarn($"下载出现异常，{backoff.TotalSeconds:0} 秒后将进行自动重试...");
+                LogWarn($"下载失败，{backoff.TotalSeconds:0} 秒后重试...");
                 await Task.Delay(backoff, ct);
                 continue;
             }
@@ -285,7 +285,7 @@ internal sealed partial class Program
         var subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.UseIntlApi, ctx.Cfg, ct);
         if (!myOption.AllowAi && subtitleInfo.Count != 0)
         {
-            Log("跳过下载 AI 字幕。");
+            Log("跳过下载 AI 字幕");
             subtitleInfo = [.. subtitleInfo.Where(s => !s.lan.StartsWith("ai-"))];
         }
 
@@ -330,7 +330,7 @@ internal sealed partial class Program
             return await DownloadFlvAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
         }
 
-        LogError("解析此分P失败（建议 --debug 查看详细信息）。");
+        LogError("解析此分 P 失败（使用 --debug 以查看详细信息）");
         if (parsedResult.RawResponse.Length < 100)
         {
             LogError(parsedResult.RawResponse);
@@ -347,7 +347,7 @@ internal sealed partial class Program
 
         if (parsedResult.VideoTracks.Count == 0)
         {
-            LogWarn("没有找到符合要求的视频流。");
+            LogWarn("没有符合要求的视频流");
             if (myOption.VideoOnly)
             {
                 return PageOutcome.Abort(selected);
@@ -356,7 +356,7 @@ internal sealed partial class Program
 
         if (parsedResult.AudioTracks.Count == 0)
         {
-            LogWarn("没有找到符合要求的音频流。");
+            LogWarn("没有符合要求的音频流");
             if (myOption.AudioOnly)
             {
                 return PageOutcome.Abort(selected);
@@ -382,14 +382,14 @@ internal sealed partial class Program
             PrintAllTracksInfo(parsedResult, p.dur, myOption.OnlyShowInfo);
         }
 
-        //仅展示 跳过下载
+        // 仅展示 跳过下载
         if (myOption.OnlyShowInfo)
         {
             return PageOutcome.Abort(selected);
         }
 
-        var vIndex = 0; //用户手动选择的视频序号
-        var aIndex = 0; //用户手动选择的音频序号
+        var vIndex = 0; // 用户手动选择的视频序号
+        var aIndex = 0; // 用户手动选择的音频序号
         if (myOption.Interactive && !selected)
         {
             SelectTrackManually(parsedResult, ref vIndex, ref aIndex);
@@ -437,10 +437,10 @@ internal sealed partial class Program
         var useMp4box = myOption.UseMP4box;
         if (selectedVideo != null)
         {
-            // 杜比视界(id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
+            // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
             if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI( ))
             {
-                LogWarn("检测到杜比视界清晰度且您的 FFmpeg 版本小于 5.0，将使用 mp4box 混流...");
+                LogWarn("您的 FFmpeg 版本小于 5.0，杜比视界将使用 MP4Box 混流...");
                 useMp4box = true;
             }
 
@@ -470,7 +470,7 @@ internal sealed partial class Program
             audioMaterial.Add(new AudioMaterial { title = role.title, personName = role.personName, path = role.path });
         }
 
-        Log($"下载 P{p.index} 完毕。");
+        Log($"P{p.index} 下载完成");
         if (parsedResult.VideoTracks.Count == 0)
         {
             videoPath = "";
@@ -486,7 +486,7 @@ internal sealed partial class Program
             return PageOutcome.Abort(selected);
         }
 
-        Log($"开始合并音视频{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
+        Log($"开始混流音视频{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
         if (myOption.AudioOnly)
         {
             savePath = ToAudioOnlyPath(savePath);
@@ -503,7 +503,7 @@ internal sealed partial class Program
             subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.NoMetadata, isHevc, ct);
         if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
         {
-            LogError("合并失败");
+            LogError("混流失败");
             return PageOutcome.Abort(selected);
         }
 
@@ -528,7 +528,7 @@ internal sealed partial class Program
             if (myOption.Interactive && !reParsed && !selected)
             {
                 vIndex = SelectDfnManually(dfns);
-                //重新解析
+                // 重新解析
                 parsedResult.VideoTracks.Clear( );
                 parsedResult = await ExtractTracksAsync(ctx.FetchedAid, p.aid, p.cid, p.epid,
                     myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.FirstEncoding, ctx.Cfg, dfns[vIndex], ct);
@@ -575,8 +575,8 @@ internal sealed partial class Program
 
             var clipPaths = await DownloadFlvClipsAsync(clips, pageCtx, downloadConfig, ct);
 
-            Log($"下载 P{p.index} 完毕。");
-            Log("开始合并分段...");
+            Log($"下载 P{p.index} 完毕");
+            Log("开始合并分片...");
             var videoPath = pageCtx.VideoPath;
             try
             {
@@ -612,7 +612,7 @@ internal sealed partial class Program
                 subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.NoMetadata, ct: ct);
             if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
             {
-                LogError("合并失败");
+                LogError("混流失败");
                 return PageOutcome.Abort(selected);
             }
 
@@ -625,7 +625,7 @@ internal sealed partial class Program
     {
         var i = 0;
         dfns.ForEach(key => LogColor($"{i++}.{Config.GetQualityName(key)}"));
-        Log("请选择最想要的清晰度（输入序号）：", false);
+        Log("请选择清晰度（输入序号）：", false);
         Console.ForegroundColor = ConsoleColor.Cyan;
         var vIndex = Convert.ToInt32(Console.ReadLine( ));
         if (vIndex > dfns.Count || vIndex < 0)
@@ -653,28 +653,28 @@ internal sealed partial class Program
         return clipPaths;
     }
 
-    // 返回 true 表示 --danmaku-only 已完成任务，应结束该分P
+    // 返回 true 表示 --danmaku-only 已完成任务，应结束该分 P
     private static async Task<bool> DownloadDanmakuAsync(DownloadOptions myOption, WorkContext ctx, PageContext pageCtx, string savePath, DownloadConfig downloadConfig, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
         var danmakuXmlPath = Path.ChangeExtension(savePath, ".xml");
         var danmakuAssPath = Path.ChangeExtension(savePath, ".ass");
-        Log("正在下载弹幕 XML 文件。");
+        Log("正在下载 XML 弹幕文件...");
         await DownloadFileAsync($"{BiliApi.DanmakuXml}/{p.cid}.xml", danmakuXmlPath, downloadConfig, ct);
         var danmakus = DanmakuUtil.ParseXml(danmakuXmlPath);
         if (danmakus == null)
         {
-            Log("弹幕 XML 解析失败，删除 XML...");
+            Log("XML 弹幕解析失败");
             File.Delete(danmakuXmlPath);
         }
         else if (danmakus.Length == 0)
         {
-            Log("当前视频没有弹幕，删除 XML...");
+            Log("当前视频没有弹幕");
             File.Delete(danmakuXmlPath);
         }
         else if (ctx.DownloadDanmakuFormats.Contains(DanmakuFormat.Ass))
         {
-            Log("正在保存弹幕 ASS 文件...");
+            Log("正在保存 ASS 弹幕文件...");
             await DanmakuUtil.SaveAsAssAsync(danmakus, danmakuAssPath, ct);
         }
 
@@ -740,7 +740,7 @@ internal sealed partial class Program
 
     internal static List<Video> SortTracks(List<Video> videoTracks, Dictionary<string, int> dfnPriority, Dictionary<string, byte> encodingPriority, bool videoAscending, bool encodingFirst)
     {
-        //用户同时输入了自定义分辨率优先级和自定义编码优先级, 则根据输入顺序依次进行排序
+        //用户同时输入了自定义分辨率优先级和自定义编码优先级，则根据输入顺序依次进行排序
         return dfnPriority.Count != 0 && encodingPriority.Count != 0 && encodingFirst
             ? [.. videoTracks
                 .OrderBy(v => encodingPriority.GetValueOrDefault(v.codecs, (byte) 100))

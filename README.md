@@ -7,7 +7,7 @@
 <p align="center">
   <img alt=".NET" src="https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" />
-  <a href="https://github.com/nilaoda/BBDown/releases"><img alt="Release" src="https://img.shields.io/github/v/release/nilaoda/BBDown?label=release" /></a>
+  <a href="https://github.com/KaiHuaDou/BBDown/releases"><img alt="Release" src="https://img.shields.io/github/v/release/KaiHuaDou/BBDown?label=release" /></a>
 </p>
 
 <p align="center">
@@ -40,37 +40,31 @@
 
 ## 与原版 BBDown 的差异
 
-参见 [与原版 BBDown 的差异对照](./docs/compared-to-upstream.md)：
+参见 [与原版 BBDown 的差异对照](./docs/compared-to-upstream.md)。
 
 ## 安装
-
-### 下载预编译二进制
 
 前往 [Releases](https://github.com/KaiHuaDou/BBDown/releases) 页面，下载最新发布版本。
 
 前往 [Actions](https://github.com/KaiHuaDou/BBDown/actions) 页面，下载构建版本。
 
-### 从源码构建
+## 构建
 
 需要先安装 [.NET SDK](https://dot.net)（版本 ≥ 9.0，具体版本以仓库 `global.json` 为准）。
 
 ```bash
-# 克隆仓库
-git clone https://github.com/KaiHuaDou/BBDown.git
+git clone https://github.com/KaiHuaDou/BBDown.git --depth 1
 cd BBDown
 
-# 构建 Release 版本
 dotnet build -c Release
-
-# 运行
-dotnet run --project BBDown -c Release -- "https://www.bilibili.com/video/BV1uv411q7Mv"
+# 或 dotnet publish BBDown -r <RID> -c Release
 ```
 
-构建产物位于各项目的 `bin/Release/net9.0/` 目录下；`dotnet publish -c Release -r <RID> /p:PublishAot=true` 可产出 AOT 单文件可执行体。
+构建产物位于各项目的 `bin/Release/net9.0/` 目录下
 
-### 依赖
+特定平台细节可参考 [ci.yml](https://github.com/KaiHuaDou/BBDown/blob/master/.github/workflows/ci.yml)
 
-下载/混流依赖以下工具：
+## 依赖
 
 - **FFmpeg**：用于音视频下载与混流（推荐）。BBDown 会在 `PATH` 与程序所在目录中自动查找；也可用 `--ffmpeg-path` 显式指定。
 - **MP4Box**：可选，用于杜比视界等特殊封装的混流。可用 `--mp4box` 切换为 MP4Box 混流，或用 `--mp4box-path` 指定路径。
@@ -261,7 +255,7 @@ BBDown "BV1xx" -M "<publishDate:yyyy>/<publishDate:MMdd> <pageTitle>"
 | --------------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | `--listen`      | `-l` | 监听地址，默认 `http://127.0.0.1:23333`。回环地址免令牌；绑定非回环地址（如 `0.0.0.0`）时**强制令牌鉴权**     |
 | `--serve-token` |      | serve 鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 `X-BBDown-Token` 头或 `?token=` 查询参数 |
-| `--work-dir`    |      | 所有任务的工作目录（请求中的同名 `WorkDir` 字段会被忽略，一律以服务端为准）                                   |
+| `--work-dir`    |      | 所有任务的工作目录                                                                                            |
 
 ```bash
 # 以默认地址启动服务器（本地回环，免令牌）
@@ -307,7 +301,7 @@ WEB / TV / APP 三类凭据**全部合并进同一个 `BBDown.data` 的同一个
 ```json
 {
   "cookie": "DedeUserID=xxx; DedeUserID__ckMd5=xxx; SESSDATA=xxx; bili_jct=xxx",
-  "refresh_token": "登录时 B 站下发的刷新令牌",
+  "refresh_token": "WEB 登录时获取的刷新令牌",
   "ts": 1700000000,
   "tv_access_token": "TV 扫码登录获取的令牌（未登录为 null）",
   "tv_ts": 1700000000,

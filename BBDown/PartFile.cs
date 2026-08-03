@@ -44,7 +44,7 @@ internal static class PartFile
     }
 
     /// <summary>
-    /// B站 CDN 的 host 和 query（deadline/oi/trid）每次解析都不同，只有 path 里的
+    /// B 站 CDN 的 host 和 query（deadline/oi/trid）每次解析都不同，只有 path 里的
     /// .../&lt;cid&gt;-1-30280.m4s 唯一标识一条流。取 path 做指纹，既能让主备 URL 互相续传，
     /// 又能在用户换画质时自动判定旧数据作废。
     /// </summary>

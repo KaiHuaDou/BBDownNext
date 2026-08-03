@@ -114,7 +114,9 @@ internal static class CredentialStore
     private static async Task WriteCredential(string? dir, Credential c)
     {
         var path = Path.Combine(dir ?? Program.AppDir, DataFile);
-        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(c, CredentialJsonContext.Default.Credential));
+        var tmp = path + ".tmp";
+        await File.WriteAllTextAsync(tmp, JsonSerializer.Serialize(c, CredentialJsonContext.Default.Credential));
+        File.Move(tmp, path, overwrite: true);
         HardenFilePermissions(path);
     }
 
