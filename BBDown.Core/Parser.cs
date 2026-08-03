@@ -172,6 +172,8 @@ public static partial class Parser
             (false, true) => host + BiliApi.PlayUrlPgcPath,
             (false, false) => host + BiliApi.PlayUrlWebPath
         };
+        // 课程（cheese）与番剧共用同一套 playurl 网关，仅域名路径中的 /pgc/ 需替换为 /pugv/。
+        // 因此直接复用 PGC 的 v2 路径（含 DASH 支持），再整体换域名——并非文档里写的非 v2 端点，属有意设计。
         if (cheese) prefix = prefix.Replace("/pgc/", "/pugv/");
         return $"https://{prefix}?";
     }
@@ -207,6 +209,7 @@ public static partial class Parser
         query.Append($"&otype=json&qn={qn}");
         if (req.IsBangumi)
         {
+            // 课程（cheese）复用番剧 playurl 参数（module=bangumi&ep_id&session）；pugv 端点会忽略 module，ep_id 为必需。
             query.Append($"&module=bangumi&ep_id={req.EpId}&session=");
         }
 

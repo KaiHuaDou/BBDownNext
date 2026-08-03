@@ -25,6 +25,9 @@ public class VInfo
     /// 视频发布时间
     /// </summary>
     public required long PubTime { get; set; }
+    // 仅用于 UI 展示（如文件名变量、打印分 P）。
+    // 播放地址解析阶段（Parser.PlayUrlRequest）以内部 id 前缀为准重新派生 IsBangumi/IsCheese（见 Parser.cs），
+    // 该派生值才是 playurl 分支的权威来源，不要反向依赖此处字段做解析分支。
     public bool IsBangumi { get; set; }
     public bool IsCheese { get; set; }
 

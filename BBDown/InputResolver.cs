@@ -83,14 +83,16 @@ internal static partial class InputResolver
         throw new ArgumentException("输入有误", nameof(input));
     }
 
-    private static async Task<string> ResolveCheeseAsync(string input, Core.AppConfig cfg)
+    // 课程（cheese）解析：纯字符串，不触网。
+    // ep 形式直接取 ep_id；ss 形式保留 season_id（以 "ss" 前缀标记），交由 CheeseInfoFetcher 按 season_id 直接拉取整季，
+    // 避免旧实现「先请求一次接口取首集 ep_id、再请求一次拉整季」的冗余往返（见 cheese-review 的 S1/C1）。
+    private static Task<string> ResolveCheeseAsync(string input, Core.AppConfig cfg)
     {
-        var epId = "";
         if (input.Contains("/ep"))
-            epId = EpRegex( ).Match(input).Groups[1].Value;
-        else if (input.Contains("/ss"))
-            epId = await GetEpidBySSIdAsync(SsRegex( ).Match(input).Groups[1].Value, cfg);
-        return $"{IdPrefix.Cheese}{epId}";
+            return Task.FromResult($"{IdPrefix.Cheese}{EpRegex( ).Match(input).Groups[1].Value}");
+        if (input.Contains("/ss"))
+            return Task.FromResult($"{IdPrefix.Cheese}ss{SsRegex( ).Match(input).Groups[1].Value}");
+        return Task.FromResult($"{IdPrefix.Cheese}{EpRegex( ).Match(input).Groups[1].Value}");
     }
 
     // 新版个人空间合集/系列链接：
@@ -127,15 +129,6 @@ internal static partial class InputResolver
     {
         // 能在本地就在本地
         return Core.Util.BilibiliBvConverter.Decode(bv).ToString( );
-    }
-
-    private static async Task<string> GetEpidBySSIdAsync(string ssid, Core.AppConfig cfg)
-    {
-        var api = $"{BiliApi.SeasonPugv}?season_id={ssid}";
-        var json = await GetWebSourceAsync(api, cfg);
-        using var jDoc = JsonDocument.Parse(json);
-        var epId = jDoc.RootElement.GetProperty("data").GetProperty("episodes").EnumerateArray( ).First( ).GetProperty("id").ToString( );
-        return epId;
     }
 
     private static async Task<string> GetEpIdByBangumiSSIdAsync(string ssId, Core.AppConfig cfg)

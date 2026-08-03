@@ -309,6 +309,14 @@ internal sealed partial class Program
             Log("视频为互动视频，暂时不支持 TV 下载，修改为默认下载。");
             myOption.UseTvApi = false;
         }
+
+        // 课程（cheese）为国内内容，无国际版，--intl-api 对其无效；若放任会走到 intl ogv 网关必然失败。
+        // 此处自动回退 WEB 并明确提示，避免用户得到难以理解的错误（见 cheese-review 的 C2）。
+        if (vInfo.IsCheese && myOption.UseIntlApi)
+        {
+            LogWarn("课程（cheese）为国内内容，不支持 --intl-api，已自动切换为 WEB 模式下载。");
+            myOption.UseIntlApi = false;
+        }
     }
 
     private static async Task<(string aid, VInfo vInfo)> FetchVideoInfoAsync(string aid, AppConfig cfg, bool useIntlApi, CancellationToken ct = default)
