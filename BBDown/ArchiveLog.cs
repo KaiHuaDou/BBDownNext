@@ -1,21 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
-
-using BBDown.Core;
-using BBDown.Core.Entity;
-
-using static BBDown.Core.Entity.Entity;
-using static BBDown.Core.Logger;
-using static BBDown.Utils;
 
 namespace BBDown;
 
 internal static class ArchiveLog
 {
-    private static readonly Lock archiveLock = new();
+    private static readonly Lock archiveLock = new( );
 
     private static Dictionary<(string Aid, string Cid), string>? archiveCache;
 
@@ -24,7 +16,7 @@ internal static class ArchiveLog
     {
         lock (archiveLock)
         {
-            archiveCache ??= LoadArchives();
+            archiveCache ??= LoadArchives( );
             archiveCache[(aid, cid)] = savePath;
             var filePath = Path.Combine(Program.AppDir, "BBDown.archives");
             File.AppendAllText(filePath, $"{Environment.NewLine}{aid}\t{cid}\t{savePath}");
@@ -35,7 +27,7 @@ internal static class ArchiveLog
     {
         lock (archiveLock)
         {
-            archiveCache ??= LoadArchives();
+            archiveCache ??= LoadArchives( );
             if (archiveCache.TryGetValue((aid, cid), out var savePath))
             {
                 // 文件被删/移走 → 视为未下载，重新下
@@ -47,9 +39,9 @@ internal static class ArchiveLog
     }
 
     // 进程内一次性载入；行格式为 aid\tcid\t路径（制表符分隔，每行一条记录），无法解析的行直接跳过
-    private static Dictionary<(string Aid, string Cid), string> LoadArchives()
+    private static Dictionary<(string Aid, string Cid), string> LoadArchives( )
     {
-        var dict = new Dictionary<(string, string), string>();
+        var dict = new Dictionary<(string, string), string>( );
         var filePath = Path.Combine(Program.AppDir, "BBDown.archives");
         if (!File.Exists(filePath))
         {

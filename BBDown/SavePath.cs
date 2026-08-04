@@ -4,13 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-using BBDown.Core;
-using BBDown.Core.Entity;
-
 using static BBDown.Core.Entity.Entity;
-using static BBDown.Core.Util.FileNameUtil;
 using static BBDown.Core.Logger;
-using static BBDown.Utils;
+using static BBDown.Core.Util.FileNameUtil;
 
 namespace BBDown;
 
@@ -36,8 +32,8 @@ internal static partial class SavePath
     internal static string Format(string savePathFormat, string title, Video? videoTrack, Audio? audioTrack, Page p, int pagesCount, string apiType, long pubTime)
     {
         var result = savePathFormat.Replace('\\', '/');
-        var regex = InfoRegex();
-        var matches = regex.Matches(result).Cast<Match>().ToList();
+        var regex = InfoRegex( );
+        var matches = regex.Matches(result).Cast<Match>( ).ToList( );
         var replacements = new List<(int Index, int Length, string Value)>(matches.Count);
         foreach (var m in matches)
         {
@@ -59,8 +55,8 @@ internal static partial class SavePath
             var v = key switch
             {
                 "videoTitle" => GetValidFileName(title),
-                "pageNumber" => p.index.ToString(),
-                "pageNumberWithZero" => p.index.ToString().PadLeft(pagesCount.ToString().Length, '0'),
+                "pageNumber" => p.index.ToString( ),
+                "pageNumberWithZero" => p.index.ToString( ).PadLeft(pagesCount.ToString( ).Length, '0'),
                 "pageTitle" => GetValidFileName(p.title),
                 "bvid" => p.bvid,
                 "aid" => p.aid,
@@ -71,9 +67,9 @@ internal static partial class SavePath
                 "res" => videoTrack == null ? "" : videoTrack.res,
                 "fps" => videoTrack == null ? "" : videoTrack.fps,
                 "videoCodecs" => videoTrack == null ? "" : videoTrack.codecs,
-                "videoBandwidth" => videoTrack == null ? "" : videoTrack.bandwidth.ToString(),
+                "videoBandwidth" => videoTrack == null ? "" : videoTrack.bandwidth.ToString( ),
                 "audioCodecs" => audioTrack == null ? "" : audioTrack.codecs,
-                "audioBandwidth" => audioTrack == null ? "" : audioTrack.bandwidth.ToString(),
+                "audioBandwidth" => audioTrack == null ? "" : audioTrack.bandwidth.ToString( ),
                 "publishDate" => Utils.FormatTimeStamp(pubTime, defaultDateFormat),
                 "videoDate" => Utils.FormatTimeStamp(p.pubTime, defaultDateFormat),
                 "apiType" => apiType,
@@ -100,5 +96,5 @@ internal static partial class SavePath
     }
 
     [GeneratedRegex("<([\\w:\\-.]+?)>")]
-    private static partial Regex InfoRegex();
+    private static partial Regex InfoRegex( );
 }

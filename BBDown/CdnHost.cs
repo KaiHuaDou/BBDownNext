@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 using BBDown.Core;
-using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
@@ -52,27 +51,27 @@ internal static partial class CdnHost
         // 1. --upos-host 显式指定：无条件替换并结束
         if (myOption.UposHost is { Length: > 0 })
         {
-            return Replace(UposRegex(), myOption.UposHost, "强制替换为用户指定服务器");
+            return Replace(UposRegex( ), myOption.UposHost, "强制替换为用户指定服务器");
         }
 
         // 2. PCDN 域名规避，除非 --allow-pcdn
         if (!myOption.AllowPcdn)
         {
-            url = Replace(PcdnRegex(), BACKUP_HOST, "检测到 PCDN，替换");
+            url = Replace(PcdnRegex( ), BACKUP_HOST, "检测到 PCDN，替换");
         }
 
         // 3. 海外 akamaized 源规避（仅在指定 --area 时）
         if (cfg.Area is { Length: > 0 })
         {
-            url = Replace(AkamRegex(), BACKUP_HOST, "检测到海外源，替换");
+            url = Replace(AkamRegex( ), BACKUP_HOST, "检测到海外源，替换");
         }
 
         // 4. 默认强制替换为备用 host，除非 --no-force-host。
         //    但若 --allow-pcdn 且当前 URL 仍是 PCDN 域名（带显式端口），则不再强行覆盖，
         //    否则 --allow-pcdn 必须在 --no-force-host 同时存在时才生效，等于死选项（P0-7）
-        if (!myOption.NoForceHost && !(myOption.AllowPcdn && PcdnRegex().IsMatch(url)))
+        if (!myOption.NoForceHost && !(myOption.AllowPcdn && PcdnRegex( ).IsMatch(url)))
         {
-            url = Replace(UposRegex(), BACKUP_HOST, "默认强制替换");
+            url = Replace(UposRegex( ), BACKUP_HOST, "默认强制替换");
         }
 
         return url;
@@ -94,11 +93,11 @@ internal static partial class CdnHost
     }
 
     [GeneratedRegex("://[^/]+:\\d+/")]
-    private static partial Regex PcdnRegex();
+    private static partial Regex PcdnRegex( );
 
     [GeneratedRegex("://[^/]*akamaized\\.net/")]
-    private static partial Regex AkamRegex();
+    private static partial Regex AkamRegex( );
 
     [GeneratedRegex("://[^/]+/")]
-    private static partial Regex UposRegex();
+    private static partial Regex UposRegex( );
 }

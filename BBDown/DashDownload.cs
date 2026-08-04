@@ -1,20 +1,16 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core;
 using BBDown.Core.Entity;
 
-using static BBDown.DownloadUtil;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
-using static BBDown.Core.Parser;
-using static BBDown.Core.Util.FileNameUtil;
-using static BBDown.Utils;
+using static BBDown.DownloadUtil;
+
 using PageOutcome = BBDown.PageDownload.PageOutcome;
 
 namespace BBDown;
@@ -46,14 +42,14 @@ internal static class DashDownload
 
         if (myOption.AudioOnly)
         {
-            parsedResult.VideoTracks.Clear();
+            parsedResult.VideoTracks.Clear( );
         }
 
         if (myOption.VideoOnly)
         {
-            parsedResult.AudioTracks.Clear();
-            parsedResult.BackgroundAudioTracks.Clear();
-            parsedResult.RoleAudioList.Clear();
+            parsedResult.AudioTracks.Clear( );
+            parsedResult.BackgroundAudioTracks.Clear( );
+            parsedResult.RoleAudioList.Clear( );
         }
 
         TrackSelect.SortDashTracks(parsedResult, ctx, myOption);
@@ -116,7 +112,7 @@ internal static class DashDownload
         if (selectedVideo != null)
         {
             // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
-            if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI())
+            if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI( ))
             {
                 LogWarn("您的 FFmpeg 版本小于 5.0，杜比视界将使用 MP4Box 混流...");
                 useMp4box = true;

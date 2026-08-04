@@ -173,7 +173,7 @@ public class LoginTests
     [Fact]
     public void ToQueryString_EmptyCollection_ReturnsEmpty( )
     {
-        Assert.Equal("", Login.ToQueryString(new NameValueCollection( )));
+        Assert.Equal("", Login.ToQueryString([]));
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public class LoginTests
 
     private static string MaskSecret(string? s)
     {
-        object?[] args = new object?[] { s };
+        object?[] args = [s];
         return (string) MaskSecretMethod.Invoke(null, args)!;
     }
 

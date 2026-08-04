@@ -1,17 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
-using BBDown.Core.Entity;
-
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
-using static BBDown.Utils;
 
 namespace BBDown;
 
@@ -30,7 +24,7 @@ internal static class PageQueue
         //过滤不需要的分 P
         if (selectedPages != null)
         {
-            pagesInfo = [.. pagesInfo.Where(p => selectedPages.Contains(p.index.ToString()))];
+            pagesInfo = [.. pagesInfo.Where(p => selectedPages.Contains(p.index.ToString( )))];
         }
 
         ctx = ctx with { SavePathFormat = SavePath.Resolve(myOption, totalPages, vInfo.IsBangumi, vInfo.IsBangumiEnd) };
@@ -79,7 +73,7 @@ internal static class PageQueue
         IReadOnlyList<Page> pages, bool stopOnError,
         Func<Page, CancellationToken, Task> run, CancellationToken ct)
     {
-        var errors = new List<(Page, Exception)>();
+        var errors = new List<(Page, Exception)>( );
         foreach (var page in pages)
         {
             try

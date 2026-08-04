@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 
-using BBDown.Core;
 using BBDown.Core.Entity;
 
 namespace BBDown.Tests;

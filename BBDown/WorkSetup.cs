@@ -3,15 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 
 using BBDown.Core;
-using BBDown.Core.Entity;
-using BBDown.Core.Fetcher;
 using BBDown.Core.Util;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Utils;
 
@@ -50,7 +45,7 @@ internal static class WorkSetup
         var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
 
         LogDebug("AppDirectory: {0}", Program.AppDir);
-        LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption.WithSecretsRedacted(), DownloadOptionsJsonContext.Default.DownloadOptions));
+        LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption.WithSecretsRedacted( ), DownloadOptionsJsonContext.Default.DownloadOptions));
         return new WorkContext(
             EncodingPriority: encodingPriority,
             DfnPriority: dfnPriority,
@@ -74,18 +69,18 @@ internal static class WorkSetup
     /// </summary>
     internal static (Dictionary<string, byte> EncodingPriority, string FirstEncoding) ParseEncodingPriority(DownloadOptions myOption)
     {
-        var encodingPriority = new Dictionary<string, byte>();
+        var encodingPriority = new Dictionary<string, byte>( );
         var firstEncoding = "";
         if (myOption.EncodingPriority != null)
         {
             var encodingPriorityTemp = myOption.EncodingPriority
-                .ToUpper()
+                .ToUpper( )
                 .Replace('，', ',')
                 .Replace("-", string.Empty)
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(s => !string.IsNullOrEmpty(s)).ToList();
+                .Where(s => !string.IsNullOrEmpty(s)).ToList( );
             byte index = 0;
-            firstEncoding = encodingPriorityTemp.FirstOrDefault() ?? "";
+            firstEncoding = encodingPriorityTemp.FirstOrDefault( ) ?? "";
             foreach (var encoding in encodingPriorityTemp)
             {
                 if (encodingPriority.ContainsKey(encoding))
@@ -108,7 +103,7 @@ internal static class WorkSetup
             return DanmakuFormatInfo.DefaultFormats;
         }
 
-        var formats = myOption.DownloadDanmakuFormats.Replace("，", ",").ToLower().Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var formats = myOption.DownloadDanmakuFormats.Replace("，", ",").ToLower( ).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         if (formats.Any(format => !DanmakuFormatInfo.AllFormatNames.Contains(format)))
         {
             LogError($"包含不支持的下载弹幕格式：{myOption.DownloadDanmakuFormats}。");
@@ -123,10 +118,10 @@ internal static class WorkSetup
     /// </summary>
     internal static Dictionary<string, int> ParseDfnPriority(DownloadOptions myOption)
     {
-        var dfnPriority = new Dictionary<string, int>();
+        var dfnPriority = new Dictionary<string, int>( );
         if (myOption.DfnPriority != null)
         {
-            var dfnPriorityTemp = myOption.DfnPriority.Replace("，", ",").Split(',').Select(s => s.ToUpper().Trim()).Where(s => !string.IsNullOrEmpty(s));
+            var dfnPriorityTemp = myOption.DfnPriority.Replace("，", ",").Split(',').Select(s => s.ToUpper( ).Trim( )).Where(s => !string.IsNullOrEmpty(s));
             var index = 0;
             foreach (var dfn in dfnPriorityTemp)
             {

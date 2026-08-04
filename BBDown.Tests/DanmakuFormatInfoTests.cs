@@ -1,5 +1,3 @@
-using System;
-
 namespace BBDown.Tests;
 
 public class DanmakuFormatInfoTests

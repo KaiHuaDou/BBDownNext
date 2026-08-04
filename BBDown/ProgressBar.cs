@@ -2,9 +2,6 @@ using System;
 using System.Text;
 using System.Threading;
 
-/**
- * From https://gist.github.com/DanielSWolf/0ab6a96899cc5377bf54
- */
 namespace BBDown;
 
 internal sealed class ProgressBar : IDisposable, IProgress<double>
@@ -31,10 +28,8 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
     private int spinnerIndex;
     private bool disposed;
 
-    /// <param name="onSample">
-    /// 每个采样周期回调一次 (总进度，本周期新增字节数)，供控制台之外的观察者（如 serve 模式的下载任务）
-    /// 获取进度；为 null 时进度条只负责画控制台。
-    /// </param>
+    // 每个采样周期回调一次 (总进度，本周期新增字节数)，供控制台之外的观察者（如 serve 模式的下载任务）
+    // 获取进度；为 null 时进度条只负责画控制台。
     public ProgressBar(Action<double, long>? onSample = null)
     {
         this.onSample = onSample;
@@ -105,7 +100,7 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
         }
     }
 
-    /// <summary>只回退并重写与上一帧不同的那段后缀，整行重画会闪。</summary>
+    // 只回退并重写与上一帧不同的那段后缀，整行重画会闪。
     private void Draw(string text)
     {
         if (!drawToConsole)

@@ -1,16 +1,11 @@
 using System;
-using System.CommandLine;
-using System.CommandLine.Parsing;
-using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core;
 using BBDown.Core.Entity;
 using BBDown.Core.Fetcher;
-using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;
 using static BBDown.Utils;
@@ -90,6 +85,7 @@ internal static class VideoInfo
             var created = Account.ProbeAccountAsync(cfg, ct);
             existing = Interlocked.CompareExchange(ref accountProbeTask, created, null) ?? created;
         }
+
         return existing;
     }
 
@@ -143,7 +139,7 @@ internal static class VideoInfo
             Log("发布时间：" + Utils.FormatTimeStamp(pubTime, "yyyy-MM-dd HH:mm:ss zzz"));
         }
 
-        var bvid = vInfo.PagesInfo.FirstOrDefault()?.bvid;
+        var bvid = vInfo.PagesInfo.FirstOrDefault( )?.bvid;
         if (!string.IsNullOrEmpty(bvid) && !myOption.UseIntlApi)
         {
             Log($"视频 URL：{BiliApi.VideoPage}/{bvid}/");

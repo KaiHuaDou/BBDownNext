@@ -1,13 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 
-using BBDown.Core;
 using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Utils;
 
@@ -42,7 +38,7 @@ internal static class PageSelect
             return null;
         }
 
-        if (myOption.SelectPage.Trim().Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        if (myOption.SelectPage.Trim( ).Equals("ALL", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -57,7 +53,7 @@ internal static class PageSelect
 
         foreach (var rawToken in myOption.SelectPage.Split(','))
         {
-            var token = rawToken.Trim();
+            var token = rawToken.Trim( );
             if (token.Length == 0)
             {
                 continue;
@@ -66,8 +62,8 @@ internal static class PageSelect
             if (token.Contains('-'))
             {
                 var parts = token.Split('-', 2);
-                var startStr = parts[0].Trim();
-                var endStr = parts.Length > 1 ? parts[1].Trim() : "";
+                var startStr = parts[0].Trim( );
+                var endStr = parts.Length > 1 ? parts[1].Trim( ) : "";
 
                 var startValid = startStr.Length == 0;
                 var start = startValid ? firstIndex : ResolveIndex(startStr, firstIndex, lastIndex, secondLastIndex, out startValid);
@@ -86,7 +82,7 @@ internal static class PageSelect
 
                 for (var i = start; i <= end; i++)
                 {
-                    if (seen.Add(i.ToString()))
+                    if (seen.Add(i.ToString( )))
                     {
                         anyValid = true;
                     }
@@ -100,7 +96,7 @@ internal static class PageSelect
                     continue;
                 }
 
-                if (seen.Add(value.ToString()))
+                if (seen.Add(value.ToString( )))
                 {
                     anyValid = true;
                 }
@@ -115,7 +111,7 @@ internal static class PageSelect
     private static int ResolveIndex(string part, int firstIndex, int lastIndex, int secondLastIndex, out bool valid)
     {
         valid = true;
-        var upper = part.ToUpperInvariant();
+        var upper = part.ToUpperInvariant( );
         if (upper is "LATEST" or "NEW")
         {
             return lastIndex;

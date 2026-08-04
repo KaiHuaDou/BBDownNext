@@ -1,17 +1,12 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
-using BBDown.Core.Entity;
-
-using static BBDown.DownloadUtil;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Utils;
+
 using PageOutcome = BBDown.PageDownload.PageOutcome;
 
 namespace BBDown;
