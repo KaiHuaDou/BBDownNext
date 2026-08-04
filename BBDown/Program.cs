@@ -21,6 +21,9 @@ internal sealed class Program
     private static readonly CancellationTokenSource cancelSource = new();
     internal static CancellationToken CancellationToken => cancelSource.Token;
 
+    // WorkSetup.Build 内部有二进制查找等进程级初始化，串行化后 serve 并发任务不会互相踩踏（P1-16）
+    private static readonly Lock workContextGate = new();
+
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
         // 抑制运行时默认的进程终止，改为靠令牌优雅取消
@@ -176,13 +179,34 @@ internal sealed class Program
 #pragma warning restore CA2234
     }
 
+    /// <summary>
+    /// 下载主干：准备运行参数 → 解析视频信息 → 逐分 P 下载。CLI 与 serve 共用同一条链路，
+    /// 差异只有 <paramref name="relatedTask"/>（serve 用它回填标题与进度）。
+    /// </summary>
+    internal static async Task RunDownloadAsync(DownloadOptions myOption, DownloadTask? relatedTask = null, CancellationToken ct = default)
+    {
+        WorkContext ctx;
+        lock (workContextGate)
+        {
+            ctx = WorkSetup.Build(myOption);
+        }
+
+        ctx = await VideoInfo.FetchAsync(myOption, ctx, ct);
+        if (relatedTask is not null)
+        {
+            relatedTask.Title = ctx.VInfo!.Title;
+            relatedTask.Pic = ctx.VInfo.Pic;
+            relatedTask.VideoPubTime = ctx.VInfo.PubTime;
+        }
+
+        await PageQueue.RunAsync(myOption, ctx, relatedTask, ct);
+    }
+
     private static async Task<int> DoWorkAsync(DownloadOptions myOption, CancellationToken ct = default)
     {
         try
         {
-            var ctx = WorkSetup.Build(myOption);
-            ctx = await VideoInfo.FetchAsync(myOption, ctx, ct);
-            await PageQueue.RunAsync(myOption, ctx, relatedTask: null, ct);
+            await RunDownloadAsync(myOption, relatedTask: null, ct);
             return 0;
         }
         catch (OperationCanceledException)

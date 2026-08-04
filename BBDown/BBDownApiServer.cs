@@ -13,7 +13,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core;
@@ -32,7 +31,6 @@ public class BBDownApiServer
     private WebApplication? app;
     private readonly ConcurrentDictionary<string, DownloadTask> runningTasks = new( );
     private readonly ConcurrentDictionary<string, DownloadTask> finishedTasks = new( );
-    private static readonly Lock workContextGate = new( );
     private string? serveToken;
     private bool authRequired;
     private bool authFinalized;
@@ -341,18 +339,7 @@ public class BBDownApiServer
 
         try
         {
-            // WorkSetup.Build 内部有二进制查找等进程级初始化，串行化后并发请求不会互相踩踏（P1-16）
-            WorkContext taskCtx;
-            lock (workContextGate)
-            {
-                taskCtx = WorkSetup.Build(option);
-            }
-
-            taskCtx = await VideoInfo.FetchAsync(option, taskCtx);
-            task.Title = taskCtx.VInfo!.Title;
-            task.Pic = taskCtx.VInfo.Pic;
-            task.VideoPubTime = taskCtx.VInfo.PubTime;
-            await PageQueue.RunAsync(option, taskCtx, task, Program.CancellationToken);
+            await Program.RunDownloadAsync(option, task, Program.CancellationToken);
             task.IsSuccessful = true;
         }
         catch (Exception e)

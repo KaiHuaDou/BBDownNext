@@ -7,7 +7,7 @@ namespace BBDown;
 
 /// <summary>
 /// 下载任务的运行时配置：由命令行解析（<see cref="CommandLineInvoker"/>）或 serve 请求（<see cref="ServeRequestOptions"/>）构造，
-/// 贯穿解析与下载全流程（<see cref="Program.BuildWorkContext"/> / <see cref="Program.DownloadPagesAsync"/> 等）。
+/// 贯穿解析与下载全流程（<see cref="Program.RunDownloadAsync"/> → <see cref="WorkSetup.Build"/> / <see cref="VideoInfo.FetchAsync"/> / <see cref="PageQueue.RunAsync"/>）。
 /// 注意：它不是 serve 的请求契约——serve 端使用的是经过裁剪的 <see cref="ServeRequestOptions"/>，
 /// 主机可控字段（路径、外部程序路径、UserAgent、Debug）不会出现在该 DTO 中，从结构上杜绝远程注入。
 /// </summary>

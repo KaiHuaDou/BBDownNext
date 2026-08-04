@@ -62,7 +62,6 @@ internal static class VideoInfo
             Log($"已使用 {DetermineApiType(myOption)} 凭据");
         }
 
-        await Buvid.InitAsync(ct);
         Log("获取 aid...");
         var aid = await InputResolver.GetAvIdAsync(ctx.Input, cfg);
         Log($"aid: {aid}");

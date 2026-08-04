@@ -46,7 +46,6 @@ internal static class WorkSetup
         var downloadDanmakuFormats = ParseDownloadDanmakuFormats(myOption);
 
         var input = myOption.Url;
-        var savePathFormat = myOption.FilePattern;
         var lang = myOption.Lang;
         var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
 
@@ -60,7 +59,7 @@ internal static class WorkSetup
             DownloadDanmaku: downloadDanmaku,
             DownloadDanmakuFormats: downloadDanmakuFormats,
             Input: input,
-            SavePathFormat: savePathFormat,
+            SavePathFormat: "",
             Lang: lang,
             Delay: delay,
             FetchedAid: "",
