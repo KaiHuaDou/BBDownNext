@@ -26,7 +26,19 @@ internal static partial class SavePath
     internal static string Build(WorkContext ctx, PageContext pageCtx, Video? videoTrack, Audio? audioTrack)
     {
         var relative = Format(ctx.SavePathFormat, pageCtx.Title, videoTrack, audioTrack, pageCtx.Page, pageCtx.PagesCount, ctx.ApiType, pageCtx.PubTime);
+        if (pageCtx.IsPreview)
+        {
+            relative = ApplyPreviewPrefix(relative);
+        }
+
         return Path.Combine(ctx.WorkDir, relative);
+    }
+
+    // 多 P 模板形如 <videoTitle>/[P01]<pageTitle>，前缀只能加到最后一段，否则会造出带前缀的目录
+    internal static string ApplyPreviewPrefix(string relative)
+    {
+        var i = relative.LastIndexOfAny(['/', '\\']);
+        return i < 0 ? "[试看]" + relative : relative[..(i + 1)] + "[试看]" + relative[(i + 1)..];
     }
 
     internal static string Format(string savePathFormat, string title, Video? videoTrack, Audio? audioTrack, Page p, int pagesCount, string apiType, long pubTime)

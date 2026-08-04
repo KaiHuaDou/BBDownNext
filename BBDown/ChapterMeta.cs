@@ -17,42 +17,68 @@ using static BBDown.Utils;
 namespace BBDown;
 
 /// <summary>
+/// x/player/wbi/v2 的解析结果：章节点，以及充电专属稿件标记。
+/// </summary>
+internal readonly record struct PlayerV2Info(List<ViewPoint> Points, bool UpowerExclusive, string UpowerTitle)
+{
+    public static PlayerV2Info Empty => new([], false, "");
+}
+
+/// <summary>
 /// 视频章节信息：抓取分 P 章节点，并生成 FFmpeg / MP4Box 混流用的 metadata 文本；
 /// 另含 FFmpeg 杜比视界支持探测。
 /// </summary>
 internal static partial class ChapterMeta
 {
     /// <summary>
-    /// 获取章节信息
+    /// 获取播放器信息（章节点 + 充电专属标记）
     /// </summary>
-    public static async Task<List<ViewPoint>> FetchPointsAsync(string cid, string aid, Core.AppConfig cfg)
+    public static async Task<PlayerV2Info> FetchPlayerV2Async(string cid, string aid, Core.AppConfig cfg)
     {
-        List<ViewPoint> points = [];
         try
         {
             var wts = DateTimeOffset.Now.ToUnixTimeSeconds( ).ToString(CultureInfo.InvariantCulture);
             var api = $"{BiliApi.PlayerWbiV2}?{Parser.WbiSign($"aid={aid}&cid={cid}&wts={wts}", cfg)}";
-            var json = await GetWebSourceAsync(api, cfg);
-            using var infoJson = JsonDocument.Parse(json);
-            if (infoJson.RootElement.GetProperty("data").TryGetProperty("view_points", out var vPoint))
-            {
-                foreach (var point in vPoint.EnumerateArray( ))
-                {
-                    points.Add(new ViewPoint( )
-                    {
-                        title = point.GetProperty("content").GetString( )!,
-                        start = int.Parse(point.GetProperty("from").ToString( )),
-                        end = int.Parse(point.GetProperty("to").ToString( ))
-                    });
-                }
-            }
+            return ParsePlayerV2(await GetWebSourceAsync(api, cfg));
         }
         catch (Exception ex)
         {
-            LogDebug("解析章节信息失败：{0}", ex.Message);
+            LogDebug("解析播放器信息失败：{0}", ex.Message);
+            return PlayerV2Info.Empty;
+        }
+    }
+
+    internal static PlayerV2Info ParsePlayerV2(string json)
+    {
+        using var infoJson = JsonDocument.Parse(json);
+        if (!infoJson.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Object)
+        {
+            return PlayerV2Info.Empty;
         }
 
-        return points;
+        List<ViewPoint> points = [];
+        if (data.TryGetProperty("view_points", out var vPoint) && vPoint.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var point in vPoint.EnumerateArray( ))
+            {
+                points.Add(new ViewPoint( )
+                {
+                    title = point.GetProperty("content").GetString( )!,
+                    start = int.Parse(point.GetProperty("from").ToString( )),
+                    end = int.Parse(point.GetProperty("to").ToString( ))
+                });
+            }
+        }
+
+        var exclusive = data.TryGetProperty("is_upower_exclusive", out var ex) && ex.ValueKind == JsonValueKind.True;
+        var title = "";
+        if (data.TryGetProperty("elec_high_level", out var elec) && elec.ValueKind == JsonValueKind.Object
+            && elec.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String)
+        {
+            title = t.GetString( ) ?? "";
+        }
+
+        return new PlayerV2Info(points, exclusive, title);
     }
 
     /// <summary>

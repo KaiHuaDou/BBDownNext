@@ -25,6 +25,11 @@ internal static class PageQueue
         if (selectedPages != null)
         {
             pagesInfo = [.. pagesInfo.Where(p => selectedPages.Contains(p.index.ToString( )))];
+            if (pagesInfo.Count == 0)
+            {
+                LogWarn("未匹配到任何分 P（收藏夹可能为空或指定的分 P 不存在），跳过下载。");
+                return;
+            }
         }
 
         ctx = ctx with { SavePathFormat = SavePath.Resolve(myOption, totalPages, vInfo.IsBangumi, vInfo.IsBangumiEnd) };
@@ -48,7 +53,8 @@ internal static class PageQueue
             var outcome = await PageDownload.RunAsync(p, myOption, ctx, pagesInfo, relatedTask, token);
 
             // 只有完整成功（含混流）才记归档；半截失败/中止不应标记为已下载
-            if (myOption.SaveArchivesToFile && !outcome.Aborted && !string.IsNullOrWhiteSpace(outcome.SavePath))
+            // 试看片段同样不记，否则用户日后拿到充电权限重跑会被 CheckArchive 静默跳过
+            if (myOption.SaveArchivesToFile && !outcome.Aborted && !outcome.Preview && !string.IsNullOrWhiteSpace(outcome.SavePath))
             {
                 ArchiveLog.SaveArchive(p.aid, p.cid, outcome.SavePath);
             }
@@ -56,12 +62,27 @@ internal static class PageQueue
 
         if (errors.Count > 0)
         {
-            var list = string.Join(", ", errors.Select(e => $"P{e.Page.index}（{e.Page.aid}）"));
-            LogError($"以下分 P 下载失败：{list}");
+            var previews = errors.Where(e => e.Error is ChargedPreviewException).ToList( );
+            var failures = errors.Where(e => e.Error is not ChargedPreviewException).ToList( );
+            if (previews.Count > 0)
+            {
+                LogWarn($"以下分 P 为充电专属试看片段，已跳过：{FormatPages(previews)}");
+            }
+
+            if (failures.Count > 0)
+            {
+                LogError($"以下分 P 下载失败：{FormatPages(failures)}");
+            }
+
             throw new AggregateException(errors.Select(e => e.Error));
         }
 
         Log("任务完成");
+    }
+
+    private static string FormatPages(List<(Page Page, Exception Error)> items)
+    {
+        return string.Join(", ", items.Select(e => $"P{e.Page.index}（{e.Page.aid}）"));
     }
 
     /// <summary>
@@ -80,7 +101,9 @@ internal static class PageQueue
             {
                 await run(page, ct);
             }
-            catch (OperationCanceledException)
+            // 仅当用户真的取消（ct 已请求取消）时才上抛；HttpClient 超时等瞬态故障被包装成
+            // OperationCanceledException 但 ct 未取消，应落入普通错误分支继续下载其余分 P（§2.2）
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 throw;
             }

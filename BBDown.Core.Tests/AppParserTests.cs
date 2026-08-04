@@ -15,6 +15,19 @@ public class AppParserTests
         return Parser.BuildAppParsedResult(reply, isEpisode, Aid, Cid);
     }
 
+    // playurl 声明的时长是识别充电专属试看片段的一半判据
+    [Fact]
+    public void BuildAppParsedResult_SetsDurationFromTimelength( )
+    {
+        Assert.Equal(754, Build(PlayViewReplyFixtures.Ugc( ), false).Duration);
+    }
+
+    [Fact]
+    public void BuildAppParsedResult_NoVideoInfo_LeavesDurationZero( )
+    {
+        Assert.Equal(0, Build(new PlayViewReply( ), false).Duration);
+    }
+
     [Fact]
     public void Ugc_VideoTracks_SkipsStreamsWithoutDash( )
     {

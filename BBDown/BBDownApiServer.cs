@@ -14,9 +14,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
+using System.Threading;
 
 using BBDown.Core;
-using BBDown.Core.Util;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -35,9 +35,55 @@ public class BBDownApiServer
     private bool authRequired;
     private bool authFinalized;
     private string? serveWorkDir;
+    private string? serveHost;
+    private string? serveEpHost;
+    private string? serveTvHost;
+    private SemaphoreSlim? taskGate;   // null = 不限制（历史行为）
+    private int maxChunkParallelism;   // 0 = 交给 ProcessorCount
 
-    // 主机可控字段（外部程序路径、落盘目录/文件名、进程级 Debug/UserAgent、本地配置）一律由服务端决定，
-    // 不会出现在 ServeRequestOptions 中，因此不存在远程注入这些字段的入口（P0-2 / P1-16）。
+    // 回调专用 client（§2.3）：禁止自动重定向，杜绝 302 跳进内网/云元数据面；
+    // 并在真正建立 TCP 连接前对最终端点 IP 做二次校验，消除 DNS 重绑定窗口（TOCTOU-free）。
+    private static readonly HttpClient WebHookClient = new(new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        ConnectCallback = async (context, token) =>
+        {
+            var endpoint = context.DnsEndPoint;
+            IPAddress ip;
+            if (IPAddress.TryParse(endpoint.Host, out var literal))
+            {
+                ip = literal;
+            }
+            else
+            {
+                var addresses = await Dns.GetHostAddressesAsync(endpoint.Host, token);
+                if (addresses.Length == 0)
+                {
+                    throw new HttpRequestException($"CallBackWebHook 无法解析 {endpoint.Host}");
+                }
+
+                ip = addresses[0];
+            }
+
+            // 连接前最终判定：私网/回环/链路本地/未指定地址一律拒绝
+            if (IsPrivateAddress(ip))
+            {
+                throw new HttpRequestException($"CallBackWebHook 拒绝内网/回环地址 {ip}");
+            }
+
+            var socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            await socket.ConnectAsync(new IPEndPoint(ip, endpoint.Port), token);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(15)
+    };
+
+    // 主机可控字段（外部程序路径、落盘目录/文件名、进程级 Debug/UserAgent、本地配置、API host）
+    // 一律由服务端决定：前四类根本不在 ServeRequestOptions 中；host 三兄弟原本也在 DTO 里，
+    // 但因请求不带 cookie 时会回落本机 SESSDATA，攻击者填个恶意 host 就能把登录态骗到自己服务器（P0-1），
+    // 故已移出请求契约，改为 serve 启动参数固定（见 ApplyServeHost）。
 
     /// <summary>
     /// CallBackWebHook 仅允许公网 http/https，拒绝回环与内网地址，避免 SSRF 探活 169.254.169.254 等元数据服务（P1-14）
@@ -57,9 +103,16 @@ public class BBDownApiServer
         return !IPAddress.TryParse(uri.Host, out var ip) || !IsPrivateAddress(ip);
     }
 
-    private static bool IsPrivateAddress(IPAddress ip)
+    // 内部可见：供单测覆盖新增的私网段（§2.4）
+    internal static bool IsPrivateAddress(IPAddress ip)
     {
         if (IPAddress.IsLoopback(ip))
+        {
+            return true;
+        }
+
+        // 未指定地址：IPv6 :: 作为出向目标等同本机，应拒绝（原实现漏网，§2.4）
+        if (IPAddress.IPv6Any.Equals(ip))
         {
             return true;
         }
@@ -71,15 +124,23 @@ public class BBDownApiServer
                 bytes[0] == 10 ||
                 (bytes[0] == 172 && bytes[1] is >= 16 and <= 31) ||
                 (bytes[0] == 192 && bytes[1] == 168) ||
-                // 链路本地，含 169.254.169.254 元数据地址
+                // 链路本地，含 169.254.169.254 云元数据地址
                 (bytes[0] == 169 && bytes[1] == 254) ||
                 bytes[0] == 127 ||
-                // 0.0.0.0/8 为保留/未指定地址，作为出向 webhook 目标等同于本机，应拒绝（P1-14）
-                bytes[0] == 0,
+                // 0.0.0.0/8 为保留/未指定地址，作为出向 webhook 目标等同本机（P1-14）
+                bytes[0] == 0 ||
+                // CGNAT 共享地址（运营商级 NAT，原实现漏网，§2.4）
+                (bytes[0] == 100 && bytes[1] is >= 64 and <= 127) ||
+                // 192.0.0.0/24（原实现漏网，§2.4）
+                (bytes[0] == 192 && bytes[1] == 0 && bytes[2] == 0) ||
+                // 198.18.0.0/15 基准网络（benchmark，原实现漏网，§2.4）
+                (bytes[0] == 198 && bytes[1] is >= 18 and <= 19) ||
+                // 多播 224.0.0.0/4（原实现漏网，§2.4）
+                (bytes[0] is >= 224 and <= 239),
             AddressFamily.InterNetworkV6 =>
                 ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal ||
-                ip.ToString( ).StartsWith("fc", StringComparison.OrdinalIgnoreCase) ||
-                ip.ToString( ).StartsWith("fd", StringComparison.OrdinalIgnoreCase),
+                // 用内建判定替代脆弱的字符串前缀比较（原实现对 fc/fd 做 StartsWith，§2.4）
+                ip.IsIPv6UniqueLocal || ip.IsIPv6Multicast,
             _ => true
         };
     }
@@ -145,7 +206,7 @@ public class BBDownApiServer
         return false;
     }
 
-    public void SetUpServer(string? workDir = null, string? listenUrl = null, string? serveToken = null)
+    public void SetUpServer(string? workDir = null, string? listenUrl = null, string? serveToken = null, string? host = null, string? epHost = null, string? tvHost = null, string? corsOrigin = null, int maxConcurrent = 0)
     {
         if (app is not null)
         {
@@ -154,6 +215,17 @@ public class BBDownApiServer
 
         this.serveToken = serveToken;
         serveWorkDir = workDir;
+        serveHost = host;
+        serveEpHost = epHost;
+        serveTvHost = tvHost;
+        // <=0 一律视为不限制：不建闸门、分片并发交回 ProcessorCount，行为与旧版一致
+        if (maxConcurrent > 0)
+        {
+            taskGate = new SemaphoreSlim(maxConcurrent, maxConcurrent);
+            // 任务并发 × 分片并发 = N：限流时把单文件分片并发压到 1，总下载连接数即不超过 N
+            maxChunkParallelism = 1;
+        }
+
         if (!string.IsNullOrEmpty(listenUrl))
         {
             FinalizeAuth(listenUrl);
@@ -167,18 +239,23 @@ public class BBDownApiServer
         }
 
         builder.Services.ConfigureHttpJsonOptions((options) => options.SerializerOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(options.SerializerOptions.TypeInfoResolver, AppJsonSerializerContext.Default));
-        builder.Services.AddCors((options) =>
+
+        // CORS 默认全关（§2.1-C）：浏览器跨源（含恶意网页）的预检会因缺少 ACAO 头被拦，从根本上消除 CSRF 面。
+        // 仅当显式给出 --cors-origin 时才开放给该单一来源（用于同源之外的 Web 前端）。
+        if (!string.IsNullOrWhiteSpace(corsOrigin))
         {
-            options.AddPolicy("AllowAnyOrigin",
-                policy =>
-                {
-                    policy.AllowAnyOrigin( )
-                          .AllowAnyMethod( )
-                          .AllowAnyHeader( );
-                });
-        });
+            builder.Services.AddCors((options) =>
+            {
+                options.AddPolicy("AllowSpecificOrigin",
+                    policy => policy.WithOrigins(corsOrigin).AllowAnyMethod( ).AllowAnyHeader( ));
+            });
+        }
+
         app = builder.Build( );
-        app.UseCors("AllowAnyOrigin");
+        if (!string.IsNullOrWhiteSpace(corsOrigin))
+        {
+            app.UseCors("AllowSpecificOrigin");
+        }
         app.Use(async (context, next) =>
         {
             if (!authRequired) { await next( ); return; }
@@ -265,7 +342,8 @@ public class BBDownApiServer
         {
             var jsonContent = JsonSerializer.Serialize(downloadTask, AppJsonSerializerContext.Default.DownloadTask);
             using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-            using var response = await HTTPUtil.AppHttpClient.PostAsync(hookUri, content, Program.CancellationToken);
+            // 走专用 WebHookClient：关重定向 + 连接前二次校验私网（§2.3），不使用共享的 AppHttpClient
+            using var response = await WebHookClient.PostAsync(hookUri, content, Program.CancellationToken);
         }
         catch (Exception e)
         {
@@ -327,10 +405,11 @@ public class BBDownApiServer
     private async Task<DownloadTask> AddDownloadTaskAsync(DownloadOptions option)
     {
         option = ApplyServeWorkDir(option);
+        option = ApplyServeHost(option);
 
         var (cookie, token) = CredentialStore.LoadAll(option.Cookie, option.AccessToken, option.UseTvApi, option.UseAppApi);
         var aid = await InputResolver.GetAvIdAsync(option.Url, new AppConfig(cookie, token, option.Host, option.EpHost, option.TvHost, option.Area, ""));
-        var task = new DownloadTask(aid, option.Url, DateTimeOffset.Now.ToUnixTimeMilliseconds( ));
+        var task = CreateTask(aid, option.Url);
         var claimed = runningTasks.GetOrAdd(aid, task);
         if (!ReferenceEquals(claimed, task))
         {
@@ -339,8 +418,13 @@ public class BBDownApiServer
 
         try
         {
-            await Program.RunDownloadAsync(option, task, Program.CancellationToken);
+            await RunGatedAsync(task, ( ) => Program.RunDownloadAsync(option, task, Program.CancellationToken), Program.CancellationToken);
             task.IsSuccessful = true;
+        }
+        catch (OperationCanceledException) when (Program.CancellationToken.IsCancellationRequested)
+        {
+            // 关服（Ctrl+C）时排队中的任务会在闸门处被取消，属正常退出路径，不该刷成"下载失败"
+            Logger.LogWarn($"{aid} 已取消（服务器正在退出）");
         }
         catch (Exception e)
         {
@@ -349,6 +433,7 @@ public class BBDownApiServer
             Logger.LogError($"{aid} 下载失败：{msg}");
         }
 
+        task.Status = DownloadStatus.Finished;
         task.TaskFinishTime = DateTimeOffset.Now.ToUnixTimeMilliseconds( );
         if (task.IsSuccessful)
         {
@@ -363,6 +448,37 @@ public class BBDownApiServer
         return task;
     }
 
+    // 任务的初始状态与分片并发上限完全由服务端限流配置决定，抽成方法便于单测观测
+    internal DownloadTask CreateTask(string aid, string url) => new(aid, url, DateTimeOffset.Now.ToUnixTimeMilliseconds( ))
+    {
+        // 未限流时不存在排队阶段，直接标 Running，避免 /get-tasks 出现假 Queued
+        Status = taskGate is null ? DownloadStatus.Running : DownloadStatus.Queued,
+        MaxChunkParallelism = maxChunkParallelism,
+    };
+
+    // 任务级并发闸门：未限流时直接执行；限流时先排队取额度（期间 Status=Queued），
+    // 取到后转 Running，无论成败都在 finally 归还额度（不占线程、不持锁）
+    internal async Task RunGatedAsync(DownloadTask task, Func<Task> download, CancellationToken ct)
+    {
+        if (taskGate is null)
+        {
+            task.Status = DownloadStatus.Running;
+            await download( );
+            return;
+        }
+
+        await taskGate.WaitAsync(ct);
+        task.Status = DownloadStatus.Running;
+        try
+        {
+            await download( );
+        }
+        finally
+        {
+            taskGate.Release( );
+        }
+    }
+
     // serve 模式的工作目录由启动参数 --work-dir 决定，覆盖请求体（请求体根本不含该字段），
     // 这样客户端无法把落盘位置指向任意目录（P0-2 / P1-16）
     internal DownloadOptions ApplyServeWorkDir(DownloadOptions option)
@@ -372,6 +488,16 @@ public class BBDownApiServer
             option.WorkDir = serveWorkDir;
         }
 
+        return option;
+    }
+
+    // serve 模式的 API host 由启动参数（--host/--ep-host/--tv-host）决定，覆盖请求体（请求体已不含该字段），
+    // 客户端无法把请求导向自己控制的服务器、从而窃走操作者的 SESSDATA（P0-1）。空值回落官方默认 host。
+    internal DownloadOptions ApplyServeHost(DownloadOptions option)
+    {
+        option.Host = string.IsNullOrWhiteSpace(serveHost) ? BiliApi.MainHost : serveHost.Trim( );
+        option.EpHost = string.IsNullOrWhiteSpace(serveEpHost) ? BiliApi.MainHost : serveEpHost.Trim( );
+        option.TvHost = string.IsNullOrWhiteSpace(serveTvHost) ? BiliApi.TvHost : serveTvHost.Trim( );
         return option;
     }
 
@@ -391,6 +517,14 @@ public class BBDownApiServer
     }
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<DownloadStatus>))]
+public enum DownloadStatus
+{
+    Queued,   // 已受理、等待并发额度（仅 --max-concurrent > 0 时出现）
+    Running,  // 下载中
+    Finished, // 已结束，成败见 IsSuccessful
+}
+
 public record DownloadTask(string Aid, string Url, long TaskCreateTime)
 {
     public string? Title { get; set; }
@@ -401,6 +535,11 @@ public record DownloadTask(string Aid, string Url, long TaskCreateTime)
     public double DownloadSpeed { get; set; }
     public double TotalDownloadedBytes { get; set; }
     public bool IsSuccessful { get; set; }
+    public DownloadStatus Status { get; set; }
+
+    // 服务端限流用：单文件分片并发上限；<=0 表示不限制（Parallel 取 ProcessorCount）。
+    // internal 属性不会被 AppJsonSerializerContext 序列化，客户端也无法设置。
+    internal int MaxChunkParallelism { get; set; }
 
     public Collection<string> SavePaths { get; } = [];
 

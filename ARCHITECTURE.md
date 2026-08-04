@@ -48,6 +48,7 @@ BBDown/
 │   ├── InputResolver.cs    # URL/编号 → 内部 avid 解析
 │   ├── ConfigParser.cs     # 配置文件解析 (仅补齐命令行未指定项)
 │   ├── DownloadOptions.cs  # 运行时配置 (含 WithSecretsRedacted)
+│   ├── OpusDownload.cs     # 专栏导出入口 (RunAsync)：在 RunApp 内于 WorkSetup.Build 之前分流，不经混流
 │   ├── DownloadSession.cs  # 分 P 生命周期恒定入参 record
 │   ├── WorkContext.cs      # 工作上下文 record
 │   ├── PageContext.cs      # 分 P 上下文 record
@@ -59,8 +60,9 @@ BBDown/
 │   ├── Config.cs           # 清晰度档位 (Qualities/MaxQn/DolbyVisionQn)
 │   ├── Parser.cs           # 播放地址解析 (DASH/FLV/APP/INTL)、WBI 签名、playurl 请求
 │   ├── AppHelper.cs        # APP gRPC 手写帧 (PackMessage/ReadMessage)
-│   ├── IdPrefix.cs         # 输入编号前缀常量 (ep:/ss:/lists:/series:/fav:/cheese: 等)
-│   ├── Fetcher/            # 6 个 static Fetcher + FetcherRegistry (按 IdPrefix 分发)
+│   ├── IdPrefix.cs         # 输入编号前缀常量 (ep:/ss:/lists:/series:/fav:/cheese:/spaceMid: 等)
+│   ├── Opus/               # 专栏导出：OpusInputResolver(输入解析) / OpusFetcher(抓取) / OpusHtmlToMarkdown(HTML→MD) / OpusMarkdownRenderer(渲染) / OpusImageUtil(图片) / OpusDocument(域模型)
+│   ├── Fetcher/            # 7 个 static Fetcher + FetcherRegistry (按 IdPrefix 分发)
 │   ├── Util/               # BV 转换、FileNameUtil(200 字节截断)、Buvid 等
 │   ├── Entity/             # VInfo / Page / Video / Audio / ParsedResult 等
 │   ├── APP/                # APP gRPC 协议 (proto 生成代码)
@@ -113,14 +115,14 @@ PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分�
 
 `DetermineApiType` 的优先级为 **TV > APP > INTL > WEB**。各模式差异：
 
-| 维度        | WEB                              | TV                                 | APP                                  | INTL                                |
-| ----------- | -------------------------------- | ---------------------------------- | ------------------------------------ | ----------------------------------- |
-| 目标Host    | `api.bilibili.com`               | `api.snm0516.aisee.tv`             | `api.bilibili.tv` (gRPC)             | `api.biliintl.com`                  |
-| 鉴权        | Cookie (`SESSDATA` 等)           | `access_token`                     | `authorization: identify_v1 {Token}` | `access_token`                      |
-| 传输        | JSON                             | JSON                               | 手写 gRPC 帧 (`AppHelper` 打包/解包) | protobuf/json                       |
-| WBI 签名    | 仅 UGC playurl / view / v2       | 否                                 | 否                                   | 否                                  |
-| 清晰度限制  | 有 res/fps                       | 无 res/fps                         | 番剧仅 HEVC；码率为估算              | 由 stream_list 决定                 |
-| 典型用途    | 普通视频、大会员网页内容         | 番剧/大会员 TV 接口                | 番剧 APP 接口                        | 东南亚国际版视频                    |
+| 维度       | WEB                        | TV                     | APP                                  | INTL                |
+| ---------- | -------------------------- | ---------------------- | ------------------------------------ | ------------------- |
+| 目标 Host  | `api.bilibili.com`         | `api.snm0516.aisee.tv` | `api.bilibili.tv` (gRPC)             | `api.biliintl.com`  |
+| 鉴权       | Cookie (`SESSDATA` 等)     | `access_token`         | `authorization: identify_v1 {Token}` | `access_token`      |
+| 传输       | JSON                       | JSON                   | 手写 gRPC 帧 (`AppHelper` 打包/解包) | protobuf/json       |
+| WBI 签名   | 仅 UGC playurl / view / v2 | 否                     | 否                                   | 否                  |
+| 清晰度限制 | 有 res/fps                 | 无 res/fps             | 番剧仅 HEVC；码率为估算              | 由 stream_list 决定 |
+| 典型用途   | 普通视频、大会员网页内容   | 番剧/大会员 TV 接口    | 番剧 APP 接口                        | 东南亚国际版视频    |
 
 关键细节：
 
@@ -141,6 +143,7 @@ PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分�
 - **SSRF 防护**：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点。
 - **CORS**：仍默认 `AllowAnyOrigin`（便于本地前端调试），因此公网暴露存在风险，需配合反向代理与 TLS。
 - **容量上限**：已完成任务保留上限 `MaxFinishedTasks = 200`，超出按策略淘汰。
+- **并发限流**：`--max-concurrent N`（默认 `0` = 不限制，保持历史行为）。`SetUpServer` 在 `N > 0` 时建立 `SemaphoreSlim(N, N)`；`AddDownloadTaskAsync` 经 `RunGatedAsync` 在调用 `Program.RunDownloadAsync` 前取额度、`finally` 归还。取额度发生在 aid 去重登记**之后**，因此排队中的任务已在 `runningTasks` 里可见，`DownloadTask.Status` 为 `Queued`，拿到额度转 `Running`，收尾转 `Finished`。同时 `DownloadTask.MaxChunkParallelism` 被置 `1`，经 `PageDownload.BuildDownloadConfig` 落到 `DownloadConfig.MaxDegreeOfParallelism`，最终作用于 `DownloadUtil.RunRangesAsync` 的 `Parallel.ForEachAsync`；由于单个任务内部分 P、视频 / 音频轨都是串行下载，「任务并发 × 分片并发 = N」即为总连接数上限。未限流时该值为 `0`，`Parallel` 回落到 `ProcessorCount`（与 CLI 完全一致）。`MaxChunkParallelism` 是 `internal` 属性，不参与 JSON 序列化，也不在 `ServeRequestOptions` 中——限流策略只能由服务端启动参数决定。
 
 > 注意：`/remove-finished*` 与 `/add-task` 均为 **POST**；查询类（`/get-tasks/*`）为 GET。
 
@@ -193,3 +196,43 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 - 发布 AOT：`dotnet publish -c Release -r <RID> /p:PublishAot=true`。注意 AOT 下 `BBDown.data` 等 JSON 必须走源生成器，否则会被裁剪导致反序列化失败。
 
 > 调试构建（`dotnet build -c Debug`）不受 AOT 限制，可正常用运行时反射；仅发布 AOT 时需遵守上述约束。
+
+---
+
+## 10. 专栏导出旁路
+
+`BBDown opus <输入>`（或根命令识别到 `https://www.bilibili.com/opus/...`）会把 B 站「专栏 / 图文」抓取并转换为 Markdown。它与音视频下载链路**完全独立**，是一条旁路，目的是避免让专栏逻辑被 `WorkSetup.Build` 的 ffmpeg 探测、混流、`SavePath.Format`（硬编码 `.mp4`）等音视频专属步骤拖累。
+
+### 10.1 分流点
+
+分流发生在 `Program.RunApp` 顶部，**早于** `RunDownloadAsync` 内的 `WorkSetup.Build`：
+
+```
+用户输入
+  │
+  ▼
+OpusInputResolver.TryParse(input)   opus URL / cv 号 / opus id / 前缀写法 → OpusTarget(OpusId|CvId)
+  │  （仅 opus 子命令允许裸数字：≥15 位视为 opus id，否则视为 cv 号；根命令对裸数字一律拒绝）
+  ▼
+OpusDownload.RunAsync              不走 WorkSetup.Build / 不构造 WorkContext / 不探测 ffmpeg
+  │  ├─ CredentialStore.LoadAll   读取 WEB Cookie（专栏可能登录可见）
+  │  ├─ Buvid.InitAsync           获取 buvid3/4（沿用既有 HTTP 栈）
+  │  ├─ OpusFetcher.FetchAsync     先试 opus/detail（htmlNewStyle）→ 失败回退 article/view(cv)；旧版 HTML 文章降级转换
+  │  ├─ OpusHtmlToMarkdown        把 B 站专栏结构化的段落 JSON 转成 Markdown 模型
+  │  ├─ OpusMarkdownRenderer      渲染标题/front matter/图片/列表/代码/公式等
+  │  └─ OpusImageUtil             默认下载图片到 <标题>/images/；--no-images 则保留远程链接
+  ▼
+落盘 <标题>.md（UTF-8 无 BOM，保证 YAML front matter 可被解析）
+```
+
+### 10.2 与主干的关键差异
+
+- **不经过 `WorkSetup.Build`**：专栏不需要 ffmpeg / 账号探测 / 分 P 编排，因此**没有 ffmpeg 也能跑**；也不会因缺 ffmpeg 而抛异常。
+- **不构造 `WorkContext`**：复用了 `HTTPUtil` / `Buvid` / `CredentialStore` 等底层能力，但绕开了 `WorkContext` 这一音视频上下文。
+- **不用 `SavePath.Format`**：输出文件名由 `FileNameUtil.GetValidFileName` 直接处理，按 `<标题>.md` 落盘，图片进 `<标题>/images/`，与音视频的 `.mp4` 命名体系解耦。
+- **复用的 HTTP 桩点**：`OpusFetcher` 通过替换 `HTTPUtil.AppHttpClient` 进行单测（`StubHttpMessageHandler` + 路由桩），与 `BBDown.Core.Tests` 中其他 HTTP 测试共用 `HttpStubCollectionDefinition` 串行集合，避免 HttpClient 静态字段竞争。
+- **AOT 约束一致**：`OpusFetcher` 解析接口 JSON 一律用 `JsonDocument` / `GetProperty`，不依赖运行时反射，与全项目 AOT 策略一致。
+
+### 10.3 serve 模式说明
+
+v1 的 `serve` JSON API 仅面向音视频任务，**不支持**提交专栏导出任务（`/add-task` 的 `Url` 只识别 `av|bv|BV|ep|ss` 编号）。专栏导出目前仅通过 CLI 的 `opus` 子命令 / 根命令自动识别进行。

@@ -94,7 +94,8 @@ internal static partial class InputResolver
 
         if (input.Contains("/space.bilibili.com/"))
         {
-            throw new NotSupportedException("目前下载器不支持下载用户空间的全部投稿视频，请逐条传入具体视频链接进行下载。");
+            // 空间首页 / /upload/video / /video?tid=0 等子路径统一按「该 UP 全部投稿」处理
+            return $"{IdPrefix.SpaceMid}{UidRegex( ).Match(input).Groups[1].Value}";
         }
 
         if (input.Contains("ep_id="))
@@ -145,6 +146,18 @@ internal static partial class InputResolver
         if (input.StartsWith(IdPrefix.Md))
         {
             return $"ep:{await GetEpIdByMDAsync(MdRegex( ).Match(input).Groups[1].Value, cfg)}";
+        }
+
+        // space402787936：显式空间简写（先判 space 再判裸数字，避免裸数字分支误吞）
+        if (input.ToLower( ).StartsWith("space") && input["space".Length..] is { Length: > 0 } spaceRest && spaceRest.All(char.IsDigit))
+        {
+            return $"{IdPrefix.SpaceMid}{spaceRest}";
+        }
+
+        // 裸数字：此前一律抛「输入有误」，改判为 ep 号（av 号必须带 av 前缀，无回归风险）
+        if (input.Length > 0 && input.All(char.IsDigit))
+        {
+            return $"{IdPrefix.EpColon}{input}";
         }
 
         throw new ArgumentException("输入有误", nameof(input));

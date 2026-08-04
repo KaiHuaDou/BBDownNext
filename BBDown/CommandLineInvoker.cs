@@ -10,6 +10,7 @@ namespace BBDown;
 internal static class CommandLineInvoker
 {
     private static readonly Argument<string> Url = new("url") { Description = "视频地址 或 av|bv|BV|ep|ss" };
+    private static readonly Argument<string> OpusInput = new("input") { Description = "专栏地址 或 opus id|cv 号" };
     private static readonly Option<bool> UseTvApi = new("--tv-api", ["-tv"]) { Description = "使用 TV 端解析模式" };
     private static readonly Option<bool> UseAppApi = new("--app-api", ["-app"]) { Description = "使用 APP 端解析模式" };
     private static readonly Option<bool> UseIntlApi = new("--intl-api", ["-intl"]) { Description = "使用国际版（东南亚视频）解析模式" };
@@ -70,6 +71,9 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> SkipMux = new("--skip-mux", []) { Description = "跳过混流步骤" };
     private static readonly Option<bool> NoSub = new("--no-sub", []) { Description = "跳过字幕下载" };
     private static readonly Option<bool> NoCover = new("--no-cover", []) { Description = "跳过封面下载" };
+    private static readonly Option<bool> NoImages = new("--no-images", []) { Description = "导出专栏时不下载图片，Markdown 中保留远程图片链接" };
+    // 与视频侧的 NoMetadata 同名不同义（那边指混流标签），描述文案必须分开，否则 opus --help 会答非所问
+    private static readonly Option<bool> NoFrontMatter = new("--no-metadata", []) { Description = "不输出 Markdown 头部的 YAML front matter" };
     private static readonly Option<bool> NoForceHttp = new("--no-force-http", []) { Description = "下载音视频时避免降级为 HTTP" };
     private static readonly Option<bool> DownloadDanmaku = new("--danmaku", ["-dd"]) { Description = "下载弹幕" };
     private static readonly Option<string> DownloadDanmakuFormats = new("--danmaku-formats", ["-ddf"])
@@ -81,6 +85,7 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> VideoAscending = new("--video-ascending", []) { Description = "视频升序（最小体积优先）" };
     private static readonly Option<bool> AudioAscending = new("--audio-ascending", []) { Description = "音频升序（最小体积优先）" };
     private static readonly Option<bool> AllowPcdn = new("--allow-pcdn", []) { Description = "不替换 PCDN 域名，仅在正常情况与 --upos-host 均无法下载时使用" };
+    private static readonly Option<bool> AllowPreview = new("--allow-preview", []) { Description = "允许下载充电专属视频的试看片段，输出文件名带 [试看] 前缀" };
     private static readonly Option<string> Lang = new("--lang", []) { Description = "设置混流的音频语言（代码），如 chi, jpn 等" };
     private static readonly Option<string> UserAgent = new("--user-agent", ["-ua"]) { Description = "指定 user-agent，否则使用随机 user-agent" };
     private static readonly Option<string> Cookie = new("--cookie", []) { Description = "设置字符串 cookie 用以下载网页接口的会员内容" };
@@ -193,6 +198,7 @@ internal static class CommandLineInvoker
             NoMetadata,
             NoSub,
             NoCover,
+            NoImages,
             NoForceHttp,
             DownloadDanmaku,
             DownloadDanmakuFormats,
@@ -200,6 +206,7 @@ internal static class CommandLineInvoker
             VideoAscending,
             AudioAscending,
             AllowPcdn,
+            AllowPreview,
             FilePattern,
             MultiFilePattern,
             SelectPage,
@@ -252,6 +259,7 @@ internal static class CommandLineInvoker
                 SkipMux = parseResult.GetValue(SkipMux)!,
                 NoSub = parseResult.GetValue(NoSub)!,
                 NoCover = parseResult.GetValue(NoCover)!,
+                NoImages = parseResult.GetValue(NoImages)!,
                 NoForceHttp = parseResult.GetValue(NoForceHttp)!,
                 DownloadDanmaku = parseResult.GetValue(DownloadDanmaku)!,
                 DownloadDanmakuFormats = parseResult.GetValue(DownloadDanmakuFormats) ?? "",
@@ -259,6 +267,7 @@ internal static class CommandLineInvoker
                 VideoAscending = parseResult.GetValue(VideoAscending)!,
                 AudioAscending = parseResult.GetValue(AudioAscending)!,
                 AllowPcdn = parseResult.GetValue(AllowPcdn)!,
+                AllowPreview = parseResult.GetValue(AllowPreview)!,
                 FilePattern = parseResult.GetValue(FilePattern) ?? "",
                 MultiFilePattern = parseResult.GetValue(MultiFilePattern) ?? "",
                 SelectPage = parseResult.GetValue(SelectPage) ?? "",
@@ -286,6 +295,37 @@ internal static class CommandLineInvoker
         });
 
         return rootCommand;
+    }
+
+    /// <summary>
+    /// 专栏导出子命令。与视频下载共用 <see cref="DownloadOptions"/>，但只暴露专栏用得上的选项：
+    /// 画质、编码、混流、分 P 之类的参数对 Markdown 毫无意义，塞进帮助文本只会误导。
+    /// </summary>
+    public static Command GetOpusCommand(Func<DownloadOptions, Task<int>> action)
+    {
+        Command command = new("opus", "下载专栏 / 图文动态并导出为 Markdown")
+        {
+            OpusInput,
+            NoImages,
+            NoFrontMatter,
+            WorkDir,
+            Cookie,
+            UserAgent,
+            Debug
+        };
+
+        command.SetAction(async parseResult => await action(new DownloadOptions
+        {
+            Url = parseResult.GetValue(OpusInput) ?? "",
+            NoImages = parseResult.GetValue(NoImages)!,
+            NoMetadata = parseResult.GetValue(NoFrontMatter)!,
+            WorkDir = parseResult.GetValue(WorkDir) ?? "",
+            Cookie = parseResult.GetValue(Cookie) ?? "",
+            UserAgent = parseResult.GetValue(UserAgent) ?? "",
+            Debug = parseResult.GetValue(Debug)!
+        }));
+
+        return command;
     }
 
     /// <summary>

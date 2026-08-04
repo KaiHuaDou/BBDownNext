@@ -209,15 +209,16 @@ jobs:
         if: matrix.rid == 'linux-arm64'
         uses: actions/cache@v6
         with:
-          path: /var/cache/apt/archives
-          key: apt-arm64-aot-${{ hashFiles('Directory.Packages.props') }}
+          path: ~/.apt-cache/archives
+          key: apt-arm64-aot-v2-${{ hashFiles('Directory.Packages.props') }}
 
       - name: Install native AOT tools (arm64)
         if: matrix.rid == 'linux-arm64'
         run: |
+          mkdir -p "$HOME/.apt-cache/archives"
           sudo apt-get update
-          sudo apt-get install -y clang binutils-aarch64-linux-gnu zlib1g-dev
-          sudo chown -R "$(id -u):$(id -g)" /var/cache/apt/archives
+          sudo apt-get install -y -o Dir::Cache::archives="$HOME/.apt-cache/archives" clang binutils-aarch64-linux-gnu zlib1g-dev
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/.apt-cache"
 
       - name: Publish (AOT)
         run: dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact

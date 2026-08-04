@@ -24,6 +24,9 @@ public static class IdPrefix
     /// <summary>系列业务 id 前缀，切片长度 12</summary>
     public const string SeriesBizId = "seriesBizId:";
 
+    /// <summary>UP 主空间投稿列表前缀，切片长度 9</summary>
+    public const string SpaceMid = "spaceMid:";
+
     /// <summary>BV 号前缀，切片长度 3</summary>
     public const string Bv = "BV1";
 

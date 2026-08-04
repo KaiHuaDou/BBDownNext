@@ -53,6 +53,11 @@ public static class FetcherRegistry
             }
         }
 
+        if (id.StartsWith(IdPrefix.SpaceMid))
+        {
+            return await SpaceListFetcher.FetchAsync(id, cfg, ct);
+        }
+
         return await NormalInfoFetcher.FetchAsync(id, cfg, ct);
     }
 

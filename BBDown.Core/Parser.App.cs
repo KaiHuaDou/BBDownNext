@@ -34,6 +34,7 @@ public static partial class Parser
         }
 
         var pDur = (int) (resp.VideoInfo.Timelength / 1000);
+        result.Duration = pDur;
         CollectAppVideoTracks(result, resp.VideoInfo, pDur);
         CollectAppAudioTracks(result, resp.VideoInfo, pDur);
 

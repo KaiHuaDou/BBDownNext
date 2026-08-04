@@ -65,4 +65,56 @@ public class ChapterMetaTests
 
         Assert.Equal(expected, meta);
     }
+
+    [Fact]
+    public void ParsePlayerV2_ReadsViewPoints( )
+    {
+        const string Json = """
+        {"code":0,"data":{"view_points":[{"content":"Intro","from":0,"to":10},{"content":"正片","from":10,"to":20}]}}
+        """;
+
+        var info = ChapterMeta.ParsePlayerV2(Json);
+
+        Assert.Equal(2, info.Points.Count);
+        Assert.Equal("正片", info.Points[1].title);
+        Assert.Equal(10, info.Points[1].start);
+        Assert.Equal(20, info.Points[1].end);
+    }
+
+    [Fact]
+    public void ParsePlayerV2_ReadsUpowerExclusiveAndTitle( )
+    {
+        const string Json = """
+        {"code":0,"data":{"is_upower_exclusive":true,"is_upower_play":false,"elec_high_level":{"privilege_type":3,"title":"该视频为「铁粉」专属视频"}}}
+        """;
+
+        var info = ChapterMeta.ParsePlayerV2(Json);
+
+        Assert.True(info.UpowerExclusive);
+        Assert.Equal("该视频为「铁粉」专属视频", info.UpowerTitle);
+    }
+
+    [Fact]
+    public void ParsePlayerV2_NormalVideo_ReportsNotExclusive( )
+    {
+        const string Json = """
+        {"code":0,"data":{"is_upower_exclusive":false,"elec_high_level":{"privilege_type":0,"title":""}}}
+        """;
+
+        var info = ChapterMeta.ParsePlayerV2(Json);
+
+        Assert.False(info.UpowerExclusive);
+        Assert.Equal("", info.UpowerTitle);
+        Assert.Empty(info.Points);
+    }
+
+    [Fact]
+    public void ParsePlayerV2_ErrorResponse_ReturnsEmpty( )
+    {
+        var info = ChapterMeta.ParsePlayerV2("""{"code":-404,"message":"啥都木有","data":null}""");
+
+        Assert.Empty(info.Points);
+        Assert.False(info.UpowerExclusive);
+        Assert.Equal("", info.UpowerTitle);
+    }
 }

@@ -31,7 +31,11 @@ internal static class VideoInfo
             cookie = await Login.TryRefreshWebCookieIfStaleAsync(ct: ct);
         }
 
-        var cfg = new AppConfig(cookie, token, myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
+        // host 为空串/空白时回落官方默认，避免拼出 https:///... 抛不可读的 UriFormatException（§2.5）
+        var host = string.IsNullOrWhiteSpace(myOption.Host) ? BiliApi.MainHost : myOption.Host.Trim( );
+        var epHost = string.IsNullOrWhiteSpace(myOption.EpHost) ? BiliApi.MainHost : myOption.EpHost.Trim( );
+        var tvHost = string.IsNullOrWhiteSpace(myOption.TvHost) ? BiliApi.TvHost : myOption.TvHost.Trim( );
+        var cfg = new AppConfig(cookie, token, host, epHost, tvHost, myOption.Area, "");
 
         // nav 无需登录即可返回 wbi 密钥；TV/国际版模式同样会命中 wbi 接口（view、player/wbi/v2），
         // 跳过取密钥会让签名为空而被服务端拒绝（P1-27）。nav 探测与 buvid 拉取互不依赖，并行执行；

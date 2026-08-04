@@ -7,9 +7,11 @@ namespace BBDown;
 /// <summary>
 /// serve 模式的任务请求契约（<c>/add-task</c> 的 JSON 请求体）。
 /// 它是 <see cref="DownloadOptions"/> 的「受控子集」：只包含客户端允许提交的字段，
-/// 主动排除主机可控字段（FFmpegPath / Mp4boxPath / Aria2cPath / Aria2cArgs / WorkDir / FilePattern / MultiFilePattern）、
+/// 主动排除主机可控字段（FFmpegPath / Mp4boxPath / Aria2cPath / Aria2cArgs / WorkDir / FilePattern / MultiFilePattern / Host / EpHost / TvHost）、
 /// 进程级全局字段（Debug / UserAgent）与本地配置文件（ConfigFile）。
 /// 这样新增一个下载选项时不会自动变成 serve 的可注入点，也不必再维护一份「清零列表」。
+/// 其中 Host/EpHost/TvHost 因「请求不带 cookie 时回落本机 SESSDATA、host 又由请求体控制」会形成凭据外泄链（P0-1），
+/// 已整体移出请求契约，改为 serve 启动参数（--host/--ep-host/--tv-host）固定，详见 <see cref="BBDownApiServer.ApplyServeHost"/>。
 /// </summary>
 internal sealed class ServeRequestOptions
 {
@@ -43,6 +45,7 @@ internal sealed class ServeRequestOptions
     public bool VideoAscending { get; set; }
     public bool AudioAscending { get; set; }
     public bool AllowPcdn { get; set; }
+    public bool AllowPreview { get; set; }
     public bool NoForceHost { get; set; }
     public bool SaveArchivesToFile { get; set; }
     public bool StopOnError { get; set; }
@@ -52,9 +55,6 @@ internal sealed class ServeRequestOptions
     public string AccessToken { get; set; } = "";
     public string UposHost { get; set; } = "";
     public string DelayPerPage { get; set; } = "0";
-    public string Host { get; set; } = BiliApi.MainHost;
-    public string EpHost { get; set; } = BiliApi.MainHost;
-    public string TvHost { get; set; } = BiliApi.TvHost;
     public string Area { get; set; } = "";
 
     /// <summary>任务完成回调地址（仅允许公网 http/https，由服务端做 SSRF 校验）。</summary>

@@ -80,7 +80,29 @@ public class PageOrchestrationTests
 
     // Ctrl+C 的取消信号必须立刻上抛，不能被吞进 AggregateException
     [Fact]
-    public async Task OperationCanceled_IsRethrownNotAggregated( )
+    public async Task OperationCanceled_TokenCanceled_IsRethrownNotAggregated( )
+    {
+        var pages = Enumerable.Range(0, 3).Select(MakePage).ToList( );
+        var ran = new List<int>( );
+        using var cts = new CancellationTokenSource( );
+        cts.Cancel( );
+
+        Task run(Page p, CancellationToken _)
+        {
+            ran.Add(p.index);
+            throw new OperationCanceledException( );
+        }
+
+        await Assert.ThrowsAsync<OperationCanceledException>(( ) =>
+            PageQueue.RunPagesAsync(pages, stopOnError: false, run, cts.Token));
+
+        Assert.Equal([0], ran);
+    }
+
+    // HttpClient 超时同样抛 OperationCanceledException，但此时 ct 并未取消，
+    // 应按普通失败收集并继续跑其余分 P，而不是误判成用户中止整个任务
+    [Fact]
+    public async Task OperationCanceled_TokenNotCanceled_IsCollectedAsFailure( )
     {
         var pages = Enumerable.Range(0, 3).Select(MakePage).ToList( );
         var ran = new List<int>( );
@@ -91,9 +113,9 @@ public class PageOrchestrationTests
             throw new OperationCanceledException( );
         }
 
-        await Assert.ThrowsAsync<OperationCanceledException>(( ) =>
-            PageQueue.RunPagesAsync(pages, stopOnError: false, run, CancellationToken.None));
+        var errors = await PageQueue.RunPagesAsync(pages, stopOnError: false, run, CancellationToken.None);
 
-        Assert.Equal([0], ran);
+        Assert.Equal([0, 1, 2], ran);
+        Assert.Equal(3, errors.Count);
     }
 }

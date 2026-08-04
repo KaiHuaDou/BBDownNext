@@ -58,7 +58,13 @@ public static class FavListFetcher
         var intro = data.GetProperty("info").GetProperty("intro").GetString( )!;
         var pubTime = data.GetProperty("info").GetProperty("ctime").GetInt64( );
         var userName = data.GetProperty("info").GetProperty("upper").GetProperty("name").ToString( );
-        var medias = data.GetProperty("medias").EnumerateArray( ).ToList( );
+        // 空收藏夹时 B 站返回 "medias": null，EnumerateArray 会抛不可读的 InvalidOperationException；
+        // 用 EnumerateArrayOrEmpty 兜底，并在无媒体时给出可读提示（与下方 folder 缺失提示风格一致，§2.6）
+        var medias = EnumerateArrayOrEmpty(data.GetProperty("medias")).ToList( );
+        if (medias.Count == 0)
+        {
+            throw new InvalidOperationException($"收藏夹 {favId} 中没有可下载的视频");
+        }
 
         for (var page = 2; page <= totalPage; page++)
         {

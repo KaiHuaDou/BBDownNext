@@ -1,7 +1,7 @@
 # BBDown
 
 <p align="center">
-  <b>BBDown</b> 是一个免费、便捷且高效的哔哩哔哩视频下载 / 解析命令行工具。
+  BBDown 是一个哔哩哔哩视频下载 / 解析命令行工具。
 </p>
 
 <p align="center">
@@ -16,10 +16,10 @@
   <a href="#快速开始">快速开始</a> ·
   <a href="#参数说明">参数说明</a> ·
   <a href="#子命令">子命令</a> ·
-  <a href="#配置文件">配置文件</a> ·
   <a href="#服务器模式">服务器模式</a> ·
   <a href="#数据文件格式">数据文件格式</a> ·
   <a href="#常见问题">常见问题</a> ·
+  <a href="./TODO.md">发展路线</a> ·
   <a href="#与原版-bbdown-的差异">与原版差异</a>
 </p>
 
@@ -27,16 +27,18 @@
 
 ## 特性
 
-- 支持下载普通视频、番剧、课程（cheese）、直播回放、收藏夹、合集 / 系列、UP 主空间列表等多种内容；多 P 与批量内容支持丰富的分 P 选择语法（`-p`，含单集 / 列表 / 区间 / `latest`）
-- 支持 **TV / APP / INTL / WEB** 四种解析模式，自动应对不同区域限制，并兼容 BiliPlus 代理；WEB 模式自动 WBI 签名以降低风控
-- 支持 **DASH** 与 **FLV** 两种封装，可按清晰度、编码优先级自由选择，并支持杜比视界、HDR、8K、高码率等高质量音视频流
-- 支持交互式选择清晰度（`-ia`）；提供 `--show-info` 仅解析查看可用流而不下载
+- 支持下载普通视频、番剧、课程（cheese）、直播回放、收藏夹、合集 / 系列、UP 主空间列表；多 P 与批量内容支持分 P 选择语法（`-p`，含单集 / 列表 / 区间 / `latest`）
+- 支持 TV / APP / INTL / WEB 四种解析模式，自动应对不同区域限制，并兼容 BiliPlus 代理；WEB 模式自动 WBI 签名
+- 支持 DASH 与 FLV 两种封装，可按清晰度、编码优先级选择，支持杜比视界、HDR、8K、高码率音视频流
+- 支持交互式选择清晰度（`-ia`）；`--show-info` 仅解析查看可用流
 - 支持弹幕（XML / ASS）、字幕、封面、AI 字幕的下载与嵌入；混流时写入元数据与章节
-- 支持 aria2c 多线程加速与内置默认多线程下载；支持**断点续传**，并可开启 `--save-records` 归档记录、跳过已下载内容
-- 支持扫码登录 WEB / TV / APP 账号并自动保存凭据；WEB Cookie 过期时可用 `refresh_token` 自动续期。
-- 高度可定制：自定义文件名与日期格式、配置文件补齐命令行选项、CDN / PCDN 自定义（`--upos-host` / `--allow-pcdn`）
-- 支持服务器模式（`serve`），提供带鉴权令牌的 HTTP JSON API：回环地址免令牌、非回环强制令牌、回调做 SSRF 防护，便于与下载器 / 前端集成
-- 纯命令行，跨平台（Windows / Linux / macOS），无图形界面依赖；面向 .NET 9 并兼容 AOT 发布
+- 支持 aria2c 多线程与内置默认多线程；支持断点续传；`--save-records` 记录已下载内容以便跳过
+- 支持扫码登录 WEB / TV / APP 并自动保存凭据；WEB Cookie 过期时可用 `refresh_token` 续期
+- 支持自定义文件名与日期格式、配置文件、CDN / PCDN 自定义（`--upos-host` / `--allow-pcdn`）
+- 支持服务器模式（`serve`），提供带鉴权令牌的 HTTP JSON API，详见 [API.md](./API.md)
+- 支持专栏 / 图文导出（`opus` 子命令），将 B 站专栏转换为 Markdown，图片默认下载到本地 `images/` 子目录
+- 纯命令行，跨平台（Windows / Linux / macOS），面向 .NET 9，支持 AOT 单文件发布
+- 包含 650+ 单元测试，覆盖解析、混流、serve 鉴权与 SSRF、断点续传、文件名截断等核心路径，保障功能完整与正确
 
 ## 与原版 BBDown 的差异
 
@@ -48,6 +50,8 @@
 
 前往 [Actions](https://github.com/KaiHuaDou/BBDown/actions) 页面，下载构建版本。
 
+> AOT 单文件二进制无需安装 .NET 运行时即可直接运行；`dotnet build` 产物需要本机有对应版本的 .NET 运行时。
+
 ## 构建
 
 需要先安装 [.NET SDK](https://dot.net)（版本 ≥ 9.0，具体版本以仓库 `global.json` 为准）。
@@ -57,10 +61,17 @@ git clone https://github.com/KaiHuaDou/BBDown.git --depth 1
 cd BBDown
 
 dotnet build -c Release
-# 或 dotnet publish BBDown -r <RID> -c Release
 ```
 
 构建产物位于各项目的 `bin/Release/net9.0/` 目录下
+
+AOT 单文件发布使用：
+
+```bash
+dotnet publish BBDown -r <RID> -c Release -o <DEST>
+```
+
+构建产物位于 `<DEST>` 中
 
 特定平台细节可参考 [ci.yml](https://github.com/KaiHuaDou/BBDown/blob/master/.github/workflows/ci.yml)
 
@@ -70,7 +81,7 @@ dotnet build -c Release
 - **MP4Box**：可选，用于杜比视界等特殊封装的混流。可用 `--mp4box` 切换为 MP4Box 混流，或用 `--mp4box-path` 指定路径。
 - **aria2c**：可选，用于多线程加速下载。可用 `--aria2c` 启用，或用 `--aria2c-path` 指定路径。
 
-> 放在 BBDown 同目录或系统 `PATH` 中即可被自动识别
+> 放在 BBDown 同目录或系统 `PATH` 中即可被自动识别。专栏导出（`opus`）不经过混流，无需 FFmpeg。
 
 ## 快速开始
 
@@ -89,17 +100,28 @@ BBDown "BV16h4y137YS" -q "1080P 高码率" -e "avc,flac"
 
 # 下载番剧 / 课程（需要会员凭据）
 BBDown "ep68540" --tv-api --access-token "你的token"
+
+# 只看下一个 UP 的投稿列表，不下载
+BBDown "402787936" --show-info
+# 只下最新 10 个（列表序号，跨视频的全局序号）
+BBDown "space402787936" -p 1-10
+
+# 下载一篇专栏并导出为 Markdown（默认下载图片到 images/ 子目录）
+BBDown opus cv51908655
+BBDown opus 1230485246732926996
+
 ```
 
 ### 支持的输入
 
 - **视频页 URL**：`https://www.bilibili.com/video/BV...`（可用 `?p=` 指定分 P）
 - **短链**：`b23.tv/...`
-- **裸编号**：`av{数字}`、`BV{字符}`、`ep{数字}`、`ss{数字}`
+- **裸编号**：`av{数字}`、`BV{字符}`、`ep{数字}`、`ss{数字}`、纯数字按 `ep` 解析（如 `402787936`）、`space{mid}`
 - **番剧 / 影视 / 课程**：`/bangumi/play/...`、`/cheese/...`、番剧 `md{数字}` 详情页、`/ss{季_id}`
 - **合集 / 系列**：UP 主空间的 `lists/` 页面（`business=space_collection` 为合集，`business=space_series` 为系列）
 - **收藏夹**：UP 主空间的 `favlist` 页面
-- **空间投稿列表**：UP 主空间首页
+- **空间投稿列表**：UP 主空间首页 / `upload/video` / `video?tid=0`，也可直接传 UP mid（`402787936`）或 `space402787936`。默认按**最新发布**（`pubdate`）倒序拉取**全部**投稿；课堂视频、无法解析的稿件（直播回放 / 充电专属 / 已删除等）会**跳过并告警**，不中断整批。
+- **专栏 / 图文**（需 `opus` 子命令）：`https://www.bilibili.com/opus/{opus_id}`、`https://www.bilibili.com/mobile/opus/{opus_id}`、`https://www.bilibili.com/read/cv{cv_id}`、`https://www.bilibili.com/read/mobile/{cv_id}`，以及前缀写法 `opus:{opus_id}` / `cv{cv_id}`；`opus` 子命令下也可直接传裸 `cv` 号（如 `cv51908655`）或裸 opus id（≥15 位数字）。专栏导出为 Markdown 文件，详见 [`opus` 子命令](#opus-参数)。
 
 > 命令行、配置文件与 `serve` 接口使用同一套写法。
 
@@ -141,21 +163,22 @@ BBDown "ep68540" --tv-api --access-token "你的token"
 
 ### 下载内容
 
-| 参数                | 简写   | 说明                                               |
-| ------------------- | ------ | -------------------------------------------------- |
-| `--video-only`      | `-v`   | 仅下载视频                                         |
-| `--audio-only`      | `-a`   | 仅下载音频                                         |
-| `--danmaku-only`    | `-d`   | 仅下载弹幕                                         |
-| `--cover-only`      | `-c`   | 仅下载封面                                         |
-| `--sub-only`        | `-s`   | 仅下载字幕                                         |
-| `--danmaku`         | `-dd`  | 下载弹幕（与音视频一并下载）                       |
-| `--danmaku-formats` | `-ddf` | 指定需下载的弹幕格式（详见脚注 [^danmakuformats]） |
-| `--skip-mux`        |        | 跳过混流步骤                                       |
-| `--no-sub`          |        | 跳过字幕下载                                       |
-| `--no-cover`        |        | 跳过封面下载                                       |
-| `--allow-ai`        |        | 下载 AI 字幕（默认不下载，加此选项才下载）         |
-| `--no-metadata`     |        | 精简混流，不写入描述、作者等元数据                 |
-| `--lang`            |        | 设置混流音频语言代码，如 `chi`、`jpn` 等           |
+| 参数                | 简写   | 说明                                                       |
+| ------------------- | ------ | ---------------------------------------------------------- |
+| `--video-only`      | `-v`   | 仅下载视频                                                 |
+| `--audio-only`      | `-a`   | 仅下载音频                                                 |
+| `--danmaku-only`    | `-d`   | 仅下载弹幕                                                 |
+| `--cover-only`      | `-c`   | 仅下载封面                                                 |
+| `--sub-only`        | `-s`   | 仅下载字幕                                                 |
+| `--danmaku`         | `-dd`  | 下载弹幕（与音视频一并下载）                               |
+| `--danmaku-formats` | `-ddf` | 指定需下载的弹幕格式（详见脚注 [^danmakuformats]）         |
+| `--skip-mux`        |        | 跳过混流步骤                                               |
+| `--no-sub`          |        | 跳过字幕下载                                               |
+| `--no-cover`        |        | 跳过封面下载                                               |
+| `--allow-ai`        |        | 下载 AI 字幕（默认不下载，加此选项才下载）                 |
+| `--allow-preview`   |        | 允许下载充电专属视频的试看片段（详见脚注 [^allowpreview]） |
+| `--no-metadata`     |        | 精简混流，不写入描述、作者等元数据                         |
+| `--lang`            |        | 设置混流音频语言代码，如 `chi`、`jpn` 等                   |
 
 ### 下载方式与性能
 
@@ -248,14 +271,40 @@ BBDown "BV1xx" -M "<publishDate:yyyy>/<publishDate:MMdd> <pageTitle>"
 | ------- | --------------------------------------------------------------------------------------------- |
 | `login` | 通过 APP 扫描二维码登录账号（默认 WEB；加 `--tv` 登录 TV，加 `--app` 登录 APP），凭据自动保存 |
 | `serve` | 以服务器模式运行，提供带鉴权令牌的 HTTP JSON API（详见 [API.md](./API.md)）                   |
+| `opus`  | 下载 B 站「专栏 / 图文」并导出为 Markdown 文件（见下方 [opus 参数](#opus-参数)）              |
+
+### `opus` 参数
+
+将 B 站专栏（opus / read）抓取并转换为 Markdown。默认会把正文中的图片下载到本地 `<标题>/images/` 子目录，并在 Markdown 中用相对路径引用；加 `--no-images` 可跳过下载、保留原始远程图片链接。v1 仅支持**单篇**专栏，不支持批量 / 合集。
+
+| 参数            | 简写  | 说明                                                                                       |
+| --------------- | ----- | ------------------------------------------------------------------------------------------ |
+| （位置参数）    |       | 专栏地址或 cv 号 / opus id：`https://www.bilibili.com/opus/{id}`、`cv{cv_id}`、`opus:{id}` |
+| `--no-images`   |       | 不下载图片，Markdown 中保留远程图片链接                                                    |
+| `--no-metadata` |       | 不输出 Markdown 头部的 YAML front matter（含标题 / 作者 / 发布时间等元数据）               |
+| `--work-dir`    |       | 设置输出工作目录（`.md` 与其 `images/` 落在该目录下）                                      |
+| `--cookie`      |       | 字符串 cookie，用于下载登录可见的专栏内容                                                  |
+| `--user-agent`  | `-ua` | 指定 user-agent；不指定则使用随机 user-agent                                               |
+| `--debug`       |       | 输出调试日志                                                                               |
+
+> 根命令（`BBDown <输入>`）在输入形如 `https://www.bilibili.com/opus/...` 时会**自动识别**并走专栏导出支路；只有形如 `opus 1230485246732926996` 这样**裸数字**的写法才需要显式 `opus` 子命令（否则会被当作视频 av 号）。`--no-images` / `--no-metadata` 在根命令下同样可用。
+
+```bash
+# 下载一篇专栏并导出为 Markdown（图片下载到 <标题>/images/）
+BBDown opus "https://www.bilibili.com/opus/1230485246732926996"
+
+# 不下载图片、不输出 front matter，适合纯文本归档
+BBDown opus cv51908655 --no-images --no-metadata
+```
 
 ### `serve` 参数
 
-| 参数            | 简写 | 说明                                                                                                          |
-| --------------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| `--listen`      | `-l` | 监听地址，默认 `http://127.0.0.1:23333`。回环地址免令牌；绑定非回环地址（如 `0.0.0.0`）时**强制令牌鉴权**     |
-| `--serve-token` |      | serve 鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 `X-BBDown-Token` 头或 `?token=` 查询参数 |
-| `--work-dir`    |      | 所有任务的工作目录                                                                                            |
+| 参数               | 简写 | 说明                                                                                                                  |
+| ------------------ | ---- | --------------------------------------------------------------------------------------------------------------------- |
+| `--listen`         | `-l` | 监听地址，默认 `http://127.0.0.1:23333`。回环地址免令牌；绑定非回环地址（如 `0.0.0.0`）时**强制令牌鉴权**             |
+| `--serve-token`    |      | serve 鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 `X-BBDown-Token` 头或 `?token=` 查询参数         |
+| `--work-dir`       |      | 所有任务的工作目录                                                                                                    |
+| `--max-concurrent` |      | 同时下载的任务数上限，默认 0（不限制）。大于 0 时多余任务排队，并把每个任务的分片并发压到 1，使总下载连接数不超过该值 |
 
 ```bash
 # 以默认地址启动服务器（本地回环，免令牌）
@@ -267,6 +316,17 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 # 显式指定令牌
 BBDown serve --serve-token "你的令牌"
 ```
+
+## 退出码
+
+| 退出码 | 含义                                                |
+| ------ | --------------------------------------------------- |
+| `0`    | 全部成功                                            |
+| `1`    | 存在下载失败的分 P                                  |
+| `2`    | 所选分 P 全部为充电专属试看片段，已跳过，未产出文件 |
+| `130`  | 用户取消（Ctrl+C）                                  |
+
+> 退出码 `2` 表示：没有任何分 P 因真实故障失败，唯一原因是充电权限。若同时存在充电试看与真实下载失败，退出码为 `1`。
 
 ## 配置文件
 
@@ -290,7 +350,7 @@ BV1uv411q7Mv
 
 `BBDown serve` 会在本地启动一个 HTTP 服务器，对外暴露任务增删查的 JSON API，适合与下载器面板、自动化脚本集成。完整接口定义、数据结构与请求示例见 **[API.md](./API.md)**。
 
-> ⚠️ **鉴权说明**：默认监听 `http://127.0.0.1:23333`（回环地址）时**免令牌**即可调用，便于本机脚本使用。一旦绑定到**非回环地址**（如 `0.0.0.0`），BBDown 会强制要求令牌鉴权：若未通过 `--serve-token` 指定，会自动生成一个令牌并打印到控制台，客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数；令牌不匹配一律返回 `401`。即使如此，服务器仍默认开启 CORS（`AllowAnyOrigin`），且令牌只防未授权调用、不验证调用方身份，因此**切勿直接暴露到公网**。需要跨机器访问时请自行加反向代理与 TLS，并显式指定 `serve -l http://0.0.0.0:23333`。
+> ⚠️ **鉴权说明**：默认监听 `http://127.0.0.1:23333`（回环地址）时**免令牌**即可调用，便于本机脚本使用。一旦绑定到**非回环地址**（如 `0.0.0.0`），BBDown 会强制要求令牌鉴权：若未通过 `--serve-token` 指定，会自动生成一个令牌并打印到控制台，客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数；令牌不匹配一律返回 `401`。即使如此，服务器仍默认开启 CORS（`AllowAnyOrigin`），且令牌只防未授权调用、不验证调用方身份，因此**请勿暴露到公网**。需要跨机器访问时请自行加反向代理与 TLS，并显式指定 `serve -l http://0.0.0.0:23333`。
 
 ## 数据文件格式
 
@@ -387,13 +447,15 @@ FLV 封装固定以最高清晰度（qn=127）请求播放地址，用户的清�
 
 [^aria2cargs]: 调用 aria2c 的附加参数，含空格的参数用引号包裹。默认参数包含 `-x16 -s16 -j16 -k 5M`。
 
-[^encodingpriority]: 视频及音频编码的选择优先级，逗号分隔。例：`hevc,av1,avc,flac,eac3,m4a`
+[^encodingpriority]: 视频及音频编码的选择优先级，逗号分隔。例：`hevc,avc,flac,eac3,m4a`
 
 [^dfnpriority]: 画质优先级，逗号分隔。例：`8K 超高清, 1080P 高码率, HDR 真彩, 杜比视界`
 
 [^danmakuformats]: 指定需下载的弹幕格式，逗号分隔，默认全部下载（如 `xml,ass`）。
 
 [^stoponerror]: 遇到分 P 下载失败时立即停止，而不是继续下载其余分 P。默认继续，并在末尾汇总失败的分 P 后非零退出。
+
+[^allowpreview]: UP 主的充电专属稿件，在当前账号没有充电权限时接口不会报错，而是照常返回成功并只下发几分钟的试看片段。BBDown 默认会在下载前识别并跳过（退出码 `2`），避免产出被报告为「下载成功」的残片。加此选项则保留试看片段，输出文件名带 `[试看]` 前缀以便与完整视频区分。登录一个已为该 UP 主充电的账号（`BBDown login`）即可正常下载完整视频，无需此选项。
 
 [^host]: 指定 BiliPlus host。使用 BiliPlus 需要 access_token、不需要 cookie；解析服务器能够获取你账号的大部分权限，请谨慎使用！
 

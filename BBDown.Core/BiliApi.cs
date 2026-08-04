@@ -36,6 +36,9 @@ public static class BiliApi
     public const string FavResourceList = $"https://{MainHost}/x/v3/fav/resource/list";
     public const string MediaListInfo = $"https://{MainHost}/x/v1/medialist/info";
     public const string MediaListResource = $"https://{MainHost}/x/v2/medialist/resource/list";
+    public const string SpaceArcSearch = $"https://{MainHost}/x/space/wbi/arc/search";
+    public const string OpusDetail = $"https://{MainHost}/x/polymer/web-dynamic/v1/opus/detail";
+    public const string ArticleView = $"https://{MainHost}/x/article/view";
 
     // grpc / protobuf 端点
     public const string GrpcPlayView = "https://grpc.biliapi.net/bilibili.app.playurl.v1.PlayURL/PlayView";
@@ -56,4 +59,6 @@ public static class BiliApi
     public const string SpacePage = "https://space.bilibili.com";
     public const string AnimePage = "https://bangumi.bilibili.com/anime";
     public const string DanmakuXml = "https://comment.bilibili.com";
+    public const string OpusPage = $"{Site}/opus";
+    public const string ReadPage = $"{Site}/read";
 }

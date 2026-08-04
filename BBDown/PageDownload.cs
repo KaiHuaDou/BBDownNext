@@ -12,13 +12,15 @@ using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Parser;
 using static BBDown.DownloadUtil;
+using static BBDown.Utils;
 
 namespace BBDown;
 
 internal static class PageDownload
 {
     // Aborted 为 true 表示该分 P 应立即结束（不再登记 SavePath）；Selected 需回传以跨重试保留用户已手动选轨的状态
-    internal readonly record struct PageOutcome(bool Aborted, string SavePath, bool Selected)
+    // Preview 为 true 表示产出的是充电试看片段，不应写入归档记录
+    internal readonly record struct PageOutcome(bool Aborted, string SavePath, bool Selected, bool Preview = false)
     {
         public static PageOutcome Abort(bool selected)
         {
@@ -42,8 +44,9 @@ internal static class PageDownload
         {
             try
             {
-                LogDebug("获取章节信息...");
-                p.points = await ChapterMeta.FetchPointsAsync(p.cid, p.aid, ctx.Cfg);
+                LogDebug("获取播放器信息...");
+                var playerInfo = await ChapterMeta.FetchPlayerV2Async(p.cid, p.aid, ctx.Cfg);
+                p.points = playerInfo.Points;
 
                 if (!myOption.OnlyShowInfo)
                 {
@@ -68,8 +71,33 @@ internal static class PageDownload
                     File.WriteAllText(Path.Combine(ctx.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.RawResponse);
                 }
 
+                if (IsTruncatedPreview(playerInfo.UpowerExclusive, p.dur, parsedResult.Duration))
+                {
+                    LogWarn(string.IsNullOrEmpty(playerInfo.UpowerTitle) ? "充电专属视频" : playerInfo.UpowerTitle);
+                    LogWarn($"当前账号没有该 UP 主的充电权限，接口只返回了 {FormatTime(parsedResult.Duration, true)} 的试看片段（完整视频 {FormatTime(p.dur, true)}）", false);
+                    // 这三个开关都不产出视频文件，中止反而挡掉用户诊断问题的手段
+                    if (myOption.OnlyShowInfo || myOption.CoverOnly || myOption.DanmakuOnly)
+                    {
+                        LogWarn("当前仅输出信息/封面/弹幕，不受影响", false);
+                    }
+                    else if (myOption.AllowPreview)
+                    {
+                        LogWarn("已按 --allow-preview 继续，输出文件名将带 [试看] 前缀", false);
+                        pageCtx = pageCtx with { IsPreview = true };
+                    }
+                    else
+                    {
+                        LogWarn("已跳过。如需下载试看片段，请加 --allow-preview", false);
+                        throw new ChargedPreviewException($"P{p.index}（{p.aid}）为充电专属试看片段，已跳过");
+                    }
+                }
+
                 var session = new DownloadSession(myOption, ctx, pageCtx, subtitleInfo, BuildDownloadConfig(myOption, ctx.Cfg, relatedTask), relatedTask);
                 outcome = await DispatchAsync(parsedResult, session, selected, ct);
+                if (pageCtx.IsPreview)
+                {
+                    outcome = outcome with { Preview = true };
+                }
 
                 selected = outcome.Selected;
                 if (outcome.Aborted)
@@ -82,7 +110,7 @@ internal static class PageDownload
                     relatedTask?.SavePaths.Add(outcome.SavePath);
                 }
             }
-            catch (Exception ex) when (ShouldRetry(ex))
+            catch (Exception ex) when (ShouldRetry(ex, ct))
             {
                 if (++retryCount > 2)
                 {
@@ -110,16 +138,31 @@ internal static class PageDownload
                || (ex is AggregateException agg && agg.InnerExceptions.Any(e => e is NotSupportedException));
     }
 
-    // Ctrl+C 触发的取消不能被当成"下载异常"退避重试，否则用户按下之后还要再等两轮退避（P1-20）
-    internal static bool IsCancellation(Exception ex)
+    // 只有用户真的取消了（ct 已请求取消）才判定为取消；HttpClient 超时等瞬态故障被包装成
+    // OperationCanceledException 但用户令牌并未取消，必须当作可重试的失败（§2.2）
+    internal static bool IsCancellation(Exception ex, CancellationToken ct)
     {
+        if (!ct.IsCancellationRequested)
+        {
+            return false;
+        }
+
         return ex is OperationCanceledException
                || (ex is AggregateException agg && agg.InnerExceptions.Any(e => e is OperationCanceledException));
     }
 
-    internal static bool ShouldRetry(Exception ex)
+    // 充电权限不会因为重试而改变，重试只会让用户白等两轮退避
+    internal static bool ShouldRetry(Exception ex, CancellationToken ct)
     {
-        return !IsRangeUnsupported(ex) && !IsCancellation(ex);
+        return !IsRangeUnsupported(ex) && !IsCancellation(ex, ct) && ex is not ChargedPreviewException;
+    }
+
+    // 双条件：稿件确为充电专属（is_upower_exclusive 是稿件属性，与账号无关），且 playurl 下发时长明显短于 view 声称的完整时长。
+    // 30 秒下限用于避开 timelength(ms) 与 duration(整秒) 的固有封装误差；真实试看片段与完整稿件差距动辄数十分钟。
+    internal static bool IsTruncatedPreview(bool upowerExclusive, int fullDuration, int actualDuration)
+    {
+        return upowerExclusive && fullDuration > 0 && actualDuration > 0
+               && actualDuration < fullDuration * 0.9 && fullDuration - actualDuration >= 30;
     }
 
     private static PageContext BuildPageContext(Page p, WorkContext ctx, List<Page> selectedPagesInfo)
@@ -165,6 +208,8 @@ internal static class PageDownload
             SingleThread = myOption.SingleThread,
             RelatedTask = relatedTask,
             Cookie = cfg.Cookie,
+            // serve 限流时由任务带下来（=1）；CLI 与未限流的 serve 为 0，RunRangesAsync 回落到 ProcessorCount
+            MaxDegreeOfParallelism = relatedTask?.MaxChunkParallelism ?? 0,
         };
     }
 

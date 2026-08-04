@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 
 using BBDown.Core;
 
@@ -43,6 +44,46 @@ public class DownloadTests
         Assert.True(PageDownload.IsRangeUnsupported(new AggregateException(new IOException( ), new NotSupportedException( ))));
         Assert.False(PageDownload.IsRangeUnsupported(new IOException( )));
         Assert.False(PageDownload.IsRangeUnsupported(new AggregateException(new IOException( ))));
+    }
+
+    // 充电权限不会因重试改变，若漏进排除列表用户会白等两轮退避
+    [Fact]
+    public void ShouldRetry_ChargedPreview_ReturnsFalse( )
+    {
+        Assert.False(PageDownload.ShouldRetry(new ChargedPreviewException("试看"), CancellationToken.None));
+        Assert.True(PageDownload.ShouldRetry(new IOException( ), CancellationToken.None));
+    }
+
+    [Theory]
+    // 真实场景：02:23:48 的稿件只下发 00:06:29
+    [InlineData(true, 8628, 389, true)]
+    // 非充电专属稿件一律不判定，避免误伤 timelength 异常的普通视频
+    [InlineData(false, 8628, 389, false)]
+    // 番剧 / 互动视频的 dur 恒为 0
+    [InlineData(true, 0, 389, false)]
+    // playurl 未给出时长
+    [InlineData(true, 8628, 0, false)]
+    // timelength(ms) 与 duration(整秒) 的固有封装误差
+    [InlineData(true, 3600, 3588, false)]
+    // 短视频：比值虽超阈值，但绝对差不足 30 秒
+    [InlineData(true, 60, 53, false)]
+    // 比值边界：恰好 90%
+    [InlineData(true, 300, 270, false)]
+    public void IsTruncatedPreview_AppliesBothConditions(bool exclusive, int full, int actual, bool expected)
+    {
+        Assert.Equal(expected, PageDownload.IsTruncatedPreview(exclusive, full, actual));
+    }
+
+    [Fact]
+    public void ApplyPreviewPrefix_MultiPage_PrefixesOnlyLastSegment( )
+    {
+        Assert.Equal("视频标题/[试看][P01]分P标题.mp4", SavePath.ApplyPreviewPrefix("视频标题/[P01]分P标题.mp4"));
+    }
+
+    [Fact]
+    public void ApplyPreviewPrefix_SinglePage_PrefixesWholeName( )
+    {
+        Assert.Equal("[试看]视频标题.mp4", SavePath.ApplyPreviewPrefix("视频标题.mp4"));
     }
 
     [Fact]
@@ -191,6 +232,7 @@ public class DownloadTests
         Assert.False(dc.SingleThread);
         Assert.Equal("SESSDATA=abc", dc.Cookie);
         Assert.Null(dc.RelatedTask);
+        Assert.Equal(0, dc.MaxDegreeOfParallelism);   // CLI 路径（relatedTask 为 null）不限制分片并发
     }
 
     [Fact]

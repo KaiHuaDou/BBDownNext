@@ -15,4 +15,6 @@ internal sealed record PageContext(
     string CoverUrl,
     long PubTime,
     int PagesCount,
-    bool DeleteCoverAfterMux);
+    bool DeleteCoverAfterMux,
+    /// <summary>该分P下发的是充电专属试看片段（已由 --allow-preview 放行），落盘文件名加 [试看] 前缀以便与完整视频区分。</summary>
+    bool IsPreview = false);

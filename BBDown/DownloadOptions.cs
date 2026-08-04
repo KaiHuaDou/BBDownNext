@@ -38,6 +38,8 @@ internal class DownloadOptions
     public bool SkipMux { get; set; }
     public bool NoSub { get; set; }
     public bool NoCover { get; set; }
+    /// <summary>专栏导出时不下载图片，Markdown 中保留远程图片链接</summary>
+    public bool NoImages { get; set; }
     public bool NoForceHttp { get; set; }
     public bool DownloadDanmaku { get; set; }
     public string? DownloadDanmakuFormats { get; set; }
@@ -45,6 +47,7 @@ internal class DownloadOptions
     public bool VideoAscending { get; set; }
     public bool AudioAscending { get; set; }
     public bool AllowPcdn { get; set; }
+    public bool AllowPreview { get; set; }
     public bool NoForceHost { get; set; }
     public bool SaveArchivesToFile { get; set; }
     public bool StopOnError { get; set; }

@@ -4,6 +4,10 @@ using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using BBDown.Core;
 
 namespace BBDown.Tests;
 
@@ -33,7 +37,10 @@ public class BBDownApiServerTests
             "MultiFilePattern": "../../../root/.bashrc",
             "Debug": true,
             "UserAgent": "Mozilla/5.0 (attacker)",
-            "ConfigFile": "/etc/passwd"
+            "ConfigFile": "/etc/passwd",
+            "Host": "https://evil.example.com",
+            "EpHost": "https://evil.example.com",
+            "TvHost": "https://evil.example.com"
         }
         """;
         var req = JsonSerializer.Deserialize<ServeRequestOptions>(maliciousJson, DownloadOptionsJsonContext.Default.ServeRequestOptions)!;
@@ -50,6 +57,10 @@ public class BBDownApiServerTests
         Assert.False(opts.Debug);
         Assert.Equal("", opts.UserAgent);
         Assert.Null(opts.ConfigFile);
+        // 请求不带 cookie 时会回落本机 SESSDATA，host 若可由请求体控制就成了凭据外泄链（P0-1）
+        Assert.Equal(BiliApi.MainHost, opts.Host);
+        Assert.Equal(BiliApi.MainHost, opts.EpHost);
+        Assert.Equal(BiliApi.TvHost, opts.TvHost);
         // 正常字段仍正确透传
         Assert.Equal("https://www.bilibili.com/video/BV1xx411c7XD", opts.Url);
     }
@@ -62,13 +73,13 @@ public class BBDownApiServerTests
             Url = "https://www.bilibili.com/video/BV1xx411c7XD",
             UseTvApi = true,
             Cookie = "SESSDATA=abc",
-            Host = "https://biliplus.example.com"
+            AllowPreview = true
         };
         var opts = req.ToDownloadOptions( );
 
         Assert.True(opts.UseTvApi);
         Assert.Equal("SESSDATA=abc", opts.Cookie);
-        Assert.Equal("https://biliplus.example.com", opts.Host);
+        Assert.True(opts.AllowPreview);
     }
 
     #endregion
@@ -235,6 +246,209 @@ public class BBDownApiServerTests
         {
             await server.StopForTestAsync( );
         }
+    }
+
+    [Fact]
+    public async Task Serve_Host_FallsBackToServerConfig( )
+    {
+        // P0-1 回归：host 由 serve 启动参数决定，请求体不含该字段，无法被客户端覆盖。
+        // 验证服务端配置的 host 会被注入到每个任务；空值回落官方默认。
+        var server = new BBDownApiServer( );
+        server.SetUpServer(host: "https://biliplus.example.com", epHost: "https://biliplus.example.com", tvHost: "api.snm0516.aisee.tv");
+        try
+        {
+            var opts = server.ApplyServeHost(new DownloadOptions { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
+            Assert.Equal("https://biliplus.example.com", opts.Host);
+            Assert.Equal("https://biliplus.example.com", opts.EpHost);
+            Assert.Equal("api.snm0516.aisee.tv", opts.TvHost);
+        }
+        finally
+        {
+            await server.StopForTestAsync( );
+        }
+    }
+
+    [Fact]
+    public async Task Serve_Host_EmptyFallsBackToDefault( )
+    {
+        // §2.5：serve 启动参数 host 为空时回落官方默认，避免空 host 抛出 UriFormatException
+        var server = new BBDownApiServer( );
+        server.SetUpServer(host: "", epHost: null, tvHost: "  ");
+        try
+        {
+            var opts = server.ApplyServeHost(new DownloadOptions { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
+            Assert.Equal(BiliApi.MainHost, opts.Host);
+            Assert.Equal(BiliApi.MainHost, opts.EpHost);
+            Assert.Equal(BiliApi.TvHost, opts.TvHost);
+        }
+        finally
+        {
+            await server.StopForTestAsync( );
+        }
+    }
+
+    #endregion
+
+    #region IsPrivateAddress（§2.4 私网段补全）
+
+    [Theory]
+    [InlineData("::")]                       // IPv6 未指定地址
+    [InlineData("100.64.0.1")]               // CGNAT
+    [InlineData("100.127.255.254")]          // CGNAT 上界
+    [InlineData("192.0.0.1")]                // 192.0.0.0/24
+    [InlineData("198.18.0.1")]               // 198.18.0.0/15 benchmark
+    [InlineData("198.19.255.255")]           // 198.18.0.0/15 上界
+    [InlineData("224.0.0.1")]                // 多播
+    [InlineData("239.255.255.255")]          // 多播上界
+    [InlineData("127.0.0.1")]                // 回环
+    [InlineData("10.0.0.1")]                 // RFC1918
+    [InlineData("172.16.0.1")]               // RFC1918
+    [InlineData("192.168.1.1")]              // RFC1918
+    [InlineData("169.254.169.254")]          // 链路本地/云元数据
+    [InlineData("0.0.0.0")]                  // 未指定
+    [InlineData("::1")]                      // IPv6 回环
+    [InlineData("fd00::1")]                  // IPv6 ULA
+    [InlineData("fc00::1")]                  // IPv6 ULA
+    [InlineData("fe80::1")]                  // IPv6 链路本地
+    [InlineData("ff02::1")]                  // IPv6 多播
+    public void IsPrivateAddress_RejectsPrivate(string ip)
+    {
+        Assert.True(BBDownApiServer.IsPrivateAddress(IPAddress.Parse(ip)));
+    }
+
+    [Theory]
+    [InlineData("1.2.3.4")]
+    [InlineData("8.8.8.8")]
+    [InlineData("203.0.113.5")]              // TEST-NET-3 文档地址（非私网）
+    [InlineData("198.20.0.1")]              // 198.18.0.0/15 之外
+    [InlineData("100.63.255.255")]          // CGNAT 之外
+    [InlineData("192.0.1.1")]               // 192.0.0.0/24 之外
+    [InlineData("223.255.255.255")]         // 多播之外（公网最大单播）
+    [InlineData("2001:db8::1")]             // 文档地址（公网段）
+    public void IsPrivateAddress_AllowsPublic(string ip)
+    {
+        Assert.False(BBDownApiServer.IsPrivateAddress(IPAddress.Parse(ip)));
+    }
+
+    #endregion
+
+    #region 并发上限（--max-concurrent）
+
+    [Fact]
+    public void SetUpServer_WithoutMaxConcurrent_KeepsUnlimitedBehaviour( )
+    {
+        var server = new BBDownApiServer( );
+        server.SetUpServer( );
+        var task = server.CreateTask("114514", "BV1xx411c7XD");
+
+        Assert.Equal(DownloadStatus.Running, task.Status);
+        Assert.Equal(0, task.MaxChunkParallelism);
+        var dc = PageDownload.BuildDownloadConfig(new DownloadOptions( ), AppConfig.Empty, task);
+        Assert.Equal(0, dc.MaxDegreeOfParallelism);
+    }
+
+    [Fact]
+    public void SetUpServer_WithMaxConcurrent_CapsChunkParallelismToOne( )
+    {
+        var server = new BBDownApiServer( );
+        server.SetUpServer(maxConcurrent: 2);
+        var task = server.CreateTask("114514", "BV1xx411c7XD");
+
+        Assert.Equal(DownloadStatus.Queued, task.Status);
+        Assert.Equal(1, task.MaxChunkParallelism);
+        var dc = PageDownload.BuildDownloadConfig(new DownloadOptions( ), AppConfig.Empty, task);
+        Assert.Equal(1, dc.MaxDegreeOfParallelism);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void SetUpServer_NonPositiveMaxConcurrent_MeansUnlimited(int n)
+    {
+        var server = new BBDownApiServer( );
+        server.SetUpServer(maxConcurrent: n);
+        Assert.Equal(0, server.CreateTask("1", "u").MaxChunkParallelism);
+        Assert.Equal(DownloadStatus.Running, server.CreateTask("1", "u").Status);
+    }
+
+    [Fact]
+    public async Task RunGatedAsync_NeverExceedsMaxConcurrent( )
+    {
+        const int cap = 2;
+        const int total = 5;
+        var server = new BBDownApiServer( );
+        server.SetUpServer(maxConcurrent: cap);
+
+        var running = 0;
+        var peak = 0;
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tasks = Enumerable.Range(0, total).Select(i => server.CreateTask(i.ToString( ), "u")).ToList( );
+        var runs = tasks.Select(t => server.RunGatedAsync(t, async ( ) =>
+        {
+            var now = Interlocked.Increment(ref running);
+            int old;
+            while ((old = Volatile.Read(ref peak)) < now && Interlocked.CompareExchange(ref peak, now, old) != old) { }
+            await release.Task;
+            Interlocked.Decrement(ref running);
+        }, TestContext.Current.CancellationToken)).ToList( );
+
+        var sw = System.Diagnostics.Stopwatch.StartNew( );
+        while (Volatile.Read(ref running) < cap && sw.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+        Assert.Equal(cap, Volatile.Read(ref running));
+        Assert.Equal(cap, Volatile.Read(ref peak));
+        Assert.Equal(total - cap, tasks.Count(t => t.Status == DownloadStatus.Queued));
+        Assert.Equal(cap, tasks.Count(t => t.Status == DownloadStatus.Running));
+
+        release.SetResult( );
+        await Task.WhenAll(runs);
+        Assert.Equal(cap, Volatile.Read(ref peak));
+        Assert.All(tasks, t => Assert.Equal(DownloadStatus.Running, t.Status));
+    }
+
+    [Fact]
+    public async Task RunGatedAsync_Unlimited_RunsAllConcurrently( )
+    {
+        var server = new BBDownApiServer( );
+        server.SetUpServer( );
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var running = 0;
+        var runs = Enumerable.Range(0, 4).Select(i => server.RunGatedAsync(server.CreateTask(i.ToString( ), "u"),
+            async ( ) => { Interlocked.Increment(ref running); await release.Task; },
+            TestContext.Current.CancellationToken)).ToList( );
+
+        var sw = System.Diagnostics.Stopwatch.StartNew( );
+        while (Volatile.Read(ref running) < 4 && sw.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Equal(4, Volatile.Read(ref running));
+        release.SetResult( );
+        await Task.WhenAll(runs);
+    }
+
+    [Fact]
+    public async Task RunGatedAsync_CancelledWhileQueued_DoesNotRunDownload( )
+    {
+        var server = new BBDownApiServer( );
+        server.SetUpServer(maxConcurrent: 1);
+        using var cts = new CancellationTokenSource( );
+        var block = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var holder = server.RunGatedAsync(server.CreateTask("1", "u"), ( ) => block.Task, CancellationToken.None);
+
+        var queued = server.CreateTask("2", "u");
+        var second = server.RunGatedAsync(queued, ( ) => Task.FromException(new InvalidOperationException("不应执行")), cts.Token);
+        await cts.CancelAsync( );
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async ( ) => await second);
+        Assert.Equal(DownloadStatus.Queued, queued.Status);
+        block.SetResult( );
+        await holder;
     }
 
     #endregion

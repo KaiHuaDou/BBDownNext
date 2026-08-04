@@ -44,6 +44,12 @@ internal static class PageSelect
         }
 
         var pagesInfo = vInfo.PagesInfo;
+        // 空系列/空收藏夹：显式 -p 时无可选项，返回空选中列表而非因 pagesInfo[^1] 越界崩溃（§2.6）
+        if (pagesInfo.Count == 0)
+        {
+            return [];
+        }
+
         var lastIndex = pagesInfo[^1].index;        // 列表末项，即最后一集（兼容非连续 index）
         var firstIndex = pagesInfo[0].index;
         var secondLastIndex = pagesInfo.Count >= 2 ? pagesInfo[^2].index : -1;

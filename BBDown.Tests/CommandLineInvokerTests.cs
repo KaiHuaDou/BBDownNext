@@ -73,6 +73,21 @@ public class CommandLineInvokerTests
         Assert.True(opt.AllowAi);
     }
 
+    // 默认拦截充电专属试看片段，加选项才放行
+    [Fact]
+    public async Task AllowPreview_DefaultsToFalse( )
+    {
+        var opt = await ParseAsync(SampleUrl);
+        Assert.False(opt.AllowPreview);
+    }
+
+    [Fact]
+    public async Task AllowPreview_Flag_Enables( )
+    {
+        var opt = await ParseAsync(SampleUrl, "--allow-preview");
+        Assert.True(opt.AllowPreview);
+    }
+
     // --no-force-host 反转语义——默认强制替换 host，加选项才不替换。
     [Fact]
     public async Task NoForceHost_DefaultsToFalse( )

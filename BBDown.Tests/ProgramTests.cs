@@ -1,7 +1,43 @@
+using System;
+using System.IO;
+
 namespace BBDown.Tests;
 
 public class ProgramTests
 {
+    // 退出码 2 是强断言：没有任何分 P 因真实故障失败，唯一原因是充电权限
+    [Fact]
+    public void IsChargedPreviewOnly_BareException_ReturnsTrue( )
+    {
+        Assert.True(Program.IsChargedPreviewOnly(new ChargedPreviewException("试看")));
+    }
+
+    [Fact]
+    public void IsChargedPreviewOnly_AllInnerAreCharged_ReturnsTrue( )
+    {
+        var agg = new AggregateException(new ChargedPreviewException("P1"), new ChargedPreviewException("P2"));
+        Assert.True(Program.IsChargedPreviewOnly(agg));
+    }
+
+    [Fact]
+    public void IsChargedPreviewOnly_MixedWithRealFailure_ReturnsFalse( )
+    {
+        var agg = new AggregateException(new ChargedPreviewException("P1"), new IOException("网络炸了"));
+        Assert.False(Program.IsChargedPreviewOnly(agg));
+    }
+
+    [Fact]
+    public void IsChargedPreviewOnly_EmptyAggregate_ReturnsFalse( )
+    {
+        Assert.False(Program.IsChargedPreviewOnly(new AggregateException( )));
+    }
+
+    [Fact]
+    public void IsChargedPreviewOnly_UnrelatedException_ReturnsFalse( )
+    {
+        Assert.False(Program.IsChargedPreviewOnly(new IOException( )));
+    }
+
     [Fact]
     public void DetermineApiType_DefaultsToWeb( )
     {
