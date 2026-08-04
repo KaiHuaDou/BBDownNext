@@ -20,11 +20,26 @@ BBDown 是一个基于 **.NET 9** 的哔哩哔哩视频下载 / 解析命令行�
 ```
 BBDown/
 ├── BBDown/                 # 入口可执行项目 (Sdk.Web, PackAsTool)
-│   ├── Program.cs          # Main、子命令装配、serve 启动、主下载流程
+│   ├── Program.cs          # Main、子命令装配、serve 启动、全局取消；RunDownloadAsync 三段下载主干（CLI 与 serve 共用）
 │   ├── CommandLineInvoker.cs  # 全部 CLI 选项与别名 (GetRootCommand)
-│   ├── Program.Download.cs # 分 P 编排、DASH/FLV 下载、混流路径、文件名格式化
-│   ├── Program.Methods.cs  # 分辨率/优先级解析、归档、CDN host 策略等工具方法
-│   ├── BBDownApiServer.cs  # serve 的 ASP.NET Minimal API + 鉴权 + SSRF 防护
+│   ├── WorkSetup.cs        # 进程级初始化 → WorkContext (Build)
+│   ├── VideoInfo.cs        # FetchAsync 解析视频信息（标题/分P/封面/账号探测）
+│   ├── PageQueue.cs        # 逐分 P 编排 (RunAsync)
+│   ├── PageDownload.cs     # 单分 P 下载入口，分派 DASH/FLV (RunAsync / DispatchAsync)
+│   ├── DashDownload.cs     # DASH 轨下载 (RunAsync)
+│   ├── FlvDownload.cs      # FLV 分段下载与合并 (RunAsync)
+│   ├── PageAssets.cs       # 封面/字幕准备、弹幕下载
+│   ├── MuxFinish.cs        # 混流收尾、跳过已存在、清理临时文件 (DASH/FLV 共用)
+│   ├── TrackSelect.cs      # 轨道排序、信息打印、交互选轨
+│   ├── PageSelect.cs       # 分 P 选择/范围
+│   ├── SavePath.cs         # 文件名/路径格式化
+│   ├── CdnHost.cs          # CDN host 策略
+│   ├── ChapterMeta.cs      # 章节元数据
+│   ├── Account.cs          # 账号探测
+│   ├── ArchiveLog.cs       # 归档记录
+│   ├── BBDownAria2c.cs     # Aria2c 下载
+│   ├── BBDownUtil.cs       # 通用工具 (Utils)
+│   ├── ProgressBar.cs      # 进度条
 │   ├── DownloadUtil.cs     # 唯一下载入口 (续传、CDN 策略)
 │   ├── Muxer.cs            # FFmpeg/MP4Box 混流、FLV 合并
 │   ├── PartFile.cs         # 断点续传状态 (.bbdown.part/.bbdown.json)
@@ -33,6 +48,10 @@ BBDown/
 │   ├── InputResolver.cs    # URL/编号 → 内部 avid 解析
 │   ├── ConfigParser.cs     # 配置文件解析 (仅补齐命令行未指定项)
 │   ├── DownloadOptions.cs  # 运行时配置 (含 WithSecretsRedacted)
+│   ├── DownloadSession.cs  # 分 P 生命周期恒定入参 record
+│   ├── WorkContext.cs      # 工作上下文 record
+│   ├── PageContext.cs      # 分 P 上下文 record
+│   ├── DanmakuFormat.cs    # 弹幕格式信息
 │   └── ServeRequestOptions.cs # serve 请求受控子集 + CallBackWebHook
 │
 ├── BBDown.Core/            # 核心类库 (library, IsAotCompatible)
@@ -72,13 +91,18 @@ FetcherRegistry.FetchAsync     按 IdPrefix 分发给对应 Fetcher → VInfo(�
 Parser (按 API 模式发 playurl)  → ParsedResult(视频轨/音频轨/FLV 分段/字幕/弹幕入口)
   │  WEB: WBI 签名(UGC)；TV: access_token；APP: gRPC + identify_v1；INTL: protobuf/json
   ▼
-Program.Download 编排分 P
-  │  ├─ DownloadDashAsync / DownloadFlvAsync
+Program.RunDownloadAsync (三段下载主干，CLI 与 serve 共用)
+  │  ① WorkSetup.Build      → WorkContext (进程级初始化、账号探测)
+  │  ② VideoInfo.FetchAsync → WorkContext (标题/分P/封面/弹幕入口)
+  │  ③ PageQueue.RunAsync   → 逐分 P 编排
+  ▼
+PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分派 DASH/FLV)
+  │  ├─ DashDownload.RunAsync   / FlvDownload.RunAsync
   │  ├─ DownloadUtil.DownloadAsync (续传写入 .bbdown.part)
   │  ├─ SubUtil / DanmakuUtil (字幕/弹幕)
-  │  └─ Muxer (FFmpeg/MP4Box 混流 + 嵌入元数据/章节/字幕)
+  │  └─ MuxFinish.RunAsync (FFmpeg/MP4Box 混流 + 嵌入元数据/章节/字幕) — 统一 DASH/FLV 收尾
   ▼
-落盘 (FilePattern 经 FileNameUtil 截断) + 写入 BBDown.archives (--save-records)
+落盘 (SavePath 经 FileNameUtil 截断) + 写入 BBDown.archives (--save-records)
 ```
 
 **取消令牌贯穿全链路**：全局 `CancellationTokenSource`，Ctrl+C 触发优雅取消，`OperationCanceledException` 被捕获后进程以 `130` 退出，已下载的 `.bbdown.part` 临时文件保留，重跑同一条命令即可续传。
