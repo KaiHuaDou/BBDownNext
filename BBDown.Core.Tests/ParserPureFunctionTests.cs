@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Text.Json;
 
+using BBDown.Core;
 using BBDown.Core.PlayUrl;
 
 namespace BBDown.Core.Tests;
@@ -113,6 +114,29 @@ public class ParserPureFunctionTests
     {
         using var doc = JsonDocument.Parse("""{"durl":[]}""");
         Assert.Empty(FlvTrackReader.ReadAcceptedDfns(doc.RootElement));
+    }
+
+    // 番剧 playurl 必须请求 fnval=12240（含 8192 智能修复位），UGC 端点带该位会 -400 故不能全局硬改
+    [Fact]
+    public void BuildWebQuery_BangumiRequestsFnvalPgc( )
+    {
+        var req = new PlayUrlRequest("ep123", "1", "2", "123", TvApi: false, IntlApi: false, AppApi: false, Encoding: "", AppConfig.Empty);
+        Assert.Contains("fnval=12240", PlayUrlClient.BuildWebQuery(req, "0"));
+    }
+
+    [Fact]
+    public void BuildWebQuery_UgcKeepsFnval4048( )
+    {
+        var req = new PlayUrlRequest("BV1xx", "1", "2", "", TvApi: false, IntlApi: false, AppApi: false, Encoding: "", AppConfig.Empty);
+        Assert.Contains("fnval=4048", PlayUrlClient.BuildWebQuery(req, "0"));
+    }
+
+    // TV 端点实测不提供 qn=100（智能修复），恒为 4048
+    [Fact]
+    public void BuildTvQuery_AlwaysFnval4048( )
+    {
+        var req = new PlayUrlRequest("ep123", "1", "2", "123", TvApi: true, IntlApi: false, AppApi: false, Encoding: "", AppConfig.Empty);
+        Assert.Contains("fnval=4048", PlayUrlClient.BuildTvQuery(req, "0"));
     }
 
 }

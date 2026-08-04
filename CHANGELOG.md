@@ -6,9 +6,7 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
-## [Unreleased]
-
-对应 `v2.0.0-alpha.1` → `HEAD` 的代码变更（尚未发布）。
+## [v2.0.0-alpha.2]
 
 ### 新增
 
@@ -17,6 +15,8 @@
 - 充电专属视频试看识别：命中试看片段时默认中止并提示，加 `--allow-preview` 可放行（输出文件名带 `[试看]` 前缀）。
 - serve 新增 CORS 支持：仅当显式传入 `--cors-origin` 时才对该单一来源开放，默认关闭。
 - 番剧详情页（`md{数字}`）解析为对应番剧，默认下载整季全部正片分集（`md2539` 或 `https://www.bilibili.com/bangumi/media/md2539`；内部编码为 `ep:ss{季_id}`，复用既有番剧整季链路）。
+- 智能修复（AI 超分，qn=100）画质：番剧 / 课程 playurl 与番剧播放页请求改用含 8192 智能修复位的 fnval（12240）；WEB 端点按 PGC/UGC 分发（UGC 保持 4048，避免带该位返回 -400），TV 端点始终 4048。
+- 智能修复权限提示：当 `support_formats` 声明该档但 dash 实际缺失对应轨道时，提示需登录大会员账号后重试。
 
 ### 变更
 
@@ -28,6 +28,9 @@
 - 统一 DASH / FLV 混流收尾逻辑；`TrackSelect` 收口交互选轨与 FLV 流信息打印。
 - 文案打磨、启用 HTTP/2、收藏夹多 P 并行拉取。
 - `ss{数字}` 番剧季号默认下载整季（原仅下载首集），与 `md` 入口行为对齐；`ss` / `md` 均编码为 `ep:ss{季_id}`，无需新增内部 id 前缀。
+- 轨道排序改用 `Config.QualityRank` 权重（取代原先隐式 qn 数值降序）：默认原生 1080P 优先于智能修复，未收录档位按 qn 数值插入位而非一律甩到末尾。
+- 选轨与 playurl 查询等内部方法开放为 `internal` 以便单元测试覆盖。
+- CI：Release 说明改为从 `CHANGELOG.md` 抽取对应版本小节（不再依赖自动生成 notes）。
 
 ### 修复
 
@@ -38,8 +41,6 @@
 - 番剧 / 季号接口查不到时不再因缺 `result` 抛出 `KeyNotFoundException`，改为带错误码的可读异常；`ss` 形态与非纯数字 id 不再静默回退课程接口，避免误命中 id 空间稠密、毫不相关的课程。
 
 ## [2.0.0-alpha.1] - 2026-08-03
-
-对应 `259a5558…` → `v2.0.0-alpha.1` 的代码变更（2.0 首个 alpha 预发布，含一次大规模架构重构）。
 
 ### 新增
 
@@ -56,14 +57,14 @@
 
 - 命令行解析迁移到 System.CommandLine。
 - 大量 CLI 选项重命名 / 反转（升级时请注意）：
-  - `--config-file` → `--config`
-  - `--download-danmaku` → `--danmaku`（新增短选项 `-d`）；`--download-danmaku-formats` → `--danmaku-formats`
-  - `--use-app-api` → `--app-api`；`--use-tv-api` → `--tv-api`；`--use-intl-api` → `--intl-api`；`--use-aria2c` → `--aria2c`；`--use-mp4box` → `--mp4box`
-  - `--save-archives-to-file` → `--save-records`
-  - `--language` → `--lang`
-  - `--skip-cover` → `--no-cover`；`--skip-subtitle` → `--no-sub`
-  - `--only-show-info` → `--show-info`
-  - 选项反转：`--force-http` → `--no-force-http`；`--force-replace-host` → `--no-force-host`；`--multi-thread` → `--single-thread`；`--skip-ai` → `--allow-ai`
+    - `--config-file` → `--config`
+    - `--download-danmaku` → `--danmaku`（新增短选项 `-d`）；`--download-danmaku-formats` → `--danmaku-formats`
+    - `--use-app-api` → `--app-api`；`--use-tv-api` → `--tv-api`；`--use-intl-api` → `--intl-api`；`--use-aria2c` → `--aria2c`；`--use-mp4box` → `--mp4box`
+    - `--save-archives-to-file` → `--save-records`
+    - `--language` → `--lang`
+    - `--skip-cover` → `--no-cover`；`--skip-subtitle` → `--no-sub`
+    - `--only-show-info` → `--show-info`
+    - 选项反转：`--force-http` → `--no-force-http`；`--force-replace-host` → `--no-force-host`；`--multi-thread` → `--single-thread`；`--skip-ai` → `--allow-ai`
 - WBI 签名与请求头对齐 bilibili-API-collect。
 - 临时文件生命周期改为显式分片清单 + try/finally + 重试删除，避免音视频临时文件互相污染。
 - Ctrl+C 优雅取消（`CancellationToken`）贯穿全链路（含外部子进程取消时杀进程）。
@@ -105,5 +106,5 @@
 - 可执行文件查找不再优先当前目录。
 - aria2c / ffmpeg / mp4box 改用 `ArgumentList`，消除命令行参数注入。
 
-[Unreleased]: https://github.com/KaiHuaDou/BBDown/compare/v2.0.0-alpha.1...HEAD
 [2.0.0-alpha.1]: https://github.com/KaiHuaDou/BBDown/compare/259a5558cee0a349a7ebb60bd31e40c88e5bc1ed...v2.0.0-alpha.1
+[v2.0.0-alpha.2]: https://github.com/KaiHuaDou/BBDown/compare/v2.0.0-alpha.1...v2.0.0-alpha.2

@@ -31,12 +31,12 @@ internal static partial class TrackSelect
             ? [.. videoTracks
                 .OrderBy(v => encodingPriority.GetValueOrDefault(v.codecs, (byte)100))
                 .ThenBy(v => dfnPriority.GetValueOrDefault(v.dfn, 100))
-                .ThenByDescending(v => Convert.ToInt32(v.id))
+                .ThenBy(v => Config.QualityRank(v.id))
                 .ThenBy(v => videoAscending ? v.bandwidth : -v.bandwidth)]
             : [.. videoTracks
                 .OrderBy(v => dfnPriority.GetValueOrDefault(v.dfn, 100))
                 .ThenBy(v => encodingPriority.GetValueOrDefault(v.codecs, (byte)100))
-                .ThenByDescending(v => Convert.ToInt32(v.id))
+                .ThenBy(v => Config.QualityRank(v.id))
                 .ThenBy(v => videoAscending ? v.bandwidth : -v.bandwidth)];
     }
 

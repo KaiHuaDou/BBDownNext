@@ -86,7 +86,7 @@ internal static partial class PlayUrlClient
         return $"https://{prefix}?";
     }
 
-    private static string BuildTvQuery(PlayUrlRequest req, string qn)
+    internal static string BuildTvQuery(PlayUrlRequest req, string qn)
     {
         StringBuilder query = new();
         if (req.Cfg.Token.Length != 0)
@@ -100,15 +100,17 @@ internal static partial class PlayUrlClient
             query.Append($"&ep_id={req.EpId}&expire=0");
         }
 
+        // TV 端点实测不提供 qn=100（智能修复），保持 4048 即可；强改 12240 无收益且可能触发风控
         query.Append("&fnval=4048&fnver=0&fourk=1&mid=0&mobi_app=android_tv_yst");
         query.Append($"&object_id={req.Aid}&platform=android&playurl_type=1&qn={qn}&ts={UnixTimestamp()}");
         return $"{query}&sign={AppSign(query.ToString(), TvAppSecret)}";
     }
 
-    private static string BuildWebQuery(PlayUrlRequest req, string qn)
+    internal static string BuildWebQuery(PlayUrlRequest req, string qn)
     {
         StringBuilder query = new();
-        query.Append($"support_multi_audio=true&from_client=BROWSER&avid={req.Aid}&cid={req.Cid}&fnval=4048&fnver=0&fourk=1");
+        var fnval = req.IsBangumi ? Config.FnvalPgc : Config.Fnval;
+        query.Append($"support_multi_audio=true&from_client=BROWSER&avid={req.Aid}&cid={req.Cid}&fnval={fnval}&fnver=0&fourk=1");
         if (req.Cfg.Area.Length != 0)
         {
             query.Append($"&access_key={req.Cfg.Token}&area={req.Cfg.Area}");

@@ -1,3 +1,6 @@
+using System.Net.Http;
+
+using BBDown.Core;
 using BBDown.Core.Util;
 
 namespace BBDown.Core.Tests;
@@ -38,5 +41,24 @@ public class HTTPUtilTests
     public void IsAndroidPlatformUrl_ReadsPlatformQueryParam(string url, bool expected)
     {
         Assert.Equal(expected, HTTPUtil.IsAndroidPlatformUrl(url));
+    }
+
+    // 番剧播放页 Cookie 必须带 CURRENT_FNVAL=12240，网页源码兜底的 __playinfo__ 才吐出智能修复源
+    [Fact]
+    public void ApplyStandardGetHeaders_BangumiPlayPageCarriesFnvalPgc( )
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://www.bilibili.com/bangumi/play/ep249469");
+        HTTPUtil.ApplyStandardGetHeaders(request, "https://www.bilibili.com/bangumi/play/ep249469", AppConfig.Empty);
+        var cookie = request.Headers.GetValues("Cookie").Single( );
+        Assert.Contains("CURRENT_FNVAL=12240", cookie);
+    }
+
+    [Fact]
+    public void ApplyStandardGetHeaders_NonBangumiPageOmitsFnval( )
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://www.bilibili.com/video/BV1GJ411x7h7");
+        HTTPUtil.ApplyStandardGetHeaders(request, "https://www.bilibili.com/video/BV1GJ411x7h7", AppConfig.Empty);
+        var cookie = request.Headers.GetValues("Cookie").Single( );
+        Assert.DoesNotContain("CURRENT_FNVAL", cookie);
     }
 }

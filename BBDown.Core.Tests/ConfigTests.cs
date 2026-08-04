@@ -28,4 +28,27 @@ public class ConfigTests
     {
         Assert.Equal("127", Config.MaxQn);
     }
+
+    // 智能修复(qn=100)排在原生 1080P(qn=80)之后：默认不抢占原生画质
+    [Fact]
+    public void QualityRank_Native1080PIsPreferredOverAiRepair( )
+    {
+        Assert.True(Config.QualityRank("80") < Config.QualityRank("100"));
+    }
+
+    [Fact]
+    public void QualityRank_HighestQualityHasRankZero( )
+    {
+        Assert.Equal(0, Config.QualityRank("127"));
+    }
+
+    // 未收录档位按 qn 数值算插入位：比已知最高还高 => 0；介于 100 与 80 之间 => 与 100 并列；非数字 => 末尾
+    [Theory]
+    [InlineData("130", 0)]
+    [InlineData("90", 7)]
+    [InlineData("abc", 15)]
+    public void QualityRank_UnknownQnInsertsByNumericValue(string qn, int expectedRank)
+    {
+        Assert.Equal(expectedRank, Config.QualityRank(qn));
+    }
 }

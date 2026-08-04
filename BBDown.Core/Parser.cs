@@ -54,6 +54,11 @@ public static class Parser
             using var maxQnDoc = JsonDocument.Parse(result.RawResponse);
             var maxQnRoot = PlayUrlResponse.GetRootNode(maxQnDoc.RootElement, nodeName);
             DashTrackReader.Collect(result, firstRoot, maxQnRoot, req.TvApi);
+            if (DashTrackReader.DeclaredButMissing(maxQnRoot, result, Config.AiRepairQn))
+            {
+                LogWarn("该视频提供「智能修复」画质，但当前账号无权获取，需登录大会员账号后重试。");
+            }
+
             if (req.IsEpisode)
             {
                 AppendBangumiViewPoints(result, maxQnRoot);

@@ -94,4 +94,38 @@ public class DashTrackReaderTests
         Assert.Null(v.fps);
         Assert.DoesNotContain("30250", result.AudioTracks.Select(a => a.id));
     }
+
+    // support_formats 声明了智能修复、dash 却无对应轨道 => 账号权限不够
+    [Fact]
+    public void DeclaredButMissing_DeclaredWithoutTrack_ReturnsTrue( )
+    {
+        var root = Root("""{"support_formats":[{"quality":100,"new_description":"智能修复"}]}""");
+        var result = new ParsedResult( );
+        Assert.True(DashTrackReader.DeclaredButMissing(root, result, "100"));
+    }
+
+    [Fact]
+    public void DeclaredButMissing_DeclaredWithTrack_ReturnsFalse( )
+    {
+        var root = Root("""{"support_formats":[{"quality":100,"new_description":"智能修复"}]}""");
+        var result = new ParsedResult( );
+        result.VideoTracks.Add(new Video { id = "100", dfn = "智能修复", baseUrl = "", codecs = "AVC" });
+        Assert.False(DashTrackReader.DeclaredButMissing(root, result, "100"));
+    }
+
+    [Fact]
+    public void DeclaredButMissing_NoSupportFormats_ReturnsFalse( )
+    {
+        var root = Root("""{"dash":{"video":[]}}""");
+        var result = new ParsedResult( );
+        Assert.False(DashTrackReader.DeclaredButMissing(root, result, "100"));
+    }
+
+    [Fact]
+    public void DeclaredButMissing_EmptySupportFormats_ReturnsFalse( )
+    {
+        var root = Root("""{"support_formats":[]}""");
+        var result = new ParsedResult( );
+        Assert.False(DashTrackReader.DeclaredButMissing(root, result, "100"));
+    }
 }

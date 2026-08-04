@@ -79,7 +79,7 @@ public static partial class HTTPUtil
     [GeneratedRegex(@"^(ep|ss)\d+$")]
     private static partial Regex BangumiSegmentRegex( );
 
-    private static void ApplyStandardGetHeaders(HttpRequestMessage request, string url, AppConfig cfg, string? userAgent = null)
+    internal static void ApplyStandardGetHeaders(HttpRequestMessage request, string url, AppConfig cfg, string? userAgent = null)
     {
         request.Headers.TryAddWithoutValidation("User-Agent", userAgent ?? UserAgent);
         request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
@@ -89,7 +89,7 @@ public static partial class HTTPUtil
             cookie += ";" + Buvid.Fragment;
         }
 
-        request.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? cookie + ";CURRENT_FNVAL=4048;" : cookie);
+        request.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? $"{cookie};CURRENT_FNVAL={Config.FnvalPgc};" : cookie);
 
         var host = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : "";
         // passport 系接口（扫码登录 generate/poll 等）同样校验 Referer，浏览器从 www.bilibili.com 发起，

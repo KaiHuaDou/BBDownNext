@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 using BBDown.Core.Entity;
@@ -50,6 +51,19 @@ internal static class DashTrackReader
         }
 
         return 0;
+    }
+
+    // support_formats 声明了某档位、dash 里却没有对应轨道 => 账号权限不够（need_vip / need_login）。
+    // 纯判定，不做任何 IO；打印交给编排层（Parser）
+    internal static bool DeclaredButMissing(JsonElement root, ParsedResult result, string qn)
+    {
+        if (result.VideoTracks.Any(v => v.id == qn))
+        {
+            return false;
+        }
+
+        var formats = ArrayAtPath(root, "support_formats");
+        return formats?.Any(f => f.TryGetProperty("quality", out var q) && q.ToString( ) == qn) == true;
     }
 
     private static void CollectVideoTracks(ParsedResult result, JsonElement root, int pDur, bool tvApi)

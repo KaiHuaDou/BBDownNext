@@ -86,6 +86,8 @@ internal static class AppHelper
             Cid = cid,
             // 固定请求最高档，实际可用画质由响应决定；传入 qn 反而会被服务端限流到该档
             Qn = 127,
+            // gRPC PGC 网关是否接受 8192（智能修复）位尚未真网验证，贸然改动可能让 --app-api 整条路径挂掉。
+            // 番剧的智能修复由 WEB/PGC v2 端点（fnval=12240）负责，本期 APP 路径保持 4048
             Fnval = 4048,
             Fourk = true,
             Spmid = "main.ugc-video-detail.0.0",
