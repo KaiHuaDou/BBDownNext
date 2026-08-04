@@ -35,6 +35,23 @@ public static class JsonUtil
         return element.ValueKind == JsonValueKind.Array ? element.EnumerateArray( ) : [];
     }
 
+    // 逐级下钻取数组; 路径中断或末端不是数组时返回 null, 让调用方区分"没有这段"与"有但为空"
+    public static List<JsonElement>? ArrayAtPath(JsonElement parent, params string[] path)
+    {
+        var node = parent;
+        foreach (var name in path)
+        {
+            if (node.ValueKind != JsonValueKind.Object || !node.TryGetProperty(name, out var child))
+            {
+                return null;
+            }
+
+            node = child;
+        }
+
+        return node.ValueKind == JsonValueKind.Array ? [.. node.EnumerateArray( )] : null;
+    }
+
     // dimension 字段在部分条目上缺失, 取不到时给空串而不是抛 KeyNotFoundException
     public static string ReadDimension(JsonElement parent)
     {

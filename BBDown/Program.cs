@@ -124,8 +124,9 @@ internal sealed class Program
         Console.BackgroundColor = ConsoleColor.DarkBlue;
         Console.ForegroundColor = ConsoleColor.White;
         var ver = System.Reflection.Assembly.GetExecutingAssembly( ).GetName( ).Version!;
-        Console.Write($"BBDown version {ver.Major}.{ver.Minor}.{ver.Build}, Bilibili Downloader.\r\n");
+        Console.Write($"BBDown version {ver.Major}.{ver.Minor}.{ver.Build}, Bilibili Downloader.");
         Console.ResetColor( );
+        Console.WriteLine( );
         Console.WriteLine( );
 
         // 配置文件只补齐命令行未显式指定的选项，补齐后需重新解析一次

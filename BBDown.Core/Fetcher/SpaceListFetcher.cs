@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
+using BBDown.Core.Util;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
@@ -127,8 +128,7 @@ public static class SpaceListFetcher
         var total = int.MaxValue;
         while (pn <= MaxPages && items.Count < total)
         {
-            var wts = DateTimeOffset.Now.ToUnixTimeSeconds( ).ToString( );
-            var api = $"{BiliApi.SpaceArcSearch}?{Parser.WbiSign($"mid={mid}&order=pubdate&pn={pn}&ps={PageSize}&tid=0&wts={wts}", cfg)}";
+            var api = $"{BiliApi.SpaceArcSearch}?{SignUtil.WbiSignNow($"mid={mid}&order=pubdate&pn={pn}&ps={PageSize}&tid=0", cfg)}";
             using var doc = JsonDocument.Parse(await GetWebSourceAsync(api, cfg, null, ct));
             var data = GetApiData(doc.RootElement, "UP 主投稿列表");   // code!=0（-400/-412/-352）在此抛带 code 错误
 

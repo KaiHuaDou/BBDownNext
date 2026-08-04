@@ -1,29 +1,30 @@
 using System.Linq;
 
 using BBDown.Core.Entity;
+using BBDown.Core.PlayUrl;
 using BBDown.Core.Protobuf;
 
 namespace BBDown.Core.Tests;
 
-public class AppParserTests
+public class AppTrackReaderTests
 {
     private const string Aid = "114514";
     private const string Cid = "1919810";
 
     private static ParsedResult Build(PlayViewReply reply, bool isEpisode)
     {
-        return Parser.BuildAppParsedResult(reply, isEpisode, Aid, Cid);
+        return AppTrackReader.Build(reply, isEpisode, Aid, Cid);
     }
 
     // playurl 声明的时长是识别充电专属试看片段的一半判据
     [Fact]
-    public void BuildAppParsedResult_SetsDurationFromTimelength( )
+    public void Build_SetsDurationFromTimelength( )
     {
         Assert.Equal(754, Build(PlayViewReplyFixtures.Ugc( ), false).Duration);
     }
 
     [Fact]
-    public void BuildAppParsedResult_NoVideoInfo_LeavesDurationZero( )
+    public void Build_NoVideoInfo_LeavesDurationZero( )
     {
         Assert.Equal(0, Build(new PlayViewReply( ), false).Duration);
     }

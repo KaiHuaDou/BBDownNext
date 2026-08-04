@@ -1,50 +1,12 @@
-using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 
-using static BBDown.Core.Entity.Entity;
+using BBDown.Core.PlayUrl;
 
 namespace BBDown.Core.Tests;
 
 public class ParserPureFunctionTests
 {
-    [Fact]
-    public void BuildUrlList_MergesBaseAndBackupUrls( )
-    {
-        using var doc = JsonDocument.Parse("""{"base_url":"http://main","backup_url":["http://b1","http://b2"]}""");
-        var list = Parser.BuildUrlList(doc.RootElement);
-        Assert.Equal(["http://main", "http://b1", "http://b2"], list);
-    }
-
-    [Fact]
-    public void BuildUrlList_NoBackupUrl( )
-    {
-        using var doc = JsonDocument.Parse("""{"base_url":"http://main"}""");
-        Assert.Equal(["http://main"], Parser.BuildUrlList(doc.RootElement));
-    }
-
-    [Fact]
-    public void BuildUrlList_NullBackupUrl( )
-    {
-        using var doc = JsonDocument.Parse("""{"base_url":"http://main","backup_url":null}""");
-        Assert.Equal(["http://main"], Parser.BuildUrlList(doc.RootElement));
-    }
-
-    [Fact]
-    public void PickBaseUrl_PrefersUrlWithoutPort( )
-    {
-        // 带端口的 url（P2P/mcdn）被跳过，选第一个不带端口的
-        var list = new List<string> { "https://xy1.mcdn.bilivideo.cn:8082/v.m4s", "https://upos-sz.bilivideo.com/v.m4s" };
-        Assert.Equal("https://upos-sz.bilivideo.com/v.m4s", Parser.PickBaseUrl(list));
-    }
-
-    [Fact]
-    public void PickBaseUrl_AllHavePorts_FallsBackToFirst( )
-    {
-        var list = new List<string> { "https://a:8082/v.m4s", "https://b:4483/v.m4s" };
-        Assert.Equal("https://a:8082/v.m4s", Parser.PickBaseUrl(list));
-    }
-
     [Theory]
     [InlineData(true, true, false, "https://tv.host/pgc/player/api/playurltv?")]
     [InlineData(true, false, false, "https://tv.host/x/tv/playurl?")]
@@ -53,7 +15,7 @@ public class ParserPureFunctionTests
     [InlineData(false, true, true, "https://web.host/pugv/player/web/v2/playurl?")]
     public void BuildPlayUrlPrefix_CoversAllApiCombinations(bool tvApi, bool bangumi, bool cheese, string expected)
     {
-        Assert.Equal(expected, Parser.BuildPlayUrlPrefix(tvApi, bangumi, cheese, "tv.host", "web.host"));
+        Assert.Equal(expected, PlayUrlClient.BuildPrefix(tvApi, bangumi, cheese, "tv.host", "web.host"));
     }
 
     // --host 指定 BiliPlus 代理时，普通稿件的 playurl 也必须走代理，
@@ -61,7 +23,7 @@ public class ParserPureFunctionTests
     [Fact]
     public void BuildPlayUrlPrefix_WebPlayUrlHonorsCustomHost( )
     {
-        Assert.StartsWith("https://biliplus.example/", Parser.BuildPlayUrlPrefix(false, false, false, BiliApi.TvHost, "biliplus.example"));
+        Assert.StartsWith("https://biliplus.example/", PlayUrlClient.BuildPrefix(false, false, false, BiliApi.TvHost, "biliplus.example"));
     }
 
     [Theory]
@@ -72,14 +34,14 @@ public class ParserPureFunctionTests
     public void ResolveDataNodeName_PicksPayloadNode(string json, string? expected)
     {
         using var doc = JsonDocument.Parse(json);
-        Assert.Equal(expected, Parser.ResolveDataNodeName(doc.RootElement));
+        Assert.Equal(expected, PlayUrlResponse.ResolveDataNodeName(doc.RootElement));
     }
 
     [Fact]
     public void GetRootNode_UnwrapsNestedVideoInfo( )
     {
         using var doc = JsonDocument.Parse("""{"result":{"video_info":{"quality":80}}}""");
-        var root = Parser.GetRootNode(doc.RootElement, "video_info");
+        var root = PlayUrlResponse.GetRootNode(doc.RootElement, "video_info");
         Assert.Equal(80, root.GetProperty("quality").GetInt32( ));
     }
 
@@ -87,7 +49,7 @@ public class ParserPureFunctionTests
     public void GetRootNode_NullNodeName_ReturnsDataItself( )
     {
         using var doc = JsonDocument.Parse("""{"quality":64}""");
-        Assert.Equal(64, Parser.GetRootNode(doc.RootElement, null).GetProperty("quality").GetInt32( ));
+        Assert.Equal(64, PlayUrlResponse.GetRootNode(doc.RootElement, null).GetProperty("quality").GetInt32( ));
     }
 
     [Theory]
@@ -98,7 +60,7 @@ public class ParserPureFunctionTests
     [InlineData("""{"data":{"message":"大会员专享限制"}}""", false)]
     public void IsVipRestricted_OnlyMatchesTopLevelMessage(string json, bool expected)
     {
-        Assert.Equal(expected, Parser.IsVipRestricted(json));
+        Assert.Equal(expected, PlayUrlResponse.IsVipRestricted(json));
     }
 
     // 网页源码兜底路径会把 HTML 传进来，不能因为解析失败就崩
@@ -108,148 +70,49 @@ public class ParserPureFunctionTests
     [InlineData("[1,2,3]")]
     public void IsVipRestricted_NonJsonOrNonObject_ReturnsFalse(string input)
     {
-        Assert.False(Parser.IsVipRestricted(input));
+        Assert.False(PlayUrlResponse.IsVipRestricted(input));
     }
 
     [Fact]
     public void ReadDashDuration_PrefersTimelengthOverDashDuration( )
     {
         using var doc = JsonDocument.Parse("""{"timelength":125000,"dash":{"duration":999}}""");
-        Assert.Equal(125, Parser.ReadDashDuration(doc.RootElement));
+        Assert.Equal(125, DashTrackReader.ReadDuration(doc.RootElement));
     }
 
     [Fact]
     public void ReadDashDuration_FallsBackToDashDuration( )
     {
         using var doc = JsonDocument.Parse("""{"dash":{"duration":300}}""");
-        Assert.Equal(300, Parser.ReadDashDuration(doc.RootElement));
+        Assert.Equal(300, DashTrackReader.ReadDuration(doc.RootElement));
     }
 
     [Fact]
     public void ReadDashDuration_MissingFields_ReturnsZero( )
     {
         using var doc = JsonDocument.Parse("""{"dash":{}}""");
-        Assert.Equal(0, Parser.ReadDashDuration(doc.RootElement));
+        Assert.Equal(0, DashTrackReader.ReadDuration(doc.RootElement));
     }
 
     [Fact]
     public void ReadAcceptedDfns_PrefersTvQnExtras( )
     {
         using var doc = JsonDocument.Parse("""{"qn_extras":[{"qn":"120"},{"qn":"80"}],"accept_quality":[64]}""");
-        Assert.Equal(["120", "80"], Parser.ReadAcceptedDfns(doc.RootElement).ToList( ));
+        Assert.Equal(["120", "80"], FlvTrackReader.ReadAcceptedDfns(doc.RootElement).ToList( ));
     }
 
     [Fact]
     public void ReadAcceptedDfns_FallsBackToAcceptQualityAndSkipsEmpty( )
     {
         using var doc = JsonDocument.Parse("""{"accept_quality":[80,"",64]}""");
-        Assert.Equal(["80", "64"], Parser.ReadAcceptedDfns(doc.RootElement).ToList( ));
+        Assert.Equal(["80", "64"], FlvTrackReader.ReadAcceptedDfns(doc.RootElement).ToList( ));
     }
 
     [Fact]
     public void ReadAcceptedDfns_NoQualityInfo_ReturnsEmpty( )
     {
         using var doc = JsonDocument.Parse("""{"durl":[]}""");
-        Assert.Empty(Parser.ReadAcceptedDfns(doc.RootElement));
+        Assert.Empty(FlvTrackReader.ReadAcceptedDfns(doc.RootElement));
     }
 
-    [Fact]
-    public void FillGapsWithMainContent_InsertsMainContentBetweenClips( )
-    {
-        List<ViewPoint> points =
-        [
-            new( ) { title = "片头", start = 30, end = 120 },
-            new( ) { title = "片尾", start = 1300, end = 1400 }
-        ];
-
-        var result = Parser.FillGapsWithMainContent(points);
-
-        Assert.Equal(["正片", "片头", "正片", "片尾"], result.Select(p => p.title));
-        Assert.Equal([(0, 30), (30, 120), (120, 1300), (1300, 1400)], result.Select(p => (p.start, p.end)));
-    }
-
-    [Fact]
-    public void FillGapsWithMainContent_ClipStartsAtZero_NoLeadingMainContent( )
-    {
-        List<ViewPoint> points = [new( ) { title = "片头", start = 0, end = 90 }];
-        var result = Parser.FillGapsWithMainContent(points);
-        Assert.Equal(["片头"], result.Select(p => p.title));
-    }
-
-    [Fact]
-    public void FillGapsWithMainContent_EmptyInput_ReturnsEmpty( )
-    {
-        Assert.Empty(Parser.FillGapsWithMainContent([]));
-    }
-
-    [Theory]
-    [InlineData("mp4a.40.2", "M4A")]
-    [InlineData("mp4a.40.5", "M4A")]
-    [InlineData("ec-3", "E-AC-3")]
-    [InlineData("fLaC", "FLAC")]
-    [InlineData("opus", "opus")]
-    public void NormalizeAudioCodec_MapsKnownCodecs(string raw, string expected)
-    {
-        Assert.Equal(expected, Parser.NormalizeAudioCodec(raw));
-    }
-
-    [Theory]
-    [InlineData("13", "AV1")]
-    [InlineData("12", "HEVC")]
-    [InlineData("7", "AVC")]
-    [InlineData("99", "UNKNOWN")]
-    public void GetVideoCodec_MapsCodecId(string code, string expected)
-    {
-        Assert.Equal(expected, Parser.GetVideoCodec(code));
-    }
-
-    // P0-10: WBI 签名是 Web 端鉴权命门（MD5 + mixinKey），错一位全线 -403。
-    // 下列向量取自 bilibili-API-collect/docs/misc/sign/wbi.md 的官方 Rust/Haskell 参考实现，
-    // 用同一个 mixinKey 复算，确保本实现与服务端算法逐字节一致。
-    private static readonly AppConfig WbiTestConfig =
-        new("", "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "ea1db124af3c7062474693fa704f4ff8");
-
-    [Fact]
-    public void WbiSign_MatchesOfficialAsciiVector( )
-    {
-        // 官方 Rust 用例：foo/bar/zab + wts=1702204169，mixinKey 如上
-        const string Api = "foo=114&bar=514&zab=1919810&wts=1702204169";
-        var signed = Parser.WbiSign(Api, WbiTestConfig);
-        Assert.Equal("foo=114&bar=514&zab=1919810&wts=1702204169&w_rid=8f6f2b5b3d485fe1886cec6a0be8c5d4", signed);
-    }
-
-    [Fact]
-    public void WbiSign_MatchesOfficialUnicodeVector( )
-    {
-        // 官方 Haskell 用例：值含中文与空格，验证编码大写十六进制 + 空格 -> %20 + 过滤 !'()*
-        const string Api = "foo=114&bar=514&hello=世 界&wts=1744823207";
-        var signed = Parser.WbiSign(Api, WbiTestConfig);
-        Assert.Equal("foo=114&bar=514&hello=世 界&wts=1744823207&w_rid=93acf59d85f74453e40cea00056c3daf", signed);
-    }
-
-    [Fact]
-    public void WbiSign_KeysSortedBeforeHashing( )
-    {
-        // 输出前缀保留原始顺序，但 w_rid 必须由排序后的 canonical 得出，故后缀一致
-        var a = Parser.WbiSign("z=1&a=2&m=3&wts=1702204169", WbiTestConfig);
-        var b = Parser.WbiSign("a=2&m=3&z=1&wts=1702204169", WbiTestConfig);
-        Assert.EndsWith("&w_rid=08e72ac25c0e3d2c788f2230393e0668", a);
-        Assert.EndsWith("&w_rid=08e72ac25c0e3d2c788f2230393e0668", b);
-    }
-
-    [Fact]
-    public void WbiSign_EmptyWbi_ReturnsApiUnchanged( )
-    {
-        const string api = "aid=1&cid=2&wts=1702204169";
-        Assert.Same(api, Parser.WbiSign(api, AppConfig.Empty));
-    }
-
-    [Fact]
-    public void WbiSign_StripsExistingWridFromInput( )
-    {
-        // 重新签名时不该把旧的 w_rid 也算进 canonical（否则校验失败）
-        const string api = "foo=114&bar=514&wts=1702204169&w_rid=deadbeef";
-        var signed = Parser.WbiSign(api, WbiTestConfig);
-        Assert.Equal("foo=114&bar=514&wts=1702204169&w_rid=ed791ce4979dfe1e2aad3b03b73b13cc", signed);
-    }
 }

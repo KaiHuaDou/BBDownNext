@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -259,7 +258,7 @@ public static partial class SubUtil
                 :
                 [
                     // wbi 接口未签名会被服务端拒绝（P1-27）
-                    ( ) => FromJsonAsync($"{BiliApi.PlayerWbiV2}?{Parser.WbiSign($"aid={aid}&cid={cid}&wts={DateTimeOffset.Now.ToUnixTimeSeconds( ).ToString(CultureInfo.InvariantCulture)}", cfg)}",
+                    ( ) => FromJsonAsync($"{BiliApi.PlayerWbiV2}?{SignUtil.WbiSignNow($"aid={aid}&cid={cid}", cfg)}",
                         root => root.GetProperty("data").GetProperty("subtitle").GetProperty("subtitles"), "lan", "subtitle_url", ct),
                     ( ) => FromJsonAsync($"{BiliApi.View}?aid={aid}&cid={cid}",
                         root => root.GetProperty("data").GetProperty("subtitle").GetProperty("list"), "lan", "subtitle_url", ct),

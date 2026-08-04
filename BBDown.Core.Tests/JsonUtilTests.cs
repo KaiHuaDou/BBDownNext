@@ -51,6 +51,26 @@ public class JsonUtilTests
         Assert.Equal(2, JsonUtil.EnumerateArrayOrEmpty(Parse("[1,2]")).Count( ));
     }
 
+    [Fact]
+    public void ArrayAtPath_DrillsDownNestedObjects( )
+    {
+        var found = JsonUtil.ArrayAtPath(Parse("""{"dash":{"video":[{"id":80},{"id":64}]}}"""), "dash", "video");
+        Assert.Equal(["80", "64"], found!.Select(node => node.GetProperty("id").ToString( )));
+    }
+
+    // null 与空数组必须可区分：dash.audio 缺失要回退到 dolby/flac，存在但为空则不回退
+    [Theory]
+    [InlineData("""{"dash":{"audio":[]}}""", 0)]
+    [InlineData("""{"dash":{"audio":null}}""", -1)]
+    [InlineData("""{"dash":{}}""", -1)]
+    [InlineData("""{"dash":[]}""", -1)]
+    [InlineData("""{}""", -1)]
+    [InlineData("""[]""", -1)]
+    public void ArrayAtPath_MissingOrNonArrayGivesNull(string json, int expectedCount)
+    {
+        Assert.Equal(expectedCount, JsonUtil.ArrayAtPath(Parse(json), "dash", "audio")?.Count ?? -1);
+    }
+
     [Theory]
     [InlineData("""[{"id":123},{"id":456}]""", "123", true)]
     [InlineData("""[{"id":123},{"id":456}]""", "456", true)]
