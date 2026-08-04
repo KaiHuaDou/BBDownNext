@@ -341,18 +341,18 @@ public class BBDownApiServer
 
         try
         {
-            // BuildWorkContext 内部有二进制查找等进程级初始化，串行化后并发请求不会互相踩踏（P1-16）
+            // WorkSetup.Build 内部有二进制查找等进程级初始化，串行化后并发请求不会互相踩踏（P1-16）
             WorkContext taskCtx;
             lock (workContextGate)
             {
-                taskCtx = Program.BuildWorkContext(option);
+                taskCtx = WorkSetup.Build(option);
             }
 
-            taskCtx = await Program.GetVideoInfoAsync(option, taskCtx);
+            taskCtx = await VideoInfo.FetchAsync(option, taskCtx);
             task.Title = taskCtx.VInfo!.Title;
             task.Pic = taskCtx.VInfo.Pic;
             task.VideoPubTime = taskCtx.VInfo.PubTime;
-            await Program.DownloadPagesAsync(option, taskCtx, task, Program.CancellationToken);
+            await PageQueue.RunAsync(option, taskCtx, task, Program.CancellationToken);
             task.IsSuccessful = true;
         }
         catch (Exception e)

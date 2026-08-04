@@ -125,7 +125,7 @@ internal static class CommandLineInvoker
         <videoDate>：视频发布时间（分 P 视频发布时间与 <publishDate> 相同）
         <apiType>：API 类型（TV/APP/INTL/WEB）
 
-        默认为：{Program.SinglePageDefaultSavePath}
+        默认为：{SavePath.SinglePageDefaultSavePath}
         """
     };
     private static readonly Option<string> MultiFilePattern = new("--multi-file-pattern", ["-M"])
@@ -133,7 +133,7 @@ internal static class CommandLineInvoker
         Description = $"""
         使用内置变量自定义多 P 存储文件名：
 
-        默认为：{Program.MultiPageDefaultSavePath}
+        默认为：{SavePath.MultiPageDefaultSavePath}
         """
     };
     private static readonly Option<string> Host = new("--host", [])

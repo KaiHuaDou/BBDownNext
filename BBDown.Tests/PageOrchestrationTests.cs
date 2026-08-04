@@ -44,7 +44,7 @@ public class PageOrchestrationTests
             return Task.CompletedTask;
         }
 
-        var errors = await Program.RunPagesAsync(pages, stopOnError: false, run, CancellationToken.None);
+        var errors = await PageQueue.RunPagesAsync(pages, stopOnError: false, run, CancellationToken.None);
 
         Assert.Equal([0, 1, 2], ran); // 失败页之后仍在跑
         Assert.Single(errors);
@@ -71,7 +71,7 @@ public class PageOrchestrationTests
             return Task.CompletedTask;
         }
 
-        var errors = await Program.RunPagesAsync(pages, stopOnError: true, run, CancellationToken.None);
+        var errors = await PageQueue.RunPagesAsync(pages, stopOnError: true, run, CancellationToken.None);
 
         Assert.Equal([0, 1], ran); // 第 2 个分P 没有跑
         Assert.Single(errors);
@@ -92,7 +92,7 @@ public class PageOrchestrationTests
         }
 
         await Assert.ThrowsAsync<OperationCanceledException>(( ) =>
-            Program.RunPagesAsync(pages, stopOnError: false, run, CancellationToken.None));
+            PageQueue.RunPagesAsync(pages, stopOnError: false, run, CancellationToken.None));
 
         Assert.Equal([0], ran);
     }

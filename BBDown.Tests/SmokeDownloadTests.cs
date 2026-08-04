@@ -39,12 +39,12 @@ public class SmokeDownloadTests
 
         try
         {
-            var ctx = Program.BuildWorkContext(option);
-            ctx = await Program.GetVideoInfoAsync(option, ctx, CancellationToken.None);
+            var ctx = WorkSetup.Build(option);
+            ctx = await VideoInfo.FetchAsync(option, ctx, CancellationToken.None);
             Assert.NotNull(ctx.VInfo);
             Assert.NotEmpty(ctx.VInfo.PagesInfo);
 
-            await Program.DownloadPagesAsync(option, ctx, relatedTask: null, CancellationToken.None);
+            await PageQueue.RunAsync(option, ctx, relatedTask: null, CancellationToken.None);
 
             var mediaExtensions = new[] { ".mp4", ".m4a", ".m4s", ".flv", ".aac", ".mp3" };
             var downloaded = Directory.EnumerateFiles(workDir, "*", SearchOption.AllDirectories)

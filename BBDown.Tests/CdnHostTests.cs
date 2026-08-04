@@ -19,7 +19,7 @@ public class CdnHostTests
         var opt = new DownloadOptions { AllowPcdn = true, NoForceHost = false };
         var clips = new List<string> { PcdnUrl };
 
-        Program.HandleCdnHost(opt, clips, AppConfig.Empty);
+        CdnHost.Apply(opt, clips, AppConfig.Empty);
 
         // 单独 --allow-pcdn 即应保留原 PCDN 域名
         Assert.Equal(PcdnUrl, clips[0]);
@@ -31,7 +31,7 @@ public class CdnHostTests
         var opt = new DownloadOptions { AllowPcdn = false, NoForceHost = false };
         var clips = new List<string> { PcdnUrl };
 
-        Program.HandleCdnHost(opt, clips, AppConfig.Empty);
+        CdnHost.Apply(opt, clips, AppConfig.Empty);
 
         Assert.Contains(BackupHost, clips[0]);
         Assert.DoesNotContain("pcdn", clips[0]);
@@ -44,7 +44,7 @@ public class CdnHostTests
         var opt = new DownloadOptions { AllowPcdn = true, NoForceHost = false };
         var clips = new List<string> { "https://upos-sz-upcdnbda2.bilivideo.com/upgcxcode/x.flv" };
 
-        Program.HandleCdnHost(opt, clips, AppConfig.Empty);
+        CdnHost.Apply(opt, clips, AppConfig.Empty);
 
         Assert.Contains(BackupHost, clips[0]);
     }
@@ -55,7 +55,7 @@ public class CdnHostTests
         var opt = new DownloadOptions { AllowPcdn = true, NoForceHost = true };
         var clips = new List<string> { PcdnUrl };
 
-        Program.HandleCdnHost(opt, clips, AppConfig.Empty);
+        CdnHost.Apply(opt, clips, AppConfig.Empty);
 
         Assert.Equal(PcdnUrl, clips[0]);
     }
