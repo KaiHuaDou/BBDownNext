@@ -17,8 +17,8 @@ using static BBDown.Utils;
 namespace BBDown;
 
 /// <summary>
-/// 视频章节信息：抓取分P章节点，并生成 ffmpeg / mp4box 混流用的 metadata 文本；
-/// 另含 ffmpeg 杜比视界支持探测。
+/// 视频章节信息：抓取分 P 章节点，并生成 FFmpeg / MP4Box 混流用的 metadata 文本；
+/// 另含 FFmpeg 杜比视界支持探测。
 /// </summary>
 internal static partial class ChapterMeta
 {
@@ -49,14 +49,14 @@ internal static partial class ChapterMeta
         }
         catch (Exception ex)
         {
-            LogDebug("解析章节信息失败: {0}", ex.Message);
+            LogDebug("解析章节信息失败：{0}", ex.Message);
         }
 
         return points;
     }
 
     /// <summary>
-    /// 生成metadata文件, 用于ffmpeg混流章节信息
+    /// 生成 metadata 文件，用于 FFmpeg 混流章节信息
     /// </summary>
     public static string GetFFmpegMetaString(List<ViewPoint> points)
     {
@@ -77,7 +77,7 @@ internal static partial class ChapterMeta
     }
 
     /// <summary>
-    /// 生成metadata文件, 用于mp4box混流章节信息
+    /// 生成 metadata 文件，用于 mp4box 混流章节信息
     /// </summary>
     public static string GetMp4boxMetaString(List<ViewPoint> points)
     {
@@ -91,7 +91,7 @@ internal static partial class ChapterMeta
     }
 
     /// <summary>
-    /// 检测ffmpeg是否识别杜比视界
+    /// 检测 FFmpeg 是否识别杜比视界
     /// </summary>
     public static bool CheckFFmpegDOVI( )
     {
@@ -125,7 +125,7 @@ internal static partial class ChapterMeta
         }
         catch (Exception ex)
         {
-            LogDebug("探测 ffmpeg 杜比视界支持失败: {0}", ex.Message);
+            LogDebug("探测 FFmpeg 杜比视界支持失败：{0}", ex.Message);
         }
 
         return false;

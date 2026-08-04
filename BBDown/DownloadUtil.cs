@@ -154,7 +154,7 @@ internal static class DownloadUtil
         var manifestLock = new Lock( );
         var lastSaveTick = 0L;
 
-        using var progress = new ProgressBar(config.RelatedTask);
+        using var progress = new ProgressBar(config.RelatedTask is { } relatedTask ? relatedTask.ApplySample : null);
         progress.Report(0);
 
         void Report( )

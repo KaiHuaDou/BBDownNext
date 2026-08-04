@@ -12,7 +12,6 @@ namespace BBDown;
 /// 凭据读写收口：WEB cookie、TV token、APP token 三类凭据全部合并进单一文件
 /// <c>BBDown.data</c> 的同一个 JSON 对象，CLI 与 serve 模式共用，避免多份文件不一致。
 ///
-/// 统一 JSON 结构（使用 System.Text.Json 源生成器序列化，AOT 安全，无运行时反射）：
 /// <code>
 /// {
 ///   "cookie": "...",          // WEB 登录 Cookie（未登录为 null）
@@ -25,8 +24,6 @@ namespace BBDown;
 /// }
 /// </code>
 /// 各类凭据独立落盘：每次保存只更新对应字段并合并保留其余字段，互不影响。
-/// 不兼容任何旧格式（旧的纯 cookie 字符串 / <c>access_token=</c> 前缀纯文本 / <c>BBDownTV.data</c> /
-/// <c>BBDownApp.data</c> 分离文件一律视为无效，需重新登录）。
 /// </summary>
 internal static class CredentialStore
 {

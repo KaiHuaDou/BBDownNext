@@ -9,171 +9,152 @@ namespace BBDown;
 
 internal sealed class ProgressBar : IDisposable, IProgress<double>
 {
-    private const int BlockCount = 40;
-    private readonly TimeSpan animationInterval = TimeSpan.FromSeconds(1.0 / 8);
-    private const string Animation = @"|/-\";
+    private const int BarWidth = 40;
+    private const string SpinnerFrames = @"|/-\";
+    private static readonly TimeSpan RenderInterval = TimeSpan.FromSeconds(1.0 / 8);
+    private static readonly TimeSpan SampleInterval = TimeSpan.FromSeconds(1);
 
-    private readonly Timer timer;
-    private readonly Lock timerLock = new( );
-
-    private double currentProgress;
-    private string currentText = string.Empty;
-    private bool disposed;
-    private int animationIndex;
-
-    //速度计算
-    private readonly TimeSpan speedCalcInterval = TimeSpan.FromSeconds(1);
-    private readonly Lock speedTimerLock = new( );
-    private long lastDownloadedBytes;
+    // 下载线程高频写、定时器线程读，只能通过 Interlocked/Volatile 访问
+    private double progressRatio;
     private long downloadedBytes;
-    private string speedString = "";
-    private readonly Timer speedTimer;
 
-    //服务器模式使用，更新下载任务的进度
-    private readonly DownloadTask? RelatedTask;
+    private readonly Lock gate = new( );
+    private readonly Timer? renderTimer;
+    private readonly Timer? sampleTimer;
+    private readonly Action<double, long>? onSample;
+    private readonly bool drawToConsole = !Console.IsOutputRedirected;
 
-    public ProgressBar(DownloadTask? task = null)
+    // 以下字段只在持有 gate 时访问
+    private string renderedText = string.Empty;
+    private string speedText = string.Empty;
+    private long lastSampledBytes;
+    private int spinnerIndex;
+    private bool disposed;
+
+    /// <param name="onSample">
+    /// 每个采样周期回调一次 (总进度，本周期新增字节数)，供控制台之外的观察者（如 serve 模式的下载任务）
+    /// 获取进度；为 null 时进度条只负责画控制台。
+    /// </param>
+    public ProgressBar(Action<double, long>? onSample = null)
     {
-        timer = new Timer(TimerHandler);
-        speedTimer = new Timer(SpeedTimerHandler);
-        if (task is not null)
+        this.onSample = onSample;
+        // 输出被重定向时画进度条只会往目标文件里灌一堆退格符，所以不画；
+        // 但观察者不关心 stdout 去了哪，此时仍需继续采样
+        if (drawToConsole)
         {
-            RelatedTask = task;
+            renderTimer = new Timer(_ => Render( ));
         }
-        // A progress bar is only for temporary display in a console window.
-        // If the console output is redirected to a file, draw nothing.
-        // Otherwise, we'll end up with a lot of garbage in the target file.
-        // However, if this progressbar is for a server download task,
-        // we still need it to report progress no matter where stdout is redirected.
-        // The prevention of writing garbage should be controlled on the methods do the actual writing.
-        if (!Console.IsOutputRedirected || RelatedTask is not null)
-        {
-            ResetTimer( );
-            ResetSpeedTimer( );
 
+        if (drawToConsole || onSample is not null)
+        {
+            sampleTimer = new Timer(_ => Sample( ));
         }
+
+        Schedule(renderTimer, RenderInterval);
+        Schedule(sampleTimer, SampleInterval);
     }
 
     public void Report(double value)
     {
-        // Make sure value is in [0..1] range
-        value = Math.Max(0, Math.Min(1, value));
-        Interlocked.Exchange(ref currentProgress, value);
+        Interlocked.Exchange(ref progressRatio, Math.Clamp(value, 0, 1));
     }
 
-    public void Report(double value, long bytesCount)
+    public void Report(double value, long downloaded)
     {
-        // Make sure value is in [0..1] range
-        value = Math.Max(0, Math.Min(1, value));
-        Interlocked.Exchange(ref currentProgress, value);
-        Interlocked.Exchange(ref downloadedBytes, bytesCount);
+        Report(value);
+        Interlocked.Exchange(ref downloadedBytes, downloaded);
     }
 
-    private void SpeedTimerHandler(object? state)
+    private void Sample( )
     {
-        lock (speedTimerLock)
+        lock (gate)
         {
             if (disposed)
             {
                 return;
             }
 
-            if (downloadedBytes > 0 && downloadedBytes > lastDownloadedBytes)
+            // 只读一次：重复读会把两次读取之间新到的字节记进 lastSampledBytes 却没算进 delta，导致累计值偏少
+            var total = Interlocked.Read(ref downloadedBytes);
+            var delta = Math.Max(total - lastSampledBytes, 0);
+            lastSampledBytes = total;
+            if (delta > 0)
             {
-                var delta = downloadedBytes - lastDownloadedBytes;
-                speedString = " - " + Utils.FormatFileSize(delta) + "/s";
-                lastDownloadedBytes = downloadedBytes;
-                if (RelatedTask is not null)
-                {
-                    RelatedTask.DownloadSpeed = delta;
-                    RelatedTask.TotalDownloadedBytes += delta;
-                }
+                speedText = $" - {Utils.FormatFileSize(delta)}/s";
             }
 
-            ResetSpeedTimer( );
+            onSample?.Invoke(Volatile.Read(ref progressRatio), delta);
+            Schedule(sampleTimer, SampleInterval);
         }
     }
 
-    private void TimerHandler(object? state)
+    private void Render( )
     {
-        lock (timerLock)
+        lock (gate)
         {
             if (disposed)
             {
                 return;
             }
 
-            var progressBlockCount = (int) (currentProgress * BlockCount);
-            var percent = currentProgress * 100;
-            var text = string.Format("             [{0}{1}] {2,3:0.00}% {3}{4}",
-                new string('#', progressBlockCount), new string('-', BlockCount - progressBlockCount), percent,
-                Animation[animationIndex++ % Animation.Length],
-                speedString);
-            UpdateText(text);
-            if (RelatedTask is not null)
-            {
-                RelatedTask.Progress = currentProgress;
-            }
-
-            ResetTimer( );
+            var ratio = Volatile.Read(ref progressRatio);
+            var filled = (int) (ratio * BarWidth);
+            spinnerIndex = (spinnerIndex + 1) % SpinnerFrames.Length;
+            Draw($"             [{new string('#', filled)}{new string('-', BarWidth - filled)}] {ratio * 100,3:0.00}% {SpinnerFrames[spinnerIndex]}{speedText}");
+            Schedule(renderTimer, RenderInterval);
         }
     }
 
-    private void UpdateText(string text)
+    /// <summary>只回退并重写与上一帧不同的那段后缀，整行重画会闪。</summary>
+    private void Draw(string text)
     {
-        // Write nothing when output is redirected
-        if (Console.IsOutputRedirected)
+        if (!drawToConsole)
         {
             return;
         }
-        // Get length of common portion
+
         var commonPrefixLength = 0;
-        var commonLength = Math.Min(currentText.Length, text.Length);
-        while (commonPrefixLength < commonLength && text[commonPrefixLength] == currentText[commonPrefixLength])
+        var commonLength = Math.Min(renderedText.Length, text.Length);
+        while (commonPrefixLength < commonLength && text[commonPrefixLength] == renderedText[commonPrefixLength])
         {
             commonPrefixLength++;
         }
 
-        // Backtrack to the first differing character
-        StringBuilder outputBuilder = new( );
-        outputBuilder.Append('\b', currentText.Length - commonPrefixLength);
+        StringBuilder output = new( );
+        output.Append('\b', renderedText.Length - commonPrefixLength);
+        output.Append(text[commonPrefixLength..]);
 
-        // Output new suffix
-        outputBuilder.Append(text[commonPrefixLength..]);
-
-        // If the new text is shorter than the old one: delete overlapping characters
-        var overlapCount = currentText.Length - text.Length;
+        // 新内容更短时，多出来的旧字符要用空格抹掉
+        var overlapCount = renderedText.Length - text.Length;
         if (overlapCount > 0)
         {
-            outputBuilder.Append(' ', overlapCount);
-            outputBuilder.Append('\b', overlapCount);
+            output.Append(' ', overlapCount);
+            output.Append('\b', overlapCount);
         }
 
-        Console.Write(outputBuilder);
-        currentText = text;
+        Console.Write(output);
+        renderedText = text;
     }
 
-    private void ResetTimer( )
+    // 只在持有 gate 且未 disposed 时调用：Timer.Change 在 Dispose 之后会抛 ObjectDisposedException
+    private static void Schedule(Timer? timer, TimeSpan dueTime)
     {
-        timer.Change(animationInterval, TimeSpan.FromMilliseconds(-1));
-    }
-
-    private void ResetSpeedTimer( )
-    {
-        speedTimer.Change(speedCalcInterval, TimeSpan.FromMilliseconds(-1));
+        timer?.Change(dueTime, Timeout.InfiniteTimeSpan);
     }
 
     public void Dispose( )
     {
-        lock (timerLock)
+        lock (gate)
         {
-            lock (speedTimerLock)
+            if (disposed)
             {
-                disposed = true;
-                UpdateText(string.Empty);
-                timer.Dispose( );
-                speedTimer.Dispose( );
+                return;
             }
+
+            disposed = true;
+            Draw(string.Empty);
+            renderTimer?.Dispose( );
+            sampleTimer?.Dispose( );
         }
     }
 }

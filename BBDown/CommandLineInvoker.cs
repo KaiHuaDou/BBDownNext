@@ -57,7 +57,7 @@ internal static class CommandLineInvoker
           1,6-10,15-latest 混合写法
           latest / new     最后一集（最新一集）
           last / LAST      倒数第二集
-        关键字大小写不敏感；latest 可写作 new；越界数字自动夹紧到有效边界；非法项忽略并提醒。
+        关键字大小写不敏感；越界数字自动夹紧到有效边界；非法项忽略并提醒。
         """
     };
     private static readonly Option<bool> NoMetadata = new("--no-metadata", []) { Description = "精简混流，不增加描述、作者等信息" };
