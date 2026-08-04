@@ -144,6 +144,34 @@ public class DownloadTests
         Assert.Equal("out/v.1.0.m4a", MuxFinish.ToAudioOnlyPath("out/v.1.0.mp4"));
     }
 
+    [Theory]
+    [InlineData("HEVC")]
+    [InlineData("AV1")]
+    public void IsCodecUnsupported_RejectsNonAvcOnFlv(string codecs)
+    {
+        Assert.True(FlvDownload.IsCodecUnsupported(MakeVideo(codecs)));
+    }
+
+    [Theory]
+    [InlineData("AVC")]
+    [InlineData("UNKNOWN")]
+    [InlineData("")]
+    public void IsCodecUnsupported_AllowsAvcAndUnknown(string codecs)
+    {
+        Assert.False(FlvDownload.IsCodecUnsupported(MakeVideo(codecs)));
+    }
+
+    [Fact]
+    public void IsCodecUnsupported_AllowsNullTrack( )
+    {
+        Assert.False(FlvDownload.IsCodecUnsupported(null));
+    }
+
+    private static Video MakeVideo(string codecs)
+    {
+        return new Video { id = "80", dfn = "1080P", baseUrl = "", codecs = codecs };
+    }
+
     [Fact]
     public void BuildDownloadConfig_CopiesOptionsAndCookie( )
     {

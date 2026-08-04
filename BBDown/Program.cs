@@ -18,11 +18,11 @@ internal sealed class Program
     public static readonly string AppDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
 
     // 全局取消源：Ctrl+C 时取消，令牌沿 Fetcher → Parser → HTTP → 下载 → 外部进程 全链路透传
-    private static readonly CancellationTokenSource cancelSource = new();
+    private static readonly CancellationTokenSource cancelSource = new( );
     internal static CancellationToken CancellationToken => cancelSource.Token;
 
     // WorkSetup.Build 内部有二进制查找等进程级初始化，串行化后 serve 并发任务不会互相踩踏（P1-16）
-    private static readonly Lock workContextGate = new();
+    private static readonly Lock workContextGate = new( );
 
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
@@ -31,16 +31,16 @@ internal sealed class Program
         LogWarn("收到取消信号，正在安全退出...");
         try
         {
-            Console.ResetColor();
+            Console.ResetColor( );
             Console.CursorVisible = true;
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindows( ))
             {
                 System.Diagnostics.Process.Start("stty", "echo");
             }
         }
         catch { }
 
-        cancelSource.Cancel();
+        cancelSource.Cancel( );
     }
 
     public static async Task<int> Main(params string[] args)
@@ -60,15 +60,15 @@ internal sealed class Program
         {
             if (result.GetValue(loginTvOption))
             {
-                return Login.TV();
+                return Login.TV( );
             }
 
             if (result.GetValue(loginAppOption))
             {
-                return Login.App();
+                return Login.App( );
             }
 
-            return Login.Web();
+            return Login.Web( );
         });
         rootCommand.Subcommands.Add(loginCommand);
 
@@ -90,7 +90,7 @@ internal sealed class Program
         serverCommand.SetAction(result => StartServer(result.GetValue<string>("--listen"), result.GetValue<string>("--work-dir"), result.GetValue<string>("--serve-token")));
         rootCommand.Subcommands.Add(serverCommand);
 
-        var parserConfiguration = new ParserConfiguration()
+        var parserConfiguration = new ParserConfiguration( )
         {
             EnablePosixBundling = true,
         };
@@ -99,10 +99,10 @@ internal sealed class Program
 
         Console.BackgroundColor = ConsoleColor.DarkBlue;
         Console.ForegroundColor = ConsoleColor.White;
-        var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!;
+        var ver = System.Reflection.Assembly.GetExecutingAssembly( ).GetName( ).Version!;
         Console.Write($"BBDown version {ver.Major}.{ver.Minor}.{ver.Build}, Bilibili Downloader.\r\n");
-        Console.ResetColor();
-        Console.WriteLine();
+        Console.ResetColor( );
+        Console.WriteLine( );
 
         // 配置文件只补齐命令行未显式指定的选项，补齐后需重新解析一次
         if (rootResult.CommandResult.Command == rootCommand)
@@ -116,7 +116,7 @@ internal sealed class Program
             // 命令行与配置文件都没给出视频地址时，打印用法而不是抛「缺少必需参数」（--help/--version 不产生错误，仍走原流程）
             if (rootResult.Errors.Count > 0 && !HasUrlArgument(rootResult))
             {
-                PrintUsageExample();
+                PrintUsageExample( );
                 return 0;
             }
         }
@@ -126,13 +126,13 @@ internal sealed class Program
             return 1;
         }
 
-        return await rootResult.InvokeAsync(new InvocationConfiguration() { EnableDefaultExceptionHandler = true });
+        return await rootResult.InvokeAsync(new InvocationConfiguration( ) { EnableDefaultExceptionHandler = true });
     }
 
     private static bool HasUrlArgument(ParseResult parseResult)
     {
         return parseResult.CommandResult.Children
-            .OfType<ArgumentResult>()
+            .OfType<ArgumentResult>( )
             .Any(a => a.Argument.Name == "url" && a.Tokens.Count > 0);
     }
 
@@ -145,12 +145,12 @@ internal sealed class Program
 
         Console.ForegroundColor = ConsoleColor.Red;
         Console.Error.WriteLine(parseResult.Errors[0].Message);
-        Console.ResetColor();
+        Console.ResetColor( );
         Console.Error.WriteLine("请使用 BBDown --help 查看帮助");
         return false;
     }
 
-    private static void PrintUsageExample()
+    private static void PrintUsageExample( )
     {
         Console.WriteLine("""
         BBDown 哔哩哔哩下载器
@@ -163,16 +163,35 @@ internal sealed class Program
         """);
     }
 
-    private static Task<int> RunApp(DownloadOptions myOption)
+    private static async Task<int> RunApp(DownloadOptions myOption)
     {
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        return DoWorkAsync(myOption, cancelSource.Token);
+        try
+        {
+            await RunDownloadAsync(myOption, relatedTask: null, cancelSource.Token);
+            return 0;
+        }
+        catch (OperationCanceledException)
+        {
+            LogWarn("下载已取消。已下载的部分会保留在临时文件中，重新运行命令可断点续传。");
+            return 130;
+        }
+        catch (Exception e)
+        {
+            Console.BackgroundColor = ConsoleColor.Red;
+            Console.ForegroundColor = ConsoleColor.White;
+            var msg = Config.DebugLog ? e.ToString( ) : e.Message;
+            Console.Write($"{msg}{Environment.NewLine}请升级到最新版本后重试。");
+            Console.ResetColor( );
+            Console.WriteLine( );
+            return 1;
+        }
     }
 
     private static void StartServer(string? listenUrl, string? workDir, string? serveToken = null)
     {
         const string DefaultListenUrl = "http://127.0.0.1:23333";
-        var server = new BBDownApiServer();
+        var server = new BBDownApiServer( );
         server.SetUpServer(workDir, serveToken: serveToken);
 #pragma warning disable CA2234 // 保留 Run(string) 内的 URL 合法性校验与友好退出
         server.Run(string.IsNullOrEmpty(listenUrl) ? DefaultListenUrl : listenUrl);
@@ -200,29 +219,5 @@ internal sealed class Program
         }
 
         await PageQueue.RunAsync(myOption, ctx, relatedTask, ct);
-    }
-
-    private static async Task<int> DoWorkAsync(DownloadOptions myOption, CancellationToken ct = default)
-    {
-        try
-        {
-            await RunDownloadAsync(myOption, relatedTask: null, ct);
-            return 0;
-        }
-        catch (OperationCanceledException)
-        {
-            LogWarn("下载已取消。已下载的部分会保留在临时文件中，重新运行命令可断点续传。");
-            return 130;
-        }
-        catch (Exception e)
-        {
-            Console.BackgroundColor = ConsoleColor.Red;
-            Console.ForegroundColor = ConsoleColor.White;
-            var msg = Config.DebugLog ? e.ToString() : e.Message;
-            Console.Write($"{msg}{Environment.NewLine}请升级到最新版本后重试。");
-            Console.ResetColor();
-            Console.WriteLine();
-            return 1;
-        }
     }
 }

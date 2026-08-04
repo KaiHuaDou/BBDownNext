@@ -59,6 +59,12 @@ internal static class FlvDownload
             }
 
             var selectedVideo = parsedResult.VideoTracks.ElementAtOrDefault(vIndex);
+            if (IsCodecUnsupported(selectedVideo))
+            {
+                LogError($"分段(FLV)源无法承载 {selectedVideo!.codecs} 编码，请改用 -e avc 重新下载");
+                return PageOutcome.Abort(selected);
+            }
+
             var savePath = SavePath.Build(ctx, pageCtx, selectedVideo, null);
             if (MuxFinish.TrySkipExisting(session, savePath, selected) is { } skipped)
             {
@@ -83,9 +89,15 @@ internal static class FlvDownload
                 }
             }
 
-            var inputs = new MuxFinish.MuxInputs(savePath, videoPath, "", audioMaterial, UseMp4box: false, selectedVideo?.codecs == "HEVC");
+            // 非 AVC 已在上游拒绝，混流标记恒为 false
+            var inputs = new MuxFinish.MuxInputs(savePath, videoPath, "", audioMaterial, UseMp4box: false, IsHevc: false);
             return await MuxFinish.RunAsync(session, inputs, selected, ct);
         }
+    }
+
+    internal static bool IsCodecUnsupported(Video? video)
+    {
+        return video is { codecs: "HEVC" or "AV1" };
     }
 
     private static async Task<List<string>> DownloadClipsAsync(List<string> clips, PageContext pageCtx, DownloadConfig downloadConfig, CancellationToken ct = default)
