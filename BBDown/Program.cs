@@ -1,13 +1,15 @@
 using System;
 using System.CommandLine;
 using System.CommandLine.Parsing;
-using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
+using BBDown.Auth;
+using BBDown.Cli;
 using BBDown.Core.Opus;
+using BBDown.Core;
+using BBDown.Pipeline;
+using BBDown.Serve;
 
 using static BBDown.Core.Logger;
 
@@ -15,16 +17,6 @@ namespace BBDown;
 
 internal sealed class Program
 {
-    // AppContext.BaseDirectory 指向入口程序集所在目录；Environment.ProcessPath 在 `dotnet BBDown.dll` 下返回宿主路径，会写错位置（P1-13）
-    public static readonly string AppDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
-
-    // 全局取消源：Ctrl+C 时取消，令牌沿 Fetcher → Parser → HTTP → 下载 → 外部进程 全链路透传
-    private static readonly CancellationTokenSource cancelSource = new( );
-    internal static CancellationToken CancellationToken => cancelSource.Token;
-
-    // WorkSetup.Build 内部有二进制查找等进程级初始化，串行化后 serve 并发任务不会互相踩踏（P1-16）
-    private static readonly Lock workContextGate = new( );
-
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
         // 抑制运行时默认的进程终止，改为靠令牌优雅取消
@@ -41,7 +33,7 @@ internal sealed class Program
         }
         catch { }
 
-        cancelSource.Cancel( );
+        AppEnv.Cancel( );
     }
 
     public static async Task<int> Main(params string[] args)
@@ -208,14 +200,14 @@ internal sealed class Program
             // 专栏导出走独立链路：不构造 WorkContext，也就不会因为缺少 ffmpeg 而失败
             if (opusCommand || OpusInputResolver.TryParse(myOption.Url, out _))
             {
-                await OpusDownload.RunAsync(myOption, allowBareId: opusCommand, cancelSource.Token);
+                await OpusDownload.RunAsync(myOption, allowBareId: opusCommand, AppEnv.CancellationToken);
                 return 0;
             }
 
-            await RunDownloadAsync(myOption, relatedTask: null, cancelSource.Token);
+            await DownloadPipeline.RunAsync(myOption, relatedTask: null, AppEnv.CancellationToken);
             return 0;
         }
-        catch (OperationCanceledException) when (cancelSource.IsCancellationRequested)
+        catch (OperationCanceledException) when (AppEnv.CancellationToken.IsCancellationRequested)
         {
             LogWarn("下载已取消。已下载的部分会保留在临时文件中，重新运行命令可断点续传。");
             return 130;
@@ -255,28 +247,5 @@ internal sealed class Program
 #pragma warning disable CA2234 // 保留 Run(string) 内的 URL 合法性校验与友好退出
         server.Run(string.IsNullOrEmpty(listenUrl) ? DefaultListenUrl : listenUrl);
 #pragma warning restore CA2234
-    }
-
-    /// <summary>
-    /// 下载主干：准备运行参数 → 解析视频信息 → 逐分 P 下载。CLI 与 serve 共用同一条链路，
-    /// 差异只有 <paramref name="relatedTask"/>（serve 用它回填标题与进度）。
-    /// </summary>
-    internal static async Task RunDownloadAsync(DownloadOptions myOption, DownloadTask? relatedTask = null, CancellationToken ct = default)
-    {
-        WorkContext ctx;
-        lock (workContextGate)
-        {
-            ctx = WorkSetup.Build(myOption);
-        }
-
-        ctx = await VideoInfo.FetchAsync(myOption, ctx, ct);
-        if (relatedTask is not null)
-        {
-            relatedTask.Title = ctx.VInfo!.Title;
-            relatedTask.Pic = ctx.VInfo.Pic;
-            relatedTask.VideoPubTime = ctx.VInfo.PubTime;
-        }
-
-        await PageQueue.RunAsync(myOption, ctx, relatedTask, ct);
     }
 }

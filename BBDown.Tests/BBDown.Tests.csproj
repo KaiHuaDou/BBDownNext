@@ -24,5 +24,15 @@
     </ItemGroup>
     <ItemGroup>
         <Using Include="Xunit" />
+        <!-- 被测类型散落在 BBDown 的各子命名空间，测试文件自身在 namespace BBDown.Tests 下无法靠父命名空间查找到它们 -->
+        <Using Include="BBDown" />
+        <Using Include="BBDown.Auth" />
+        <Using Include="BBDown.Cli" />
+        <Using Include="BBDown.Download" />
+        <Using Include="BBDown.Media" />
+        <Using Include="BBDown.Mux" />
+        <Using Include="BBDown.Pipeline" />
+        <Using Include="BBDown.Serve" />
+        <Using Include="BBDown.Util" />
     </ItemGroup>
 </Project>

@@ -19,46 +19,78 @@ BBDown 是一个基于 **.NET 9** 的哔哩哔哩视频下载 / 解析命令行�
 
 ```
 BBDown/
-├── BBDown/                 # 入口可执行项目 (Sdk.Web, PackAsTool)
-│   ├── Program.cs          # Main、子命令装配、serve 启动、全局取消；RunDownloadAsync 三段下载主干（CLI 与 serve 共用）
-│   ├── CommandLineInvoker.cs  # 全部 CLI 选项与别名 (GetRootCommand)
-│   ├── WorkSetup.cs        # 进程级初始化 → WorkContext (Build)
-│   ├── VideoInfo.cs        # FetchAsync 解析视频信息（标题/分P/封面/账号探测）
-│   ├── PageQueue.cs        # 逐分 P 编排 (RunAsync)
-│   ├── PageDownload.cs     # 单分 P 下载入口，分派 DASH/FLV (RunAsync / DispatchAsync)
-│   ├── DashDownload.cs     # DASH 轨下载 (RunAsync)
-│   ├── FlvDownload.cs      # FLV 分段下载与合并 (RunAsync)
-│   ├── PageAssets.cs       # 封面/字幕准备、弹幕下载
-│   ├── MuxFinish.cs        # 混流收尾、跳过已存在、清理临时文件 (DASH/FLV 共用)
-│   ├── TrackSelect.cs      # 轨道排序、信息打印、交互选轨
-│   ├── PageSelect.cs       # 分 P 选择/范围
-│   ├── SavePath.cs         # 文件名/路径格式化
-│   ├── CdnHost.cs          # CDN host 策略
-│   ├── ChapterMeta.cs      # 章节元数据
-│   ├── Account.cs          # 账号探测
-│   ├── ArchiveLog.cs       # 归档记录
-│   ├── BBDownAria2c.cs     # Aria2c 下载
-│   ├── BBDownUtil.cs       # 通用工具 (Utils)
-│   ├── ProgressBar.cs      # 进度条
-│   ├── DownloadUtil.cs     # 唯一下载入口 (续传、CDN 策略)
-│   ├── Muxer.cs            # FFmpeg/MP4Box 混流、FLV 合并
-│   ├── PartFile.cs         # 断点续传状态 (.bbdown.part/.bbdown.json)
-│   ├── CredentialStore.cs  # 单一 JSON 凭据读写 (源生成器 AOT 安全)
-│   ├── Login.cs            # WEB/TV/APP 扫码登录与 refresh_token 续期
-│   ├── InputResolver.cs    # URL/编号 → 内部 avid 解析
-│   ├── ConfigParser.cs     # 配置文件解析 (仅补齐命令行未指定项)
+├── BBDown/                 # 入口可执行项目 (Sdk.Web, PackAsTool)，命名空间 BBDown（根契约层 + 入口）
+│   ├── Program.cs          # Main、子命令装配、serve 启动、全局取消、RunApp
+│   ├── AppEnv.cs           # 进程级环境：AppDir / CancellationToken / Cancel()（切断底层对 Program 的反向依赖）
 │   ├── DownloadOptions.cs  # 运行时配置 (含 WithSecretsRedacted)
-│   ├── OpusDownload.cs     # 专栏导出入口 (RunAsync)：在 RunApp 内于 WorkSetup.Build 之前分流，不经混流
 │   ├── DownloadSession.cs  # 分 P 生命周期恒定入参 record
 │   ├── WorkContext.cs      # 工作上下文 record
 │   ├── PageContext.cs      # 分 P 上下文 record
+│   ├── PageOutcome.cs      # 分 P 落盘结果 record（Media/Mux 共用，解除循环依赖）
+│   ├── DownloadTask.cs     # serve 任务状态/快照 record（DownloadStatus / DownloadTask / DownloadTaskSnapshot）
+│   ├── ChargedPreviewException.cs # 充电专属试看中止异常
 │   ├── DanmakuFormat.cs    # 弹幕格式信息
-│   └── ServeRequestOptions.cs # serve 请求受控子集 + CallBackWebHook
+│   │
+│   ├── Cli/                # 命名空间 BBDown.Cli — 命令行解析
+│   │   ├── CommandLineInvoker.cs  # 全部 CLI 选项与别名 (GetRootCommand)
+│   │   └── ConfigParser.cs        # 配置文件解析 (仅补齐命令行未指定项)
+│   │
+│   ├── Pipeline/           # 命名空间 BBDown.Pipeline — 下载编排主干（CLI 与 serve 共用）
+│   │   ├── DownloadPipeline.cs     # RunAsync 三段下载主干（原 Program.RunDownloadAsync）
+│   │   ├── WorkSetup.cs            # 进程级初始化 → WorkContext (Build)
+│   │   ├── VideoInfo.cs            # FetchAsync 解析视频信息（标题/分P/封面/账号探测）
+│   │   ├── PageQueue.cs            # 逐分 P 编排 (RunAsync)
+│   │   ├── PageSelect.cs           # 分 P 选择/范围
+│   │   ├── InputResolver.cs        # URL/编号 → 内部 avid 解析
+│   │   └── OpusDownload.cs         # 专栏导出入口 (RunAsync)：在 RunApp 内于 WorkSetup.Build 之前分流，不经混流
+│   │
+│   ├── Media/              # 命名空间 BBDown.Media — 单分 P 下载与封装
+│   │   ├── PageDownload.cs         # 单分 P 下载入口，分派 DASH/FLV (RunAsync / DispatchAsync)
+│   │   ├── DashDownload.cs         # DASH 轨下载 (RunAsync)
+│   │   ├── FlvDownload.cs          # FLV 分段下载与合并 (RunAsync)
+│   │   ├── PageAssets.cs           # 封面/字幕准备、弹幕下载
+│   │   └── TrackSelect.cs          # 轨道排序、信息打印、交互选轨
+│   │
+│   ├── Mux/                # 命名空间 BBDown.Mux — 混流与收尾
+│   │   ├── MuxFinish.cs            # 混流收尾、跳过已存在、清理临时文件 (DASH/FLV 共用)
+│   │   ├── Muxer.cs                # FFmpeg/MP4Box 混流、FLV 合并
+│   │   └── ChapterMeta.cs          # 章节元数据
+│   │
+│   ├── Download/           # 命名空间 BBDown.Download — 下载传输层
+│   │   ├── DownloadUtil.cs         # 唯一下载入口 (续传、CDN 策略)
+│   │   ├── PartFile.cs             # 断点续传状态 (.bbdown.part/.bbdown.json)
+│   │   ├── CdnHost.cs              # CDN host 策略
+│   │   └── BBDownAria2c.cs         # Aria2c 下载
+│   │
+│   ├── Auth/               # 命名空间 BBDown.Auth — 登录与凭据
+│   │   ├── Login.cs                # WEB/TV/APP 扫码登录与 refresh_token 续期
+│   │   ├── Account.cs              # 账号探测
+│   │   ├── AccountInfo.cs          # 账号信息
+│   │   └── CredentialStore.cs      # 单一 JSON 凭据读写 (源生成器 AOT 安全)
+│   │
+│   ├── Serve/              # 命名空间 BBDown.Serve — serve 模式
+│   │   ├── BBDownApiServer.cs      # ASP.NET Minimal API 任务增删查（Run / RunAsync / StartForTestAsync）
+│   │   └── ServeRequestOptions.cs  # serve 请求受控子集 + CallBackWebHook
+│   │
+│   └── Util/               # 命名空间 BBDown.Util — 通用工具
+│       ├── BBDownUtil.cs          # 通用工具 (Utils)
+│       ├── ProgressBar.cs         # 进度条
+│       ├── SavePath.cs            # 文件名/路径格式化
+│       └── ArchiveLog.cs          # 归档记录
 │
 ├── BBDown.Core/            # 核心类库 (library, IsAotCompatible)
 │   ├── BiliApi.cs          # 各接口 Host/Path 常量
 │   ├── Config.cs           # 清晰度档位 (Qualities/MaxQn/DolbyVisionQn)
-│   ├── Parser.cs           # 播放地址解析 (DASH/FLV/APP/INTL)、WBI 签名、playurl 请求
+│   ├── Parser.cs           # 播放地址解析入口：编排 ExtractTracksAsync + 番剧分段点映射（请求构造/发送、响应导航、轨道读取已下沉到 PlayUrl/）
+│   ├── PlayUrl/            # 播放地址(playurl)解析：请求构造与发送、响应导航、四类轨道读取、跨端轨道装配
+│   │   ├── PlayUrlRequest.cs     # 顶层 internal record struct（aidOri/aid/cid/epId 与 API 模式）
+│   │   ├── PlayUrlClient.cs      # URL 构造 + 发送（WEB/TV/INTL/网页兜底）+ appkey 常量
+│   │   ├── PlayUrlResponse.cs    # 响应形状导航（data/result/video_info 节点定位、大会员判定）
+│   │   ├── DashTrackReader.cs    # 纯函数：DASH JSON → 视频/音频轨（免二压两次响应并集、杜比/Hi-Res 回退）
+│   │   ├── FlvTrackReader.cs     # 纯函数：FLV 分段 → 轨道
+│   │   ├── IntlTrackReader.cs    # 纯函数：INTL(BiliPlus) video_info → 轨道
+│   │   ├── AppTrackReader.cs     # APP(gRPC) PlayViewReply → 轨道（FetchAsync 含 gRPC 调用）
+│   │   └── TrackFactory.cs       # 跨端共享：baseUrl 选择 / codec 名 / Audio 构建
 │   ├── AppHelper.cs        # APP gRPC 手写帧 (PackMessage/ReadMessage)
 │   ├── IdPrefix.cs         # 输入编号前缀常量 (ep:/ss:/lists:/series:/fav:/cheese:/spaceMid: 等)
 │   ├── Opus/               # 专栏导出：OpusInputResolver(输入解析) / OpusFetcher(抓取) / OpusHtmlToMarkdown(HTML→MD) / OpusMarkdownRenderer(渲染) / OpusImageUtil(图片) / OpusDocument(域模型)
@@ -73,6 +105,8 @@ BBDown/
 ```
 
 **依赖方向**：`BBDown` → `BBDown.Core`；两个测试项目分别依赖对应实现。Core 不反向依赖入口项目，保证核心逻辑可独立测试。
+
+**入口项目内部分层**：`BBDown` 主项目按职责细分为若干子命名空间（对应同名子文件夹），根命名空间 `BBDown` 仅保留两类类型——① 进程入口（`Program` / `AppEnv`）与全局取消；② **根契约层** record（`DownloadOptions` / `DownloadSession` / `WorkContext` / `PageContext` / `PageOutcome` / `DownloadTask` / `ChargedPreviewException` / `DanmakuFormat`），它们被各子命名空间交叉引用，故刻意留在根层避免循环依赖。子命名空间之间的引用一律显式 `using`：`Cli` / `Pipeline` 被 `Program` 引用；`Pipeline` 内部 `DownloadPipeline → WorkSetup → VideoInfo → PageQueue` 单向串联；`Media` 依赖 `Mux`（`MuxFinish`）与 `Download`（下载入口）；`Serve` 引用 `Pipeline` 与 `Auth`；`Pipeline` 引用 `Serve` 的 `DownloadTask` 状态类型（根层）。所有子命名空间类型通过 C# 嵌套命名空间查找可见根层类型，反之亦然（测试项目用 csproj 全局 `<Using>` 补齐）。
 
 ---
 
@@ -90,10 +124,10 @@ InputResolver.ResolveAsync      URL/av/BV/ep/ss/合集/系列/收藏夹/空间/b
 FetcherRegistry.FetchAsync     按 IdPrefix 分发给对应 Fetcher → VInfo(分P列表/标题/封面…)
   │  (ep: 先番剧后回退 cheese；番剧可按 --intl-api 走 IntlBangumiInfoFetcher)
   ▼
-Parser (按 API 模式发 playurl)  → ParsedResult(视频轨/音频轨/FLV 分段/字幕/弹幕入口)
+Parser.ExtractTracksAsync (编排，按 API 模式委派到 PlayUrl/*) → ParsedResult(视频轨/音频轨/FLV 分段/字幕/弹幕入口)
   │  WEB: WBI 签名(UGC)；TV: access_token；APP: gRPC + identify_v1；INTL: protobuf/json
   ▼
-Program.RunDownloadAsync (三段下载主干，CLI 与 serve 共用)
+DownloadPipeline.RunAsync (BBDown.Pipeline，三段下载主干，CLI 与 serve 共用)
   │  ① WorkSetup.Build      → WorkContext (进程级初始化、账号探测)
   │  ② VideoInfo.FetchAsync → WorkContext (标题/分P/封面/弹幕入口)
   │  ③ PageQueue.RunAsync   → 逐分 P 编排
@@ -141,9 +175,9 @@ PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分�
     - 绑定**非回环地址**（如 `0.0.0.0`）且未显式 `--serve-token` → 自动生成令牌并打印，客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，否则返回 `401`。
 - **请求契约收窄**：`ServeRequestOptions` 是 `DownloadOptions` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Debug`/`UserAgent`/`ConfigFile`），这些一律以服务端启动配置为准，即便请求传入也会被忽略。
 - **SSRF 防护**：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点。
-- **CORS**：仍默认 `AllowAnyOrigin`（便于本地前端调试），因此公网暴露存在风险，需配合反向代理与 TLS。
+- **CORS**：默认**完全关闭**（不发送 `Access-Control-Allow-Origin` 头），从根本上消除恶意网页经浏览器发起的 CSRF 面；仅当显式 `--cors-origin <url>` 时才对该单一来源开放（用于同源之外的 Web 前端），且公网暴露仍需配合反向代理与 TLS。
 - **容量上限**：已完成任务保留上限 `MaxFinishedTasks = 200`，超出按策略淘汰。
-- **并发限流**：`--max-concurrent N`（默认 `0` = 不限制，保持历史行为）。`SetUpServer` 在 `N > 0` 时建立 `SemaphoreSlim(N, N)`；`AddDownloadTaskAsync` 经 `RunGatedAsync` 在调用 `Program.RunDownloadAsync` 前取额度、`finally` 归还。取额度发生在 aid 去重登记**之后**，因此排队中的任务已在 `runningTasks` 里可见，`DownloadTask.Status` 为 `Queued`，拿到额度转 `Running`，收尾转 `Finished`。同时 `DownloadTask.MaxChunkParallelism` 被置 `1`，经 `PageDownload.BuildDownloadConfig` 落到 `DownloadConfig.MaxDegreeOfParallelism`，最终作用于 `DownloadUtil.RunRangesAsync` 的 `Parallel.ForEachAsync`；由于单个任务内部分 P、视频 / 音频轨都是串行下载，「任务并发 × 分片并发 = N」即为总连接数上限。未限流时该值为 `0`，`Parallel` 回落到 `ProcessorCount`（与 CLI 完全一致）。`MaxChunkParallelism` 是 `internal` 属性，不参与 JSON 序列化，也不在 `ServeRequestOptions` 中——限流策略只能由服务端启动参数决定。
+- **并发限流**：`--max-concurrent N`（默认 `0` = 不限制，保持历史行为）。`SetUpServer` 在 `N > 0` 时建立 `SemaphoreSlim(N, N)`；`AddDownloadTaskAsync` 经 `RunGatedAsync` 在调用 `DownloadPipeline.RunAsync` 前取额度、`finally` 归还。取额度发生在 aid 去重登记**之后**，因此排队中的任务已在 `runningTasks` 里可见，`DownloadTask.Status` 为 `Queued`，拿到额度转 `Running`，收尾转 `Finished`。同时 `DownloadTask.MaxChunkParallelism` 被置 `1`，经 `PageDownload.BuildDownloadConfig` 落到 `DownloadConfig.MaxDegreeOfParallelism`，最终作用于 `DownloadUtil.RunRangesAsync` 的 `Parallel.ForEachAsync`；由于单个任务内部分 P、视频 / 音频轨都是串行下载，「任务并发 × 分片并发 = N」即为总连接数上限。未限流时该值为 `0`，`Parallel` 回落到 `ProcessorCount`（与 CLI 完全一致）。`MaxChunkParallelism` 是 `internal` 属性，不参与 JSON 序列化，也不在 `ServeRequestOptions` 中——限流策略只能由服务端启动参数决定。
 
 > 注意：`/remove-finished*` 与 `/add-task` 均为 **POST**；查询类（`/get-tasks/*`）为 GET。
 
@@ -205,7 +239,7 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 
 ### 10.1 分流点
 
-分流发生在 `Program.RunApp` 顶部，**早于** `RunDownloadAsync` 内的 `WorkSetup.Build`：
+分流发生在 `Program.RunApp` 顶部，**早于** `DownloadPipeline.RunAsync` 内的 `WorkSetup.Build`：
 
 ```
 用户输入
@@ -214,7 +248,7 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 OpusInputResolver.TryParse(input)   opus URL / cv 号 / opus id / 前缀写法 → OpusTarget(OpusId|CvId)
   │  （仅 opus 子命令允许裸数字：≥15 位视为 opus id，否则视为 cv 号；根命令对裸数字一律拒绝）
   ▼
-OpusDownload.RunAsync              不走 WorkSetup.Build / 不构造 WorkContext / 不探测 ffmpeg
+OpusDownload.RunAsync (BBDown.Pipeline)  不走 WorkSetup.Build / 不构造 WorkContext / 不探测 ffmpeg
   │  ├─ CredentialStore.LoadAll   读取 WEB Cookie（专栏可能登录可见）
   │  ├─ Buvid.InitAsync           获取 buvid3/4（沿用既有 HTTP 栈）
   │  ├─ OpusFetcher.FetchAsync     先试 opus/detail（htmlNewStyle）→ 失败回退 article/view(cv)；旧版 HTML 文章降级转换

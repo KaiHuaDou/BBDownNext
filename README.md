@@ -27,18 +27,36 @@
 
 ## 特性
 
-- 支持下载普通视频、番剧、课程（cheese）、直播回放、收藏夹、合集 / 系列、UP 主空间列表；多 P 与批量内容支持分 P 选择语法（`-p`，含单集 / 列表 / 区间 / `latest`）
-- 支持 TV / APP / INTL / WEB 四种解析模式，自动应对不同区域限制，并兼容 BiliPlus 代理；WEB 模式自动 WBI 签名
-- 支持 DASH 与 FLV 两种封装，可按清晰度、编码优先级选择，支持杜比视界、HDR、8K、高码率音视频流
-- 支持交互式选择清晰度（`-ia`）；`--show-info` 仅解析查看可用流
-- 支持弹幕（XML / ASS）、字幕、封面、AI 字幕的下载与嵌入；混流时写入元数据与章节
-- 支持 aria2c 多线程与内置默认多线程；支持断点续传；`--save-records` 记录已下载内容以便跳过
-- 支持扫码登录 WEB / TV / APP 并自动保存凭据；WEB Cookie 过期时可用 `refresh_token` 续期
-- 支持自定义文件名与日期格式、配置文件、CDN / PCDN 自定义（`--upos-host` / `--allow-pcdn`）
-- 支持服务器模式（`serve`），提供带鉴权令牌的 HTTP JSON API，详见 [API.md](./API.md)
-- 支持专栏 / 图文导出（`opus` 子命令），将 B 站专栏转换为 Markdown，图片默认下载到本地 `images/` 子目录
-- 纯命令行，跨平台（Windows / Linux / macOS），面向 .NET 9，支持 AOT 单文件发布
-- 包含 650+ 单元测试，覆盖解析、混流、serve 鉴权与 SSRF、断点续传、文件名截断等核心路径，保障功能完整与正确
+- 内容与来源
+    - **视频 / 番剧 / 课程** · 直播回放、收藏夹、合集 / 系列、UP 主空间列表
+    - **多 P 批量选择** · `-p` 支持单集、列表、区间、`latest`
+    - **专栏 / 图文导出** · `opus` 子命令，转为 Markdown，图片可选本地下载
+
+- 解析引擎
+    - **4 种模式**：`TV` / `APP` / `INTL` / `WEB`，自动应对区域限制
+    - **兼容 BiliPlus 代理**，WEB 模式自动 WBI 签名
+    - **解析优先**：`--show-info` 查看可用流，`-ia` 交互式选择清晰度
+
+- 媒体与封装
+    - **DASH / FLV** 封装 · 杜比视界、HDR、8K、高码率音视频流
+    - **编码与画质优先级** `-e` / `-q`，弹幕（XML/ASS）、字幕、封面、AI 字幕
+    - **混流增强**：写入元数据与章节，支持 FFmpeg / MP4Box
+
+- 下载与性能
+    - **内置多线程** · 可选 `--aria2c` 外部加速 · 断点续传
+    - **`--save-records`** 自动跳过已下载分 P，`--delay-per-page` 控制请求间隔
+
+- 账号与配置
+    - **扫码登录**（WEB / TV / APP），凭据自动保存，`refresh_token` 续期
+    - **自定义文件名/日期** `-F` / `-M`，配置文件 `BBDown.config`
+    - **CDN / PCDN 控制** `--upos-host` / `--allow-pcdn`
+
+- 扩展与集成
+    - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./API.md)
+    - **纯命令行** · 跨平台（Win / Linux / macOS）· .NET 9 · AOT 单文件发布
+
+- 工程品质
+    - **650+ 单元测试**，覆盖解析、混流、鉴权/SSRF、断点续传、文件名截断等核心路径
 
 ## 与原版 BBDown 的差异
 
@@ -49,8 +67,6 @@
 前往 [Releases](https://github.com/KaiHuaDou/BBDown/releases) 页面，下载最新发布版本。
 
 前往 [Actions](https://github.com/KaiHuaDou/BBDown/actions) 页面，下载构建版本。
-
-> AOT 单文件二进制无需安装 .NET 运行时即可直接运行；`dotnet build` 产物需要本机有对应版本的 .NET 运行时。
 
 ## 构建
 
@@ -102,9 +118,7 @@ BBDown "BV16h4y137YS" -q "1080P 高码率" -e "avc,flac"
 BBDown "ep68540" --tv-api --access-token "你的token"
 
 # 只看下一个 UP 的投稿列表，不下载
-BBDown "402787936" --show-info
-# 只下最新 10 个（列表序号，跨视频的全局序号）
-BBDown "space402787936" -p 1-10
+BBDown "space402787936" --show-info
 
 # 下载一篇专栏并导出为 Markdown（默认下载图片到 images/ 子目录）
 BBDown opus cv51908655
@@ -350,7 +364,7 @@ BV1uv411q7Mv
 
 `BBDown serve` 会在本地启动一个 HTTP 服务器，对外暴露任务增删查的 JSON API，适合与下载器面板、自动化脚本集成。完整接口定义、数据结构与请求示例见 **[API.md](./API.md)**。
 
-> ⚠️ **鉴权说明**：默认监听 `http://127.0.0.1:23333`（回环地址）时**免令牌**即可调用，便于本机脚本使用。一旦绑定到**非回环地址**（如 `0.0.0.0`），BBDown 会强制要求令牌鉴权：若未通过 `--serve-token` 指定，会自动生成一个令牌并打印到控制台，客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数；令牌不匹配一律返回 `401`。即使如此，服务器仍默认开启 CORS（`AllowAnyOrigin`），且令牌只防未授权调用、不验证调用方身份，因此**请勿暴露到公网**。需要跨机器访问时请自行加反向代理与 TLS，并显式指定 `serve -l http://0.0.0.0:23333`。
+> ⚠️ **鉴权说明**：默认监听 `http://127.0.0.1:23333`（回环地址）时**免令牌**即可调用，便于本机脚本使用。一旦绑定到**非回环地址**（如 `0.0.0.0`），BBDown 会强制要求令牌鉴权：若未通过 `--serve-token` 指定，会自动生成一个令牌并打印到控制台，客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数；令牌不匹配一律返回 `401`。服务器**默认完全关闭 CORS**（不发送 `Access-Control-Allow-Origin` 头），仅当显式 `--cors-origin <url>` 时才对该单一来源开放；无论是否开 CORS，令牌都只防未授权调用、不验证调用方身份，因此**请勿暴露到公网**。需要跨机器访问时请自行加反向代理与 TLS，并显式指定 `serve -l http://0.0.0.0:23333`。
 
 ## 数据文件格式
 
