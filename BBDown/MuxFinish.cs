@@ -29,7 +29,7 @@ internal static class MuxFinish
         }
     }
 
-    private static void CleanupTempFiles(PageContext pageCtx, string videoPath, string audioPath, List<Subtitle> subtitleInfo, List<AudioMaterial> audioMaterial)
+    internal static void Cleanup(PageContext pageCtx, string videoPath, string audioPath, List<Subtitle> subtitleInfo, List<AudioMaterial> audioMaterial)
     {
         Log("清理临时文件...");
         SafeDelete(videoPath);
@@ -62,7 +62,4 @@ internal static class MuxFinish
 
         TryDeleteEmptyDir(pageCtx.TempDir);
     }
-
-    internal static void Cleanup(PageContext pageCtx, string videoPath, string audioPath, List<Subtitle> subtitleInfo, List<AudioMaterial> audioMaterial)
-        => CleanupTempFiles(pageCtx, videoPath, audioPath, subtitleInfo, audioMaterial);
 }

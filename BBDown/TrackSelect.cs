@@ -122,7 +122,7 @@ internal static partial class TrackSelect
     /// <summary>
     /// 引导用户进行手动选择轨道
     /// </summary>
-    private static void SelectTrackManually(ParsedResult parsedResult, ref int vIndex, ref int aIndex)
+    internal static void PickTracks(ParsedResult parsedResult, ref int vIndex, ref int aIndex)
     {
         if (parsedResult.VideoTracks.Count != 0)
         {
@@ -151,7 +151,7 @@ internal static partial class TrackSelect
         }
     }
 
-    private static int SelectDfnManually(List<string> dfns)
+    internal static int PickDfn(List<string> dfns)
     {
         var i = 0;
         dfns.ForEach(key => LogColor($"{i++}.{Config.GetQualityName(key)}"));
@@ -166,10 +166,4 @@ internal static partial class TrackSelect
         Console.ResetColor();
         return vIndex;
     }
-
-    internal static void PickTracks(ParsedResult parsedResult, ref int vIndex, ref int aIndex)
-        => SelectTrackManually(parsedResult, ref vIndex, ref aIndex);
-
-    internal static int PickDfn(List<string> dfns)
-        => SelectDfnManually(dfns);
 }

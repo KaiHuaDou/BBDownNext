@@ -21,9 +21,9 @@ namespace BBDown;
 
 internal static class FlvDownload
 {
-    private static async Task<PageOutcome> DownloadFlvAsync(ParsedResult parsedResult, DownloadOptions myOption, WorkContext ctx, PageContext pageCtx,
-        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
+    internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, bool selected, CancellationToken ct = default)
     {
+        var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask) = session;
         var p = pageCtx.Page;
         List<AudioMaterial> audioMaterial = [];
         var reParsed = false;
@@ -83,7 +83,7 @@ internal static class FlvDownload
                 return PageOutcome.Abort(selected);
             }
 
-            var clipPaths = await FetchClipsAsync(clips, pageCtx, downloadConfig, ct);
+            var clipPaths = await DownloadClipsAsync(clips, pageCtx, downloadConfig, ct);
 
             Log($"下载 P{p.index} 完毕");
             Log("开始合并分片...");
@@ -131,7 +131,7 @@ internal static class FlvDownload
         }
     }
 
-    private static async Task<List<string>> DownloadFlvClipsAsync(List<string> clips, PageContext pageCtx, DownloadConfig downloadConfig, CancellationToken ct = default)
+    private static async Task<List<string>> DownloadClipsAsync(List<string> clips, PageContext pageCtx, DownloadConfig downloadConfig, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
         var pad = string.Empty.PadRight(clips.Count.ToString().Length, '0');
@@ -146,11 +146,4 @@ internal static class FlvDownload
 
         return clipPaths;
     }
-
-    internal static Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadOptions myOption, WorkContext ctx, PageContext pageCtx,
-        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
-        => DownloadFlvAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
-
-    internal static Task<List<string>> FetchClipsAsync(List<string> clips, PageContext pageCtx, DownloadConfig downloadConfig, CancellationToken ct = default)
-        => DownloadFlvClipsAsync(clips, pageCtx, downloadConfig, ct);
 }

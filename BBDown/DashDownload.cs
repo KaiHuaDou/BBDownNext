@@ -21,9 +21,9 @@ namespace BBDown;
 
 internal static class DashDownload
 {
-    private static async Task<PageOutcome> DownloadDashAsync(ParsedResult parsedResult, DownloadOptions myOption, WorkContext ctx, PageContext pageCtx,
-        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
+    internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, bool selected, CancellationToken ct = default)
     {
+        var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask) = session;
         var p = pageCtx.Page;
 
         if (parsedResult.VideoTracks.Count == 0)
@@ -85,7 +85,7 @@ internal static class DashDownload
         var savePath = SavePath.Build(ctx, pageCtx, selectedVideo, selectedAudio);
         LogDebug("Format After: " + savePath);
 
-        if (ctx.DownloadDanmaku && await PageAssets.DownloadDanmakuAsync(myOption, ctx, pageCtx, savePath, downloadConfig, ct))
+        if (ctx.DownloadDanmaku && await PageAssets.DownloadDanmakuAsync(session, savePath, ct))
         {
             return PageOutcome.Abort(selected);
         }
@@ -191,8 +191,4 @@ internal static class DashDownload
         MuxFinish.Cleanup(pageCtx, videoPath, audioPath, subtitleInfo, audioMaterial);
         return PageOutcome.Done(savePath, selected);
     }
-
-    internal static Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadOptions myOption, WorkContext ctx, PageContext pageCtx,
-        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
-        => DownloadDashAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
 }

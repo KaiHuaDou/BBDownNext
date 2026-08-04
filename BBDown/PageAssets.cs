@@ -21,7 +21,7 @@ namespace BBDown;
 
 internal static class PageAssets
 {
-    private static async Task<List<Subtitle>> PrepareCoverAndSubtitlesAsync(DownloadOptions myOption, WorkContext ctx, PageContext pageCtx, CancellationToken ct = default)
+    internal static async Task<List<Subtitle>> PrepareAsync(DownloadOptions myOption, WorkContext ctx, PageContext pageCtx, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
         Directory.CreateDirectory(pageCtx.TempDir);
@@ -72,8 +72,9 @@ internal static class PageAssets
         File.Move(s.path, outSubPath, true);
     }
 
-    private static async Task<bool> DownloadDanmakuAsyncCore(DownloadOptions myOption, WorkContext ctx, PageContext pageCtx, string savePath, DownloadConfig downloadConfig, CancellationToken ct = default)
+    internal static async Task<bool> DownloadDanmakuAsync(DownloadSession session, string savePath, CancellationToken ct = default)
     {
+        var (myOption, ctx, pageCtx, _, downloadConfig, _) = session;
         var p = pageCtx.Page;
         var danmakuXmlPath = Path.ChangeExtension(savePath, ".xml");
         var danmakuAssPath = Path.ChangeExtension(savePath, ".ass");
@@ -110,10 +111,4 @@ internal static class PageAssets
 
         return true;
     }
-
-    internal static Task<List<Subtitle>> PrepareAsync(DownloadOptions myOption, WorkContext ctx, PageContext pageCtx, CancellationToken ct = default)
-        => PrepareCoverAndSubtitlesAsync(myOption, ctx, pageCtx, ct);
-
-    internal static Task<bool> DownloadDanmakuAsync(DownloadOptions myOption, WorkContext ctx, PageContext pageCtx, string savePath, DownloadConfig downloadConfig, CancellationToken ct = default)
-        => DownloadDanmakuAsyncCore(myOption, ctx, pageCtx, savePath, downloadConfig, ct);
 }

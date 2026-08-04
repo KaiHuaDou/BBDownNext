@@ -34,7 +34,7 @@ internal static class PageDownload
         }
     }
 
-    private static async Task<PageOutcome> DownloadPageAsync(Page p, DownloadOptions myOption, WorkContext ctx, List<Page> selectedPagesInfo, DownloadTask? relatedTask = null, CancellationToken ct = default)
+    internal static async Task<PageOutcome> RunAsync(Page p, DownloadOptions myOption, WorkContext ctx, List<Page> selectedPagesInfo, DownloadTask? relatedTask = null, CancellationToken ct = default)
     {
         var pageCtx = BuildPageContext(p, ctx, selectedPagesInfo);
         List<Subtitle> subtitleInfo = [];
@@ -71,8 +71,8 @@ internal static class PageDownload
                     File.WriteAllText(Path.Combine(ctx.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.RawResponse);
                 }
 
-                var downloadConfig = BuildDownloadConfig(myOption, ctx.Cfg, relatedTask);
-                outcome = await DispatchAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
+                var session = new DownloadSession(myOption, ctx, pageCtx, subtitleInfo, BuildDownloadConfig(myOption, ctx.Cfg, relatedTask), relatedTask);
+                outcome = await DispatchAsync(parsedResult, session, selected, ct);
 
                 selected = outcome.Selected;
                 if (outcome.Aborted)
@@ -171,17 +171,16 @@ internal static class PageDownload
         };
     }
 
-    private static async Task<PageOutcome> DownloadTracksAsync(ParsedResult parsedResult, DownloadOptions myOption, WorkContext ctx, PageContext pageCtx,
-        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
+    private static async Task<PageOutcome> DispatchAsync(ParsedResult parsedResult, DownloadSession session, bool selected, CancellationToken ct = default)
     {
         if ((parsedResult.VideoTracks.Count != 0 || parsedResult.AudioTracks.Count != 0) && parsedResult.Clips.Count == 0)
         {
-            return await DashDownload.RunAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
+            return await DashDownload.RunAsync(parsedResult, session, selected, ct);
         }
 
         if (parsedResult.Clips.Count != 0 && parsedResult.Dfns.Count != 0)
         {
-            return await FlvDownload.RunAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
+            return await FlvDownload.RunAsync(parsedResult, session, selected, ct);
         }
 
         LogError("解析此分 P 失败（使用 --debug 以查看详细信息）");
@@ -193,11 +192,4 @@ internal static class PageDownload
         LogDebug("{0}", parsedResult.RawResponse);
         return PageOutcome.Done("", selected);
     }
-
-    internal static Task<PageOutcome> RunAsync(Page p, DownloadOptions myOption, WorkContext ctx, List<Page> selectedPagesInfo, DownloadTask? relatedTask = null, CancellationToken ct = default)
-        => DownloadPageAsync(p, myOption, ctx, selectedPagesInfo, relatedTask, ct);
-
-    internal static Task<PageOutcome> DispatchAsync(ParsedResult parsedResult, DownloadOptions myOption, WorkContext ctx, PageContext pageCtx,
-        List<Subtitle> subtitleInfo, DownloadConfig downloadConfig, DownloadTask? relatedTask, bool selected, CancellationToken ct = default)
-        => DownloadTracksAsync(parsedResult, myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask, selected, ct);
 }
