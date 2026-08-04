@@ -1,20 +1,17 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
 using BBDown.Core.Entity;
 
-using static BBDown.DownloadUtil;
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Parser;
-using static BBDown.Core.Util.FileNameUtil;
+using static BBDown.DownloadUtil;
 using static BBDown.Utils;
+
 using PageOutcome = BBDown.PageDownload.PageOutcome;
 
 namespace BBDown;
@@ -39,7 +36,7 @@ internal static class FlvDownload
             {
                 vIndex = TrackSelect.PickDfn(dfns);
                 // 重新解析
-                parsedResult.VideoTracks.Clear();
+                parsedResult.VideoTracks.Clear( );
                 parsedResult = await ExtractTracksAsync(ctx.FetchedAid, p.aid, p.cid, p.epid,
                     myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.FirstEncoding, ctx.Cfg, dfns[vIndex], ct);
                 if (p.points.Count == 0)
@@ -54,16 +51,7 @@ internal static class FlvDownload
 
             CdnHost.Apply(myOption, clips, ctx.Cfg);
 
-            Log($"共计 {parsedResult.VideoTracks.Count} 条流（共有 {clips.Count} 个分段）。");
-            var index = 0;
-            foreach (var v in parsedResult.VideoTracks)
-            {
-                LogColor($"{index++}. [{v.dfn}] [{v.res}] [{v.codecs}] [{v.fps}] [~{v.size / 1024 / v.dur * 8:00} kbps] [{FormatFileSize(v.size)}]".Replace("[] ", ""), false);
-                if (myOption.OnlyShowInfo)
-                {
-                    clips.ForEach(Console.WriteLine);
-                }
-            }
+            TrackSelect.PrintFlvTracksInfo(parsedResult, clips, myOption.OnlyShowInfo);
 
             if (myOption.OnlyShowInfo)
             {
@@ -103,7 +91,7 @@ internal static class FlvDownload
     private static async Task<List<string>> DownloadClipsAsync(List<string> clips, PageContext pageCtx, DownloadConfig downloadConfig, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
-        var pad = string.Empty.PadRight(clips.Count.ToString().Length, '0');
+        var pad = string.Empty.PadRight(clips.Count.ToString( ).Length, '0');
         var clipPaths = new List<string>(clips.Count);
         for (var i = 0; i < clips.Count; i++)
         {
