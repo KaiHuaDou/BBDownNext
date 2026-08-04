@@ -131,7 +131,7 @@ BBDown opus 1230485246732926996
 - **视频页 URL**：`https://www.bilibili.com/video/BV...`（可用 `?p=` 指定分 P）
 - **短链**：`b23.tv/...`
 - **裸编号**：`av{数字}`、`BV{字符}`、`ep{数字}`、`ss{数字}`、纯数字按 `ep` 解析（如 `402787936`）、`space{mid}`
-- **番剧 / 影视 / 课程**：`/bangumi/play/...`、`/cheese/...`、番剧 `md{数字}` 详情页、`/ss{季_id}`
+- **番剧 / 影视 / 课程**：`/bangumi/play/...`、`/cheese/...`、番剧 `md{数字}` 详情页（如 `https://www.bilibili.com/bangumi/media/md2539`，或简写 `md2539`）、`/bangumi/play/ss{季_id}`（或简写 `ss{数字}`）。`md` 与 `ss` 两种入口**均默认下载整季全部正片分集**（不含 OP/ED/PV 等 `section` 内容，可用 `-p` 指定具体集）；`ep{数字}` 则只下载该单集。
 - **合集 / 系列**：UP 主空间的 `lists/` 页面（`business=space_collection` 为合集，`business=space_series` 为系列）
 - **收藏夹**：UP 主空间的 `favlist` 页面
 - **空间投稿列表**：UP 主空间首页 / `upload/video` / `video?tid=0`，也可直接传 UP mid（`402787936`）或 `space402787936`。默认按**最新发布**（`pubdate`）倒序拉取**全部**投稿；课堂视频、无法解析的稿件（直播回放 / 充电专属 / 已删除等）会**跳过并告警**，不中断整批。

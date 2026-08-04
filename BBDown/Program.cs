@@ -19,9 +19,16 @@ internal sealed class Program
 {
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
-        // 抑制运行时默认的进程终止，改为靠令牌优雅取消
         e.Cancel = true;
-        LogWarn("收到取消信号，正在安全退出...");
+
+        // 这样“正在退出”不会被残留的渲染定时器冲掉；随后换行再打印提示
+        AppEnv.Cancel( );
+        if (!Console.IsOutputRedirected)
+        {
+            Console.WriteLine( );
+        }
+
+        LogWarn("收到取消信号，正在退出...");
         try
         {
             Console.ResetColor( );

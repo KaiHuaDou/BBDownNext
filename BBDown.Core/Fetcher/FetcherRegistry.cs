@@ -71,10 +71,18 @@ public static class FetcherRegistry
                 ? await IntlBangumiInfoFetcher.FetchAsync(id, cfg, ct)
                 : await BangumiInfoFetcher.FetchAsync(id, cfg, ct);
         }
-        catch (BangumiNotFoundException)
+        catch (BangumiNotFoundException ex)
         {
+            var rawId = id[IdPrefix.EpColon.Length..];
+            // 非纯数字 id（含 md/整季的 "ss{season_id}" 形态）不做课程回退：课程接口 id 空间稠密，
+            // 静默命中无关课程风险极高；仅纯数字 ep_id 查不到番剧时才允许回退。
+            if (!long.TryParse(rawId, out _))
+            {
+                throw new InvalidOperationException($"未找到番剧信息，且无安全的课程回退（id={rawId}）。", ex);
+            }
+
             LogWarn("未找到此 EP/SS 对应番剧信息，正在尝试按课程查找。");
-            return await CheeseInfoFetcher.FetchAsync(IdPrefix.Cheese + id[IdPrefix.EpColon.Length..], cfg, ct);
+            return await CheeseInfoFetcher.FetchAsync(IdPrefix.Cheese + rawId, cfg, ct);
         }
     }
 }

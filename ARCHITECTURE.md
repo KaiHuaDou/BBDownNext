@@ -118,7 +118,9 @@ BBDown/
 用户输入
   │
   ▼
-InputResolver.ResolveAsync      URL/av/BV/ep/ss/合集/系列/收藏夹/空间/b23.tv → 内部 avid
+InputResolver.ResolveAsync      URL/av/BV/ep/ss/md/合集/系列/收藏夹/空间/b23.tv → 内部 avid
+  │  md{数字} 详情页 → pgc/review/user 映射出 season_id → 编码为 ep:ss{季_id}（整季形态）
+  │  ss{数字} 季号 → pgc/view/web/season 取 season_id → 同样编码为 ep:ss{季_id}（整季形态，与 md 对称）
   │
   ▼
 FetcherRegistry.FetchAsync     按 IdPrefix 分发给对应 Fetcher → VInfo(分P列表/标题/封面…)

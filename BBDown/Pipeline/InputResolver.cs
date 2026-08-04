@@ -59,7 +59,7 @@ internal static partial class InputResolver
 
         if (input.Contains("/ss"))
         {
-            return $"ep:{await GetEpIdByBangumiSSIdAsync(SsRegex( ).Match(input).Groups[1].Value, cfg)}";
+            return $"ep:{await GetSeasonIdBySSAsync(SsRegex( ).Match(input).Groups[1].Value, cfg)}";
         }
 
         if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_collection")) // 列表类型是合集
@@ -110,7 +110,7 @@ internal static partial class InputResolver
 
         if (BangumiMdRegex( ).Match(input) is { Success: true } md)
         {
-            return $"{IdPrefix.EpColon}{await GetEpIdByMDAsync(md.Groups[1].Value, cfg)}";
+            return $"{IdPrefix.EpColon}{await GetSeasonIdByMDAsync(md.Groups[1].Value, cfg)}";
         }
 
         return $"{IdPrefix.EpColon}{await ScrapeFirstEpIdAsync(input, cfg)}";
@@ -140,12 +140,12 @@ internal static partial class InputResolver
 
         if (input.StartsWith(IdPrefix.Ss))
         {
-            return $"{IdPrefix.EpColon}{await GetEpIdByBangumiSSIdAsync(input[IdPrefix.Ss.Length..], cfg)}";
+            return $"{IdPrefix.EpColon}{await GetSeasonIdBySSAsync(input[IdPrefix.Ss.Length..], cfg)}";
         }
 
         if (input.StartsWith(IdPrefix.Md))
         {
-            return $"ep:{await GetEpIdByMDAsync(MdRegex( ).Match(input).Groups[1].Value, cfg)}";
+            return $"{IdPrefix.EpColon}{await GetSeasonIdByMDAsync(MdRegex( ).Match(input).Groups[1].Value, cfg)}";
         }
 
         // space402787936：显式空间简写（先判 space 再判裸数字，避免裸数字分支误吞）
@@ -220,22 +220,29 @@ internal static partial class InputResolver
         return Core.Util.BilibiliBvConverter.Decode(bv).ToString( );
     }
 
-    private static async Task<string> GetEpIdByBangumiSSIdAsync(string ssId, Core.AppConfig cfg)
+    // ss（番剧季号）直接解析为 season_id 编码，产出 "ss{seasonId}" 形态，
+    // 与 md 路径完全对称：同样交由 BangumiInfoFetcher 按 season_id 拉取整季正片（Index=""）。
+    // 这样 ss / md 两种入口得到完全一致的内部 id（ep:ss{season_id}），无特判、零跨层改动。
+    private static async Task<string> GetSeasonIdBySSAsync(string ssId, Core.AppConfig cfg)
     {
         var api = $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?season_id={ssId}";
         var json = await GetWebSourceAsync(api, cfg);
         using var jDoc = JsonDocument.Parse(json);
-        var epId = jDoc.RootElement.GetProperty("result").GetProperty("episodes").EnumerateArray( ).First( ).GetProperty("id").ToString( );
-        return epId;
+        var result = BBDown.Core.Util.JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result");
+        return $"ss{result.GetProperty("season_id").ToString( )}";
     }
 
-    private static async Task<string> GetEpIdByMDAsync(string mdId, Core.AppConfig cfg)
+    // md（番剧详情页 id）本质是 media_id，需经 pgc/review/user 映射出 season_id。
+    // 返回 "ss{seasonId}" 形态，交由 BangumiInfoFetcher 按 season_id 拉取整季正片，
+    // 与 cheese 的 ss 形态编码保持一致，从而无需新增内部 id 前缀、playurl 判定零改动。
+    // 旧实现取 new_ep.id（最新一集）改为整季，用户可用 -p 选定具体集。
+    private static async Task<string> GetSeasonIdByMDAsync(string mdId, Core.AppConfig cfg)
     {
         var api = $"{BiliApi.ReviewUser}?media_id={mdId}";
         var json = await GetWebSourceAsync(api, cfg);
         using var jDoc = JsonDocument.Parse(json);
-        var epId = jDoc.RootElement.GetProperty("result").GetProperty("media").GetProperty("new_ep").GetProperty("id").ToString( );
-        return epId;
+        var media = BBDown.Core.Util.JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result").GetProperty("media");
+        return $"ss{media.GetProperty("season_id").ToString( )}";
     }
 
     [GeneratedRegex("av(\\d+)")]
@@ -250,7 +257,7 @@ internal static partial class InputResolver
     private static partial Regex UidRegex( );
     [GeneratedRegex(@"\.bilibili\.tv\/\w+\/play\/\d+\/(\d+)")]
     private static partial Regex GlobalEpRegex( );
-    [GeneratedRegex("bangumi/media/(md\\d+)")]
+    [GeneratedRegex("bangumi/media/md(\\d+)")]
     private static partial Regex BangumiMdRegex( );
     [GeneratedRegex(@"window.__INITIAL_STATE__=([\s\S].*?);\(function\(\)")]
     private static partial Regex StateRegex( );

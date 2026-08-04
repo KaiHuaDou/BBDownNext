@@ -1,0 +1,109 @@
+# 更新日志
+
+本项目的所有显著变更都将记录在此文件中。
+
+本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 约定，文件格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
+
+本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
+
+## [Unreleased]
+
+对应 `v2.0.0-alpha.1` → `HEAD` 的代码变更（尚未发布）。
+
+### 新增
+
+- 专栏 / 图文动态下载：新增独立 `opus` 子命令，支持图文导出；新增 `--no-images` 选项（导出专栏时不下载图片，Markdown 中保留远程图片链接）。
+- UP 主空间投稿列表下载：URL 或 `space{mid}` 解析为空间投稿列表。
+- 充电专属视频试看识别：命中试看片段时默认中止并提示，加 `--allow-preview` 可放行（输出文件名带 `[试看]` 前缀）。
+- serve 新增 CORS 支持：仅当显式传入 `--cors-origin` 时才对该单一来源开放，默认关闭。
+- 番剧详情页（`md{数字}`）解析为对应番剧，默认下载整季全部正片分集（`md2539` 或 `https://www.bilibili.com/bangumi/media/md2539`；内部编码为 `ep:ss{季_id}`，复用既有番剧整季链路）。
+
+### 变更
+
+- 主项目按职责拆分命名空间与子文件夹（`Cli` / `Pipeline` / `Media` / `Mux` / `Serve` / `Download` / `Auth` / `Util`），并引入 `DownloadSession` / `DownloadTask` / `PageOutcome` / `AppEnv` 等贯穿全链路的契约类型。
+- CLI 与 serve 共用统一的三段式下载主干；分 P 下载改用 `DownloadSession` 传参。
+- Core 接口层拆分出 `PlayUrl` / `SignUtil` / `ViewPointUtil`（内部架构调整）。
+- serve 进一步加固（SSRF 防护等）。
+- 进度条采样逻辑重构，进度更新上移至 `DownloadTask`。
+- 统一 DASH / FLV 混流收尾逻辑；`TrackSelect` 收口交互选轨与 FLV 流信息打印。
+- 文案打磨、启用 HTTP/2、收藏夹多 P 并行拉取。
+- `ss{数字}` 番剧季号默认下载整季（原仅下载首集），与 `md` 入口行为对齐；`ss` / `md` 均编码为 `ep:ss{季_id}`，无需新增内部 id 前缀。
+
+### 修复
+
+- FLV 分支拒绝 HEVC / AV1 轨道。
+- 修复交互选轨越界。
+- 修复 `--cover-only` 与 FLV `isHevc` 判定问题。
+- 修复番剧详情页 URL 正则误捕获 `md` 前缀，导致 `?media_id=md2539` 返回 `-400` 的解析失败。
+- 番剧 / 季号接口查不到时不再因缺 `result` 抛出 `KeyNotFoundException`，改为带错误码的可读异常；`ss` 形态与非纯数字 id 不再静默回退课程接口，避免误命中 id 空间稠密、毫不相关的课程。
+
+## [2.0.0-alpha.1] - 2026-08-03
+
+对应 `259a5558…` → `v2.0.0-alpha.1` 的代码变更（2.0 首个 alpha 预发布，含一次大规模架构重构）。
+
+### 新增
+
+- 断点续传：基于显式分片清单 + SHA256 指纹（`PartFile`），新增 `--stop-on-error` 选项（遇错停止而非全程重试）。
+- 凭据统一为单一 `BBDown.data` 文件（JSON 源生成器序列化，Cookie / refresh_token / TV / APP 凭据合并存储、互不覆盖）。
+- 登录逻辑整合为统一的 `Login` 流程：Web / TV / APP 三态登录，扫码登录抽离为可测接口，落地 `refresh_token` 合并与主动续期。
+- 新增 `InputResolver` 统一输入解析（av / BV / ep / ss / cheese / 收藏夹 / 合集 / 系列 / 空间等）。
+- 重写配置文件解析为 `ConfigParser`，选项 `--config`（原 `--config-file`）。
+- 新增选项：`--all`（下载全部分 P）、`--no-metadata`（不写元数据），以及短选项别名 `-a` / `-d` / `-s` / `-v`。
+- 多 P 选择语法增强（`--select-page`）。
+- 发布产物改为 AOT 单文件原生可执行（无需安装 .NET 运行时）。
+
+### 变更
+
+- 命令行解析迁移到 System.CommandLine。
+- 大量 CLI 选项重命名 / 反转（升级时请注意）：
+  - `--config-file` → `--config`
+  - `--download-danmaku` → `--danmaku`（新增短选项 `-d`）；`--download-danmaku-formats` → `--danmaku-formats`
+  - `--use-app-api` → `--app-api`；`--use-tv-api` → `--tv-api`；`--use-intl-api` → `--intl-api`；`--use-aria2c` → `--aria2c`；`--use-mp4box` → `--mp4box`
+  - `--save-archives-to-file` → `--save-records`
+  - `--language` → `--lang`
+  - `--skip-cover` → `--no-cover`；`--skip-subtitle` → `--no-sub`
+  - `--only-show-info` → `--show-info`
+  - 选项反转：`--force-http` → `--no-force-http`；`--force-replace-host` → `--no-force-host`；`--multi-thread` → `--single-thread`；`--skip-ai` → `--allow-ai`
+- WBI 签名与请求头对齐 bilibili-API-collect。
+- 临时文件生命周期改为显式分片清单 + try/finally + 重试删除，避免音视频临时文件互相污染。
+- Ctrl+C 优雅取消（`CancellationToken`）贯穿全链路（含外部子进程取消时杀进程）。
+- aria2c / ffmpeg / mp4box 改用 `ArgumentList` 拼参。
+- 字幕处理合并为候选表，语言映射改为数据表；番剧 → 课程回退改用语义化异常与候选链。
+- 日志格式精简。
+- 整库代码现代化、消除全部编译器警告、固化 `.editorconfig`、移除 ImplicitUsings 并补全显式 using、AOT 友好改造。
+
+### 已弃用
+
+- 删除兼容旧版本命令行参数的代码。
+
+### 移除
+
+- 彻底移除 Docker 支持（`Dockerfile` 删除）。
+- 移除一批 CLI 选项：`--only-av1` / `--only-avc` / `--only-hevc`（编解码选择）、`--bandwith-ascending`、`--add-dfn-subfix`、`--aria2c-proxy`、`--no-padding-page-num`、`--show-all`、`--simply-mux`。
+- 删除 `BBDownConfigParser` / `BBDownDownloadUtil` / `BBDownLoginUtil` / `BBDownMuxer` / `BBDownEnums` 等巨型 god-class（拆分为职责单一的模块）。
+- 删除 `json-api-doc.md`。
+
+### 修复
+
+- 修复 Web 扫码登录取不到 Cookie / SESSDATA。
+- 修复 gRPC 帧解析、收藏夹 id 拆分、bvid 转换等越界崩溃点。
+- 重试合并为单层指数退避，异常不再静默吞掉。
+- 未收录的 qn 不再抛 `KeyNotFoundException`。
+- 修复 ASS 弹幕时间戳在分钟边界进位成 60 秒、颜色解析失败时产出畸形 ASS 标签。
+- 修复混流失败此前永远检测不到、MergeFLV 绕过 `--ffmpeg-path`。
+- 修复 serve 短任务导致接口 500（任务表改无锁并发容器）。
+- 修复 dash 取流死循环。
+- cheese：消除 ss 冗余请求、intl 自动回退、过滤锁定分集。
+- 消除 JSON 子串嗅探，改用结构化判定。
+- 修复 `--host` / `--ep-host` / `--tv-host` 默认值被覆盖为空的回归、以及配置文件完全失效。
+- 补齐 `HttpResponseMessage` / `JsonDocument` 释放，消除跨文档悬垂 `JsonElement`。
+
+### 安全
+
+- 整体安全加固。
+- serve 不再接受请求注入可执行路径、附加参数与工作目录；不再改写进程全局 `CurrentDirectory`，落盘路径全部绝对化。
+- 可执行文件查找不再优先当前目录。
+- aria2c / ffmpeg / mp4box 改用 `ArgumentList`，消除命令行参数注入。
+
+[Unreleased]: https://github.com/KaiHuaDou/BBDown/compare/v2.0.0-alpha.1...HEAD
+[2.0.0-alpha.1]: https://github.com/KaiHuaDou/BBDown/compare/259a5558cee0a349a7ebb60bd31e40c88e5bc1ed...v2.0.0-alpha.1

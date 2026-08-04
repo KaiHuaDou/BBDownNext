@@ -16,6 +16,10 @@ public static partial class IntlBangumiInfoFetcher
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
     {
         id = id[IdPrefix.EpColon.Length..];
+        if (id.StartsWith("ss"))
+        {
+            throw new NotSupportedException("国际版番剧接口(--intl-api)不支持 md/整季输入，请改用具体 ep 号，或去掉 --intl-api。");
+        }
         var host = cfg.Host == BiliApi.MainHost ? BiliApi.IntlAppHost : cfg.Host;
         var accessKey = cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "";
         var api = $"https://{host}{BiliApi.IntlSeasonAppPath}?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a{accessKey}";

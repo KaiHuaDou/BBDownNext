@@ -20,6 +20,7 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
     private readonly Timer? sampleTimer;
     private readonly Action<double, long>? onSample;
     private readonly bool drawToConsole = !Console.IsOutputRedirected;
+    private readonly CancellationToken cancelToken;
 
     // 以下字段只在持有 gate 时访问
     private string renderedText = string.Empty;
@@ -30,9 +31,10 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
 
     // 每个采样周期回调一次 (总进度，本周期新增字节数)，供控制台之外的观察者（如 serve 模式的下载任务）
     // 获取进度；为 null 时进度条只负责画控制台。
-    public ProgressBar(Action<double, long>? onSample = null)
+    public ProgressBar(Action<double, long>? onSample = null, CancellationToken ct = default)
     {
         this.onSample = onSample;
+        cancelToken = ct;
         // 输出被重定向时画进度条只会往目标文件里灌一堆退格符，所以不画；
         // 但观察者不关心 stdout 去了哪，此时仍需继续采样
         if (drawToConsole)
@@ -87,7 +89,7 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
     {
         lock (gate)
         {
-            if (disposed)
+            if (disposed || cancelToken.IsCancellationRequested)
             {
                 return;
             }
@@ -103,7 +105,7 @@ internal sealed class ProgressBar : IDisposable, IProgress<double>
     // 只回退并重写与上一帧不同的那段后缀，整行重画会闪。
     private void Draw(string text)
     {
-        if (!drawToConsole)
+        if (!drawToConsole || cancelToken.IsCancellationRequested)
         {
             return;
         }

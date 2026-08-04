@@ -60,7 +60,7 @@ internal static class PageDownload
                 if (IsTruncatedPreview(playerInfo.UpowerExclusive, p.dur, parsedResult.Duration))
                 {
                     LogWarn(string.IsNullOrEmpty(playerInfo.UpowerTitle) ? "充电专属视频" : playerInfo.UpowerTitle);
-                    LogWarn($"当前账号没有该 UP 主的充电权限，接口只返回了 {FormatTime(parsedResult.Duration, true)} 的试看片段（完整视频 {FormatTime(p.dur, true)}）", false);
+                    LogWarn($"当前账号未充电该 UP 主，只能获取 {FormatTime(parsedResult.Duration, true)} 的试看片段（完整视频 {FormatTime(p.dur, true)}）", false);
                     // 这三个开关都不产出视频文件，中止反而挡掉用户诊断问题的手段
                     if (myOption.OnlyShowInfo || myOption.CoverOnly || myOption.DanmakuOnly)
                     {
@@ -68,13 +68,11 @@ internal static class PageDownload
                     }
                     else if (myOption.AllowPreview)
                     {
-                        LogWarn("已按 --allow-preview 继续，输出文件名将带 [试看] 前缀", false);
                         pageCtx = pageCtx with { IsPreview = true };
                     }
                     else
                     {
-                        LogWarn("已跳过。如需下载试看片段，请加 --allow-preview", false);
-                        throw new ChargedPreviewException($"P{p.index}（{p.aid}）为充电专属试看片段，已跳过");
+                        throw new ChargedPreviewException($"P{p.index}（{p.aid}）为充电视频试看片段，已跳过。");
                     }
                 }
 
