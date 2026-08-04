@@ -48,7 +48,7 @@ internal sealed class Program
         Console.CancelKeyPress += Console_CancelKeyPress;
 
         var rootCommand = CommandLineInvoker.GetRootCommand(myOption => RunApp(myOption, opusCommand: false));
-        rootCommand.Description = "BBDown 是一个免费、便捷且高效的哔哩哔哩视频下载 / 解析命令行工具。";
+        rootCommand.Description = "BBDown 是一个哔哩哔哩视频下载 / 解析命令行工具。";
         rootCommand.TreatUnmatchedTokensAsErrors = false;
 
         var loginTvOption = new Option<bool>("--tv") { Description = "登录 TV 账号（默认登录 WEB 账号）" };
@@ -131,7 +131,7 @@ internal sealed class Program
         Console.BackgroundColor = ConsoleColor.DarkBlue;
         Console.ForegroundColor = ConsoleColor.White;
         var ver = System.Reflection.Assembly.GetExecutingAssembly( ).GetName( ).Version!;
-        Console.Write($"BBDown version {ver.Major}.{ver.Minor}.{ver.Build}, Bilibili Downloader.");
+        Console.Write($"BBDown Next v{ver.Major}.{ver.Minor}.{ver.Build}");
         Console.ResetColor( );
         Console.WriteLine( );
         Console.WriteLine( );

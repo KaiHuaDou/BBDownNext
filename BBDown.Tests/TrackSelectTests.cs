@@ -1,14 +1,15 @@
 using System.Collections.Generic;
 
 using BBDown.Core;
-using BBDown.Core.Entity;
 using BBDown.Media;
+
+using static BBDown.Core.Entity.Entity;
 
 namespace BBDown.Tests;
 
 public class TrackSelectTests
 {
-    private static Video V(string id, long bandwidth) => new( ) { id = id, bandwidth = bandwidth, dfn = Config.GetQualityName(id) };
+    private static Video V(string id, long bandwidth) => new( ) { id = id, bandwidth = bandwidth, dfn = Config.GetQualityName(id), baseUrl = "", codecs = "" };
 
     // 默认（无 -q）时原生 1080P(qn=80) 优先于智能修复(qn=100)，8K 仍最高
     [Fact]

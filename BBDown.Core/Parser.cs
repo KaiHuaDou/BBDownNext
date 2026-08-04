@@ -56,7 +56,7 @@ public static class Parser
             DashTrackReader.Collect(result, firstRoot, maxQnRoot, req.TvApi);
             if (DashTrackReader.DeclaredButMissing(maxQnRoot, result, Config.AiRepairQn))
             {
-                LogWarn("该视频提供「智能修复」画质，但当前账号无权获取，需登录大会员账号后重试。");
+                LogWarn("该视频存在「智能修复」画质，当前账号非大会员无法获取");
             }
 
             if (req.IsEpisode)

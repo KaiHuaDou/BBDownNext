@@ -120,7 +120,8 @@ public class ParserPureFunctionTests
     [Fact]
     public void BuildWebQuery_BangumiRequestsFnvalPgc( )
     {
-        var req = new PlayUrlRequest("ep123", "1", "2", "123", TvApi: false, IntlApi: false, AppApi: false, Encoding: "", AppConfig.Empty);
+        // IsEpisode 认的是带冒号的 "ep:" 内部前缀, 写成 "ep123" 会悄悄落到 UGC 分支
+        var req = new PlayUrlRequest("ep:123", "1", "2", "123", TvApi: false, IntlApi: false, AppApi: false, Encoding: "", AppConfig.Empty);
         Assert.Contains("fnval=12240", PlayUrlClient.BuildWebQuery(req, "0"));
     }
 
@@ -135,7 +136,7 @@ public class ParserPureFunctionTests
     [Fact]
     public void BuildTvQuery_AlwaysFnval4048( )
     {
-        var req = new PlayUrlRequest("ep123", "1", "2", "123", TvApi: true, IntlApi: false, AppApi: false, Encoding: "", AppConfig.Empty);
+        var req = new PlayUrlRequest("ep:123", "1", "2", "123", TvApi: true, IntlApi: false, AppApi: false, Encoding: "", AppConfig.Empty);
         Assert.Contains("fnval=4048", PlayUrlClient.BuildTvQuery(req, "0"));
     }
 

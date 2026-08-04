@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net.Http;
 
 using BBDown.Core;
@@ -47,7 +48,7 @@ public class HTTPUtilTests
     [Fact]
     public void ApplyStandardGetHeaders_BangumiPlayPageCarriesFnvalPgc( )
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://www.bilibili.com/bangumi/play/ep249469");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://www.bilibili.com/bangumi/play/ep249469");
         HTTPUtil.ApplyStandardGetHeaders(request, "https://www.bilibili.com/bangumi/play/ep249469", AppConfig.Empty);
         var cookie = request.Headers.GetValues("Cookie").Single( );
         Assert.Contains("CURRENT_FNVAL=12240", cookie);
@@ -56,7 +57,7 @@ public class HTTPUtilTests
     [Fact]
     public void ApplyStandardGetHeaders_NonBangumiPageOmitsFnval( )
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://www.bilibili.com/video/BV1GJ411x7h7");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://www.bilibili.com/video/BV1GJ411x7h7");
         HTTPUtil.ApplyStandardGetHeaders(request, "https://www.bilibili.com/video/BV1GJ411x7h7", AppConfig.Empty);
         var cookie = request.Headers.GetValues("Cookie").Single( );
         Assert.DoesNotContain("CURRENT_FNVAL", cookie);

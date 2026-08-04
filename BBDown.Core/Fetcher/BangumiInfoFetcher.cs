@@ -85,7 +85,8 @@ public static class BangumiInfoFetcher
         return info;
     }
 
-    // 国内番剧与 INTL 番剧的 episodes 结构一致，共用同一段分集构造
+    // 国内番剧与 INTL 番剧的 episodes 结构一致，共用同一段分集构造；
+    // 据此假定 bstar 的 duration 亦为毫秒（该接口在国内不可达，未实测）
     internal static List<Page> BuildEpisodePages(JsonElement episodes)
     {
         List<Page> pagesInfo = [];
@@ -105,7 +106,7 @@ public static class BangumiInfoFetcher
                 cid = page.GetProperty("cid").ToString( ),
                 epid = page.GetProperty("id").ToString( ),
                 title = (page.GetProperty("title").ToString( ) + " " + page.GetProperty("long_title").ToString( )).Trim( ),
-                dur = 0,
+                dur = ReadDurationSeconds(page),
                 res = ReadDimension(page),
                 pubTime = page.TryGetProperty("pub_time", out var pubTime) ? pubTime.GetInt64( ) : 0,
             });

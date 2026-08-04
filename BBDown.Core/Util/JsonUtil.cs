@@ -67,6 +67,18 @@ public static class JsonUtil
         return $"{width}x{height}";
     }
 
+    // 番剧(pgc season) 的 duration 以毫秒计, 而 UGC pages 与课程 pugv 的同名字段已是秒; 调用方统一按秒存放故在此换算。
+    // TryGetInt64 遇到非 Number 的 ValueKind 会抛而不是返回 false, 需先判类型; 取不到时给 0 而不是抛
+    public static int ReadDurationSeconds(JsonElement parent)
+    {
+        return parent.ValueKind == JsonValueKind.Object
+               && parent.TryGetProperty("duration", out var duration)
+               && duration.ValueKind == JsonValueKind.Number
+               && duration.TryGetInt64(out var milliseconds)
+            ? (int) Math.Round(milliseconds / 1000.0)
+            : 0;
+    }
+
     // B 站接口统一的外层 code/message
     public static (int Code, string Message) ReadApiError(JsonElement root)
     {

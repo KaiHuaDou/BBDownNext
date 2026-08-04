@@ -111,6 +111,21 @@ public class JsonUtilTests
         Assert.Equal(expected, JsonUtil.ReadDimension(Parse(json)));
     }
 
+    // 番剧接口给的是毫秒（实测 ep327325 为 2826000），Page.dur 按秒存放
+    [Theory]
+    [InlineData("""{"duration":2826000}""", 2826)]
+    [InlineData("""{"duration":1500}""", 2)]
+    [InlineData("""{"duration":499}""", 0)]
+    [InlineData("""{"duration":"2826000"}""", 0)]
+    [InlineData("""{"duration":null}""", 0)]
+    [InlineData("""{"duration":2826.5}""", 0)]
+    [InlineData("""{}""", 0)]
+    [InlineData("""[]""", 0)]
+    public void ReadDurationSeconds_ConvertsMillisecondsAndToleratesBadValues(string json, int expected)
+    {
+        Assert.Equal(expected, JsonUtil.ReadDurationSeconds(Parse(json)));
+    }
+
     [Theory]
     [InlineData("""{"code":-403,"message":"访问权限不足"}""", -403, "访问权限不足")]
     [InlineData("""{"code":0}""", 0, "未知错误")]

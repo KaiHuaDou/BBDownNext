@@ -15,7 +15,7 @@ public class EpisodePagesTests
     private const string Episodes = """
         [
           {"id":1,"aid":10,"cid":100,"title":"1","long_title":"起点","pub_time":1700000000,
-           "dimension":{"width":1920,"height":1080}},
+           "duration":2826000,"dimension":{"width":1920,"height":1080}},
           {"id":2,"aid":11,"cid":101,"title":"PV","long_title":"","badge":"预告",
            "dimension":{"width":1920,"height":1080}},
           {"id":3,"aid":12,"cid":102,"title":"2","long_title":"终点"}
@@ -51,6 +51,16 @@ public class EpisodePagesTests
         Assert.Equal(1700000000, pages[0].pubTime);
         Assert.Equal("", pages[1].res);
         Assert.Equal(0, pages[1].pubTime);
+    }
+
+    // 毫秒到秒的换算与脏值容忍在 JsonUtilTests 覆盖，这里只确认 dur 确实被填进 Page
+    [Fact]
+    public void BuildEpisodePages_FillsDurationInSeconds( )
+    {
+        var pages = BangumiInfoFetcher.BuildEpisodePages(Parse(Episodes));
+
+        Assert.Equal(2826, pages[0].dur);
+        Assert.Equal(0, pages[1].dur);
     }
 
     [Fact]

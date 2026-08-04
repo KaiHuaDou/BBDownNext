@@ -3,7 +3,7 @@
 以下方向可用于后续规划（不代表已实装，具体以各版本 Release Notes 与源码为准）：
 
 - [ ] /medialist/play/
-- [ ] 智能修复存在试看，通过检查 API 文档及网络搜索是否能下载试看，如能的话，通过复用--allow-preview 选项允许下载试看
+- [x] 智能修复存在试看（已结题）：经 `bilibili-API-collect/docs/bangumi/videostream_url.md` 与网络搜索确认——智能修复(qn=100) 需 `fnval` 的 8192 位(`FnvalPgc=12240`)+登录大会员，是 PGC/番剧/课程专属特性；充电专属试看是 UGC，playurl 用 `fnval=4048`，UGC 带 8192 位直接 -400，故**试看无法以智能修复画质下载**。试看本身可下载，且 `--allow-preview` 已支持（截断片段+`[试看]` 前缀），无需改动。
 - [ ] 普通 UGC 的 APP 解析改用`bilibili.app.playerunite.v1.Player/PlayViewUnite`，按照编码优先级请求并合并 AVC、HEVC 和 AV1 视频流；PGC 番剧仍使用原接口。
     - APP 最高仅 480P，或低于`--dfn-priority`明确请求的档位时，额外比较一次 WEB 结果。只有 WEB 视频档位更高才合并 WEB 视频，APP 普通、杜比和 Hi-Res 音频保持不变；WEB 比较失败继续使用已有 APP 结果。
     - 集成方可通过隐藏参数`--app-buvid`传入每账号稳定的 37 位 APP 设备标识；未传或格式无效时仅在当前进程内生成稳定临时值。
