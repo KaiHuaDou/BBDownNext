@@ -96,6 +96,7 @@ internal static class DashDownload
             await DownloadFileAsync(pageCtx.CoverUrl, newCoverPath, downloadConfig, ct);
             MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
             relatedTask?.SavePaths.Add(newCoverPath);
+            return PageOutcome.Abort(selected);
         }
 
         Log("已选择的流：");
@@ -103,13 +104,9 @@ internal static class DashDownload
 
         CdnHost.Apply(myOption, selectedVideo, selectedAudio, ctx.Cfg);
 
-        if (File.Exists(savePath) && new FileInfo(savePath).Length != 0)
+        if (MuxFinish.TrySkipExisting(session, savePath, selected) is { } skipped)
         {
-            Log($"{savePath} 已存在，跳过下载...");
-            relatedTask?.SavePaths.Add(savePath);
-            File.Delete(pageCtx.CoverPath);
-            MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
-            return PageOutcome.Abort(selected);
+            return skipped;
         }
 
         var videoPath = pageCtx.VideoPath;
@@ -162,33 +159,7 @@ internal static class DashDownload
             audioPath = "";
         }
 
-        if (myOption.SkipMux)
-        {
-            return PageOutcome.Abort(selected);
-        }
-
-        Log($"开始混流音视频{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
-        if (myOption.AudioOnly)
-        {
-            savePath = MuxFinish.ToAudioOnlyPath(savePath);
-        }
-
-        var isHevc = selectedVideo?.codecs == "HEVC";
-        var code = await Muxer.MuxAV(useMp4box, p.bvid, videoPath, audioPath, audioMaterial, savePath,
-            pageCtx.Desc,
-            pageCtx.Title,
-            p.ownerName ?? "",
-            pageCtx.EpisodeTitle,
-            File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
-            ctx.Lang,
-            subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.NoMetadata, isHevc, ct);
-        if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
-        {
-            LogError("混流失败");
-            return PageOutcome.Abort(selected);
-        }
-
-        MuxFinish.Cleanup(pageCtx, videoPath, audioPath, subtitleInfo, audioMaterial);
-        return PageOutcome.Done(savePath, selected);
+        var inputs = new MuxFinish.MuxInputs(savePath, videoPath, audioPath, audioMaterial, useMp4box, selectedVideo?.codecs == "HEVC");
+        return await MuxFinish.RunAsync(session, inputs, selected, ct);
     }
 }
