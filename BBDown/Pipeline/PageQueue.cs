@@ -14,7 +14,7 @@ namespace BBDown.Pipeline;
 
 internal static class PageQueue
 {
-    public static async Task RunAsync(DownloadOptions myOption, WorkContext ctx, DownloadTask? relatedTask = null, CancellationToken ct = default)
+    public static async Task RunAsync(DownloadOptions myOption, WorkContext ctx, PipelineSink sink = default, CancellationToken ct = default)
     {
         var vInfo = ctx.VInfo!;
         var pagesInfo = vInfo.PagesInfo;
@@ -53,7 +53,7 @@ internal static class PageQueue
             // 评论区关闭也能立刻反馈，视频下载失败也不丢评论；放在视频下载之前。--show-info 仅解析不产出评论
             if (ctx.CommentCount > 0 && !myOption.OnlyShowInfo && commentedAids.Add(p.aid))
             {
-                await CommentDownload.RunAsync(ctx, PageDownload.BuildPageContext(p, ctx, pagesInfo), relatedTask, token);
+                await CommentDownload.RunAsync(ctx, PageDownload.BuildPageContext(p, ctx, pagesInfo), sink, token);
             }
 
             if (myOption.SaveArchivesToFile && ArchiveLog.CheckArchive(p.aid, p.cid))
@@ -62,7 +62,7 @@ internal static class PageQueue
                 return;
             }
 
-            var outcome = await PageDownload.RunAsync(p, myOption, ctx, pagesInfo, relatedTask, token);
+            var outcome = await PageDownload.RunAsync(p, myOption, ctx, pagesInfo, sink, token);
 
             // 只有完整成功（含混流）才记归档；半截失败/中止不应标记为已下载
             // 试看片段同样不记，否则用户日后拿到充电权限重跑会被 CheckArchive 静默跳过

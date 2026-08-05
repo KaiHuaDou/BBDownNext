@@ -26,7 +26,7 @@ internal static class LiveMuxer
     /// <summary>
     /// 合并成功返回 true，并删除源分段；失败时保留全部分段供手工抢救。
     /// </summary>
-    public static async Task<bool> MergeSegmentsAsync(IReadOnlyList<string> segments, string outPath, string codecName, CancellationToken ct = default)
+    public static async Task<bool> MergeSegmentsAsync(IReadOnlyList<string> segments, string outPath, string codecName, ToolPaths tools, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(segments);
 
@@ -44,11 +44,11 @@ internal static class LiveMuxer
         }
 
         return inputs.Count == 1
-            ? await RemuxAsync(inputs[0], outPath, inputs, ct)
-            : await ConcatAsync(inputs, outPath, codecName, ct);
+            ? await RemuxAsync(inputs[0], outPath, inputs, tools, ct)
+            : await ConcatAsync(inputs, outPath, codecName, tools, ct);
     }
 
-    private static async Task<bool> RemuxAsync(string input, string outPath, List<string> sources, CancellationToken ct)
+    private static async Task<bool> RemuxAsync(string input, string outPath, List<string> sources, ToolPaths tools, CancellationToken ct)
     {
         var faststart = new FileInfo(input).Length <= FaststartMaxBytes;
         if (!faststart)
@@ -56,7 +56,7 @@ internal static class LiveMuxer
             LogWarn("文件较大, 跳过 faststart 优化 (可正常播放, 边下边播时需先缓冲)");
         }
 
-        var code = await Muxer.RunExe(Muxer.ffmpeg, BuildLiveRemuxArgs(input, outPath, faststart, Config.DebugLog), ct);
+        var code = await Muxer.RunExe(tools.Ffmpeg, BuildLiveRemuxArgs(input, outPath, faststart, Config.DebugLog), ct);
         if (code != 0)
         {
             LogError($"混流失败 (ffmpeg 退出码 {code}), 已保留分段文件");
@@ -67,7 +67,7 @@ internal static class LiveMuxer
         return true;
     }
 
-    private static async Task<bool> ConcatAsync(List<string> inputs, string outPath, string codecName, CancellationToken ct)
+    private static async Task<bool> ConcatAsync(List<string> inputs, string outPath, string codecName, ToolPaths tools, CancellationToken ct)
     {
         List<string> tsFiles = new(inputs.Count);
         var concatPath = Path.ChangeExtension(outPath, ".concat.ts");
@@ -76,7 +76,7 @@ internal static class LiveMuxer
             foreach (var input in inputs)
             {
                 var tsPath = Path.ChangeExtension(input, ".ts");
-                var code = await Muxer.RunExe(Muxer.ffmpeg, BuildLiveToTsArgs(input, tsPath, codecName, Config.DebugLog), ct);
+                var code = await Muxer.RunExe(tools.Ffmpeg, BuildLiveToTsArgs(input, tsPath, codecName, Config.DebugLog), ct);
                 if (code != 0)
                 {
                     // 单段损坏不该拖垮整场录像，跳过后继续拼其余分段
@@ -95,7 +95,7 @@ internal static class LiveMuxer
             }
 
             CombineMultipleFilesIntoSingleFile([.. tsFiles], concatPath);
-            return await RemuxAsync(concatPath, outPath, inputs, ct);
+            return await RemuxAsync(concatPath, outPath, inputs, tools, ct);
         }
         finally
         {
@@ -106,7 +106,12 @@ internal static class LiveMuxer
 
     internal static List<string> BuildLiveToTsArgs(string input, string output, string codecName, bool debugLog)
     {
-        List<string> args = ["-loglevel", debugLog ? "verbose" : "warning", "-y", "-i", input, "-map", "0", "-c", "copy", "-f", "mpegts"];
+        // +discardcorrupt 丢弃被标记为损坏的包（停录时分会段尾常截在半个 FLV tag 上），
+        // -err_detect ignore_err 让 ffmpeg 遇到解析错误继续而非中止，避免合并因尾包损坏整段失败。
+        // 二者配合可消除 h264 "Invalid NAL unit size" / "corrupt input packet" 这类吓人的报错。
+        List<string> args = ["-loglevel", debugLog ? "verbose" : "error", "-y",
+            "-fflags", "+genpts+discardcorrupt", "-err_detect", "ignore_err",
+            "-i", input, "-map", "0", "-c", "copy", "-f", "mpegts"];
         var bsf = SelectBitstreamFilter(codecName);
         if (bsf != null)
         {
@@ -117,10 +122,13 @@ internal static class LiveMuxer
         return args;
     }
 
-    // 直播流时间戳常跳变/回绕, 不重建 PTS 会导致时长错误甚至无法 seek
+    // 直播流时间戳常跳变/回绕, 不重建 PTS 会导致时长错误甚至无法 seek；
+    // +discardcorrupt / -err_detect ignore_err 同 BuildLiveToTsArgs 注释，压制停录截断导致的噪声与损坏。
     internal static List<string> BuildLiveRemuxArgs(string input, string output, bool faststart, bool debugLog)
     {
-        List<string> args = ["-loglevel", debugLog ? "verbose" : "warning", "-y", "-fflags", "+genpts", "-i", input, "-map", "0", "-c", "copy"];
+        List<string> args = ["-loglevel", debugLog ? "verbose" : "error", "-y",
+            "-fflags", "+genpts+discardcorrupt", "-err_detect", "ignore_err",
+            "-i", input, "-map", "0", "-c", "copy"];
         if (faststart)
         {
             args.AddRange(["-movflags", "+faststart"]);

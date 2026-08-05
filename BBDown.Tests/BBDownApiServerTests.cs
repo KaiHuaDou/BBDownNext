@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core;
+using BBDown.Core.Entity;
 
 namespace BBDown.Tests;
 
@@ -328,6 +329,41 @@ public class BBDownApiServerTests
     public void IsPrivateAddress_AllowsPublic(string ip)
     {
         Assert.False(SsrfGuard.IsPrivateAddress(IPAddress.Parse(ip)));
+    }
+
+    #endregion
+
+    #region 进度回吐（PipelineSink）
+
+    // 下载链路不再持有 DownloadTask，只通过回调回吐；这里锁住三个回调的映射
+    [Fact]
+    public void SinkFor_RoutesCallbacksIntoTask( )
+    {
+        var task = new DownloadTask("114514", "BV1xx411c7XD", 0);
+        var sink = BBDownApiServer.SinkFor(task);
+
+        sink.Meta!(new VInfo { Title = "标题", Desc = "", Pic = "https://i0.hdslb.com/x.jpg", PubTime = 1700000000, PagesInfo = [] });
+        sink.Saved!("D:/out/a.mp4");
+        sink.Saved!("D:/out/b.mp4");
+        sink.Sample!(0.5, 2048);
+
+        Assert.Equal("标题", task.Title);
+        Assert.Equal("https://i0.hdslb.com/x.jpg", task.Pic);
+        Assert.Equal(1700000000, task.VideoPubTime);
+        Assert.Equal(["D:/out/a.mp4", "D:/out/b.mp4"], task.SavePaths);
+        Assert.Equal(0.5, task.Progress);
+        Assert.Equal(2048, task.TotalDownloadedBytes);
+    }
+
+    // CLI 走 default(PipelineSink)：三个回调全为 null，下层的 ?.Invoke 必须能安全跳过
+    [Fact]
+    public void DefaultSink_HasNoCallbacks( )
+    {
+        PipelineSink sink = default;
+
+        Assert.Null(sink.Meta);
+        Assert.Null(sink.Saved);
+        Assert.Null(sink.Sample);
     }
 
     #endregion

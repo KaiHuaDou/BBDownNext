@@ -208,4 +208,72 @@ public class ProgramTests
         WorkSetup.HandleConflictingOptions(o);
         Assert.False(o.SubOnly);
     }
+
+    [Fact]
+    public void ResolveToolPaths_ExplicitPathsWin( )
+    {
+        using var fake = new FakeExecutable( );
+        var o = new DownloadOptions { FFmpegPath = fake.Path, Mp4boxPath = fake.Path, UseAria2c = true, Aria2cPath = fake.Path };
+
+        var tools = WorkSetup.ResolveToolPaths(o);
+
+        Assert.Equal(fake.Path, tools.Ffmpeg);
+        Assert.Equal(fake.Path, tools.Mp4box);
+        Assert.Equal(fake.Path, tools.Aria2c);
+    }
+
+    [Fact]
+    public void ResolveToolPaths_WithoutAria2cLeavesPathNull( )
+    {
+        using var fake = new FakeExecutable( );
+        var o = new DownloadOptions { FFmpegPath = fake.Path, UseAria2c = false };
+
+        Assert.Null(WorkSetup.ResolveToolPaths(o).Aria2c);
+    }
+
+    [Fact]
+    public void ResolveToolPaths_MissingFFmpegThrowsUnlessSkipMux( )
+    {
+        var o = new DownloadOptions { FFmpegPath = Path.Combine(Path.GetTempPath( ), "bbdown-not-here-" + Guid.NewGuid( ).ToString("N")) };
+
+        // 不混流时不需要 ffmpeg；需要混流却找不到必须立刻炸，而不是下载完才失败
+        o.SkipMux = true;
+        WorkSetup.ResolveToolPaths(o);
+
+        o.SkipMux = false;
+        if (Utils.FindExecutable("ffmpeg") == null)
+        {
+            Assert.Throws<InvalidOperationException>(( ) => WorkSetup.ResolveToolPaths(o));
+        }
+    }
+
+    // 每次解析都返回独立快照，不写任何进程级静态字段——serve 并发任务互不干扰的前提
+    [Fact]
+    public void ResolveToolPaths_SnapshotsAreIndependentPerCall( )
+    {
+        using var a = new FakeExecutable( );
+        using var b = new FakeExecutable( );
+
+        var first = WorkSetup.ResolveToolPaths(new DownloadOptions { FFmpegPath = a.Path, Mp4boxPath = a.Path });
+        var second = WorkSetup.ResolveToolPaths(new DownloadOptions { FFmpegPath = b.Path, Mp4boxPath = b.Path });
+
+        Assert.Equal(a.Path, first.Ffmpeg);
+        Assert.Equal(b.Path, second.Ffmpeg);
+        Assert.NotEqual(first.Ffmpeg, second.Ffmpeg);
+    }
+
+    private sealed class FakeExecutable : IDisposable
+    {
+        public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath( ), "bbdown-tool-" + Guid.NewGuid( ).ToString("N"));
+
+        public FakeExecutable( )
+        {
+            File.WriteAllText(Path, "");
+        }
+
+        public void Dispose( )
+        {
+            File.Delete(Path);
+        }
+    }
 }

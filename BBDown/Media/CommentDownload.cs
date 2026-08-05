@@ -28,7 +28,7 @@ internal static class CommentDownload
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     });
 
-    public static async Task RunAsync(WorkContext ctx, PageContext pageCtx, DownloadTask? relatedTask = null, CancellationToken ct = default)
+    public static async Task RunAsync(WorkContext ctx, PageContext pageCtx, PipelineSink sink = default, CancellationToken ct = default)
     {
         if (ctx.CommentCount <= 0 || pageCtx.Page.aid.Length == 0)
         {
@@ -79,7 +79,7 @@ internal static class CommentDownload
             }
 
             Log($"已保存评论：{path}");
-            relatedTask?.SavePaths.Add(path);
+            sink.Saved?.Invoke(path);
         }
     }
 }

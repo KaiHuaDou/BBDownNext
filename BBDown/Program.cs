@@ -8,6 +8,7 @@ using BBDown.Auth;
 using BBDown.Cli;
 using BBDown.Core;
 using BBDown.Core.Live;
+using BBDown.Core.Util;
 using BBDown.Core.Opus;
 using BBDown.Live;
 using BBDown.Pipeline;
@@ -211,6 +212,14 @@ internal sealed class Program
 
     private static async Task<int> RunApp(DownloadOptions myOption, bool opusCommand)
     {
+        // 进程级全局状态只在每次 CLI 运行起点设置一次（serve 模式不在此路径；
+        // ServeRequestOptions 已剔除 Debug/UserAgent，故 serve 任务不触碰这些全局，避免并发互相踩踏）。
+        Config.SetDebugLog(myOption.Debug);
+        if (!string.IsNullOrEmpty(myOption.UserAgent))
+        {
+            HTTPUtil.SetUserAgent(myOption.UserAgent);
+        }
+
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         try
         {
@@ -236,7 +245,7 @@ internal sealed class Program
                 }
             }
 
-            await DownloadPipeline.RunAsync(myOption, relatedTask: null, AppEnv.CancellationToken);
+            await DownloadPipeline.RunAsync(myOption, sink: default, AppEnv.CancellationToken);
             return 0;
         }
         catch (OperationCanceledException) when (AppEnv.CancellationToken.IsCancellationRequested)

@@ -19,9 +19,6 @@ namespace BBDown.Mux;
 
 internal static class Muxer
 {
-    public static string ffmpeg = "ffmpeg";
-    public static string mp4box = "mp4box";
-
     internal static async Task<int> RunExe(string app, List<string> args, CancellationToken ct = default)
     {
         LogDebug("{0}命令: {1}", Path.GetFileNameWithoutExtension(app), FormatArgs(args));
@@ -235,7 +232,7 @@ internal static class Muxer
         return args;
     }
 
-    public static async Task<int> MuxAV(bool useMp4box, string bvid, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, string desc = "", string title = "", string author = "", string episodeId = "", string pic = "", string lang = "", List<Subtitle>? subs = null, bool audioOnly = false, bool videoOnly = false, List<ViewPoint>? points = null, long pubTime = 0, bool noMetadata = false, bool isHevc = false, CancellationToken ct = default)
+    public static async Task<int> MuxAV(bool useMp4box, string bvid, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, ToolPaths tools, string desc = "", string title = "", string author = "", string episodeId = "", string pic = "", string lang = "", List<Subtitle>? subs = null, bool audioOnly = false, bool videoOnly = false, List<ViewPoint>? points = null, long pubTime = 0, bool noMetadata = false, bool isHevc = false, CancellationToken ct = default)
     {
         if (audioOnly && audioPath.Length != 0)
         {
@@ -264,11 +261,11 @@ internal static class Muxer
         }
 
         return useMp4box
-            ? await RunExe(mp4box, BuildMp4boxArgs(url, videoPath, audioPath, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, Config.DebugLog), ct)
-            : await RunExe(ffmpeg, BuildFFmpegArgs(url, videoPath, audioPath, audioMaterial, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, pubTime, noMetadata, isHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog), ct);
+            ? await RunExe(tools.Mp4box, BuildMp4boxArgs(url, videoPath, audioPath, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, Config.DebugLog), ct)
+            : await RunExe(tools.Ffmpeg, BuildFFmpegArgs(url, videoPath, audioPath, audioMaterial, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, pubTime, noMetadata, isHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog), ct);
     }
 
-    public static async Task MergeFLV(string[] files, string outPath, CancellationToken ct = default)
+    public static async Task MergeFLV(string[] files, string outPath, ToolPaths tools, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(files);
         if (files.Length == 0)
@@ -289,7 +286,7 @@ internal static class Muxer
             foreach (var file in files)
             {
                 var tmpFile = Path.Combine(Path.GetDirectoryName(file)!, Path.GetFileNameWithoutExtension(file) + ".ts");
-                await RunExe(ffmpeg, ["-loglevel", "warning", "-y", "-i", file, "-map", "0", "-c", "copy", "-f", "mpegts", "-bsf:v", "h264_mp4toannexb", tmpFile], ct);
+                await RunExe(tools.Ffmpeg, ["-loglevel", "warning", "-y", "-i", file, "-map", "0", "-c", "copy", "-f", "mpegts", "-bsf:v", "h264_mp4toannexb", tmpFile], ct);
                 tsFiles.Add(tmpFile);
                 SafeDelete(file);
             }

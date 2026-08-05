@@ -21,14 +21,8 @@ internal static class LiveDownload
 {
     internal static async Task RunAsync(DownloadOptions myOption, LiveTarget target, CancellationToken ct = default)
     {
-        Config.SetDebugLog(myOption.Debug);
-        if (!string.IsNullOrEmpty(myOption.UserAgent))
-        {
-            HTTPUtil.SetUserAgent(myOption.UserAgent);
-        }
-
         // 录了几小时才发现没有 ffmpeg 是不可接受的，开录前就要探测
-        WorkSetup.FindBinaries(myOption);
+        var tools = WorkSetup.ResolveToolPaths(myOption);
         var workDir = WorkSetup.ResolveWorkDir(myOption);
 
         var (cookie, _) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, false, false);
@@ -85,7 +79,7 @@ internal static class LiveDownload
 
         Log($"录制结束（{Describe(result.Reason)}），共 {result.Segments.Count} 个分段，正在合并...");
         // 合并只受 SIGINT 影响：SIGQUIT 的语义就是「停录并合并」，把 stopCts 传进来会让 ffmpeg 立刻被杀
-        if (!await LiveMuxer.MergeSegmentsAsync(result.Segments, outPath, result.CodecName, ct))
+        if (!await LiveMuxer.MergeSegmentsAsync(result.Segments, outPath, result.CodecName, tools, ct))
         {
             throw new InvalidOperationException("合并失败，分段文件已保留");
         }

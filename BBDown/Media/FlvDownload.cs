@@ -21,7 +21,7 @@ internal static class FlvDownload
 {
     internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, bool selected, CancellationToken ct = default)
     {
-        var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask) = session;
+        var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, _) = session;
         var p = pageCtx.Page;
         List<AudioMaterial> audioMaterial = [];
         var reParsed = false;
@@ -79,7 +79,7 @@ internal static class FlvDownload
             var videoPath = pageCtx.VideoPath;
             try
             {
-                await Muxer.MergeFLV([.. clipPaths], videoPath, ct);
+                await Muxer.MergeFLV([.. clipPaths], videoPath, ctx.Tools, ct);
             }
             finally
             {

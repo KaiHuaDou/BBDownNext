@@ -27,7 +27,10 @@ internal static class DownloadUtil
         public string Aria2cArgs { get; set; } = string.Empty;
         public bool NoForceHttp { get; set; }
         public bool SingleThread { get; set; }
-        public DownloadTask? RelatedTask { get; set; }
+        // aria2c 可执行文件路径（来自 ToolPaths 快照），避免用进程级可变静态字段
+        public string? Aria2cPath { get; set; }
+        // 进度采样回调（ratio, bytesDelta）。下载层不认识 serve 的任务模型，只回吐数字
+        public Action<double, long>? OnSample { get; set; }
         public string Cookie { get; set; } = string.Empty;
         // 多线程分片大小（字节）
         public long ChunkSize { get; set; } = PartFile.DefaultChunkSize;
@@ -66,7 +69,7 @@ internal static class DownloadUtil
 
         if (config.UseAria2c)
         {
-            await BBDownAria2c.RunAsync(BBDownAria2c.aria2c, BBDownAria2c.BuildArgs(url, path, config.Aria2cArgs, config.Cookie), ct);
+            await BBDownAria2c.RunAsync(config.Aria2cPath ?? "aria2c", BBDownAria2c.BuildArgs(url, path, config.Aria2cArgs, config.Cookie), ct);
             if (File.Exists(path + ".aria2") || !File.Exists(path))
             {
                 throw new InvalidOperationException("aria2 下载可能存在错误");
@@ -154,7 +157,7 @@ internal static class DownloadUtil
         var manifestLock = new Lock( );
         var lastSaveTick = 0L;
 
-        using var progress = new ProgressBar(config.RelatedTask is { } relatedTask ? relatedTask.ApplySample : null, ct);
+        using var progress = new ProgressBar(config.OnSample, ct);
         progress.Report(0);
 
         void Report( )

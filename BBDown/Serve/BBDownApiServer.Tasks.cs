@@ -75,7 +75,7 @@ public partial class BBDownApiServer
 
         try
         {
-            await RunGatedAsync(task, ( ) => DownloadPipeline.RunAsync(option, task, AppEnv.CancellationToken), AppEnv.CancellationToken);
+            await RunGatedAsync(task, ( ) => DownloadPipeline.RunAsync(option, SinkFor(task), AppEnv.CancellationToken), AppEnv.CancellationToken);
             task.IsSuccessful = true;
         }
         catch (OperationCanceledException) when (AppEnv.CancellationToken.IsCancellationRequested)
@@ -103,6 +103,20 @@ public partial class BBDownApiServer
         finishedTasks[aid] = task;
         TrimFinishedTasks( );
         return task;
+    }
+
+    // 把可变的任务对象收束在 serve 内部：下载链路只拿到回调，不持有 DownloadTask 引用
+    internal static PipelineSink SinkFor(DownloadTask task)
+    {
+        return new PipelineSink(
+            v =>
+            {
+                task.Title = v.Title;
+                task.Pic = v.Pic;
+                task.VideoPubTime = v.PubTime;
+            },
+            task.SavePaths.Add,
+            task.ApplySample);
     }
 
     // 任务的初始状态（是否排队）由服务端限流闸门决定，抽成方法便于单测观测

@@ -20,7 +20,7 @@ internal static class DashDownload
 {
     internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, bool selected, CancellationToken ct = default)
     {
-        var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, relatedTask) = session;
+        var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, sink) = session;
         var p = pageCtx.Page;
 
         if (parsedResult.VideoTracks.Count == 0)
@@ -92,7 +92,7 @@ internal static class DashDownload
             var newCoverPath = Path.ChangeExtension(savePath, Path.GetExtension(pageCtx.CoverUrl));
             await DownloadFileAsync(pageCtx.CoverUrl, newCoverPath, downloadConfig, ct);
             MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
-            relatedTask?.SavePaths.Add(newCoverPath);
+            sink.Saved?.Invoke(newCoverPath);
             return PageOutcome.Abort(selected);
         }
 
@@ -113,7 +113,7 @@ internal static class DashDownload
         if (selectedVideo != null)
         {
             // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
-            if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI( ))
+            if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI(ctx.Tools))
             {
                 LogWarn("您的 FFmpeg 版本小于 5.0，杜比视界将使用 MP4Box 混流...");
                 useMp4box = true;

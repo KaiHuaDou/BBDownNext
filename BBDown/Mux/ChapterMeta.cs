@@ -118,7 +118,7 @@ internal static partial class ChapterMeta
     /// <summary>
     /// 检测 FFmpeg 是否识别杜比视界
     /// </summary>
-    public static bool CheckFFmpegDOVI( )
+    public static bool CheckFFmpegDOVI(ToolPaths tools)
     {
         try
         {
@@ -126,7 +126,7 @@ internal static partial class ChapterMeta
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = Muxer.ffmpeg,
+                    FileName = tools.Ffmpeg,
                     Arguments = "-version",
                     UseShellExecute = false,
                     RedirectStandardError = true,

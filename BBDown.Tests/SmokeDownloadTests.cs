@@ -44,7 +44,7 @@ public class SmokeDownloadTests
             Assert.NotNull(ctx.VInfo);
             Assert.NotEmpty(ctx.VInfo.PagesInfo);
 
-            await PageQueue.RunAsync(option, ctx, relatedTask: null, CancellationToken.None);
+            await PageQueue.RunAsync(option, ctx, sink: default, CancellationToken.None);
 
             var mediaExtensions = new[] { ".mp4", ".m4a", ".m4s", ".flv", ".aac", ".mp3" };
             var downloaded = Directory.EnumerateFiles(workDir, "*", SearchOption.AllDirectories)

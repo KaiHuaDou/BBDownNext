@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
 
-namespace BBDown;
+namespace BBDown.Serve;
 
 [JsonConverter(typeof(JsonStringEnumConverter<DownloadStatus>))]
 public enum DownloadStatus

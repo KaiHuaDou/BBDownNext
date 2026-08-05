@@ -25,7 +25,7 @@ internal static class PageAssets
 
         if (!myOption.NoCover && !myOption.SubOnly && !File.Exists(pageCtx.CoverPath) && !myOption.DanmakuOnly && !myOption.CoverOnly)
         {
-            await DownloadFileAsync(pageCtx.CoverUrl, pageCtx.CoverPath, new DownloadConfig { Cookie = ctx.Cfg.Cookie }, ct);
+            await DownloadFileAsync(pageCtx.CoverUrl, pageCtx.CoverPath, new DownloadConfig { Cookie = ctx.Cfg.Cookie, Aria2cPath = ctx.Tools.Aria2c }, ct);
         }
 
         if (myOption.NoSub || myOption.DanmakuOnly || myOption.CoverOnly)

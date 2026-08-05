@@ -13,7 +13,8 @@ public class LiveMuxerArgsTests
         var args = LiveMuxer.BuildLiveToTsArgs("/tmp/a.001.bbdown.part", "/tmp/a.001.bbdown.ts", "avc", debugLog: false);
 
         Assert.Equal([
-            "-loglevel", "warning", "-y",
+            "-loglevel", "error", "-y",
+            "-fflags", "+genpts+discardcorrupt", "-err_detect", "ignore_err",
             "-i", "/tmp/a.001.bbdown.part",
             "-map", "0", "-c", "copy",
             "-f", "mpegts", "-bsf:v", "h264_mp4toannexb",
@@ -57,8 +58,8 @@ public class LiveMuxerArgsTests
         var args = LiveMuxer.BuildLiveRemuxArgs("/tmp/a.concat.ts", "/out/x.mp4", faststart: true, debugLog: false);
 
         Assert.Equal([
-            "-loglevel", "warning", "-y",
-            "-fflags", "+genpts",
+            "-loglevel", "error", "-y",
+            "-fflags", "+genpts+discardcorrupt", "-err_detect", "ignore_err",
             "-i", "/tmp/a.concat.ts",
             "-map", "0", "-c", "copy",
             "-movflags", "+faststart",
@@ -79,9 +80,29 @@ public class LiveMuxerArgsTests
     public void BuildLiveRemuxArgs_AlwaysRegeneratesPts( )
     {
         var args = LiveMuxer.BuildLiveRemuxArgs("/tmp/a.ts", "/out/x.mp4", faststart: false, debugLog: false);
-        Assert.Equal("+genpts", ValueAfter(args, "-fflags"));
+        var fflags = ValueAfter(args, "-fflags");
+        Assert.NotNull(fflags);
+        Assert.Contains("+genpts", fflags);
         // -fflags 必须在 -i 之前，作为输入选项才生效
         Assert.True(args.IndexOf("-fflags") < args.IndexOf("-i"));
+    }
+
+    // 停录会把分段截在半个 FLV tag 上，必须容忍损坏包，否则合并满屏报错甚至整段失败
+    [Fact]
+    public void BuildArgs_ToleratesCorruptSource( )
+    {
+        var ts = LiveMuxer.BuildLiveToTsArgs("in", "out.ts", "avc", debugLog: false);
+        Assert.Equal("+genpts+discardcorrupt", ValueAfter(ts, "-fflags"));
+        Assert.Equal("ignore_err", ValueAfter(ts, "-err_detect"));
+        Assert.True(ts.IndexOf("-fflags") < ts.IndexOf("-i"));
+        Assert.True(ts.IndexOf("-err_detect") < ts.IndexOf("-i"));
+        // 非调试路径不再刷 warning 级 demux 噪声（如 Track size mismatch / corrupt input packet）
+        Assert.Equal("error", ValueAfter(ts, "-loglevel"));
+
+        var mp4 = LiveMuxer.BuildLiveRemuxArgs("in", "out.mp4", faststart: true, debugLog: false);
+        Assert.Equal("+genpts+discardcorrupt", ValueAfter(mp4, "-fflags"));
+        Assert.Equal("ignore_err", ValueAfter(mp4, "-err_detect"));
+        Assert.Equal("error", ValueAfter(mp4, "-loglevel"));
     }
 
     [Fact]

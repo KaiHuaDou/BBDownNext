@@ -12,8 +12,6 @@ namespace BBDown.Download;
 
 internal static class BBDownAria2c
 {
-    public static string aria2c = "aria2c";
-
     internal static async Task<int> RunAsync(string command, List<string> args, CancellationToken ct = default)
     {
         using Process p = new( );

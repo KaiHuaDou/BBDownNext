@@ -13,6 +13,7 @@ namespace BBDown.Live;
 /// <summary>
 /// 直播录制的状态行。不能复用 <see cref="ProgressBar"/>：它的 Report 接受 0–1 完成比例，
 /// 而直播没有总量。这里改为展示「已录时长 / 已写体积 / 瞬时速度」。
+/// 用 \r 原地刷新单行，比逐字符退格重写更简单也更稳。
 /// </summary>
 internal sealed class LiveProgress : IDisposable
 {
@@ -127,12 +128,12 @@ internal sealed class LiveProgress : IDisposable
 
     private string Compose(long total)
     {
-        var span = elapsed.Elapsed;
-        var clock = span.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
-        return $"录制中 | 分段 {Volatile.Read(ref segmentIndex)} | {clock} | {Utils.FormatFileSize(total)} | {speedText} | {qualityText}";
+        var clock = elapsed.Elapsed.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
+        return $"录制中 {clock} | {Utils.FormatFileSize(total)} | {speedText} | 分段 {Volatile.Read(ref segmentIndex)} | {qualityText}";
     }
 
-    // 同 ProgressBar：只回退重写与上一帧不同的后缀，整行重画会闪
+    // \r 回到行首整行重写，比逐字符退格重写简单，也不会因长度变化吐出乱码。
+    // 新内容比旧内容短时，用空格补齐旧字符，避免上一帧的残余留在屏幕上。
     private void Draw(string text)
     {
         if (!drawToConsole)
@@ -140,25 +141,19 @@ internal sealed class LiveProgress : IDisposable
             return;
         }
 
-        var commonPrefixLength = 0;
-        var commonLength = Math.Min(renderedText.Length, text.Length);
-        while (commonPrefixLength < commonLength && text[commonPrefixLength] == renderedText[commonPrefixLength])
+        if (text.Length == 0)
         {
-            commonPrefixLength++;
+            Console.Write("\r" + new string(' ', renderedText.Length) + "\r");
+            renderedText = string.Empty;
+            return;
         }
 
-        var output = new System.Text.StringBuilder( );
-        output.Append('\b', renderedText.Length - commonPrefixLength);
-        output.Append(text[commonPrefixLength..]);
-
-        var overlapCount = renderedText.Length - text.Length;
-        if (overlapCount > 0)
+        Console.Write("\r" + text);
+        if (text.Length < renderedText.Length)
         {
-            output.Append(' ', overlapCount);
-            output.Append('\b', overlapCount);
+            Console.Write(new string(' ', renderedText.Length - text.Length));
         }
 
-        Console.Write(output);
         renderedText = text;
     }
 

@@ -31,4 +31,5 @@ internal sealed record WorkContext(
     VInfo? VInfo,
     string ApiType,
     AppConfig Cfg,
+    ToolPaths Tools,
     string WorkDir);

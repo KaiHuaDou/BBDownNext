@@ -10,9 +10,9 @@ internal static class DownloadPipeline
 
     /// <summary>
     /// 下载主干：准备运行参数 → 解析视频信息 → 逐分 P 下载。CLI 与 serve 共用同一条链路，
-    /// 差异只有 <paramref name="relatedTask"/>（serve 用它回填标题与进度）。
+    /// 差异只有 <paramref name="sink"/>（serve 用它回填标题与进度，CLI 传 default）。
     /// </summary>
-    internal static async Task RunAsync(DownloadOptions myOption, DownloadTask? relatedTask = null, CancellationToken ct = default)
+    internal static async Task RunAsync(DownloadOptions myOption, PipelineSink sink = default, CancellationToken ct = default)
     {
         WorkContext ctx;
         lock (workContextGate)
@@ -21,13 +21,8 @@ internal static class DownloadPipeline
         }
 
         ctx = await VideoInfo.FetchAsync(myOption, ctx, ct);
-        if (relatedTask is not null)
-        {
-            relatedTask.Title = ctx.VInfo!.Title;
-            relatedTask.Pic = ctx.VInfo.Pic;
-            relatedTask.VideoPubTime = ctx.VInfo.PubTime;
-        }
+        sink.Meta?.Invoke(ctx.VInfo!);
 
-        await PageQueue.RunAsync(myOption, ctx, relatedTask, ct);
+        await PageQueue.RunAsync(myOption, ctx, sink, ct);
     }
 }

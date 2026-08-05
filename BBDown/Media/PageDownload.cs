@@ -19,7 +19,7 @@ namespace BBDown.Media;
 
 internal static class PageDownload
 {
-    internal static async Task<PageOutcome> RunAsync(Page p, DownloadOptions myOption, WorkContext ctx, List<Page> selectedPagesInfo, DownloadTask? relatedTask = null, CancellationToken ct = default)
+    internal static async Task<PageOutcome> RunAsync(Page p, DownloadOptions myOption, WorkContext ctx, List<Page> selectedPagesInfo, PipelineSink sink = default, CancellationToken ct = default)
     {
         var pageCtx = BuildPageContext(p, ctx, selectedPagesInfo);
         List<Subtitle> subtitleInfo = [];
@@ -76,7 +76,7 @@ internal static class PageDownload
                     }
                 }
 
-                var session = new DownloadSession(myOption, ctx, pageCtx, subtitleInfo, BuildDownloadConfig(myOption, ctx.Cfg, relatedTask), relatedTask);
+                var session = new DownloadSession(myOption, ctx, pageCtx, subtitleInfo, BuildDownloadConfig(myOption, ctx.Cfg, ctx.Tools, sink), sink);
                 outcome = await DispatchAsync(parsedResult, session, selected, ct);
                 if (pageCtx.IsPreview)
                 {
@@ -91,7 +91,7 @@ internal static class PageDownload
 
                 if (!string.IsNullOrWhiteSpace(outcome.SavePath))
                 {
-                    relatedTask?.SavePaths.Add(outcome.SavePath);
+                    sink.Saved?.Invoke(outcome.SavePath);
                 }
             }
             catch (Exception ex) when (ShouldRetry(ex, ct))
@@ -182,7 +182,7 @@ internal static class PageDownload
             || p.aid != selectedPagesInfo[^1].aid;
     }
 
-    internal static DownloadConfig BuildDownloadConfig(DownloadOptions myOption, AppConfig cfg, DownloadTask? relatedTask)
+    internal static DownloadConfig BuildDownloadConfig(DownloadOptions myOption, AppConfig cfg, ToolPaths tools, PipelineSink sink = default)
     {
         return new DownloadConfig
         {
@@ -190,7 +190,8 @@ internal static class PageDownload
             Aria2cArgs = myOption.Aria2cArgs,
             NoForceHttp = myOption.NoForceHttp,
             SingleThread = myOption.SingleThread,
-            RelatedTask = relatedTask,
+            Aria2cPath = tools.Aria2c,
+            OnSample = sink.Sample,
             Cookie = cfg.Cookie,
         };
     }

@@ -15,4 +15,4 @@ internal sealed record DownloadSession(
     PageContext PageCtx,
     List<Subtitle> Subtitles,
     DownloadConfig Config,
-    DownloadTask? RelatedTask);
+    PipelineSink Sink);

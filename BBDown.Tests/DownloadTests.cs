@@ -224,14 +224,15 @@ public class DownloadTests
             SingleThread = false,
         };
         var cfg = AppConfig.Empty with { Cookie = "SESSDATA=abc" };
-        var dc = PageDownload.BuildDownloadConfig(o, cfg, null);
+        var dc = PageDownload.BuildDownloadConfig(o, cfg, new ToolPaths("ffmpeg", "mp4box", "/opt/aria2c"));
 
         Assert.True(dc.UseAria2c);
         Assert.Equal("-x16", dc.Aria2cArgs);
+        Assert.Equal("/opt/aria2c", dc.Aria2cPath);
         Assert.False(dc.NoForceHttp);
         Assert.False(dc.SingleThread);
         Assert.Equal("SESSDATA=abc", dc.Cookie);
-        Assert.Null(dc.RelatedTask);
+        Assert.Null(dc.OnSample);
     }
 
     [Fact]

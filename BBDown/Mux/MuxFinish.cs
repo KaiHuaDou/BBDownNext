@@ -32,7 +32,7 @@ internal static class MuxFinish
         }
 
         Log($"{savePath} 已存在，跳过下载...");
-        session.RelatedTask?.SavePaths.Add(savePath);
+        session.Sink.Saved?.Invoke(savePath);
         SafeDelete(session.PageCtx.CoverPath);
         TryDeleteEmptyDir(session.PageCtx.TempDir);
         return PageOutcome.Abort(selected);
@@ -53,7 +53,7 @@ internal static class MuxFinish
         var savePath = myOption.AudioOnly ? ToAudioOnlyPath(inputs.SavePath) : inputs.SavePath;
         var streams = string.IsNullOrEmpty(inputs.AudioPath) ? "视频" : "音视频";
         Log($"开始混流{streams}{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
-        var code = await Muxer.MuxAV(inputs.UseMp4box, p.bvid, inputs.VideoPath, inputs.AudioPath, inputs.AudioMaterial, savePath,
+        var code = await Muxer.MuxAV(inputs.UseMp4box, p.bvid, inputs.VideoPath, inputs.AudioPath, inputs.AudioMaterial, savePath, ctx.Tools,
             pageCtx.Desc,
             pageCtx.Title,
             p.ownerName ?? "",

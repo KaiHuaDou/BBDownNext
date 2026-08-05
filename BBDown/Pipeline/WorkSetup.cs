@@ -5,9 +5,6 @@ using System.Linq;
 using System.Text.Json;
 
 using BBDown.Core;
-using BBDown.Core.Util;
-using BBDown.Download;
-using BBDown.Mux;
 
 using static BBDown.Core.Logger;
 using static BBDown.Util.Utils;
@@ -18,13 +15,11 @@ internal static class WorkSetup
 {
     public static WorkContext Build(DownloadOptions myOption)
     {
-        Config.SetDebugLog(myOption.Debug);
-
         // 处理冲突选项
         HandleConflictingOptions(myOption);
 
-        // 寻找并设置所需的二进制文件路径
-        FindBinaries(myOption);
+        // 解析外部工具路径（不可变快照，作为 ToolPaths 向下透传，不写进程级静态）
+        var tools = ResolveToolPaths(myOption);
 
         // 确定本次任务的工作目录（不修改进程全局 CurrentDirectory，serve 模式下多任务会互相踩踏）
         var workDir = ResolveWorkDir(myOption);
@@ -32,12 +27,6 @@ internal static class WorkSetup
         // 解析优先级
         var (encodingPriority, firstEncoding) = ParseEncodingPriority(myOption);
         var dfnPriority = ParseDfnPriority(myOption);
-
-        // 优先使用用户设置的 UA
-        if (!string.IsNullOrEmpty(myOption.UserAgent))
-        {
-            HTTPUtil.SetUserAgent(myOption.UserAgent);
-        }
 
         var downloadDanmaku = myOption.DownloadDanmaku || myOption.DanmakuOnly;
         var downloadDanmakuFormats = ParseDownloadDanmakuFormats(myOption);
@@ -71,6 +60,7 @@ internal static class WorkSetup
             VInfo: null,
             ApiType: "",
             Cfg: AppConfig.Empty,
+            Tools: tools,
             WorkDir: workDir);
     }
 
@@ -164,66 +154,40 @@ internal static class WorkSetup
     }
 
     /// <summary>
-    /// 寻找并设置所需的二进制文件
+    /// 解析外部工具路径，返回不可变快照。原 FindBinaries 会把这些路径写进进程级可变静态字段
+    /// （Muxer.ffmpeg/mp4box、BBDownAria2c.aria2c），在 serve 并发任务下互相踩踏；改为纯函数返回快照，
+    /// 由调用方作为 ToolPaths 参数向下透传（见 docs/refactor-plan.md Phase 1）。
     /// </summary>
-    internal static void FindBinaries(DownloadOptions myOption)
+    internal static ToolPaths ResolveToolPaths(DownloadOptions myOption)
     {
-        if (!string.IsNullOrEmpty(myOption.FFmpegPath) && File.Exists(myOption.FFmpegPath))
+        // 显式路径优先，否则在 PATH/AppDir 中探测，再不行回落到命令名（运行期由进程查找，仍可能命中 PATH）
+        var ffmpeg = !string.IsNullOrEmpty(myOption.FFmpegPath) && File.Exists(myOption.FFmpegPath)
+            ? myOption.FFmpegPath
+            : FindExecutable("ffmpeg") ?? "ffmpeg";
+
+        var mp4box = !string.IsNullOrEmpty(myOption.Mp4boxPath) && File.Exists(myOption.Mp4boxPath)
+            ? myOption.Mp4boxPath
+            : FindExecutable("mp4box", "MP4Box", "MP4box") ?? "mp4box";
+
+        // 不混流时不强制要求 ffmpeg 存在
+        if (!myOption.SkipMux && (string.IsNullOrEmpty(ffmpeg) || !File.Exists(ffmpeg)))
         {
-            Muxer.ffmpeg = myOption.FFmpegPath;
+            throw new InvalidOperationException("找不到可执行的 ffmpeg 文件");
         }
 
-        if (!string.IsNullOrEmpty(myOption.Mp4boxPath) && File.Exists(myOption.Mp4boxPath))
-        {
-            Muxer.mp4box = myOption.Mp4boxPath;
-        }
-
-        if (!string.IsNullOrEmpty(myOption.Aria2cPath) && File.Exists(myOption.Aria2cPath))
-        {
-            BBDownAria2c.aria2c = myOption.Aria2cPath;
-        }
-        // 寻找 FFmpeg 或 mp4box
-        if (!myOption.SkipMux)
-        {
-            // FFmpeg 与 mp4box 都探测，以便下载时按需选择 (杜比视界可能临时改用 mp4box)
-            if (string.IsNullOrEmpty(Muxer.ffmpeg) || !File.Exists(Muxer.ffmpeg))
-            {
-                var binPath = FindExecutable("ffmpeg");
-                if (!string.IsNullOrEmpty(binPath))
-                {
-                    Muxer.ffmpeg = binPath;
-                }
-            }
-
-            if (string.IsNullOrEmpty(Muxer.mp4box) || !File.Exists(Muxer.mp4box))
-            {
-                var binPath = FindExecutable("mp4box", "MP4Box", "MP4box");
-                if (!string.IsNullOrEmpty(binPath))
-                {
-                    Muxer.mp4box = binPath;
-                }
-            }
-
-            if (string.IsNullOrEmpty(Muxer.ffmpeg) || !File.Exists(Muxer.ffmpeg))
-            {
-                throw new InvalidOperationException("找不到可执行的 ffmpeg 文件");
-            }
-        }
-
-        // 寻找 aria2c
+        string? aria2c = null;
         if (myOption.UseAria2c)
         {
-            if (string.IsNullOrEmpty(BBDownAria2c.aria2c) || !File.Exists(BBDownAria2c.aria2c))
+            aria2c = !string.IsNullOrEmpty(myOption.Aria2cPath) && File.Exists(myOption.Aria2cPath)
+                ? myOption.Aria2cPath
+                : FindExecutable("aria2c");
+            if (string.IsNullOrEmpty(aria2c))
             {
-                var binPath = FindExecutable("aria2c");
-                if (string.IsNullOrEmpty(binPath))
-                {
-                    throw new InvalidOperationException("找不到可执行的 aria2c 文件");
-                }
-
-                BBDownAria2c.aria2c = binPath;
+                throw new InvalidOperationException("找不到可执行的 aria2c 文件");
             }
         }
+
+        return new ToolPaths(ffmpeg, mp4box, aria2c);
     }
 
     /// <summary>

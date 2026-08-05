@@ -27,7 +27,8 @@ BBDown/
 │   ├── WorkContext.cs      # 工作上下文 record
 │   ├── PageContext.cs      # 分 P 上下文 record
 │   ├── PageOutcome.cs      # 分 P 落盘结果 record（Media/Mux 共用，解除循环依赖）
-│   ├── DownloadTask.cs     # serve 任务状态/快照 record（DownloadStatus / DownloadTask / DownloadTaskSnapshot）
+│   ├── PipelineSink.cs     # 下载链路进度回吐回调（Meta / Saved / Sample，取代透传 serve 的 DownloadTask）
+│   ├── ToolPaths.cs        # 外部工具路径不可变快照（ffmpeg / mp4box / aria2c）
 │   ├── ChargedPreviewException.cs # 充电专属试看中止异常
 │   ├── DanmakuFormat.cs    # 弹幕格式信息
 │   ├── CommentFormat.cs    # 评论格式信息（与弹幕各自独立，解析逻辑不共用）
@@ -72,6 +73,7 @@ BBDown/
 │   │
 │   ├── Serve/              # 命名空间 BBDown.Serve — serve 模式
 │   │   ├── BBDownApiServer.cs      # ASP.NET Minimal API 任务增删查（Run / RunAsync / StartForTestAsync）
+│   │   ├── DownloadTask.cs         # serve 任务状态/快照 record（DownloadStatus / DownloadTask / DownloadTaskSnapshot）
 │   │   └── ServeRequestOptions.cs  # serve 请求受控子集 + CallBackWebHook
 │   │
 │   └── Util/               # 命名空间 BBDown.Util — 通用工具
@@ -109,7 +111,7 @@ BBDown/
 
 **依赖方向**：`BBDown` → `BBDown.Core`；两个测试项目分别依赖对应实现。Core 不反向依赖入口项目，保证核心逻辑可独立测试。
 
-**入口项目内部分层**：`BBDown` 主项目按职责细分为若干子命名空间（对应同名子文件夹），根命名空间 `BBDown` 仅保留两类类型——① 进程入口（`Program` / `AppEnv`）与全局取消；② **根契约层** record（`DownloadOptions` / `DownloadSession` / `WorkContext` / `PageContext` / `PageOutcome` / `DownloadTask` / `ChargedPreviewException` / `DanmakuFormat`），它们被各子命名空间交叉引用，故刻意留在根层避免循环依赖。子命名空间之间的引用一律显式 `using`：`Cli` / `Pipeline` 被 `Program` 引用；`Pipeline` 内部 `DownloadPipeline → WorkSetup → VideoInfo → PageQueue` 单向串联；`Media` 依赖 `Mux`（`MuxFinish`）与 `Download`（下载入口）；`Serve` 引用 `Pipeline` 与 `Auth`；`Pipeline` 引用 `Serve` 的 `DownloadTask` 状态类型（根层）。所有子命名空间类型通过 C# 嵌套命名空间查找可见根层类型，反之亦然（测试项目用 csproj 全局 `<Using>` 补齐）。
+**入口项目内部分层**：`BBDown` 主项目按职责细分为若干子命名空间（对应同名子文件夹），根命名空间 `BBDown` 仅保留两类类型——① 进程入口（`Program` / `AppEnv`）与全局取消；② **根契约层** record（`DownloadOptions` / `DownloadSession` / `WorkContext` / `PageContext` / `PageOutcome` / `PipelineSink` / `ToolPaths` / `ChargedPreviewException` / `DanmakuFormat`），它们被各子命名空间交叉引用，故刻意留在根层避免循环依赖。子命名空间之间的引用一律显式 `using`：`Cli` / `Pipeline` 被 `Program` 引用；`Pipeline` 内部 `DownloadPipeline → WorkSetup → VideoInfo → PageQueue` 单向串联；`Media` 依赖 `Mux`（`MuxFinish`）与 `Download`（下载入口）；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。所有子命名空间类型通过 C# 嵌套命名空间查找可见根层类型，反之亦然（测试项目用 csproj 全局 `<Using>` 补齐）。
 
 ---
 
