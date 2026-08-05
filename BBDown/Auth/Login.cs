@@ -191,7 +191,7 @@ public static partial class Login
                     Log("获取登录地址...");
                     var loginUrl = $"{BiliApi.QrCodeGenerate}?source=main-fe-header";
                     using var doc = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(loginUrl, Core.AppConfig.Empty));
-                    var url = doc.RootElement.GetProperty("data").GetProperty("url").GetString( )!;
+                    var url = ReadData(doc.RootElement, "获取登录二维码失败").GetProperty("url").GetString( )!;
                     var key = GetQueryString("qrcode_key", url);
                     return (url, key);
                 },
@@ -470,12 +470,6 @@ public static partial class Login
         return 0;
     }
 
-    // 签名 / QR 登录参数相关辅助方法（仅 TV/APP 登录流程使用）
-    public static string GetSign(string parms)
-    {
-        return GetSign(parms, TvAppSecret);
-    }
-
     // appkey 与签名密钥必须配对；手机端登录使用粉版 appkey 时须传入对应密钥
     public static string GetSign(string parms, string secret)
     {
@@ -516,14 +510,17 @@ public static partial class Login
         return dict;
     }
 
-    public static NameValueCollection GetTVLoginParms( )
+    /// <summary>
+    /// 参数按 key 字典序排列，签名要求如此，新增字段须保持顺序。
+    /// </summary>
+    private static NameValueCollection NewLoginParams(string appKey, string mobiApp)
     {
         NameValueCollection paras = [];
         var now = DateTime.Now;
         var deviceId = GetRandomString(20);
         var buvid = GetRandomString(37);
         var fingerprint = $"{now:yyyyMMddHHmmssfff}{GetRandomString(45)}";
-        paras.Add("appkey", "4409e2ce8ffd12b8");
+        paras.Add("appkey", appKey);
         paras.Add("auth_code", "");
         paras.Add("bili_local_id", deviceId);
         paras.Add("build", "102801");
@@ -537,14 +534,34 @@ public static partial class Login
         paras.Add("guid", buvid);
         paras.Add("local_fingerprint", fingerprint);
         paras.Add("local_id", buvid);
-        paras.Add("mobi_app", "android_tv_yst");
+        paras.Add("mobi_app", mobiApp);
         paras.Add("networkstate", "wifi");
         paras.Add("platform", "android");
         paras.Add("sys_ver", "29");
         paras.Add("ts", GetTimeStamp(true));
-        paras.Add("sign", GetSign(ToQueryString(paras)));
 
         return paras;
+    }
+
+    /// <summary>
+    /// 签名覆盖除 sign 外的全部参数，任何参数变动后都必须重新签名；旧 sign 残留在待签串里会让服务端返回 -3 签名错误。
+    /// </summary>
+    private static void ApplySign(NameValueCollection parms, string secret)
+    {
+        parms.Remove("sign");
+        parms.Add("sign", GetSign(ToQueryString(parms), secret));
+    }
+
+    /// <summary>
+    /// 接口失败时响应里没有 data，直接 GetProperty 只会抛出无消息的 KeyNotFoundException，
+    /// AOT 下 UseSystemResourceKeys 会把它显示成 Arg_KeyNotFound，掩盖真正的错误码。
+    /// </summary>
+    private static JsonElement ReadData(JsonElement root, string what)
+    {
+        var code = ReadCode(root.GetProperty("code"));
+        return code == 0 && root.TryGetProperty("data", out var data)
+            ? data
+            : throw new InvalidOperationException($"{what}：{code} {ReadMessage(root)}");
     }
 
     // 纯扫码流程：生成二维码、轮询、解释状态，成功后返回 access_token；落盘由各自入口负责
@@ -560,22 +577,19 @@ public static partial class Login
                 {
                     Log("获取登录地址...");
                     Uri loginUrl = new(BiliApi.TvQrCodeAuth);
-                    var parms = GetTVLoginParms( );
-                    parms.Set("appkey", appKey);
-                    parms.Set("mobi_app", mobiApp);
-                    parms.Set("sign", GetSign(ToQueryString(parms), appSecret));
+                    var parms = NewLoginParams(appKey, mobiApp);
+                    ApplySign(parms, appSecret);
                     using var loginContent = new FormUrlEncodedContent(parms.ToDictionary( ));
                     using var loginRequest = new HttpRequestMessage(HttpMethod.Post, loginUrl) { Content = loginContent };
                     loginRequest.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
                     using var response = await HTTPUtil.AppHttpClient.SendAsync(loginRequest);
                     using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync( ));
-                    var data = doc.RootElement.GetProperty("data");
+                    var data = ReadData(doc.RootElement, "获取登录二维码失败");
                     var url = data.GetProperty("url").GetString( )!;
                     var authCode = data.GetProperty("auth_code").GetString( )!;
                     parms.Set("auth_code", authCode);
                     parms.Set("ts", GetTimeStamp(true));
-                    parms.Remove("sign");
-                    parms.Add("sign", GetSign(ToQueryString(parms), appSecret));
+                    ApplySign(parms, appSecret);
                     tvParms = parms;
                     return (url, authCode);
                 },
