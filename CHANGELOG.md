@@ -18,6 +18,8 @@
 - 智能修复（AI 超分，qn=100）画质：番剧 / 课程 playurl 与番剧播放页请求改用含 8192 智能修复位的 fnval（12240）；WEB 端点按 PGC/UGC 分发（UGC 保持 4048，避免带该位返回 -400），TV 端点始终 4048。
 - 智能修复权限提示：当 `support_formats` 声明该档但 dash 实际缺失对应轨道时，提示需登录大会员账号后重试。
 - 评论区下载：新增 `--comment N`（默认 `0` 不下载，前 N 条）、`--comment-sort hot|time`（默认热度）、`--comment-formats json,txt`（默认两者都导出）、`--full-comment`（额外翻页抓全楼中楼）。走 `/x/v2/reply/wbi/main`（WBI 签名 + 游标分页），产物为 `<标题>.comments.json` / `<标题>.comments.txt`；按 `aid` 去重，与视频下载互不干扰，抓取失败降级为「拿到多少算多少」。`CommentFormat` 与弹幕格式解析逻辑各自独立。
+- 直播录制：传入直播间地址（`live:` / `live.bilibili.com` / `m.live.bilibili.com`，房间短号自动换算）即可录制；新增 `--live-quality` / `-lq` 选项指定清晰度，默认原画（10000），可选 250 超清 / 400 蓝光 / 15000 2K / 20000 4K / 30000 杜比。录制为独立链路，不经 `WorkContext` 与音视频混流主干，拉取 `http_stream` + `flv` 流地址后分段落盘；录制中 `Ctrl+Break` 停录并合并为单个 mp4，`Ctrl+C` 中断则保留分段不合并。
+- serve 单任务取消：新增 `POST /stop-task/{id}`，取消单个运行中 / 排队中的任务，不影响其余任务（全局 `Ctrl+C` 仍取消所有任务）。
 
 ### 变更
 
@@ -26,6 +28,8 @@
 - Core 接口层拆分出 `PlayUrl` / `SignUtil` / `ViewPointUtil`（内部架构调整）。
 - serve 进一步加固（SSRF 防护等）。
 - 进度条采样逻辑重构，进度更新上移至 `DownloadTask`。
+- 直播录制状态机具备断流退避重连、CDN failover、静默超时检测与磁盘满 / 连续失败保护；首段成功后锁定编码，避免失败轮换串编码导致合并时静默丢段。分段 FLV 合并为 mp4 时按编码分派 bitstream filter（avc → `h264_mp4toannexb`、hevc → `hevc_mp4toannexb`）。
+- serve 启动参数收窄为 `ServeConfig` record；任务持有与进程级关停令牌 `Link` 的 `CancellationTokenSource`（`Cts` 标记 `[JsonIgnore]`，不进入任务 DTO 序列化）。
 - 统一 DASH / FLV 混流收尾逻辑；`TrackSelect` 收口交互选轨与 FLV 流信息打印。
 - 文案打磨、启用 HTTP/2、收藏夹多 P 并行拉取。
 - `ss{数字}` 番剧季号默认下载整季（原仅下载首集），与 `md` 入口行为对齐；`ss` / `md` 均编码为 `ep:ss{季_id}`，无需新增内部 id 前缀。

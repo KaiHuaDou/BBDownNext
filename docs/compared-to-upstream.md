@@ -4,7 +4,7 @@
 本文档逐项列出本分支相对原版的新增能力与行为改进，供选用 / 迁移时参考。
 
 > 对照基准：原版 `nilaoda/BBDown` 上游主干（README 与源码）。
-> 能力声明均已对照本仓库源码核实，各条目后附源码位置（文件:类型/方法）。
+> 能力声明均已对照本仓库源码核实，各条目后附源码位置（文件：类型/方法）。
 
 ## 1. 能力对照总表
 
@@ -29,8 +29,9 @@
 | **解析模式优先级** | 未明确文档化 | 明确 `DetermineApiType` 优先级 **TV > APP > INTL > WEB**；`--app-api --intl-api` 同给走 APP |
 | **FLV / DASH 封装** | 通用说明 | DASH 先按 `-q` 请求再额外以 `MaxQn(127)` 取原始画质轨（两次并集）；FLV 固定 `qn=127`、忽略 `-q` |
 | **归档记录** | `--save-archives-to-file`（旧竖线格式） | `--save-records` 写 Tab 分隔 `BBDown.archives`（`<aid>\t<cid>\t<路径>`），键为 `(aid, cid)` |
-| **测试覆盖** | 较少 | **650+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名等） |
+| **测试覆盖** | 较少 | **870+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名等） |
 | **代码现代化** | 传统结构 | god-class 拆分（如 `BBDownUtil` 按归属拆分）、现代化命名、`System.Threading.Lock`、`[GeneratedRegex]`、`Nullable enable` + `TreatWarningsAsErrors`、net9.0 |
+| **直播录制** | 无 | 新增独立直播链路，直播间地址直录（`live:` / `live.bilibili.com`），`--live-quality` 选清晰度（默认原画 10000，可选 250 超清 / 400 蓝光 / 15000 2K / 20000 4K / 30000 杜比），分段 FLV 落盘后合并为 mp4（`Ctrl+Break` 停录合并 / `Ctrl+C` 中断保留分段）；录制状态机具备断流退避重连、CDN failover、编码锁定 |
 
 ## 2. 分主题详述
 
@@ -38,7 +39,7 @@
 
 - **`login`**：统一入口，无标志登录 WEB，加 `--tv` 登录 TV，加 `--app` 登录 APP（`BBDown/Program.cs`：`loginCommand` 的 `SetAction` → `Login.Web/TV/App`）。原版 `logintv` 已合并进 `login --tv`。
 - **`opus`**：新增子命令，导出专栏/图文为 Markdown（`BBDown/CommandLineInvoker.cs`：`GetOpusCommand`；`BBDown/Program.cs`：`rootCommand.Subcommands.Add(... GetOpusCommand(...))`）。
-- **`serve`**：服务器模式，选项含 `--listen` / `--serve-token` / `--work-dir` / `--host` / `--ep-host` / `--tv-host` / `--cors-origin` / `--max-concurrent`（`BBDown/Program.cs`：`serverCommand`）。
+- **`serve`**：服务器模式，选项含 `--listen` / `--serve-token` / `--work-dir` / `--host` / `--ep-host` / `--tv-host` / `--cors-origin` / `--max-concurrent`（`BBDown/Program.cs`：`BuildServeCommand`）。
 - 主命令解析范围：`av` / `BV` / `ep` / `ss` / `md`、合集（`listBizId`）/ 系列（`seriesBizId`）、收藏夹（`favId`）、空间（`spaceMid`）、cheese（`cheese:`）（`BBDown/InputResolver.cs`：`GetAvIdAsync`）。
 
 ### 2.2 登录与凭据管理
@@ -68,6 +69,7 @@
     - `GET /get-tasks/`、`/get-tasks/running`、`/get-tasks/finished`、`/get-tasks/{id}`（任务状态查询）。
     - `POST /add-task`（新增下载任务）。
     - `POST /remove-finished/`、`/remove-finished/failed`、`/remove-finished/{id}`（清理已完成任务）。
+    - `POST /stop-task/{id}`（取消单个运行中 / 排队中任务，不影响其他任务）。
 - **鉴权**：`FinalizeAuth(url)` 判定监听地址——回环地址（`IsLoopbackUrl`）免令牌；非回环地址 `authRequired = true`，请求须带 `X-BBDown-Token` 头或 `?token=` 查询参数，缺失/错误返回 401（中间件 `context.Response.StatusCode = 401`）。
 - **SSRF 防护**：
     - `IsSafeWebHook(uri)` 仅允许公网 `http/https`，拒绝 `localhost`、回环与私网地址。
@@ -141,12 +143,21 @@
 
 ### 2.13 测试与工程化
 
-- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **650+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、空间列表等。
+- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **870+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、空间列表等。
 - **AOT 与现代化**：
     - `BBDown/Directory.Build.props`：`<PublishAot>true</PublishAot>`，直接 `dotnet publish BBDown -r <RID> -c Release`（CI 命令见 `.github/workflows/ci.yml`，RID 矩阵 8 个）。
     - `Directory.Build.props`：`<TargetFramework>net9.0</TargetFramework>`、`<Nullable>enable</Nullable>`、`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`、`<AnalysisLevel>latest-all</AnalysisLevel>`。
     - `System.Text.Json` 源生成器（如 `CredentialJsonContext`、`AppJsonSerializerContext`）替代反射，AOT 安全。
     - `[GeneratedRegex]` 集中声明正则（如 `OpusRegexes`、`InputResolver`）；`System.Threading.Lock` 替代 `object` 锁；god-class（如 `BBDownUtil`）按归属拆分。
+
+### 2.14 直播录制
+
+- **入口与分流**（`BBDown/Pipeline/LiveDownload.cs`、`BBDown/Program.cs`：`RunApp` 的 `LiveInputResolver.TryParse(...)` 分支）：直播间地址（`live:` / `live.bilibili.com/{数字}` / `m.live.bilibili.com`）在 `WorkSetup.Build` 之前分流到 `LiveDownload.RunAsync`，是一条不经 `WorkContext` / 混流主干的独立链路；房间短号自动换算为真实 ID，裸数字不进入直播链路（归属视频 `ep`）。
+- **地址解析**（`BBDown.Core/Live/LiveInputResolver.cs`：`TryParse`）：仅接受 `live.bilibili.com/{数字}`、`m.live.bilibili.com`、`live:{数字}` 及其协议相对 / https 形态。
+- **拉流与录制**（`BBDown.Core/Live/LiveFetcher.cs` / `BBDown/Live/LiveRecorder.cs`）：拉取 `http_stream` + `flv` 流地址，分段落盘 `<dest>.<NNN>.bbdown.part`；状态机处理断流退避重连、CDN failover、静默超时、磁盘满 / 连续失败保护，首段成功后锁定编码避免合并静默丢段。
+- **产物命名**（`BBDown/Live/LiveFileNaming.cs`）：`<主播名>-<标题>-<yyyyMMdd_HHmmss>.mp4`（主播名 / 标题按 UTF-8 字节截断）。
+- **合并**（`BBDown/Live/LiveMuxer.cs`）：`Ctrl+Break` 触发分段 FLV → 单个 mp4，按编码分派 bitstream filter（avc → `h264_mp4toannexb`、hevc → `hevc_mp4toannexb`，加 `+genpts`）；`Ctrl+C` 中断保留分段不合并。
+- **清晰度**（`BBDown.Core/Live/LiveRoomInfo.cs`：`LiveQuality`）：`--live-quality` / `-lq` 取值，10000 原画（默认）/ 400 蓝光 / 250 超清 / 150 高清 / 80 流畅 / 15000 2K / 20000 4K / 30000 杜比；未登录通常只给到 250。
 
 ## 3. 关键改动核实点（源码位置）
 
@@ -164,6 +175,7 @@
 - **封装/优先级**：`BBDown.Core/PlayUrl/`（`DashTrackReader.Collect` / `FlvTrackReader.Collect` / `IntlTrackReader.Collect` / `AppTrackReader.FetchAsync`，请求由 `PlayUrlClient` 发出）；`Parser.ExtractTracksAsync` 负责编排；`DetermineApiType` 在 `BBDown/VideoInfo.cs`、`BBDown.Core/Config.cs`（`MaxQn`）。
 - **归档**：`BBDown/ArchiveLog.cs`、`BBDown/CommandLineInvoker.cs`（`SaveRecords`）。
 - **AOT/现代化**：`BBDown/Directory.Build.props`、`Directory.Build.props`。
+- **直播录制**：`BBDown/Pipeline/LiveDownload.cs`、`BBDown/Live/`（LiveFileNaming / LiveMuxer / LiveProgress / LiveRecorder / LiveSegmentWriter / LiveSignal）、`BBDown.Core/Live/`（LiveInputResolver / LiveFetcher / LiveRoomInfo）。
 
 ## 4. 不兼容说明（升级注意）
 

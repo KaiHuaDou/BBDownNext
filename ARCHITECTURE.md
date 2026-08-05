@@ -44,7 +44,16 @@ BBDown/
 │   │   ├── PageQueue.cs            # 逐分 P 编排 (RunAsync)
 │   │   ├── PageSelect.cs           # 分 P 选择/范围
 │   │   ├── InputResolver.cs        # URL/编号 → 内部 avid 解析
+│   │   ├── LiveDownload.cs         # 直播录制编排 (RunAsync)：独立链路，不走 WorkContext
 │   │   └── OpusDownload.cs         # 专栏导出入口 (RunAsync)：在 RunApp 内于 WorkSetup.Build 之前分流，不经混流
+│   │
+│   ├── Live/               # 命名空间 BBDown.Live — 直播录制（独立链路，不依赖 WorkContext）
+│   │   ├── LiveFileNaming.cs       # 分段/产物文件名（主播名-标题-时间戳）
+│   │   ├── LiveMuxer.cs            # 分段 FLV → mp4 合并（avc/hevc bitstream filter 分派、+genpts）
+│   │   ├── LiveProgress.cs         # 录制进度回吐
+│   │   ├── LiveRecorder.cs        # 录制状态机（断流退避重连 / CDN failover / 编码锁定）
+│   │   ├── LiveSegmentWriter.cs    # 单段 FLV 落盘
+│   │   └── LiveSignal.cs           # Ctrl+Break 停录合并 / Ctrl+C 中断信号
 │   │
 │   ├── Media/              # 命名空间 BBDown.Media — 单分 P 下载与封装
 │   │   ├── PageDownload.cs         # 单分 P 下载入口，分派 DASH/FLV (RunAsync / DispatchAsync)
@@ -56,7 +65,7 @@ BBDown/
 │   │
 │   ├── Mux/                # 命名空间 BBDown.Mux — 混流与收尾
 │   │   ├── MuxFinish.cs            # 混流收尾、跳过已存在、清理临时文件 (DASH/FLV 共用)
-│   │   ├── Muxer.cs                # FFmpeg/MP4Box 混流、FLV 合并（混流入参收敛为不可变 `MuxRequest` record）
+│   │   ├── Muxer.cs                # FFmpeg/MP4Box 混流、FLV 合并（混流入参统一为不可变 `MuxRequest` record）
 │   │   └── ChapterMeta.cs          # 章节元数据
 │   │
 │   ├── Download/           # 命名空间 BBDown.Download — 下载传输层
@@ -104,6 +113,7 @@ BBDown/
 │   ├── APP/                # APP gRPC 协议 (proto 生成代码)
 │   └── DanmakuUtil.cs      # 弹幕获取 (xml/ass)
 │   ├── Comment/             # 评论区抓取与渲染（WBI 分页 / 楼中楼 / JSON·TXT 渲染）
+│   ├── Live/                # 直播录制：LiveInputResolver(地址解析) / LiveFetcher(拉流地址) / LiveRoomInfo(房间信息 + 清晰度档位 LiveQuality)
 │
 ├── BBDown.Tests/           # 针对 BBDown 的 xUnit 测试
 └── BBDown.Core.Tests/      # 针对 BBDown.Core 的 xUnit 测试
@@ -149,7 +159,28 @@ PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分�
 落盘 (SavePath 经 FileNameUtil 截断) + 写入 BBDown.archives (--save-records)
 ```
 
-**取消令牌贯穿全链路**：全局 `CancellationTokenSource`，Ctrl+C 触发优雅取消，`OperationCanceledException` 被捕获后进程以 `130` 退出，已下载的 `.bbdown.part` 临时文件保留，重跑同一条命令即可续传。
+**直播录制分支**：当输入命中 `LiveInputResolver.TryParse`（`live:` / `live.bilibili.com/{数字}` / `m.live.bilibili.com`），`RunApp` 在 `WorkSetup.Build` 之前分流到 `LiveDownload.RunAsync`，这是一条不经 `WorkContext` / 混流主干的独立链路：
+
+```
+用户输入（直播间地址）
+  │
+  ▼
+LiveInputResolver.TryParse    live: / live.bilibili.com/{房间号} → 真实房间号（短号换算）
+  │
+  ▼
+LiveFetcher.FetchAsync        取 http_stream + flv 流地址、房间信息与清晰度档位
+  │
+  ▼
+LiveRecorder.RunAsync         分段落盘（断流退避重连 / CDN failover / 首段成功后编码锁定）
+  │  ├─ LiveSegmentWriter      单段 FLV 写入 <dest>.<NNN>.bbdown.part
+  │  └─ LiveProgress           进度回吐
+  ▼
+LiveMuxer.MergeSegmentsAsync  Ctrl+Break 触发：分段 FLV → 单个 mp4（avc→h264_mp4toannexb / hevc→hevc_mp4toannexb，+genpts）；Ctrl+C 中断保留分段、不合并
+  ▼
+落盘 <主播名>-<标题>-<yyyyMMdd_HHmmss>.mp4
+```
+
+**取消令牌贯穿全链路**：全局 `CancellationTokenSource`，Ctrl+C 触发优雅取消，`OperationCanceledException` 被捕获后进程以 `130` 退出，已下载的 `.bbdown.part` 临时文件保留，重跑同一条命令即可续传。直播录制同样接入该令牌：`LiveSignal` 区分 `Ctrl+Break`（停录并合并，退出码 `0`）与 `Ctrl+C`（中断保留分段，退出码 `130`）。
 
 ---
 

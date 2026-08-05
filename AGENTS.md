@@ -6,6 +6,10 @@
 
 BBDown 是 B 站视频下载器，C# / .NET（AOT 单文件发布）。命令入口在 `BBDown/Program.cs`，下载编排在 `BBDown.Core`，测试在 `BBDown.Tests` / `BBDown.Core.Tests`。
 
+bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
+
+另有新版文档：`./bilibili-API-collect/0-BACNext-Main-2MB.md` 和 `./bilibili-API-collect/0-BACNext-Passport-57KB.md`
+
 ## 强制要求
 
 ### 设计
@@ -28,7 +32,14 @@ BBDown 是 B 站视频下载器，C# / .NET（AOT 单文件发布）。命令入
 
 #### 文件规模
 
-- 单个 `.cs` 文件不得超过 384 行。如因清理历史遗留问题暂时超过，必须在本次提交信息中说明原因，并在后续改动中尽快拆分。
+- 单个 `.cs` 文件不得超过 384 行（测试除外）。如因清理历史遗留问题暂时超过，必须在本次提交信息中说明原因，并在后续改动中尽快拆分。
+    - 使用 `just tokei` 来分析行数
+    - 当前超行文件
+        - .\BBDown\Auth\Login.cs
+        - .\BBDown.Core\Opus\OpusFetcher.cs
+        - .\BBDown\Cli\CommandLineInvoker.cs
+        - .\BBDown\Download\DownloadUtil.cs
+        - .\BBDown.Core\Util\HTTPUtil.cs
 
 #### 注释
 
@@ -45,6 +56,8 @@ BBDown 是 B 站视频下载器，C# / .NET（AOT 单文件发布）。命令入
 - **禁止**将你自行编写的任何计划、设计草稿、临时文档提交或暂存到仓库。
 - 所有对外文档（`README.md`、命令行帮助、提示语）**只陈述事实**，不得添加任何多余的形容词或修饰性语言。
 - 全文（注释、文档、提交信息）**禁用“收敛”一词**。
+- 当我直接要求你提交 commit 时，将暂存区的所有内容全部提交，不要将非暂存区内容提交到暂存区
+- 更新文档时，严格以实际代码为准，参考最近的 git commit 记录（一定看完整提交信息）
 - 提交信息使用中文，格式严格为：
 
 ```commit-msg
@@ -67,15 +80,16 @@ BBDown 是 B 站视频下载器，C# / .NET（AOT 单文件发布）。命令入
 ### 语法
 
 - C# 13 最新语法：集合表达式（`[]`、模式匹配、LINQ 等等
+- **遵守我的`.editorconfig`**
+- 正则表达式不要使用不适用于源生成的语法
 - 所有语法必须兼容 AOT
-- 异步方法必须由 `Async` 结尾
-- 遵守我的`.editorconfig`
-- 不要在方法/嵌套方法/构造函数上使用 `=>`
+- 偏好`TryGetValue`，更偏好`GetValueOrDefault`
+- 偏好 `var`
 - 偏好 `is null`/`is not null`
 - 偏好 `await using`
-- 偏好 `var`
+- 偏好 `lock(<System.Threading.Lock gate>)`
 - 空括号中间要加空格，即`( )`
-- 正则表达式不要使用不适用于源生成的语法
+- 不要在方法/嵌套方法/构造函数上使用 `=>`
 
 ### 命名
 
@@ -84,14 +98,17 @@ BBDown 是 B 站视频下载器，C# / .NET（AOT 单文件发布）。命令入
 - 不要跟我的 Visual Studio 自动代码清理对着干
 - 除了 `xunit` 测试，不要使用含下划线名称
     - 序列化的部分场景例外
-    - Namespace / Type / Const / Public 使用 UpperCamelCase
-    - private 使用 snakeCase
-    - 接口使用 IUpperCamelCase
     - 测试命名：方法名_场景_预期行为
+    - 一个测试代码文件**最多对应一个**项目代码文件
 - 不许在任何名称中使用 `my`
+- 接口使用 IUpperCamelCase
 - 使用 `Utils` 而非 `Util`/`Utilties`/`Helper`
+- 异步方法必须由 `Async` 结尾
+- Namespace / Type / Const / Property / Public 使用 UpperCamelCase
+- private 使用 snakeCase
 - 命名空间名不能作为类名的前缀、类名不能作为函数名/属性名的前缀
-    - 即调用时不许出现`XXXX<pattern>.<pattern>YYYY( )`的情况
+    - 即调用时不许出现 `XXXX<pattern>.<pattern>YYYY( )` 的情况
+- 除非与 .NET 标准库重名需要区分，否则不要加 `BBDown` 前缀
 - **禁用**的缩写
     - cfg -> config
     - ct -> token（cancellation 字样在只有一个 token 时可以删去）
@@ -99,7 +116,7 @@ BBDown 是 B 站视频下载器，C# / .NET（AOT 单文件发布）。命令入
     - ctx -> context
     - src -> source（惯例情况除外）
     - cmd -> command
-- **强制大小写规范**
+- **强制大小写规范**（以下全大写的在特定情况下也可使用全小写）
     - FFmpeg / ffmpeg
     - MP4Box / mp4box
     - Aria2c / aria2c
@@ -108,6 +125,10 @@ BBDown 是 B 站视频下载器，C# / .NET（AOT 单文件发布）。命令入
     - AV、BV、SS、EP、MD
     - Xml、Xaml、Json
     - TV
+    - PGC / UGC
+    - AVC / HEVC / AV1 / AAC / FLAC / Dolby
+    - FLV / MP4 / MP3 / M4A
+    - PCDN
 
 ## 程序设计
 

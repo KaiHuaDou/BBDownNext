@@ -17,7 +17,7 @@ public static class FetcherRegistry
     private static readonly (Func<string, bool> Matches, FetchFn Fetch)[] Routes =
     [
         (s => s.StartsWith(IdPrefix.Cheese),     (s, c, _, t) => CheeseInfoFetcher.FetchAsync(s, c, t)),
-        (s => s.StartsWith(IdPrefix.EpColon),    (s, c, u, t) => FetchEpisodeAsync(s, c, u, t)),
+        (s => s.StartsWith(IdPrefix.EpColon),    FetchEpisodeAsync),
         (s => s.StartsWith(IdPrefix.SeriesBizId),(s, c, _, t) => MediaListFetcher.FetchListAsync(s[IdPrefix.SeriesBizId.Length..], 5, true, "系列", c, t)),
         (s => s.StartsWith(IdPrefix.FavId),      (s, c, _, t) => FavListFetcher.FetchAsync(s, c, t)),
         (s => s.StartsWith(IdPrefix.ListBizId),  (s, c, _, t) => FetchMediaListWithSeriesFallback(s, c, t)),
