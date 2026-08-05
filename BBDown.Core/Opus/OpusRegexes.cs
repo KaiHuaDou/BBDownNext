@@ -8,7 +8,7 @@ namespace BBDown.Core.Opus;
 /// </summary>
 internal static partial class OpusRegexes
 {
-    [GeneratedRegex(@"<(script|style)\b[^>]*>.*?</\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<(script|style)\b[^>]*>.*?</(script|style)>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     public static partial Regex ScriptStyle( );
 
     [GeneratedRegex(@"<img\b[^>]*?src\s*=\s*""([^""]*)""[^>]*?>", RegexOptions.IgnoreCase)]
@@ -23,19 +23,19 @@ internal static partial class OpusRegexes
     [GeneratedRegex(@"<a\b[^>]*?href\s*=\s*'([^']*)'[^>]*?>(.*?)</a>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     public static partial Regex AnchorSingleQuote( );
 
-    [GeneratedRegex(@"<(strong|b)\b[^>]*>(.*?)</\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<(strong|b)\b[^>]*>(.*?)</(strong|b)>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     public static partial Regex Bold( );
 
-    [GeneratedRegex(@"<(em|i)\b[^>]*>(.*?)</\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<(em|i)\b[^>]*>(.*?)</(em|i)>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     public static partial Regex Italic( );
 
-    [GeneratedRegex(@"<(pre|code)\b[^>]*>(.*?)</\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<(pre|code)\b[^>]*>(.*?)</(pre|code)>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     public static partial Regex PreCode( );
 
     [GeneratedRegex(@"<blockquote\b[^>]*>(.*?)</blockquote>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     public static partial Regex Blockquote( );
 
-    [GeneratedRegex(@"<h([1-6])\b[^>]*>(.*?)</h\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<h([1-6])\b[^>]*>(.*?)</h[1-6]>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     public static partial Regex Heading( );
 
     [GeneratedRegex(@"<li\b[^>]*>(.*?)</li>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]

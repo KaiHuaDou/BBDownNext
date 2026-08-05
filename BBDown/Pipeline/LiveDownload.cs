@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using BBDown.Auth;
 using BBDown.Core;
 using BBDown.Core.Live;
-using BBDown.Core.Util;
 using BBDown.Live;
 
 using static BBDown.Core.Logger;

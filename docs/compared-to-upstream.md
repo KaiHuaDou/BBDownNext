@@ -150,7 +150,7 @@
 
 ## 3. 关键改动核实点（源码位置）
 
-- **子命令**：`BBDown/Program.cs`（`loginCommand` / `GetOpusCommand` / `serverCommand`）。
+- **子命令**：`BBDown/Program.cs`（`BuildLoginCommand` / `BuildServeCommand`；`GetOpusCommand` 由 `CommandLineInvoker` 提供）。
 - **登录三态 + Cookie 续期**：`BBDown/Login.cs`（`Web` / `TV` / `App` / `TryRefreshWebCookieIfStaleAsync` / `RefreshWebCookieAsync` / `MakeCorrespondPath` / `RefreshRsaPublicKey`）。
 - **凭据单文件 + 源生成器**：`BBDown/CredentialStore.cs`（`Credential` / `CredentialJsonContext` / `SaveWebCookie` 等）。
 - **WBI 签名**：`BBDown.Core/Util/SignUtil.cs`（`WbiSign` / `WbiEncodeValue`）；应用点 `NormalInfoFetcher.cs`、`SubUtil.cs`、`SpaceListFetcher.cs`、`BiliApi.cs`（`PlayUrlWebPath` / `ViewWbi` / `PlayerWbiV2` / `SpaceArcSearch`），playurl 侧由 `PlayUrlClient` 调用。

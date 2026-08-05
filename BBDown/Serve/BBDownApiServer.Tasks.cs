@@ -75,13 +75,21 @@ public partial class BBDownApiServer
 
         try
         {
-            await RunGatedAsync(task, ( ) => DownloadPipeline.RunAsync(option, SinkFor(task), AppEnv.CancellationToken), AppEnv.CancellationToken);
+            await RunGatedAsync(task, ( ) => DownloadPipeline.RunAsync(option, SinkFor(task), task.Cts.Token), task.Cts.Token);
             task.IsSuccessful = true;
         }
-        catch (OperationCanceledException) when (AppEnv.CancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (task.Cts.IsCancellationRequested)
         {
-            // 关服（Ctrl+C）时排队中的任务会在闸门处被取消，属正常退出路径，不该刷成"下载失败"
-            Logger.LogWarn($"{aid} 已取消（服务器正在退出）");
+            // 关服（Ctrl+C）或单独停止任务都会取消 task.Cts：前者走进程级令牌，后者走 /stop-task 端点。
+            // 排队中的任务会在闸门处被取消，属正常退出路径，不该刷成"下载失败"
+            if (AppEnv.CancellationToken.IsCancellationRequested)
+            {
+                Logger.LogWarn($"{aid} 已取消（服务器正在退出）");
+            }
+            else
+            {
+                Logger.LogWarn($"{aid} 已取消（任务被单独停止）");
+            }
         }
         catch (Exception e)
         {
@@ -102,6 +110,8 @@ public partial class BBDownApiServer
         runningTasks.TryRemove(aid, out _);
         finishedTasks[aid] = task;
         TrimFinishedTasks( );
+        // 任务已结束，释放与进程级令牌的链接注册（不取消任何下载，仅释放资源）
+        task.Cts.Dispose( );
         return task;
     }
 

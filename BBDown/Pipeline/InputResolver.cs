@@ -16,19 +16,19 @@ namespace BBDown.Pipeline;
 /// </summary>
 internal static partial class InputResolver
 {
-    public static async Task<string> GetAvIdAsync(string input, Core.AppConfig cfg)
+    public static async Task<string> GetAvIdAsync(string input, Core.AppConfig cfg, HttpMessageHandler? handler = null)
     {
         var avid = input.StartsWith("http")
-            ? await ResolveUrlAsync(input, cfg)
-            : await ResolveShorthandAsync(input, cfg);
-        return await FixAvidAsync(avid);
+            ? await ResolveUrlAsync(input, cfg, handler)
+            : await ResolveShorthandAsync(input, cfg, handler);
+        return await FixAvidAsync(avid, handler);
     }
 
-    private static async Task<string> ResolveUrlAsync(string input, Core.AppConfig cfg)
+    private static async Task<string> ResolveUrlAsync(string input, Core.AppConfig cfg, HttpMessageHandler? handler = null)
     {
         if (input.Contains("b23.tv"))
         {
-            var tmp = await GetWebLocationAsync(input);
+            var tmp = await GetWebLocationAsync(input, handler: handler);
             if (tmp == input)
             {
                 throw new InvalidOperationException("无限重定向");
@@ -59,7 +59,7 @@ internal static partial class InputResolver
 
         if (input.Contains("/ss"))
         {
-            return $"ep:{await GetSeasonIdBySSAsync(SsRegex( ).Match(input).Groups[1].Value, cfg)}";
+            return $"ep:{await GetSeasonIdBySSAsync(SsRegex( ).Match(input).Groups[1].Value, cfg, handler)}";
         }
 
         if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_collection")) // 列表类型是合集
@@ -110,13 +110,13 @@ internal static partial class InputResolver
 
         if (BangumiMdRegex( ).Match(input) is { Success: true } md)
         {
-            return $"{IdPrefix.EpColon}{await GetSeasonIdByMDAsync(md.Groups[1].Value, cfg)}";
+            return $"{IdPrefix.EpColon}{await GetSeasonIdByMDAsync(md.Groups[1].Value, cfg, handler)}";
         }
 
-        return $"{IdPrefix.EpColon}{await ScrapeFirstEpIdAsync(input, cfg)}";
+        return $"{IdPrefix.EpColon}{await ScrapeFirstEpIdAsync(input, cfg, handler)}";
     }
 
-    private static async Task<string> ResolveShorthandAsync(string input, Core.AppConfig cfg)
+    private static async Task<string> ResolveShorthandAsync(string input, Core.AppConfig cfg, HttpMessageHandler? handler = null)
     {
         if (input.ToLower( ).StartsWith("bv"))
         {
@@ -140,12 +140,12 @@ internal static partial class InputResolver
 
         if (input.StartsWith(IdPrefix.Ss))
         {
-            return $"{IdPrefix.EpColon}{await GetSeasonIdBySSAsync(input[IdPrefix.Ss.Length..], cfg)}";
+            return $"{IdPrefix.EpColon}{await GetSeasonIdBySSAsync(input[IdPrefix.Ss.Length..], cfg, handler)}";
         }
 
         if (input.StartsWith(IdPrefix.Md))
         {
-            return $"{IdPrefix.EpColon}{await GetSeasonIdByMDAsync(MdRegex( ).Match(input).Groups[1].Value, cfg)}";
+            return $"{IdPrefix.EpColon}{await GetSeasonIdByMDAsync(MdRegex( ).Match(input).Groups[1].Value, cfg, handler)}";
         }
 
         // space402787936：显式空间简写（先判 space 再判裸数字，避免裸数字分支误吞）
@@ -194,15 +194,15 @@ internal static partial class InputResolver
         return type == "series" ? $"seriesBizId:{sid}" : $"listBizId:{sid}";
     }
 
-    private static async Task<string> ScrapeFirstEpIdAsync(string input, Core.AppConfig cfg)
+    private static async Task<string> ScrapeFirstEpIdAsync(string input, Core.AppConfig cfg, HttpMessageHandler? handler = null)
     {
-        var web = await GetWebSourceAsync(input, cfg);
+        var web = await GetWebSourceAsync(input, cfg, handler: handler);
         var json = StateRegex( ).Match(web).Groups[1].Value;
         using var jDoc = JsonDocument.Parse(json);
         return jDoc.RootElement.GetProperty("epList").EnumerateArray( ).First( ).GetProperty("id").ToString( );
     }
 
-    private static async Task<string> FixAvidAsync(string avid)
+    private static async Task<string> FixAvidAsync(string avid, HttpMessageHandler? handler = null)
     {
         if (!avid.All(char.IsDigit))
         {
@@ -210,7 +210,7 @@ internal static partial class InputResolver
         }
 
         var api = $"{BiliApi.VideoPage}/av{avid}/";
-        var location = await GetWebLocationAsync(api);
+        var location = await GetWebLocationAsync(api, handler: handler);
         return location.Contains("/ep") ? $"ep:{EpRegex( ).Match(location).Groups[1].Value}" : avid;
     }
 
@@ -223,10 +223,10 @@ internal static partial class InputResolver
     // ss（番剧季号）直接解析为 season_id 编码，产出 "ss{seasonId}" 形态，
     // 与 md 路径完全对称：同样交由 BangumiInfoFetcher 按 season_id 拉取整季正片（Index=""）。
     // 这样 ss / md 两种入口得到完全一致的内部 id（ep:ss{season_id}），无特判、零跨层改动。
-    private static async Task<string> GetSeasonIdBySSAsync(string ssId, Core.AppConfig cfg)
+    private static async Task<string> GetSeasonIdBySSAsync(string ssId, Core.AppConfig cfg, HttpMessageHandler? handler = null)
     {
         var api = $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?season_id={ssId}";
-        var json = await GetWebSourceAsync(api, cfg);
+        var json = await GetWebSourceAsync(api, cfg, handler: handler);
         using var jDoc = JsonDocument.Parse(json);
         var result = BBDown.Core.Util.JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result");
         return $"ss{result.GetProperty("season_id")}";
@@ -236,10 +236,10 @@ internal static partial class InputResolver
     // 返回 "ss{seasonId}" 形态，交由 BangumiInfoFetcher 按 season_id 拉取整季正片，
     // 与 cheese 的 ss 形态编码保持一致，从而无需新增内部 id 前缀、playurl 判定零改动。
     // 旧实现取 new_ep.id（最新一集）改为整季，用户可用 -p 选定具体集。
-    private static async Task<string> GetSeasonIdByMDAsync(string mdId, Core.AppConfig cfg)
+    private static async Task<string> GetSeasonIdByMDAsync(string mdId, Core.AppConfig cfg, HttpMessageHandler? handler = null)
     {
         var api = $"{BiliApi.ReviewUser}?media_id={mdId}";
-        var json = await GetWebSourceAsync(api, cfg);
+        var json = await GetWebSourceAsync(api, cfg, handler: handler);
         using var jDoc = JsonDocument.Parse(json);
         var media = BBDown.Core.Util.JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result").GetProperty("media");
         return $"ss{media.GetProperty("season_id")}";

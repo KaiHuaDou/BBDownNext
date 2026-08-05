@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
@@ -61,5 +59,17 @@ public partial class BBDownApiServer
             return Results.Ok( );
         });
         finishedRemovalApi.MapPost("/{id}", (string id) => { finishedTasks.TryRemove(id, out _); return Results.Ok( ); });
+        // 变更类端点必须用 POST（同上 CSRF 考量）。单独取消某运行中的任务，不影响其他任务；
+        // 取消经 task.Cts 触发，与进程级关停令牌 Link，故 Ctrl+C 仍会整体退出。
+        app.MapPost("/stop-task/{id}", (string id) =>
+        {
+            if (!runningTasks.TryGetValue(id, out var task))
+            {
+                return Results.NotFound( );
+            }
+
+            task.Cts.Cancel( );
+            return Results.Ok( );
+        });
     }
 }

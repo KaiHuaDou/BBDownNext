@@ -4,8 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 
-using BBDown.Core;
-
 using static BBDown.Core.Logger;
 using static BBDown.Util.Utils;
 
@@ -215,12 +213,12 @@ internal static class WorkSetup
         return myOption with
         {
             // 手动选择时不能隐藏流
-            HideStreams = myOption.Interactive ? false : myOption.HideStreams,
+            HideStreams = !myOption.Interactive && myOption.HideStreams,
             // audioOnly 和 videoOnly 同时开启则全部忽视
-            AudioOnly = myOption.AudioOnly && myOption.VideoOnly ? false : myOption.AudioOnly,
-            VideoOnly = myOption.AudioOnly && myOption.VideoOnly ? false : myOption.VideoOnly,
+            AudioOnly = (!myOption.AudioOnly || !myOption.VideoOnly) && myOption.AudioOnly,
+            VideoOnly = (!myOption.AudioOnly || !myOption.VideoOnly) && myOption.VideoOnly,
             // 关字幕时忽略仅字幕
-            SubOnly = myOption.NoSub ? false : myOption.SubOnly,
+            SubOnly = !myOption.NoSub && myOption.SubOnly,
         };
     }
 

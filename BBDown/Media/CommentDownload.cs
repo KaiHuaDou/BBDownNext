@@ -1,4 +1,3 @@
-using System;
 using System.Globalization;
 using System.IO;
 using System.Text.Encodings.Web;
@@ -6,7 +5,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
 using BBDown.Core.Comment;
 using BBDown.Util;
 
