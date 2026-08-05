@@ -19,7 +19,7 @@ namespace BBDown.Pipeline;
 /// </summary>
 internal static class LiveDownload
 {
-    internal static async Task RunAsync(DownloadOptions myOption, LiveTarget target, CancellationToken ct = default)
+    internal static async Task RunAsync(DownloadRequest myOption, LiveTarget target, CancellationToken ct = default)
     {
         // 录了几小时才发现没有 ffmpeg 是不可接受的，开录前就要探测
         var tools = WorkSetup.ResolveToolPaths(myOption);

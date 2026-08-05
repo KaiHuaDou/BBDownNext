@@ -13,7 +13,7 @@ namespace BBDown.Media;
 
 internal static partial class TrackSelect
 {
-    internal static void SortDashTracks(ParsedResult parsedResult, WorkContext ctx, DownloadOptions myOption)
+    internal static void SortDashTracks(ParsedResult parsedResult, WorkContext ctx, DownloadRequest myOption)
     {
         parsedResult.VideoTracks = SortTracks(parsedResult.VideoTracks, ctx.DfnPriority, ctx.EncodingPriority, myOption.VideoAscending, ctx.EncodingFirst);
         parsedResult.AudioTracks = SortTracks(parsedResult.AudioTracks, ctx.EncodingPriority, myOption.AudioAscending);

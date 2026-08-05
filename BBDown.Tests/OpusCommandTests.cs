@@ -4,9 +4,9 @@ namespace BBDown.Tests;
 
 public class OpusCommandTests
 {
-    private static async Task<DownloadOptions> ParseOpusAsync(params string[] args)
+    private static async Task<DownloadRequest> ParseOpusAsync(params string[] args)
     {
-        DownloadOptions? captured = null;
+        DownloadRequest? captured = null;
         var opus = CommandLineInvoker.GetOpusCommand(o =>
         {
             captured = o;
@@ -67,7 +67,7 @@ public class OpusCommandTests
     [Fact]
     public async Task RootCommand_AlsoAcceptsNoImages( )
     {
-        DownloadOptions? captured = null;
+        DownloadRequest? captured = null;
         var root = CommandLineInvoker.GetRootCommand(o =>
         {
             captured = o;

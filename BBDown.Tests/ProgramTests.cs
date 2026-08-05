@@ -41,35 +41,35 @@ public class ProgramTests
     [Fact]
     public void DetermineApiType_DefaultsToWeb( )
     {
-        var o = new DownloadOptions( );
+        var o = new DownloadRequest( );
         Assert.Equal("WEB", VideoInfo.DetermineApiType(o));
     }
 
     [Fact]
     public void DetermineApiType_TvApi( )
     {
-        var o = new DownloadOptions { UseTvApi = true };
+        var o = new DownloadRequest { UseTvApi = true };
         Assert.Equal("TV", VideoInfo.DetermineApiType(o));
     }
 
     [Fact]
     public void DetermineApiType_AppApi( )
     {
-        var o = new DownloadOptions { UseAppApi = true };
+        var o = new DownloadRequest { UseAppApi = true };
         Assert.Equal("APP", VideoInfo.DetermineApiType(o));
     }
 
     [Fact]
     public void DetermineApiType_IntlApi( )
     {
-        var o = new DownloadOptions { UseIntlApi = true };
+        var o = new DownloadRequest { UseIntlApi = true };
         Assert.Equal("INTL", VideoInfo.DetermineApiType(o));
     }
 
     [Fact]
     public void ParseEncodingPriority_NullInput_YieldsEmpty( )
     {
-        var o = new DownloadOptions { EncodingPriority = null };
+        var o = new DownloadRequest { EncodingPriority = null };
         var (encodingPriority, firstEncoding) = WorkSetup.ParseEncodingPriority(o);
         Assert.Empty(encodingPriority);
         Assert.Equal("", firstEncoding);
@@ -78,7 +78,7 @@ public class ProgramTests
     [Fact]
     public void ParseEncodingPriority_ParsesPriorityAndFirst( )
     {
-        var o = new DownloadOptions { EncodingPriority = "avc,hevc,av1" };
+        var o = new DownloadRequest { EncodingPriority = "avc,hevc,av1" };
         var (encodingPriority, firstEncoding) = WorkSetup.ParseEncodingPriority(o);
         Assert.Equal(3, encodingPriority.Count);
         Assert.Equal((byte) 0, encodingPriority["AVC"]);
@@ -90,7 +90,7 @@ public class ProgramTests
     [Fact]
     public void ParseEncodingPriority_CleansChineseCommaAndTrims( )
     {
-        var o = new DownloadOptions { EncodingPriority = "avc，hevc, av1 " };
+        var o = new DownloadRequest { EncodingPriority = "avc，hevc, av1 " };
         var (encodingPriority, firstEncoding) = WorkSetup.ParseEncodingPriority(o);
         Assert.Equal(3, encodingPriority.Count);
         Assert.Equal((byte) 0, encodingPriority["AVC"]);
@@ -102,7 +102,7 @@ public class ProgramTests
     [Fact]
     public void ParseEncodingPriority_DedupesRepeatedEncoding( )
     {
-        var o = new DownloadOptions { EncodingPriority = "avc,avc,hevc" };
+        var o = new DownloadRequest { EncodingPriority = "avc,avc,hevc" };
         var (encodingPriority, _) = WorkSetup.ParseEncodingPriority(o);
         Assert.Equal(2, encodingPriority.Count);
         Assert.Equal((byte) 0, encodingPriority["AVC"]);
@@ -112,14 +112,14 @@ public class ProgramTests
     [Fact]
     public void ParseDfnPriority_NullInput_YieldsEmpty( )
     {
-        var o = new DownloadOptions { DfnPriority = null };
+        var o = new DownloadRequest { DfnPriority = null };
         Assert.Empty(WorkSetup.ParseDfnPriority(o));
     }
 
     [Fact]
     public void ParseDfnPriority_ParsesPriority( )
     {
-        var o = new DownloadOptions { DfnPriority = "1080p,720p,360p" };
+        var o = new DownloadRequest { DfnPriority = "1080p,720p,360p" };
         var dfn = WorkSetup.ParseDfnPriority(o);
         Assert.Equal(3, dfn.Count);
         Assert.Equal(0, dfn["1080P"]);
@@ -130,7 +130,7 @@ public class ProgramTests
     [Fact]
     public void ParseDownloadDanmakuFormats_EmptyInput_UsesDefault( )
     {
-        var o = new DownloadOptions { DownloadDanmakuFormats = null };
+        var o = new DownloadRequest { DownloadDanmakuFormats = null };
         var formats = WorkSetup.ParseDownloadDanmakuFormats(o);
         Assert.Equal(DanmakuFormatInfo.DefaultFormats, formats);
     }
@@ -138,7 +138,7 @@ public class ProgramTests
     [Fact]
     public void ParseDownloadDanmakuFormats_ParsesExplicit( )
     {
-        var o = new DownloadOptions { DownloadDanmakuFormats = "xml,ass" };
+        var o = new DownloadRequest { DownloadDanmakuFormats = "xml,ass" };
         var formats = WorkSetup.ParseDownloadDanmakuFormats(o);
         Assert.Contains(DanmakuFormat.Xml, formats);
         Assert.Contains(DanmakuFormat.Ass, formats);
@@ -147,7 +147,7 @@ public class ProgramTests
     [Fact]
     public void ParseDownloadDanmakuFormats_InvalidFallsBackToDefault( )
     {
-        var o = new DownloadOptions { DownloadDanmakuFormats = "xml,bogus" };
+        var o = new DownloadRequest { DownloadDanmakuFormats = "xml,bogus" };
         var formats = WorkSetup.ParseDownloadDanmakuFormats(o);
         Assert.Equal(DanmakuFormatInfo.DefaultFormats, formats);
     }
@@ -156,14 +156,14 @@ public class ProgramTests
     [Fact]
     public void ParseCommentFormats_EmptyInput_UsesDefault( )
     {
-        var o = new DownloadOptions { CommentFormats = null };
+        var o = new DownloadRequest { CommentFormats = null };
         Assert.Equal(CommentFormatInfo.DefaultFormats, WorkSetup.ParseCommentFormats(o));
     }
 
     [Fact]
     public void ParseCommentFormats_ParsesExplicit( )
     {
-        var o = new DownloadOptions { CommentFormats = "json,txt" };
+        var o = new DownloadRequest { CommentFormats = "json,txt" };
         var formats = WorkSetup.ParseCommentFormats(o);
         Assert.Contains(CommentFormat.Json, formats);
         Assert.Contains(CommentFormat.Txt, formats);
@@ -172,7 +172,7 @@ public class ProgramTests
     [Fact]
     public void ParseCommentFormats_CaseInsensitiveAndDeduped( )
     {
-        var o = new DownloadOptions { CommentFormats = "TXT,json,txt" };
+        var o = new DownloadRequest { CommentFormats = "TXT,json,txt" };
         var formats = WorkSetup.ParseCommentFormats(o);
         Assert.Equal([CommentFormat.Txt, CommentFormat.Json], formats); // 去重后保持首次出现顺序
     }
@@ -180,40 +180,40 @@ public class ProgramTests
     [Fact]
     public void ParseCommentFormats_InvalidFallsBackToDefault( )
     {
-        var o = new DownloadOptions { CommentFormats = "json,bogus" };
+        var o = new DownloadRequest { CommentFormats = "json,bogus" };
         Assert.Equal(CommentFormatInfo.DefaultFormats, WorkSetup.ParseCommentFormats(o));
     }
 
     [Fact]
     public void HandleConflictingOptions_InteractiveForcesShowStreams( )
     {
-        var o = new DownloadOptions { Interactive = true, HideStreams = true };
-        WorkSetup.HandleConflictingOptions(o);
-        Assert.False(o.HideStreams);
+        var o = new DownloadRequest { Interactive = true, HideStreams = true };
+        var r = WorkSetup.HandleConflictingOptions(o);
+        Assert.False(r.HideStreams);
     }
 
     [Fact]
     public void HandleConflictingOptions_AudioOnlyAndVideoOnlyBothCleared( )
     {
-        var o = new DownloadOptions { AudioOnly = true, VideoOnly = true };
-        WorkSetup.HandleConflictingOptions(o);
-        Assert.False(o.AudioOnly);
-        Assert.False(o.VideoOnly);
+        var o = new DownloadRequest { AudioOnly = true, VideoOnly = true };
+        var r = WorkSetup.HandleConflictingOptions(o);
+        Assert.False(r.AudioOnly);
+        Assert.False(r.VideoOnly);
     }
 
     [Fact]
     public void HandleConflictingOptions_NoSubClearsSubOnly( )
     {
-        var o = new DownloadOptions { NoSub = true, SubOnly = true };
-        WorkSetup.HandleConflictingOptions(o);
-        Assert.False(o.SubOnly);
+        var o = new DownloadRequest { NoSub = true, SubOnly = true };
+        var r = WorkSetup.HandleConflictingOptions(o);
+        Assert.False(r.SubOnly);
     }
 
     [Fact]
     public void ResolveToolPaths_ExplicitPathsWin( )
     {
         using var fake = new FakeExecutable( );
-        var o = new DownloadOptions { FFmpegPath = fake.Path, Mp4boxPath = fake.Path, UseAria2c = true, Aria2cPath = fake.Path };
+        var o = new DownloadRequest { FFmpegPath = fake.Path, Mp4boxPath = fake.Path, UseAria2c = true, Aria2cPath = fake.Path };
 
         var tools = WorkSetup.ResolveToolPaths(o);
 
@@ -226,7 +226,7 @@ public class ProgramTests
     public void ResolveToolPaths_WithoutAria2cLeavesPathNull( )
     {
         using var fake = new FakeExecutable( );
-        var o = new DownloadOptions { FFmpegPath = fake.Path, UseAria2c = false };
+        var o = new DownloadRequest { FFmpegPath = fake.Path, UseAria2c = false };
 
         Assert.Null(WorkSetup.ResolveToolPaths(o).Aria2c);
     }
@@ -234,13 +234,13 @@ public class ProgramTests
     [Fact]
     public void ResolveToolPaths_MissingFFmpegThrowsUnlessSkipMux( )
     {
-        var o = new DownloadOptions { FFmpegPath = Path.Combine(Path.GetTempPath( ), "bbdown-not-here-" + Guid.NewGuid( ).ToString("N")) };
+        var o = new DownloadRequest { FFmpegPath = Path.Combine(Path.GetTempPath( ), "bbdown-not-here-" + Guid.NewGuid( ).ToString("N")) };
 
         // 不混流时不需要 ffmpeg；需要混流却找不到必须立刻炸，而不是下载完才失败
-        o.SkipMux = true;
+        o = o with { SkipMux = true };
         WorkSetup.ResolveToolPaths(o);
 
-        o.SkipMux = false;
+        o = o with { SkipMux = false };
         if (Utils.FindExecutable("ffmpeg") == null)
         {
             Assert.Throws<InvalidOperationException>(( ) => WorkSetup.ResolveToolPaths(o));
@@ -254,8 +254,8 @@ public class ProgramTests
         using var a = new FakeExecutable( );
         using var b = new FakeExecutable( );
 
-        var first = WorkSetup.ResolveToolPaths(new DownloadOptions { FFmpegPath = a.Path, Mp4boxPath = a.Path });
-        var second = WorkSetup.ResolveToolPaths(new DownloadOptions { FFmpegPath = b.Path, Mp4boxPath = b.Path });
+        var first = WorkSetup.ResolveToolPaths(new DownloadRequest { FFmpegPath = a.Path, Mp4boxPath = a.Path });
+        var second = WorkSetup.ResolveToolPaths(new DownloadRequest { FFmpegPath = b.Path, Mp4boxPath = b.Path });
 
         Assert.Equal(a.Path, first.Ffmpeg);
         Assert.Equal(b.Path, second.Ffmpeg);

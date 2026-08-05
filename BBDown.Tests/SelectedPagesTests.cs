@@ -34,7 +34,7 @@ public class SelectedPagesTests
 
     private static List<string>? Select(string selectPage, int pageCount = 10, string? url = null, string? index = null)
     {
-        return PageSelect.Resolve(new DownloadOptions { SelectPage = selectPage }, MakeVInfo(pageCount, index), url ?? TestVideos.PickRandom( ));
+        return PageSelect.Resolve(new DownloadRequest { SelectPage = selectPage }, MakeVInfo(pageCount, index), url ?? TestVideos.PickRandom( ));
     }
 
     [Fact]

@@ -59,6 +59,11 @@ internal static class BBDownAria2c
     /// </summary>
     internal static List<string> SplitArgs(string input)
     {
+        if (input is null)
+        {
+            return [];
+        }
+
         List<string> result = [];
         var current = new StringBuilder( );
         var quote = '\0';

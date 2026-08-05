@@ -17,7 +17,7 @@ internal static class PageSelect
     /// 1,2,3-3,4-5,6-10,15-latest（混合）｜latest/new=最后一集｜last/LAST=倒数第二集。
     /// 关键字大小写不敏感；表达式首尾、项内空白与尾逗号均忽略；越界数字夹紧到有效边界并提醒；倒序区间自动交换。
     /// </summary>
-    internal static List<string>? Resolve(DownloadOptions myOption, VInfo vInfo, string input)
+    internal static List<string>? Resolve(DownloadRequest myOption, VInfo vInfo, string input)
     {
         if (string.IsNullOrWhiteSpace(myOption.SelectPage))
         {

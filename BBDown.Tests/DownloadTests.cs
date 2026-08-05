@@ -89,35 +89,35 @@ public class DownloadTests
     [Fact]
     public void ResolveSavePathFormat_SinglePageUsesSingleDefault( )
     {
-        var o = new DownloadOptions( );
+        var o = new DownloadRequest( );
         Assert.Equal(SavePath.SinglePageDefaultSavePath, SavePath.Resolve(o, 1, false, false));
     }
 
     [Fact]
     public void ResolveSavePathFormat_MultiPageUsesMultiDefault( )
     {
-        var o = new DownloadOptions( );
+        var o = new DownloadRequest( );
         Assert.Equal(SavePath.MultiPageDefaultSavePath, SavePath.Resolve(o, 3, false, false));
     }
 
     [Fact]
     public void ResolveSavePathFormat_UnfinishedBangumiTreatedAsMultiPage( )
     {
-        var o = new DownloadOptions( );
+        var o = new DownloadRequest( );
         Assert.Equal(SavePath.MultiPageDefaultSavePath, SavePath.Resolve(o, 1, true, false));
     }
 
     [Fact]
     public void ResolveSavePathFormat_FinishedSinglePageBangumiUsesSingleDefault( )
     {
-        var o = new DownloadOptions( );
+        var o = new DownloadRequest( );
         Assert.Equal(SavePath.SinglePageDefaultSavePath, SavePath.Resolve(o, 1, true, true));
     }
 
     [Fact]
     public void ResolveSavePathFormat_UserPatternsWin( )
     {
-        var o = new DownloadOptions { FilePattern = "<aid>", MultiFilePattern = "<aid>/<cid>" };
+        var o = new DownloadRequest { FilePattern = "<aid>", MultiFilePattern = "<aid>/<cid>" };
         Assert.Equal("<aid>", SavePath.Resolve(o, 1, false, false));
         Assert.Equal("<aid>/<cid>", SavePath.Resolve(o, 2, false, false));
     }
@@ -216,7 +216,7 @@ public class DownloadTests
     [Fact]
     public void BuildDownloadConfig_CopiesOptionsAndCookie( )
     {
-        var o = new DownloadOptions
+        var o = new DownloadRequest
         {
             UseAria2c = true,
             Aria2cArgs = "-x16",

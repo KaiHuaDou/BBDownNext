@@ -14,6 +14,16 @@ using static BBDown.Util.Utils;
 
 namespace BBDown.Pipeline;
 
+/// <summary>
+/// <see cref="VideoInfo.FetchAsync"/> 解析出的「跑中才得到」的结果：视频信息、运行配置、aid、api 类型。
+/// 由调用方（<see cref="PageQueue.RunAsync"/>）与 <see cref="RunConfig"/> 组装进 <see cref="WorkContext"/>，不作为上下文字段回填（C5）。
+/// </summary>
+internal sealed record FetchResult(
+    VInfo VInfo,
+    AppConfig Cfg,
+    string FetchedAid,
+    string ApiType);
+
 internal static class VideoInfo
 {
     // Web Cookie 主动续期只跑一次，避免批量下载时每个视频都打 /cookie/info
@@ -22,7 +32,7 @@ internal static class VideoInfo
     // nav 探测（wbi 密钥）缓存：进程内只探测一次，批量下载不再逐 URL 打 nav 接口
     private static Task<(AccountInfo Info, string Wbi)>? accountProbeTask;
 
-    public static async Task<WorkContext> FetchAsync(DownloadOptions myOption, WorkContext ctx, CancellationToken ct = default)
+    public static async Task<(DownloadRequest Effective, FetchResult Fetch)> FetchAsync(DownloadRequest myOption, RunConfig runConfig, CancellationToken ct = default)
     {
         // 加载认证信息
         var (cookie, token) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, myOption.UseTvApi, myOption.UseAppApi);
@@ -64,7 +74,7 @@ internal static class VideoInfo
         }
 
         Log("获取 aid...");
-        var aid = await InputResolver.GetAvIdAsync(ctx.Input, cfg);
+        var aid = await InputResolver.GetAvIdAsync(runConfig.Input, cfg);
         Log($"aid: {aid}");
 
         if (string.IsNullOrEmpty(aid))
@@ -73,12 +83,12 @@ internal static class VideoInfo
         }
 
         (aid, var vInfo) = await FetchVideoInfoAsync(aid, cfg, myOption.UseIntlApi, ct);
-        NormalizeOptionsAfterFetch(myOption, vInfo);
+        myOption = NormalizeOptionsAfterFetch(myOption, vInfo);
         PrintVideoSummary(vInfo, myOption);
         var apiType = DetermineApiType(myOption);
         PrintPagesInfo(vInfo, myOption);
 
-        return ctx with { FetchedAid = aid, VInfo = vInfo, ApiType = apiType, Cfg = cfg };
+        return (myOption, new FetchResult(vInfo, cfg, aid, apiType));
     }
 
     // nav 探测（wbi 密钥）进程内仅执行一次；后续调用复用同一 Task，避免批量下载时每个 URL 重复打 nav 接口。
@@ -113,19 +123,21 @@ internal static class VideoInfo
     /// 与 HandleConflictingOptions 分工：后者只处理不依赖视频信息的冲突，
     /// 此处处理需要 vInfo 才能判断的冲突
     /// </summary>
-    private static void NormalizeOptionsAfterFetch(DownloadOptions myOption, VInfo vInfo)
+    private static DownloadRequest NormalizeOptionsAfterFetch(DownloadRequest myOption, VInfo vInfo)
     {
         if (vInfo.IsSteinGate && myOption.UseTvApi)
         {
             Log("视频为互动视频，暂时不支持 TV API，回退到 WEB API。");
-            myOption.UseTvApi = false;
+            return myOption with { UseTvApi = false };
         }
 
         if (vInfo.IsCheese && myOption.UseIntlApi)
         {
             LogWarn("课程为国内内容，不支持 INTL API，回退到 WEB API。");
-            myOption.UseIntlApi = false;
+            return myOption with { UseIntlApi = false };
         }
+
+        return myOption;
     }
 
     private static async Task<(string aid, VInfo vInfo)> FetchVideoInfoAsync(string aid, AppConfig cfg, bool useIntlApi, CancellationToken ct = default)
@@ -135,7 +147,7 @@ internal static class VideoInfo
         return (aid, vInfo);
     }
 
-    private static void PrintVideoSummary(VInfo vInfo, DownloadOptions myOption)
+    private static void PrintVideoSummary(VInfo vInfo, DownloadRequest myOption)
     {
         var title = vInfo.Title;
         var pubTime = vInfo.PubTime;
@@ -158,12 +170,12 @@ internal static class VideoInfo
         }
     }
 
-    internal static string DetermineApiType(DownloadOptions myOption)
+    internal static string DetermineApiType(DownloadRequest myOption)
     {
         return myOption.UseTvApi ? "TV" : (myOption.UseAppApi ? "APP" : (myOption.UseIntlApi ? "INTL" : "WEB"));
     }
 
-    private static void PrintPagesInfo(VInfo vInfo, DownloadOptions myOption)
+    private static void PrintPagesInfo(VInfo vInfo, DownloadRequest myOption)
     {
         //打印分 P 信息
         var pagesInfo = vInfo.PagesInfo;

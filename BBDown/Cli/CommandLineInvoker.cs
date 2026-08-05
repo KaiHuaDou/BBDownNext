@@ -196,7 +196,7 @@ internal static class CommandLineInvoker
         DefaultValueFactory = _ => "BBDown.config"
     };
 
-    public static RootCommand GetRootCommand(Func<DownloadOptions, Task<int>> action)
+    public static RootCommand GetRootCommand(Func<DownloadRequest, Task<int>> action)
     {
         var rootCommand = new RootCommand
         {
@@ -263,7 +263,7 @@ internal static class CommandLineInvoker
 
         rootCommand.SetAction(async parseResult =>
         {
-            var option = new DownloadOptions
+            var option = new DownloadRequest
             {
                 UseTvApi = parseResult.GetValue(UseTvApi)!,
                 Url = parseResult.GetValue(Url) ?? "",
@@ -333,10 +333,10 @@ internal static class CommandLineInvoker
     }
 
     /// <summary>
-    /// 专栏导出子命令。与视频下载共用 <see cref="DownloadOptions"/>，但只暴露专栏用得上的选项：
+    /// 专栏导出子命令。与视频下载共用 <see cref="DownloadRequest"/>，但只暴露专栏用得上的选项：
     /// 画质、编码、混流、分 P 之类的参数对 Markdown 毫无意义，塞进帮助文本只会误导。
     /// </summary>
-    public static Command GetOpusCommand(Func<DownloadOptions, Task<int>> action)
+    public static Command GetOpusCommand(Func<DownloadRequest, Task<int>> action)
     {
         Command command = new("opus", "下载专栏 / 图文动态并导出为 Markdown")
         {
@@ -349,7 +349,7 @@ internal static class CommandLineInvoker
             Debug
         };
 
-        command.SetAction(async parseResult => await action(new DownloadOptions
+        command.SetAction(async parseResult => await action(new DownloadRequest
         {
             Url = parseResult.GetValue(OpusInput) ?? "",
             NoImages = parseResult.GetValue(NoImages)!,

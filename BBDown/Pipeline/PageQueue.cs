@@ -14,12 +14,12 @@ namespace BBDown.Pipeline;
 
 internal static class PageQueue
 {
-    public static async Task RunAsync(DownloadOptions myOption, WorkContext ctx, PipelineSink sink = default, CancellationToken ct = default)
+    public static async Task RunAsync(DownloadRequest myOption, RunConfig runConfig, FetchResult fetch, PipelineSink sink = default, CancellationToken ct = default)
     {
-        var vInfo = ctx.VInfo!;
+        var vInfo = fetch.VInfo;
         var pagesInfo = vInfo.PagesInfo;
         //获取已选择的分 P 列表
-        var selectedPages = PageSelect.Resolve(myOption, vInfo, ctx.Input);
+        var selectedPages = PageSelect.Resolve(myOption, vInfo, runConfig.Input);
 
         Log($"共计 {pagesInfo.Count} 个分 P，已选择：" + (selectedPages == null ? "ALL" : string.Join(",", selectedPages)));
         var totalPages = pagesInfo.Count;
@@ -35,7 +35,31 @@ internal static class PageQueue
             }
         }
 
-        ctx = ctx with { SavePathFormat = SavePath.Resolve(myOption, totalPages, vInfo.IsBangumi, vInfo.IsBangumiEnd) };
+        var savePathFormat = SavePath.Resolve(myOption, totalPages, vInfo.IsBangumi, vInfo.IsBangumiEnd);
+
+        // 一次性组装不可变上下文：启动参数（RunConfig）+ 解析结果（FetchResult）+ 保存路径模板，
+        // 不再有空占位 + with 补全（C5）
+        var ctx = new WorkContext(
+            EncodingPriority: runConfig.EncodingPriority,
+            DfnPriority: runConfig.DfnPriority,
+            FirstEncoding: runConfig.FirstEncoding,
+            EncodingFirst: runConfig.EncodingFirst,
+            DownloadDanmaku: runConfig.DownloadDanmaku,
+            DownloadDanmakuFormats: runConfig.DownloadDanmakuFormats,
+            CommentCount: runConfig.CommentCount,
+            CommentSortHot: runConfig.CommentSortHot,
+            CommentFormats: runConfig.CommentFormats,
+            FullComment: runConfig.FullComment,
+            Input: runConfig.Input,
+            SavePathFormat: savePathFormat,
+            Lang: runConfig.Lang,
+            Delay: runConfig.Delay,
+            FetchedAid: fetch.FetchedAid,
+            VInfo: fetch.VInfo,
+            ApiType: fetch.ApiType,
+            Cfg: fetch.Cfg,
+            Tools: runConfig.Tools,
+            WorkDir: runConfig.WorkDir);
 
         // 评论区按 aid 绑定，与 cid / 分 P 无关；多 P 同 aid 只抓一次
         var commentedAids = new HashSet<string>(StringComparer.Ordinal);

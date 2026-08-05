@@ -16,7 +16,7 @@ public class CdnHostTests
     [Fact]
     public void AllowPcdn_KeepsPcdnUrl_WithoutNoForceHost( )
     {
-        var opt = new DownloadOptions { AllowPcdn = true, NoForceHost = false };
+        var opt = new DownloadRequest { AllowPcdn = true, NoForceHost = false };
         var clips = new List<string> { PcdnUrl };
 
         CdnHost.Apply(opt, clips, AppConfig.Empty);
@@ -28,7 +28,7 @@ public class CdnHostTests
     [Fact]
     public void Default_ReplacesPcdnUrl( )
     {
-        var opt = new DownloadOptions { AllowPcdn = false, NoForceHost = false };
+        var opt = new DownloadRequest { AllowPcdn = false, NoForceHost = false };
         var clips = new List<string> { PcdnUrl };
 
         CdnHost.Apply(opt, clips, AppConfig.Empty);
@@ -41,7 +41,7 @@ public class CdnHostTests
     public void AllowPcdn_StillForcesNormalHost( )
     {
         // 普通 upos host 即便在 --allow-pcdn 下也应被强制替换为备用 host
-        var opt = new DownloadOptions { AllowPcdn = true, NoForceHost = false };
+        var opt = new DownloadRequest { AllowPcdn = true, NoForceHost = false };
         var clips = new List<string> { "https://upos-sz-upcdnbda2.bilivideo.com/upgcxcode/x.flv" };
 
         CdnHost.Apply(opt, clips, AppConfig.Empty);
@@ -52,7 +52,7 @@ public class CdnHostTests
     [Fact]
     public void NoForceHost_KeepsPcdnAndNormalHost( )
     {
-        var opt = new DownloadOptions { AllowPcdn = true, NoForceHost = true };
+        var opt = new DownloadRequest { AllowPcdn = true, NoForceHost = true };
         var clips = new List<string> { PcdnUrl };
 
         CdnHost.Apply(opt, clips, AppConfig.Empty);

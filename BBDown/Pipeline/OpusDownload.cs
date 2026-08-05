@@ -24,7 +24,7 @@ namespace BBDown.Pipeline;
 /// </summary>
 internal static class OpusDownload
 {
-    internal static async Task RunAsync(DownloadOptions myOption, bool allowBareId = true, CancellationToken ct = default)
+    internal static async Task RunAsync(DownloadRequest myOption, bool allowBareId = true, CancellationToken ct = default)
     {
         Config.SetDebugLog(myOption.Debug);
         if (!string.IsNullOrEmpty(myOption.UserAgent))

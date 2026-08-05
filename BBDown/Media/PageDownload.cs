@@ -19,7 +19,7 @@ namespace BBDown.Media;
 
 internal static class PageDownload
 {
-    internal static async Task<PageOutcome> RunAsync(Page p, DownloadOptions myOption, WorkContext ctx, List<Page> selectedPagesInfo, PipelineSink sink = default, CancellationToken ct = default)
+    internal static async Task<PageOutcome> RunAsync(Page p, DownloadRequest myOption, WorkContext ctx, List<Page> selectedPagesInfo, PipelineSink sink = default, CancellationToken ct = default)
     {
         var pageCtx = BuildPageContext(p, ctx, selectedPagesInfo);
         List<Subtitle> subtitleInfo = [];
@@ -182,7 +182,7 @@ internal static class PageDownload
             || p.aid != selectedPagesInfo[^1].aid;
     }
 
-    internal static DownloadConfig BuildDownloadConfig(DownloadOptions myOption, AppConfig cfg, ToolPaths tools, PipelineSink sink = default)
+    internal static DownloadConfig BuildDownloadConfig(DownloadRequest myOption, AppConfig cfg, ToolPaths tools, PipelineSink sink = default)
     {
         return new DownloadConfig
         {

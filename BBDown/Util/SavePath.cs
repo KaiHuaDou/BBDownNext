@@ -16,7 +16,7 @@ internal static partial class SavePath
     public static string MultiPageDefaultSavePath { get; } = "<videoTitle>/[P<pageNumberWithZero>]<pageTitle>";
 
     // 1. 多 P; 2. 只有 1P, 但是是番剧，尚未完结时 按照多 P 处理
-    internal static string Resolve(DownloadOptions myOption, int pagesCount, bool isBangumi, bool isBangumiEnd)
+    internal static string Resolve(DownloadRequest myOption, int pagesCount, bool isBangumi, bool isBangumiEnd)
     {
         return pagesCount > 1 || (isBangumi && !isBangumiEnd)
             ? (string.IsNullOrEmpty(myOption.MultiFilePattern) ? MultiPageDefaultSavePath : myOption.MultiFilePattern)

@@ -10,7 +10,7 @@ namespace BBDown;
 /// 随分支推进而变化的 ParsedResult 与 selected 不放进来，仍单独传递。
 /// </summary>
 internal sealed record DownloadSession(
-    DownloadOptions Options,
+    DownloadRequest Options,
     WorkContext Ctx,
     PageContext PageCtx,
     List<Subtitle> Subtitles,

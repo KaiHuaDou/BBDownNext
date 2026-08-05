@@ -19,12 +19,12 @@ public sealed class ConfigParserMergeTests : IDisposable
         }
     }
 
-    private DownloadOptions Merge(string configContent, params string[] cliArgs)
+    private DownloadRequest Merge(string configContent, params string[] cliArgs)
     {
         File.WriteAllText(configPath, configContent);
         string[] args = [.. cliArgs, "--config", configPath];
 
-        DownloadOptions? captured = null;
+        DownloadRequest? captured = null;
         var root = CommandLineInvoker.GetRootCommand(o =>
         {
             captured = o;

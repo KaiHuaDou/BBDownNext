@@ -26,7 +26,7 @@ public class SmokeDownloadTests
         var workDir = Path.Combine(Path.GetTempPath( ), "bbdown-smoke-" + Guid.NewGuid( ).ToString("N"));
         Directory.CreateDirectory(workDir);
 
-        var option = new DownloadOptions
+        var option = new DownloadRequest
         {
             Url = url,
             WorkDir = workDir,
@@ -39,12 +39,12 @@ public class SmokeDownloadTests
 
         try
         {
-            var ctx = WorkSetup.Build(option);
-            ctx = await VideoInfo.FetchAsync(option, ctx, CancellationToken.None);
-            Assert.NotNull(ctx.VInfo);
-            Assert.NotEmpty(ctx.VInfo.PagesInfo);
+            var runConfig = WorkSetup.Build(option);
+            var (effectiveReq, fetch) = await VideoInfo.FetchAsync(option, runConfig, CancellationToken.None);
+            Assert.NotNull(fetch.VInfo);
+            Assert.NotEmpty(fetch.VInfo.PagesInfo);
 
-            await PageQueue.RunAsync(option, ctx, sink: default, CancellationToken.None);
+            await PageQueue.RunAsync(effectiveReq, runConfig, fetch, ct: CancellationToken.None);
 
             var mediaExtensions = new[] { ".mp4", ".m4a", ".m4s", ".flv", ".aac", ".mp3" };
             var downloaded = Directory.EnumerateFiles(workDir, "*", SearchOption.AllDirectories)

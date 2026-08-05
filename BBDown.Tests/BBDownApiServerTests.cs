@@ -22,10 +22,10 @@ public class BBDownApiServerTests
     #region ServeRequestOptions 受控子集（P0-2 / P0-9）
 
     [Fact]
-    public void ServeRequestOptions_ToDownloadOptions_IgnoresHostControlledInjection( )
+    public void ServeRequestOptions_ToDownloadRequest_IgnoresHostControlledInjection( )
     {
         // 模拟攻击者试图在请求体中注入主机可控字段；这些字段不在 ServeRequestOptions 中，
-        // 反序列化时被忽略，转换后的 DownloadOptions 回落为安全默认值，结构上杜绝 RCE / 路径逃逸
+        // 反序列化时被忽略，转换后的 DownloadRequest 回落为安全默认值，结构上杜绝 RCE / 路径逃逸
         const string maliciousJson = """
         {
             "Url": "https://www.bilibili.com/video/BV1xx411c7XD",
@@ -44,8 +44,8 @@ public class BBDownApiServerTests
             "TvHost": "https://evil.example.com"
         }
         """;
-        var req = JsonSerializer.Deserialize<ServeRequestOptions>(maliciousJson, DownloadOptionsJsonContext.Default.ServeRequestOptions)!;
-        var opts = req.ToDownloadOptions( );
+        var req = JsonSerializer.Deserialize<ServeRequestOptions>(maliciousJson, DownloadRequestJsonContext.Default.ServeRequestOptions)!;
+        var opts = req.ToDownloadRequest( );
 
         // 这些字段直接决定被拉起的进程、参数与落盘位置，必须以服务端为准，绝不允许请求注入
         Assert.Equal("", opts.FFmpegPath);
@@ -67,7 +67,7 @@ public class BBDownApiServerTests
     }
 
     [Fact]
-    public void ServeRequestOptions_ToDownloadOptions_PreservesClientFields( )
+    public void ServeRequestOptions_ToDownloadRequest_PreservesClientFields( )
     {
         var req = new ServeRequestOptions
         {
@@ -76,7 +76,7 @@ public class BBDownApiServerTests
             Cookie = "SESSDATA=abc",
             AllowPreview = true
         };
-        var opts = req.ToDownloadOptions( );
+        var opts = req.ToDownloadRequest( );
 
         Assert.True(opts.UseTvApi);
         Assert.Equal("SESSDATA=abc", opts.Cookie);
@@ -240,7 +240,7 @@ public class BBDownApiServerTests
         server.SetUpServer(tmp);
         try
         {
-            var opts = server.ApplyServeWorkDir(new DownloadOptions { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
+            var opts = server.ApplyServeWorkDir(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
             Assert.Equal(tmp, opts.WorkDir);
         }
         finally
@@ -258,7 +258,7 @@ public class BBDownApiServerTests
         server.SetUpServer(host: "https://biliplus.example.com", epHost: "https://biliplus.example.com", tvHost: "api.snm0516.aisee.tv");
         try
         {
-            var opts = server.ApplyServeHost(new DownloadOptions { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
+            var opts = server.ApplyServeHost(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
             Assert.Equal("https://biliplus.example.com", opts.Host);
             Assert.Equal("https://biliplus.example.com", opts.EpHost);
             Assert.Equal("api.snm0516.aisee.tv", opts.TvHost);
@@ -277,7 +277,7 @@ public class BBDownApiServerTests
         server.SetUpServer(host: "", epHost: null, tvHost: "  ");
         try
         {
-            var opts = server.ApplyServeHost(new DownloadOptions { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
+            var opts = server.ApplyServeHost(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
             Assert.Equal(BiliApi.MainHost, opts.Host);
             Assert.Equal(BiliApi.MainHost, opts.EpHost);
             Assert.Equal(BiliApi.TvHost, opts.TvHost);

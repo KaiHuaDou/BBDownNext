@@ -8,9 +8,9 @@ public class LiveCommandTests
 {
     private const string LiveUrl = "https://live.bilibili.com/22632424";
 
-    private static async Task<DownloadOptions> ParseAsync(params string[] args)
+    private static async Task<DownloadRequest> ParseAsync(params string[] args)
     {
-        DownloadOptions? captured = null;
+        DownloadRequest? captured = null;
         var root = CommandLineInvoker.GetRootCommand(o =>
         {
             captured = o;

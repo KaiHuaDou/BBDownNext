@@ -27,7 +27,7 @@ public partial class BBDownApiServer
         DownloadTask? downloadTask;
         try
         {
-            downloadTask = await AddDownloadTaskAsync(req.ToDownloadOptions( ));
+            downloadTask = await AddDownloadTaskAsync(req.ToDownloadRequest( ));
         }
         catch (Exception e)
         {
@@ -59,7 +59,7 @@ public partial class BBDownApiServer
         }
     }
 
-    private async Task<DownloadTask> AddDownloadTaskAsync(DownloadOptions option)
+    private async Task<DownloadTask> AddDownloadTaskAsync(DownloadRequest option)
     {
         option = ApplyServeWorkDir(option);
         option = ApplyServeHost(option);
@@ -154,11 +154,11 @@ public partial class BBDownApiServer
 
     // serve 模式的工作目录由启动参数 --work-dir 决定，覆盖请求体（请求体根本不含该字段），
     // 这样客户端无法把落盘位置指向任意目录（P0-2 / P1-16）
-    internal DownloadOptions ApplyServeWorkDir(DownloadOptions option)
+    internal DownloadRequest ApplyServeWorkDir(DownloadRequest option)
     {
         if (!string.IsNullOrEmpty(serveWorkDir))
         {
-            option.WorkDir = serveWorkDir;
+            return option with { WorkDir = serveWorkDir };
         }
 
         return option;
@@ -166,12 +166,14 @@ public partial class BBDownApiServer
 
     // serve 模式的 API host 由启动参数（--host/--ep-host/--tv-host）决定，覆盖请求体（请求体已不含该字段），
     // 客户端无法把请求导向自己控制的服务器、从而窃走操作者的 SESSDATA（P0-1）。空值回落官方默认 host。
-    internal DownloadOptions ApplyServeHost(DownloadOptions option)
+    internal DownloadRequest ApplyServeHost(DownloadRequest option)
     {
-        option.Host = string.IsNullOrWhiteSpace(serveHost) ? BiliApi.MainHost : serveHost.Trim( );
-        option.EpHost = string.IsNullOrWhiteSpace(serveEpHost) ? BiliApi.MainHost : serveEpHost.Trim( );
-        option.TvHost = string.IsNullOrWhiteSpace(serveTvHost) ? BiliApi.TvHost : serveTvHost.Trim( );
-        return option;
+        return option with
+        {
+            Host = string.IsNullOrWhiteSpace(serveHost) ? BiliApi.MainHost : serveHost.Trim( ),
+            EpHost = string.IsNullOrWhiteSpace(serveEpHost) ? BiliApi.MainHost : serveEpHost.Trim( ),
+            TvHost = string.IsNullOrWhiteSpace(serveTvHost) ? BiliApi.TvHost : serveTvHost.Trim( ),
+        };
     }
 
     // 已完成任务无上限增长会造成内存泄漏，超过阈值后按完成时间淘汰最旧的（P1-18）

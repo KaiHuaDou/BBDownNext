@@ -210,7 +210,7 @@ internal sealed class Program
         """);
     }
 
-    private static async Task<int> RunApp(DownloadOptions myOption, bool opusCommand)
+    private static async Task<int> RunApp(DownloadRequest myOption, bool opusCommand)
     {
         // 进程级全局状态只在每次 CLI 运行起点设置一次（serve 模式不在此路径；
         // ServeRequestOptions 已剔除 Debug/UserAgent，故 serve 任务不触碰这些全局，避免并发互相踩踏）。

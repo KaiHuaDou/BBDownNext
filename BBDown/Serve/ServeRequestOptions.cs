@@ -1,10 +1,12 @@
 using System.Text.Json;
 
+using BBDown.Core;
+
 namespace BBDown.Serve;
 
 /// <summary>
 /// serve 模式的任务请求契约（<c>/add-task</c> 的 JSON 请求体）。
-/// 它是 <see cref="DownloadOptions"/> 的「受控子集」：只包含客户端允许提交的字段，
+/// 它是 <see cref="DownloadRequest"/> 的「受控子集」：只包含客户端允许提交的字段，
 /// 主动排除主机可控字段（FFmpegPath / Mp4boxPath / Aria2cPath / Aria2cArgs / WorkDir / FilePattern / MultiFilePattern / Host / EpHost / TvHost）、
 /// 进程级全局字段（Debug / UserAgent）与本地配置文件（ConfigFile）。
 /// 这样新增一个下载选项时不会自动变成 serve 的可注入点，也不必再维护一份「清零列表」。
@@ -63,13 +65,30 @@ internal sealed class ServeRequestOptions
     public string? CallBackWebHook { get; set; }
 
     /// <summary>
-    /// 将受控请求转换为完整下载配置。主机可控字段不在本 DTO 中，转换后回落为
-    /// <see cref="DownloadOptions"/> 的安全默认值（空路径、进程级配置由服务端决定）。
+    /// 将受控请求转换为完整下载配置。主机可控字段不在本 DTO 中，转换时显式回落为
+    /// <see cref="DownloadRequest"/> 的安全默认值（空路径、官方 host）——它们本就不在请求体里，
+    /// 但 record 经 STJ 反序列化时字段初始化器被跳过（改用生成构造器，字符串参数默认 null），
+    /// 故在此用 <c>with</c> 兜底，结构上杜绝远程注入。
     /// </summary>
-    internal DownloadOptions ToDownloadOptions( )
+    internal DownloadRequest ToDownloadRequest( )
     {
-        return JsonSerializer.Deserialize(
-                JsonSerializer.Serialize(this, DownloadOptionsJsonContext.Default.ServeRequestOptions),
-                DownloadOptionsJsonContext.Default.DownloadOptions)!;
+        var r = JsonSerializer.Deserialize(
+                JsonSerializer.Serialize(this, DownloadRequestJsonContext.Default.ServeRequestOptions),
+                DownloadRequestJsonContext.Default.DownloadRequest)!;
+        return r with
+        {
+            // 主机可控字段不在请求契约中，回落为安全默认值（空路径 / 官方 host）
+            FFmpegPath = "",
+            Mp4boxPath = "",
+            Aria2cPath = "",
+            Aria2cArgs = "",
+            WorkDir = "",
+            FilePattern = "",
+            MultiFilePattern = "",
+            UserAgent = "",
+            Host = BiliApi.MainHost,
+            EpHost = BiliApi.MainHost,
+            TvHost = BiliApi.TvHost,
+        };
     }
 }
