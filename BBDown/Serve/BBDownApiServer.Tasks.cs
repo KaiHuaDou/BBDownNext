@@ -105,14 +105,13 @@ public partial class BBDownApiServer
         return task;
     }
 
-    // 任务的初始状态与分片并发上限完全由服务端限流配置决定，抽成方法便于单测观测
+    // 任务的初始状态（是否排队）由服务端限流闸门决定，抽成方法便于单测观测
     internal DownloadTask CreateTask(string aid, string url)
     {
         return new(aid, url, DateTimeOffset.Now.ToUnixTimeMilliseconds( ))
         {
             // 未限流时不存在排队阶段，直接标 Running，避免 /get-tasks 出现假 Queued
             Status = taskGate is null ? DownloadStatus.Running : DownloadStatus.Queued,
-            MaxChunkParallelism = maxChunkParallelism,
         };
     }
 

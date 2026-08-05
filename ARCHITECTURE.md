@@ -183,7 +183,7 @@ PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分�
 - **SSRF 防护**：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点。
 - **CORS**：默认**完全关闭**（不发送 `Access-Control-Allow-Origin` 头），从根本上消除恶意网页经浏览器发起的 CSRF 面；仅当显式 `--cors-origin <url>` 时才对该单一来源开放（用于同源之外的 Web 前端），且公网暴露仍需配合反向代理与 TLS。
 - **容量上限**：已完成任务保留上限 `MaxFinishedTasks = 200`，超出按策略淘汰。
-- **并发限流**：`--max-concurrent N`（默认 `0` = 不限制，保持历史行为）。`SetUpServer` 在 `N > 0` 时建立 `SemaphoreSlim(N, N)`；`AddDownloadTaskAsync` 经 `RunGatedAsync` 在调用 `DownloadPipeline.RunAsync` 前取额度、`finally` 归还。取额度发生在 aid 去重登记**之后**，因此排队中的任务已在 `runningTasks` 里可见，`DownloadTask.Status` 为 `Queued`，拿到额度转 `Running`，收尾转 `Finished`。同时 `DownloadTask.MaxChunkParallelism` 被置 `1`，经 `PageDownload.BuildDownloadConfig` 落到 `DownloadConfig.MaxDegreeOfParallelism`，最终作用于 `DownloadUtil.RunRangesAsync` 的 `Parallel.ForEachAsync`；由于单个任务内部分 P、视频 / 音频轨都是串行下载，「任务并发 × 分片并发 = N」即为总连接数上限。未限流时该值为 `0`，`Parallel` 回落到 `ProcessorCount`（与 CLI 完全一致）。`MaxChunkParallelism` 是 `internal` 属性，不参与 JSON 序列化，也不在 `ServeRequestOptions` 中——限流策略只能由服务端启动参数决定。
+- **并发限流**：`--max-concurrent N`（默认 `0` = 不限制，保持历史行为）。`SetUpServer` 在 `N > 0` 时建立 `SemaphoreSlim(N, N)`；`AddDownloadTaskAsync` 经 `RunGatedAsync` 在调用 `DownloadPipeline.RunAsync` 前取额度、`finally` 归还。取额度发生在 aid 去重登记**之后**，因此排队中的任务已在 `runningTasks` 里可见，`DownloadTask.Status` 为 `Queued`，拿到额度转 `Running`，收尾转 `Finished`。`max-concurrent` 仅约束**同时下载的任务数**，多余任务排队；单个任务内部的下载并行度（分片并发）由多线程下载器自行决定（`PageDownload.BuildDownloadConfig` 始终将 `MaxDegreeOfParallelism` 设为 `0`，即回落到 `ProcessorCount`），不再随限流被压到 `1`。`0` 表示不限制（与 CLI 完全一致）。
 
 > 注意：`/remove-finished*` 与 `/add-task` 均为 **POST**；查询类（`/get-tasks/*`）为 GET。
 

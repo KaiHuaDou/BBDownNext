@@ -232,7 +232,6 @@ public class DownloadTests
         Assert.False(dc.SingleThread);
         Assert.Equal("SESSDATA=abc", dc.Cookie);
         Assert.Null(dc.RelatedTask);
-        Assert.Equal(0, dc.MaxDegreeOfParallelism);   // CLI 路径（relatedTask 为 null）不限制分片并发
     }
 
     [Fact]

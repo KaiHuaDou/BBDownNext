@@ -24,10 +24,6 @@ public record DownloadTask(string Aid, string Url, long TaskCreateTime)
     public bool IsSuccessful { get; set; }
     public DownloadStatus Status { get; set; }
 
-    // 服务端限流用：单文件分片并发上限；<=0 表示不限制（Parallel 取 ProcessorCount）。
-    // internal 属性不会被 AppJsonSerializerContext 序列化，客户端也无法设置。
-    internal int MaxChunkParallelism { get; set; }
-
     public Collection<string> SavePaths { get; } = [];
 
     /// <summary>进度条的采样回调：<paramref name="bytesDelta"/> 是本采样周期新增的字节数。</summary>

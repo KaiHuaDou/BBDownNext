@@ -51,7 +51,7 @@ public static class CommentFetcher
                     new("plat", "1"),
                     new("seek_rpid", ""),
                     new("web_location", WebLocation),
-                    new("pagination_str", PaginationStr(offset)),
+                    new("pagination_str", PaginationStr(offset))
                 ],
                 cfg);
 

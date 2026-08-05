@@ -10,7 +10,7 @@ namespace BBDown.Cli;
 
 internal static class CommandLineInvoker
 {
-    private static readonly Argument<string> Url = new("url") { Description = "视频地址 或 av|bv|BV|ep|ss" };
+    private static readonly Argument<string> Url = new("url") { Description = "视频地址 或 av|bv|BV|ep|ss，也可传直播间地址进行录制" };
     private static readonly Argument<string> OpusInput = new("input") { Description = "专栏地址 或 opus id|cv 号" };
     private static readonly Option<bool> UseTvApi = new("--tv-api", ["-tv"]) { Description = "使用 TV 端解析模式" };
     private static readonly Option<bool> UseAppApi = new("--app-api", ["-app"]) { Description = "使用 APP 端解析模式" };
@@ -106,6 +106,11 @@ internal static class CommandLineInvoker
     private static readonly Option<bool> AudioAscending = new("--audio-ascending", []) { Description = "音频升序（最小体积优先）" };
     private static readonly Option<bool> AllowPcdn = new("--allow-pcdn", []) { Description = "不替换 PCDN 域名，仅在正常情况与 --upos-host 均无法下载时使用" };
     private static readonly Option<bool> AllowPreview = new("--allow-preview", []) { Description = "允许下载充电专属视频的试看片段，输出文件名带 [试看] 前缀" };
+    private static readonly Option<int> LiveQualityOption = new("--live-quality", ["-lq"])
+    {
+        Description = "直播录制清晰度：10000 原画（默认）、400 蓝光、250 超清、150 高清、80 流畅；未登录时服务端通常只给到 250",
+        DefaultValueFactory = _ => Core.Live.LiveQuality.Original
+    };
     private static readonly Option<string> Lang = new("--lang", []) { Description = "设置混流的音频语言（代码），如 chi, jpn 等" };
     private static readonly Option<string> UserAgent = new("--user-agent", ["-ua"]) { Description = "指定 user-agent，否则使用随机 user-agent" };
     private static readonly Option<string> Cookie = new("--cookie", []) { Description = "设置字符串 cookie 用以下载网页接口的会员内容" };
@@ -231,6 +236,7 @@ internal static class CommandLineInvoker
             AudioAscending,
             AllowPcdn,
             AllowPreview,
+            LiveQualityOption,
             FilePattern,
             MultiFilePattern,
             SelectPage,
@@ -296,6 +302,7 @@ internal static class CommandLineInvoker
                 AudioAscending = parseResult.GetValue(AudioAscending)!,
                 AllowPcdn = parseResult.GetValue(AllowPcdn)!,
                 AllowPreview = parseResult.GetValue(AllowPreview)!,
+                LiveQuality = parseResult.GetValue(LiveQualityOption),
                 FilePattern = parseResult.GetValue(FilePattern) ?? "",
                 MultiFilePattern = parseResult.GetValue(MultiFilePattern) ?? "",
                 SelectPage = parseResult.GetValue(SelectPage) ?? "",

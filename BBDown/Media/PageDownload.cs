@@ -192,8 +192,6 @@ internal static class PageDownload
             SingleThread = myOption.SingleThread,
             RelatedTask = relatedTask,
             Cookie = cfg.Cookie,
-            // serve 限流时由任务带下来（=1）；CLI 与未限流的 serve 为 0，RunRangesAsync 回落到 ProcessorCount
-            MaxDegreeOfParallelism = relatedTask?.MaxChunkParallelism ?? 0,
         };
     }
 

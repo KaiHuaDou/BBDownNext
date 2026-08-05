@@ -76,7 +76,7 @@ public static class SpaceListFetcher
         {
             if (!fetched.TryGetValue(item.Aid, out var tmp) || tmp.PagesInfo.Count == 0)
             {
-                var reason = failures.TryGetValue(item.Aid, out var msg) ? msg : "无可用分 P";
+                var reason = failures.GetValueOrDefault(item.Aid, "无可用分 P");
                 LogWarn($"跳过不可下载稿件 aid={item.Aid}（{reason}）：{item.Title}");
                 continue;
             }

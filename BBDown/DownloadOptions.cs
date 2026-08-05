@@ -55,6 +55,8 @@ internal class DownloadOptions
     public bool AudioAscending { get; set; }
     public bool AllowPcdn { get; set; }
     public bool AllowPreview { get; set; }
+    /// <summary>直播录制清晰度（qn）。未登录时服务端会无视该值直接下发 250。</summary>
+    public int LiveQuality { get; set; } = Core.Live.LiveQuality.Original;
     public bool NoForceHost { get; set; }
     public bool SaveArchivesToFile { get; set; }
     public bool StopOnError { get; set; }

@@ -22,7 +22,7 @@ internal static class Muxer
     public static string ffmpeg = "ffmpeg";
     public static string mp4box = "mp4box";
 
-    private static async Task<int> RunExe(string app, List<string> args, CancellationToken ct = default)
+    internal static async Task<int> RunExe(string app, List<string> args, CancellationToken ct = default)
     {
         LogDebug("{0}命令: {1}", Path.GetFileNameWithoutExtension(app), FormatArgs(args));
         using Process p = new( );

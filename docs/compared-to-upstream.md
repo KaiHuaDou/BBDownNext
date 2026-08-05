@@ -74,7 +74,7 @@
     - 专用 `WebHookClient` 关闭自动重定向，并在 `ConnectCallback` 中于建立 TCP 连接前对最终端点 IP 做 `IsPrivateAddress` 二次校验（消除 DNS 重绑定 TOCTOU 窗口），拒绝私网/回环/链路本地/未指定地址（`::`）。
 - **服务端固定字段**：`host` / `ep-host` / `tv-host` 三兄弟与 `work-dir` 不再出现在请求 DTO（`ServeRequestOptions`），改由 serve 启动参数固定，避免请求不带 cookie 时回落本机 `SESSDATA` 被导向外部服务器（`BBDownApiServer.cs` 注释 §）。
 - **CORS 默认关闭**：不指定 `--cors-origin` 时完全不注册 CORS；指定时仅允许该单一来源（`AddCors` → `AllowSpecificOrigin`）。
-- **并发度**：`--max-concurrent N>0` 用 `SemaphoreSlim` 限制同时下载任务数，并把每个任务的分片并发压到 1，使总连接数不超过 `N`；`0`（默认）表示不限制（历史行为）。任务模型为 `DownloadTask` / `DownloadStatus`。
+- **并发度**：`--max-concurrent N>0` 用 `SemaphoreSlim` 限制同时下载任务数，多余任务排队；单个任务内部的下载并行度由多线程下载器自行决定，不再压到 1；`0`（默认）表示不限制（历史行为）。任务模型为 `DownloadTask` / `DownloadStatus`。
 
 ### 2.5 专栏/图文导出（Opus）
 

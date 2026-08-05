@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 using BBDown.Auth;
 using BBDown.Cli;
 using BBDown.Core;
+using BBDown.Core.Live;
 using BBDown.Core.Opus;
+using BBDown.Live;
 using BBDown.Pipeline;
 using BBDown.Serve;
 
@@ -20,6 +22,19 @@ internal sealed class Program
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
         e.Cancel = true;
+
+        // Ctrl+Break（SIGQUIT）在录制直播时是「停录并混流」，绝不能触发全局取消——那会把随后的 ffmpeg 一起杀掉。
+        // 非录制场景 TryRequestStop 恒为 false，直接落回原有的全局取消路径，既有行为零变化
+        if (e.SpecialKey == ConsoleSpecialKey.ControlBreak && LiveSignal.TryRequestStop( ))
+        {
+            if (!Console.IsOutputRedirected)
+            {
+                Console.WriteLine( );
+            }
+
+            LogWarn("收到停止信号，正在结束录制并混流...");
+            return;
+        }
 
         // 这样“正在退出”不会被残留的渲染定时器冲掉；随后换行再打印提示
         AppEnv.Cancel( );
@@ -39,8 +54,6 @@ internal sealed class Program
             }
         }
         catch { }
-
-        AppEnv.Cancel( );
     }
 
     public static async Task<int> Main(params string[] args)
@@ -106,7 +119,7 @@ internal sealed class Program
             },
             new Option<int>("--max-concurrent")
             {
-                Description = "同时下载的任务数上限，默认 0 表示不限制；大于 0 时多余任务排队等待，并把每个任务的分片并发压到 1，使总下载连接数不超过该值",
+                Description = "同时下载的任务数上限，默认 0 表示不限制；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队，单个任务内部的下载并行度由多线程下载器自行决定",
                 DefaultValueFactory = _ => 0,
             }
         };
@@ -196,10 +209,6 @@ internal sealed class Program
         """);
     }
 
-    /// <param name="opusCommand">
-    /// 用户显式使用了 opus 子命令。此时才允许把裸数字当作 opus id / cv 号，
-    /// 根命令下的裸数字仍归属视频链路（av 号）。
-    /// </param>
     private static async Task<int> RunApp(DownloadOptions myOption, bool opusCommand)
     {
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
@@ -210,6 +219,21 @@ internal sealed class Program
             {
                 await OpusDownload.RunAsync(myOption, allowBareId: opusCommand, AppEnv.CancellationToken);
                 return 0;
+            }
+
+            // 直播录制同样走独立链路：产物是无限增长的流，分 P 选择、清晰度优先级那套解析对它无意义
+            if (!opusCommand && LiveInputResolver.TryParse(myOption.Url, out var liveTarget))
+            {
+                try
+                {
+                    await LiveDownload.RunAsync(myOption, liveTarget, AppEnv.CancellationToken);
+                    return 0;
+                }
+                catch (OperationCanceledException) when (AppEnv.CancellationToken.IsCancellationRequested)
+                {
+                    LogWarn("录制已中断，已录制的分段文件保留在工作目录中（未混流）。");
+                    return 130;
+                }
             }
 
             await DownloadPipeline.RunAsync(myOption, relatedTask: null, AppEnv.CancellationToken);

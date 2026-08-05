@@ -11,6 +11,7 @@ public static class BiliApi
     public const string TvHost = "api.snm0516.aisee.tv";
     public const string IntlAppHost = "api.bilibili.tv";
     public const string IntlWebHost = "api.biliintl.com";
+    public const string LiveApiHost = "api.live.bilibili.com";
 
     // 主机可被代理，故只登记路径
     public const string PlayUrlWebPath = "/x/player/wbi/playurl";
@@ -42,6 +43,11 @@ public static class BiliApi
     public const string ReplyWbiMain = $"https://{MainHost}/x/v2/reply/wbi/main";
     public const string ReplyReply = $"https://{MainHost}/x/v2/reply/reply";
 
+    // 直播（均无需 Cookie 与 WBI 签名）
+    public const string LiveRoomInit = $"https://{LiveApiHost}/room/v1/Room/room_init";
+    public const string LiveRoomBaseInfo = $"https://{LiveApiHost}/xlive/web-room/v1/index/getRoomBaseInfo";
+    public const string LiveRoomPlayInfo = $"https://{LiveApiHost}/xlive/web-room/v2/index/getRoomPlayInfo";
+
     // grpc / protobuf 端点
     public const string GrpcPlayView = "https://grpc.biliapi.net/bilibili.app.playurl.v1.PlayURL/PlayView";
     public const string GrpcPgcPlayView = "https://app.bilibili.com/bilibili.pgc.gateway.player.v2.PlayURL/PlayView";
@@ -63,4 +69,7 @@ public static class BiliApi
     public const string DanmakuXml = "https://comment.bilibili.com";
     public const string OpusPage = $"{Site}/opus";
     public const string ReadPage = $"{Site}/read";
+
+    /// <summary>直播站点页。部分 CDN 节点校验 Referer，缺失会直接 403，拉流时必须带。</summary>
+    public const string LiveSite = "https://live.bilibili.com";
 }

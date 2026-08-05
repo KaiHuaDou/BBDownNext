@@ -38,6 +38,26 @@ public static partial class HTTPUtil
         DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower
     };
 
+    /// <summary>
+    /// 长连接专用客户端。<see cref="HttpClient.Timeout"/> 覆盖「响应体读取全程」而不只是首字节，
+    /// 用 <see cref="AppHttpClient"/>（2 分钟）拉直播流会每 2 分钟被硬掐一次，故必须无限超时；
+    /// 断流靠调用方的静默检测判定，不靠超时。关掉自动解压避免把视频流当压缩内容处理。
+    /// </summary>
+    public static HttpClient StreamHttpClient { get; internal set; } = new(new HttpClientHandler
+    {
+        AllowAutoRedirect = true,
+        AutomaticDecompression = DecompressionMethods.None,
+        ServerCertificateCustomValidationCallback = (_, _, _, sslPolicyErrors) =>
+            sslPolicyErrors == System.Net.Security.SslPolicyErrors.None ||
+            Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1"
+    })
+    {
+        Timeout = Timeout.InfiniteTimeSpan,
+        // 直播流是单条超长响应，HTTP/2 的流控窗口在这种场景下只会添乱
+        DefaultRequestVersion = HttpVersion.Version11,
+        DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower
+    };
+
     static HTTPUtil( )
     {
         if (Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1")
@@ -223,6 +243,24 @@ public static partial class HTTPUtil
 
         request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
         request.Headers.TryAddWithoutValidation("Cookie", cookie);
+    }
+
+    /// <summary>
+    /// 直播拉流头。部分 CDN 节点（如 cn-*-ct-* 系列）强制校验 Referer，缺失直接 403；
+    /// 另一些节点则不校验，故不能靠「能拉通」推断可以省略。<see cref="AddDownloadHeaders"/>
+    /// 带的是 www 站点的 Referer，对直播 CDN 不适用。
+    /// </summary>
+    public static void AddLiveStreamHeaders(HttpRequestMessage request, string cookie)
+    {
+        request.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+        request.Headers.TryAddWithoutValidation("Referer", BiliApi.LiveSite + "/");
+        request.Headers.TryAddWithoutValidation("Origin", BiliApi.LiveSite);
+        // StreamHttpClient 关闭了自动解压，若服务端仍按默认协商返回 gzip 就会写出无法播放的文件
+        request.Headers.TryAddWithoutValidation("Accept-Encoding", "identity");
+        if (!string.IsNullOrEmpty(cookie))
+        {
+            request.Headers.TryAddWithoutValidation("Cookie", cookie);
+        }
     }
 
     /// <summary>

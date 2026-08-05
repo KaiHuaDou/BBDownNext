@@ -30,13 +30,14 @@ public static class BangumiInfoFetcher
         {
             // 番剧接口无 result：ep 形态保留 BangumiNotFoundException 以触发课程回退；
             // ss 形态（md/整季）不回退，避免误命中 id 空间稠密、毫不相关的课程。
-            if (isSeason)
+            if (!isSeason)
             {
-                var (code, message) = ReadApiError(infoJson.RootElement);
-                throw new InvalidOperationException($"获取番剧信息失败(code={code})：{message}");
+                throw new BangumiNotFoundException($"未找到 EP/SS 对应的番剧信息：ep_id={raw}");
             }
 
-            throw new BangumiNotFoundException($"未找到 EP/SS 对应的番剧信息：ep_id={raw}");
+            var (code, message) = ReadApiError(infoJson.RootElement);
+            throw new InvalidOperationException($"获取番剧信息失败(code={code})：{message}");
+
         }
 
         var cover = result.GetProperty("cover").ToString( );
@@ -106,7 +107,7 @@ public static class BangumiInfoFetcher
                 aid = page.GetProperty("aid").ToString( ),
                 cid = page.GetProperty("cid").ToString( ),
                 epid = page.GetProperty("id").ToString( ),
-                title = (page.GetProperty("title").ToString( ) + " " + page.GetProperty("long_title").ToString( )).Trim( ),
+                title = (page.GetProperty("title") + " " + page.GetProperty("long_title")).Trim( ),
                 dur = ReadDurationSeconds(page),
                 res = ReadDimension(page),
                 pubTime = page.TryGetProperty("pub_time", out var pubTime) ? pubTime.GetInt64( ) : 0,

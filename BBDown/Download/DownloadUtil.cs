@@ -29,8 +29,6 @@ internal static class DownloadUtil
         public bool SingleThread { get; set; }
         public DownloadTask? RelatedTask { get; set; }
         public string Cookie { get; set; } = string.Empty;
-        // <=0 表示不限制（Parallel 默认取 ProcessorCount）
-        public int MaxDegreeOfParallelism { get; set; }
         // 多线程分片大小（字节）
         public long ChunkSize { get; set; } = PartFile.DefaultChunkSize;
     }
@@ -198,7 +196,8 @@ internal static class DownloadUtil
 
             var parallelOptions = new ParallelOptions
             {
-                MaxDegreeOfParallelism = config.MaxDegreeOfParallelism > 0 ? config.MaxDegreeOfParallelism : -1,
+                // -1 即 Parallel 默认并发度（= Environment.ProcessorCount），分片并行度完全由下载器决定
+                MaxDegreeOfParallelism = -1,
                 CancellationToken = ct,
             };
             await Parallel.ForEachAsync(Enumerable.Range(0, ranges.Count), parallelOptions, async (index, token) =>

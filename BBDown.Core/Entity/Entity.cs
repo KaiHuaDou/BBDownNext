@@ -60,7 +60,7 @@ public static class Entity
         }
     }
 
-    public record class ViewPoint
+    public record ViewPoint
     {
         public required string title { get; set; }
         public required int start { get; set; }
@@ -125,28 +125,28 @@ public static class Entity
         }
     }
 
-    public record class Subtitle
+    public record Subtitle
     {
         public required string lan { get; set; }
         public required string url { get; set; }
         public required string path { get; set; }
     }
 
-    public record class Clip
+    public record Clip
     {
         public required int index { get; set; }
         public required long from { get; set; }
         public required long to { get; set; }
     }
 
-    public record class AudioMaterial
+    public record AudioMaterial
     {
         public required string title { get; set; }
         public required string personName { get; set; }
         public required string path { get; set; }
     }
 
-    public record class AudioMaterialInfo
+    public record AudioMaterialInfo
     {
         public required string title { get; set; }
         public required string personName { get; set; }

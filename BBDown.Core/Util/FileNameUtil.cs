@@ -46,7 +46,10 @@ public static class FileNameUtil
         return TruncateToBytes(name, MaxBytes);
     }
 
-    private static string TruncateToBytes(string input, int maxBytes)
+    /// <summary>
+    /// 按 UTF-8 字节数截断。拼接文件名时须先各自截断再拼，否则整串截断会把尾部的时间戳之类切掉。
+    /// </summary>
+    public static string TruncateToBytes(string input, int maxBytes)
     {
         if (Encoding.UTF8.GetByteCount(input) <= maxBytes)
         {

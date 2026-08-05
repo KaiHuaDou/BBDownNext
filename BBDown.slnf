@@ -1,0 +1,9 @@
+{
+  "solution": {
+    "path": "BBDown.slnx",
+    "projects": [
+      "BBDown.Core\\BBDown.Core.csproj",
+      "BBDown\\BBDown.csproj"
+    ]
+  }
+}

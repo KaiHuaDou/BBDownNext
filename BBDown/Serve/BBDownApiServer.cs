@@ -28,7 +28,6 @@ public partial class BBDownApiServer
     private string? serveEpHost;
     private string? serveTvHost;
     private SemaphoreSlim? taskGate;   // null = 不限制（历史行为）
-    private int maxChunkParallelism;   // 0 = 交给 ProcessorCount
 
     // 主机可控字段（外部程序路径、落盘目录/文件名、进程级 Debug/UserAgent、本地配置、API host）
     // 一律由服务端决定：前四类根本不在 ServeRequestOptions 中；host 三兄弟原本也在 DTO 里，
@@ -93,12 +92,11 @@ public partial class BBDownApiServer
         serveHost = host;
         serveEpHost = epHost;
         serveTvHost = tvHost;
-        // <=0 一律视为不限制：不建闸门、分片并发交回 ProcessorCount，行为与旧版一致
+        // <=0 一律视为不限制：不建闸门，行为与旧版一致；>0 时仅限制同时下载的任务数，
+        // 多余任务排队，单个任务内部的下载并行度交给多线程下载器自行决定（不再压到 1）
         if (maxConcurrent > 0)
         {
             taskGate = new SemaphoreSlim(maxConcurrent, maxConcurrent);
-            // 任务并发 × 分片并发 = N：限流时把单文件分片并发压到 1，总下载连接数即不超过 N
-            maxChunkParallelism = 1;
         }
 
         if (!string.IsNullOrEmpty(listenUrl))
@@ -185,5 +183,4 @@ public partial class BBDownApiServer
     {
         return app is null ? Task.CompletedTask : app.StopAsync( );
     }
-
 }

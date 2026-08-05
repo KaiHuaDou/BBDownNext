@@ -342,22 +342,16 @@ public class BBDownApiServerTests
         var task = server.CreateTask("114514", "BV1xx411c7XD");
 
         Assert.Equal(DownloadStatus.Running, task.Status);
-        Assert.Equal(0, task.MaxChunkParallelism);
-        var dc = PageDownload.BuildDownloadConfig(new DownloadOptions( ), AppConfig.Empty, task);
-        Assert.Equal(0, dc.MaxDegreeOfParallelism);
     }
 
     [Fact]
-    public void SetUpServer_WithMaxConcurrent_CapsChunkParallelismToOne( )
+    public void SetUpServer_WithMaxConcurrent_QueuesAndLeavesParallelismToDownloader( )
     {
         var server = new BBDownApiServer( );
         server.SetUpServer(maxConcurrent: 2);
         var task = server.CreateTask("114514", "BV1xx411c7XD");
 
         Assert.Equal(DownloadStatus.Queued, task.Status);
-        Assert.Equal(1, task.MaxChunkParallelism);
-        var dc = PageDownload.BuildDownloadConfig(new DownloadOptions( ), AppConfig.Empty, task);
-        Assert.Equal(1, dc.MaxDegreeOfParallelism);
     }
 
     [Theory]
@@ -367,7 +361,6 @@ public class BBDownApiServerTests
     {
         var server = new BBDownApiServer( );
         server.SetUpServer(maxConcurrent: n);
-        Assert.Equal(0, server.CreateTask("1", "u").MaxChunkParallelism);
         Assert.Equal(DownloadStatus.Running, server.CreateTask("1", "u").Status);
     }
 
