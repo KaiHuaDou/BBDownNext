@@ -82,7 +82,7 @@ internal static class DashDownload
         var savePath = SavePath.Build(ctx, pageCtx, selectedVideo, selectedAudio);
         LogDebug("Format After: " + savePath);
 
-        if (ctx.DownloadDanmaku && await PageAssets.DownloadDanmakuAsync(session, savePath, ct))
+        if (ctx.Run.DownloadDanmaku && await PageAssets.DownloadDanmakuAsync(session, savePath, ct))
         {
             return PageOutcome.Abort(selected);
         }
@@ -99,7 +99,7 @@ internal static class DashDownload
         Log("已选择的流：");
         TrackSelect.PrintSelectedTrackInfo(selectedVideo, selectedAudio, p.dur);
 
-        CdnHost.Apply(myOption, selectedVideo, selectedAudio, ctx.Cfg);
+        CdnHost.Apply(myOption, selectedVideo, selectedAudio, ctx.Fetch.Cfg);
 
         if (MuxFinish.TrySkipExisting(session, savePath, selected) is { } skipped)
         {
@@ -113,7 +113,7 @@ internal static class DashDownload
         if (selectedVideo != null)
         {
             // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
-            if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI(ctx.Tools))
+            if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI(ctx.Run.Tools))
             {
                 LogWarn("您的 FFmpeg 版本小于 5.0，杜比视界将使用 MP4Box 混流...");
                 useMp4box = true;

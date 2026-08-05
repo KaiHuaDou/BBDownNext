@@ -31,12 +31,12 @@ internal static class PageDownload
             try
             {
                 LogDebug("获取播放器信息...");
-                var playerInfo = await ChapterMeta.FetchPlayerV2Async(p.cid, p.aid, ctx.Cfg);
+                var playerInfo = await ChapterMeta.FetchPlayerV2Async(p.cid, p.aid, ctx.Fetch.Cfg);
                 p.points = playerInfo.Points;
 
                 //调用解析
-                var parsedResult = await ExtractTracksAsync(ctx.FetchedAid, p.aid, p.cid, p.epid,
-                    myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.FirstEncoding, ctx.Cfg, ct: ct);
+                var parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.aid, p.cid, p.epid,
+                    myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, ct: ct);
                 if (p.points.Count == 0)
                 {
                     p.points = parsedResult.ExtraPoints;
@@ -44,7 +44,7 @@ internal static class PageDownload
 
                 if (Config.DebugLog)
                 {
-                    File.WriteAllText(Path.Combine(ctx.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.RawResponse);
+                    File.WriteAllText(Path.Combine(ctx.Run.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.RawResponse);
                 }
 
                 if (IsTruncatedPreview(playerInfo.UpowerExclusive, p.dur, parsedResult.Duration))
@@ -67,7 +67,7 @@ internal static class PageDownload
                 }
 
                 // 先以空字幕占位建好 session（此时 pageCtx 已含最终 IsPreview 标记），再交给 PrepareAsync 填充字幕
-                var session = new DownloadSession(myOption, ctx, pageCtx, [], BuildDownloadConfig(myOption, ctx.Cfg, ctx.Tools, sink), sink);
+                var session = new DownloadSession(myOption, ctx, pageCtx, [], BuildDownloadConfig(myOption, ctx.Fetch.Cfg, ctx.Run.Tools, sink), sink);
                 if (!myOption.OnlyShowInfo)
                 {
                     subtitleInfo = await PageAssets.PrepareAsync(session, ct);
@@ -153,9 +153,9 @@ internal static class PageDownload
 
     internal static PageContext BuildPageContext(Page p, WorkContext ctx, List<Page> selectedPagesInfo)
     {
-        var vInfo = ctx.VInfo!;
+        var vInfo = ctx.Fetch.VInfo!;
         var selectedPagesCount = selectedPagesInfo.Count;
-        var tempDir = Path.Combine(ctx.WorkDir, p.aid);
+        var tempDir = Path.Combine(ctx.Run.WorkDir, p.aid);
         return new PageContext(
             Page: p,
             // 原始标题，落盘前统一交给 GetValidFileName 清洗；这里保持原样是因为它还要写进容器元数据

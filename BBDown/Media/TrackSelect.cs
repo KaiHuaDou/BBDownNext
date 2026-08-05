@@ -15,12 +15,12 @@ internal static partial class TrackSelect
 {
     internal static void SortDashTracks(ParsedResult parsedResult, WorkContext ctx, DownloadRequest myOption)
     {
-        parsedResult.VideoTracks = SortTracks(parsedResult.VideoTracks, ctx.DfnPriority, ctx.EncodingPriority, myOption.VideoAscending, ctx.EncodingFirst);
-        parsedResult.AudioTracks = SortTracks(parsedResult.AudioTracks, ctx.EncodingPriority, myOption.AudioAscending);
-        parsedResult.BackgroundAudioTracks = SortTracks(parsedResult.BackgroundAudioTracks, ctx.EncodingPriority, myOption.AudioAscending);
+        parsedResult.VideoTracks = SortTracks(parsedResult.VideoTracks, ctx.Run.DfnPriority, ctx.Run.EncodingPriority, myOption.VideoAscending, ctx.Run.EncodingFirst);
+        parsedResult.AudioTracks = SortTracks(parsedResult.AudioTracks, ctx.Run.EncodingPriority, myOption.AudioAscending);
+        parsedResult.BackgroundAudioTracks = SortTracks(parsedResult.BackgroundAudioTracks, ctx.Run.EncodingPriority, myOption.AudioAscending);
         foreach (var role in parsedResult.RoleAudioList)
         {
-            role.audio = SortTracks(role.audio, ctx.EncodingPriority, myOption.AudioAscending);
+            role.audio = SortTracks(role.audio, ctx.Run.EncodingPriority, myOption.AudioAscending);
         }
     }
 

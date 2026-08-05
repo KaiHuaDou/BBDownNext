@@ -30,7 +30,7 @@ internal static class FlvDownload
         var dfns = parsedResult.Dfns;
         while (true)
         {
-            parsedResult.VideoTracks = TrackSelect.SortTracks(parsedResult.VideoTracks, ctx.DfnPriority, ctx.EncodingPriority, myOption.VideoAscending, ctx.EncodingFirst);
+            parsedResult.VideoTracks = TrackSelect.SortTracks(parsedResult.VideoTracks, ctx.Run.DfnPriority, ctx.Run.EncodingPriority, myOption.VideoAscending, ctx.Run.EncodingFirst);
 
             var vIndex = 0;
             if (myOption.Interactive && !reParsed && !selected)
@@ -38,8 +38,8 @@ internal static class FlvDownload
                 vIndex = TrackSelect.PickDfn(dfns);
                 // 重新解析
                 parsedResult.VideoTracks.Clear( );
-                parsedResult = await ExtractTracksAsync(ctx.FetchedAid, p.aid, p.cid, p.epid,
-                    myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.FirstEncoding, ctx.Cfg, dfns[vIndex], ct);
+                parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.aid, p.cid, p.epid,
+                    myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, dfns[vIndex], ct);
                 if (p.points.Count == 0)
                 {
                     p.points = parsedResult.ExtraPoints;
@@ -50,7 +50,7 @@ internal static class FlvDownload
                 continue;
             }
 
-            CdnHost.Apply(myOption, clips, ctx.Cfg);
+            CdnHost.Apply(myOption, clips, ctx.Fetch.Cfg);
 
             TrackSelect.PrintFlvTracksInfo(parsedResult, clips, myOption.OnlyShowInfo);
 
@@ -79,7 +79,7 @@ internal static class FlvDownload
             var videoPath = pageCtx.VideoPath;
             try
             {
-                await Muxer.MergeFLV([.. clipPaths], videoPath, ctx.Tools, ct);
+                await Muxer.MergeFLV([.. clipPaths], videoPath, ctx.Run.Tools, ct);
             }
             finally
             {

@@ -13,7 +13,7 @@ namespace BBDown.Pipeline;
 /// 一次下载任务在「启动即可确定」的运行参数快照（不可变）。由 <see cref="Build"/> 算清一次，
 /// 不含任何「跑中才得到」的值（视频信息、aid、api 类型、保存路径模板）——那些由
 /// <see cref="VideoInfo.FetchAsync"/> / <see cref="PageQueue.RunAsync"/> 作为返回值 / 局部变量回传，
-/// 最终在 <see cref="PageQueue.RunAsync"/> 里一次性组装进 <see cref="WorkContext"/>，不再有空占位 + with 补全（C5）。
+/// 最终在 <see cref="PageQueue.RunAsync"/> 里一次性组装进 <see cref="WorkContext"/>，不再有空占位 + with 补全。
 /// </summary>
 internal sealed record RunConfig(
     Dictionary<string, byte> EncodingPriority,
@@ -171,7 +171,7 @@ internal static class WorkSetup
     /// <summary>
     /// 解析外部工具路径，返回不可变快照。原 FindBinaries 会把这些路径写进进程级可变静态字段
     /// （Muxer.ffmpeg/mp4box、BBDownAria2c.aria2c），在 serve 并发任务下互相踩踏；改为纯函数返回快照，
-    /// 由调用方作为 ToolPaths 参数向下透传（见 docs/refactor-plan.md Phase 1）。
+    /// 由调用方作为 ToolPaths 参数向下透传。
     /// </summary>
     internal static ToolPaths ResolveToolPaths(DownloadRequest myOption)
     {

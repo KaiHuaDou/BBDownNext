@@ -28,7 +28,7 @@ internal static class CommentDownload
 
     public static async Task RunAsync(WorkContext ctx, PageContext pageCtx, PipelineSink sink = default, CancellationToken ct = default)
     {
-        if (ctx.CommentCount <= 0 || pageCtx.Page.aid.Length == 0)
+        if (ctx.Run.CommentCount <= 0 || pageCtx.Page.aid.Length == 0)
         {
             return;
         }
@@ -42,10 +42,10 @@ internal static class CommentDownload
 
         var document = await CommentFetcher.FetchAsync(
             oid.ToString(CultureInfo.InvariantCulture),
-            ctx.CommentCount,
-            ctx.CommentSortHot,
-            ctx.FullComment,
-            ctx.Cfg,
+            ctx.Run.CommentCount,
+            ctx.Run.CommentSortHot,
+            ctx.Run.FullComment,
+            ctx.Fetch.Cfg,
             ct);
 
         document.Title = pageCtx.Title;
@@ -54,7 +54,7 @@ internal static class CommentDownload
         var basePath = SavePath.Build(ctx, pageCtx, null, null);
         Directory.CreateDirectory(Path.GetDirectoryName(basePath)!);
 
-        foreach (var format in ctx.CommentFormats)
+        foreach (var format in ctx.Run.CommentFormats)
         {
             var path = Path.ChangeExtension(basePath, $".comments.{format.ToString( ).ToLowerInvariant( )}");
             try
@@ -65,7 +65,7 @@ internal static class CommentDownload
                         await File.WriteAllTextAsync(path, JsonSerializer.Serialize(document, JsonContext.CommentDocument), ct);
                         break;
                     case CommentFormat.Txt:
-                        await File.WriteAllTextAsync(path, CommentRenderer.Render(document, ctx.FullComment), ct);
+                        await File.WriteAllTextAsync(path, CommentRenderer.Render(document, ctx.Run.FullComment), ct);
                         break;
                 }
             }

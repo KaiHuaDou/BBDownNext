@@ -26,7 +26,7 @@ internal static class PageAssets
 
         if (!myOption.NoCover && !myOption.SubOnly && !File.Exists(pageCtx.CoverPath) && !myOption.DanmakuOnly && !myOption.CoverOnly)
         {
-            await DownloadFileAsync(pageCtx.CoverUrl, pageCtx.CoverPath, new DownloadConfig { Cookie = ctx.Cfg.Cookie, Aria2cPath = ctx.Tools.Aria2c }, ct);
+            await DownloadFileAsync(pageCtx.CoverUrl, pageCtx.CoverPath, new DownloadConfig { Cookie = ctx.Fetch.Cfg.Cookie, Aria2cPath = ctx.Run.Tools.Aria2c }, ct);
         }
 
         if (myOption.NoSub || myOption.DanmakuOnly || myOption.CoverOnly)
@@ -35,7 +35,7 @@ internal static class PageAssets
         }
 
         LogDebug("获取字幕...");
-        var subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.UseIntlApi, ctx.Cfg, ct);
+        var subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.UseIntlApi, ctx.Fetch.Cfg, ct);
         if (!myOption.AllowAi && subtitleInfo.Count != 0)
         {
             Log("跳过下载 AI 字幕");
@@ -47,7 +47,7 @@ internal static class PageAssets
             s.path = Path.Combine(pageCtx.TempDir, Path.GetFileName(s.path));
             Log($"下载字幕 {s.lan} => {SubUtil.GetSubtitleCode(s.lan).Name}...");
             LogDebug("下载：{0}", s.url);
-            await SubUtil.SaveSubtitleAsync(s.url, s.path, ctx.Cfg, ct);
+            await SubUtil.SaveSubtitleAsync(s.url, s.path, ctx.Fetch.Cfg, ct);
             if (myOption.SubOnly && File.Exists(s.path) && File.ReadAllText(s.path).Length != 0)
             {
                 MoveSubtitleToOutput(s, ctx, pageCtx);
@@ -89,13 +89,13 @@ internal static class PageAssets
             Log("当前视频没有弹幕");
             File.Delete(danmakuXmlPath);
         }
-        else if (ctx.DownloadDanmakuFormats.Contains(DanmakuFormat.Ass))
+        else if (ctx.Run.DownloadDanmakuFormats.Contains(DanmakuFormat.Ass))
         {
             Log("正在保存 ASS 弹幕文件...");
             await DanmakuUtil.SaveAsAssAsync(danmakus, danmakuAssPath, ct);
         }
 
-        if (!ctx.DownloadDanmakuFormats.Contains(DanmakuFormat.Xml) && File.Exists(danmakuXmlPath))
+        if (!ctx.Run.DownloadDanmakuFormats.Contains(DanmakuFormat.Xml) && File.Exists(danmakuXmlPath))
         {
             File.Delete(danmakuXmlPath);
         }

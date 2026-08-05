@@ -19,7 +19,7 @@ namespace BBDown.Mux;
 
 /// <summary>
 /// 一次混流的不可变入参集合，由 <see cref="MuxFinish"/> 组装后交给 <see cref="Muxer.MuxAV"/>。
-/// 把原先 20 余散参收敛为单一值对象（M2 item 3 深层收尾），调用方按名填字段、不再数位置。
+/// 调用方按名填字段，下游 <c>Build*</c> 直接读 <c>req</c> 上的路径与元数据，不再数位置。
 /// </summary>
 internal sealed record MuxRequest(
     bool UseMp4box,
@@ -79,19 +79,9 @@ internal static class Muxer
         return string.Join(' ', args.Select(a => a.Length == 0 || a.Contains(' ') ? $"\"{a}\"" : a));
     }
 
-    internal static List<string> BuildMp4boxArgs(MuxRequest req, List<Subtitle> subs, string? chapterFile, bool debugLog)
+    internal static List<string> BuildMp4boxArgs(MuxRequest req, string? chapterFile, bool debugLog)
     {
-        var url = $"{BiliApi.VideoPage}/{req.Bvid}/";
-        var videoPath = req.VideoPath;
-        var audioPath = req.AudioPath;
-        var outPath = req.OutPath;
-        var desc = req.Desc;
-        var title = req.Title;
-        var author = req.Author;
-        var episodeId = req.EpisodeId;
-        var pic = req.Pic;
-        var lang = req.Lang;
-        var audioOnly = req.AudioOnly;
+        var subs = req.Subs ?? [];
         List<string> args = [];
         if (debugLog)
         {
@@ -101,15 +91,15 @@ internal static class Muxer
         args.AddRange(["-inter", "500", "-noprog"]);
 
         var trackId = 0;
-        if (videoPath.Length != 0)
+        if (req.VideoPath.Length != 0)
         {
-            args.AddRange(["-add", $"{videoPath}#trackID={(audioOnly && audioPath.Length == 0 ? 2 : 1)}:name="]);
+            args.AddRange(["-add", $"{req.VideoPath}#trackID={(req.AudioOnly && req.AudioPath.Length == 0 ? 2 : 1)}:name="]);
             trackId++;
         }
 
-        if (audioPath.Length != 0)
+        if (req.AudioPath.Length != 0)
         {
-            args.AddRange(["-add", $"{audioPath}:lang={(lang.Length == 0 ? "und" : lang)}"]);
+            args.AddRange(["-add", $"{req.AudioPath}:lang={(req.Lang.Length == 0 ? "und" : req.Lang)}"]);
             trackId++;
         }
 
@@ -127,50 +117,38 @@ internal static class Muxer
         }
 
         var tags = new StringBuilder("tool=");
-        if (pic.Length != 0)
+        if (req.Pic.Length != 0)
         {
-            tags.Append($":cover={pic}");
+            tags.Append($":cover={req.Pic}");
         }
 
-        if (episodeId.Length != 0)
+        if (req.EpisodeId.Length != 0)
         {
-            tags.Append($":album={title}:title={episodeId}");
+            tags.Append($":album={req.Title}:title={req.EpisodeId}");
         }
         else
         {
-            tags.Append($":title={title}");
+            tags.Append($":title={req.Title}");
         }
 
-        tags.Append($":sdesc={desc}");
-        tags.Append($":comment={url}");
-        tags.Append($":artist={author}");
+        tags.Append($":sdesc={req.Desc}");
+        tags.Append($":comment={BiliApi.VideoPage}/{req.Bvid}/");
+        tags.Append($":artist={req.Author}");
         args.AddRange(["-itags", tags.ToString( )]);
 
-        args.AddRange(["-new", "--", outPath]);
+        args.AddRange(["-new", "--", req.OutPath]);
         return args;
     }
 
-    internal static List<string> BuildFFmpegArgs(MuxRequest req, List<Subtitle> subs, string? chapterFile, bool tagHvc1, bool debugLog)
+    internal static List<string> BuildFFmpegArgs(MuxRequest req, string? chapterFile, bool debugLog)
     {
-        var url = $"{BiliApi.VideoPage}/{req.Bvid}/";
-        var videoPath = req.VideoPath;
-        var audioPath = req.AudioPath;
-        var audioMaterial = req.AudioMaterial;
-        var outPath = req.OutPath;
-        var desc = req.Desc;
-        var title = req.Title;
-        var author = req.Author;
-        var episodeId = req.EpisodeId;
-        var pic = req.Pic;
-        var lang = req.Lang;
-        var audioOnly = req.AudioOnly;
-        var pubTime = req.PubTime;
-        var noMetadata = req.NoMetadata;
+        var subs = req.Subs ?? [];
+        var tagHvc1 = req.IsHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
         List<string> args = ["-loglevel", debugLog ? "verbose" : "warning", "-y"];
         List<string> meta = [];
         var inputCount = 0;
 
-        foreach (var path in new[] { videoPath, audioPath })
+        foreach (var path in new[] { req.VideoPath, req.AudioPath })
         {
             if (path.Length == 0)
             {
@@ -181,11 +159,11 @@ internal static class Muxer
             args.AddRange(["-i", path]);
         }
 
-        if (audioMaterial.Count != 0)
+        if (req.AudioMaterial.Count != 0)
         {
             var audioIndex = 0;
             meta.AddRange(["-metadata:s:a:0", "title=原音频"]);
-            foreach (var audio in audioMaterial)
+            foreach (var audio in req.AudioMaterial)
             {
                 inputCount++;
                 audioIndex++;
@@ -202,10 +180,10 @@ internal static class Muxer
             }
         }
 
-        if (pic.Length != 0)
+        if (req.Pic.Length != 0)
         {
             inputCount++;
-            args.AddRange(["-i", pic]);
+            args.AddRange(["-i", req.Pic]);
         }
 
         for (var i = 0; i < subs.Count; i++)
@@ -216,9 +194,9 @@ internal static class Muxer
             meta.AddRange([$"-metadata:s:s:{i}", $"title={name}", $"-metadata:s:s:{i}", $"language={code}"]);
         }
 
-        if (pic.Length != 0)
+        if (req.Pic.Length != 0)
         {
-            meta.AddRange([$"-disposition:v:{(audioOnly ? 0 : 1)}", "attached_pic"]);
+            meta.AddRange([$"-disposition:v:{(req.AudioOnly ? 0 : 1)}", "attached_pic"]);
         }
 
         if (chapterFile != null)
@@ -233,38 +211,38 @@ internal static class Muxer
 
         args.AddRange(meta);
 
-        if (!noMetadata)
+        if (!req.NoMetadata)
         {
-            args.AddRange(["-metadata", $"title={(episodeId.Length == 0 ? title : episodeId)}"]);
-            args.AddRange(["-metadata", $"comment={url}"]);
-            if (lang.Length != 0)
+            args.AddRange(["-metadata", $"title={(req.EpisodeId.Length == 0 ? req.Title : req.EpisodeId)}"]);
+            args.AddRange(["-metadata", $"comment={BiliApi.VideoPage}/{req.Bvid}/"]);
+            if (req.Lang.Length != 0)
             {
-                args.AddRange(["-metadata:s:a:0", $"language={lang}"]);
+                args.AddRange(["-metadata:s:a:0", $"language={req.Lang}"]);
             }
 
-            if (!string.IsNullOrWhiteSpace(desc))
+            if (!string.IsNullOrWhiteSpace(req.Desc))
             {
-                args.AddRange(["-metadata", $"description={desc}"]);
+                args.AddRange(["-metadata", $"description={req.Desc}"]);
             }
 
-            if (author.Length != 0)
+            if (req.Author.Length != 0)
             {
-                args.AddRange(["-metadata", $"artist={author}"]);
+                args.AddRange(["-metadata", $"artist={req.Author}"]);
             }
 
-            if (episodeId.Length != 0)
+            if (req.EpisodeId.Length != 0)
             {
-                args.AddRange(["-metadata", $"album={title}"]);
+                args.AddRange(["-metadata", $"album={req.Title}"]);
             }
 
-            if (pubTime != 0)
+            if (req.PubTime != 0)
             {
-                args.AddRange(["-metadata", $"creation_time={DateTimeOffset.FromUnixTimeSeconds(pubTime):yyyy-MM-ddTHH:mm:ss.ffffffZ}"]);
+                args.AddRange(["-metadata", $"creation_time={DateTimeOffset.FromUnixTimeSeconds(req.PubTime):yyyy-MM-ddTHH:mm:ss.ffffffZ}"]);
             }
         }
 
         args.AddRange(["-c:v", "copy", "-c:a", "copy"]);
-        if (audioOnly && audioPath.Length == 0)
+        if (req.AudioOnly && req.AudioPath.Length == 0)
         {
             args.Add("-vn");
         }
@@ -279,7 +257,7 @@ internal static class Muxer
             args.AddRange(["-tag:v:0", "hvc1"]);
         }
         // -strict -2：允许实验性编码器/封装（如 mp4 容器内 hev1/hvc1 之外的实验性流）
-        args.AddRange(["-movflags", "faststart", "-strict", "-2", "-f", "mp4", "--", outPath]);
+        args.AddRange(["-movflags", "faststart", "-strict", "-2", "-f", "mp4", "--", req.OutPath]);
         return args;
     }
 
@@ -297,11 +275,9 @@ internal static class Muxer
             audioPath = "";
         }
 
-        // 把音视频独占修正回写进副本，下游 Build* 只读 req 上的路径
-        req = req with { VideoPath = videoPath, AudioPath = audioPath };
-
-        var url = $"{BiliApi.VideoPage}/{req.Bvid}/";
+        // 音视频独占修正与有效字幕回写进副本，下游 Build* 只读 req 上的路径
         var validSubs = req.Subs?.Where(s => File.Exists(s.path) && File.ReadAllText(s.path).Length != 0).ToList( ) ?? [];
+        req = req with { VideoPath = videoPath, AudioPath = audioPath, Subs = validSubs };
 
         var outDir = Path.GetDirectoryName(req.OutPath);
         if (!string.IsNullOrEmpty(outDir))
@@ -317,8 +293,8 @@ internal static class Muxer
         }
 
         return req.UseMp4box
-            ? await RunExe(req.Tools.Mp4box, BuildMp4boxArgs(req, validSubs, chapterFile, Config.DebugLog), ct)
-            : await RunExe(req.Tools.Ffmpeg, BuildFFmpegArgs(req, validSubs, chapterFile, req.IsHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog), ct);
+            ? await RunExe(req.Tools.Mp4box, BuildMp4boxArgs(req, chapterFile, Config.DebugLog), ct)
+            : await RunExe(req.Tools.Ffmpeg, BuildFFmpegArgs(req, chapterFile, Config.DebugLog), ct);
     }
 
     public static async Task MergeFLV(string[] files, string outPath, ToolPaths tools, CancellationToken ct = default)

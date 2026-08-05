@@ -16,7 +16,7 @@ namespace BBDown.Pipeline;
 
 /// <summary>
 /// <see cref="VideoInfo.FetchAsync"/> 解析出的「跑中才得到」的结果：视频信息、运行配置、aid、api 类型。
-/// 由调用方（<see cref="PageQueue.RunAsync"/>）与 <see cref="RunConfig"/> 组装进 <see cref="WorkContext"/>，不作为上下文字段回填（C5）。
+/// 由调用方（<see cref="PageQueue.RunAsync"/>）与 <see cref="RunConfig"/> 组装进 <see cref="WorkContext"/>，不作为上下文字段回填。
 /// </summary>
 internal sealed record FetchResult(
     VInfo VInfo,

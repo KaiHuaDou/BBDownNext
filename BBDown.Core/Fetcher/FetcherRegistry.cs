@@ -28,11 +28,11 @@ public static class FetcherRegistry
 
     public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, bool useIntlApi = false, CancellationToken ct = default)
     {
-        foreach (var route in Routes)
+        foreach (var (Matches, Fetch) in Routes)
         {
-            if (route.Matches(id))
+            if (Matches(id))
             {
-                return await route.Fetch(id, cfg, useIntlApi, ct);
+                return await Fetch(id, cfg, useIntlApi, ct);
             }
         }
 
