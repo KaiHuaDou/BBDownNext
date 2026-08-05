@@ -7,9 +7,7 @@ internal readonly record struct PlayUrlRequest(
     string Aid,
     string Cid,
     string EpId,
-    bool TvApi,
-    bool IntlApi,
-    bool AppApi,
+    ApiType Api,
     string Encoding,
     AppConfig Cfg)
 {

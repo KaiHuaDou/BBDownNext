@@ -213,7 +213,8 @@ internal sealed class Program
         用法示例：
           BBDown <视频地址>                下载视频（支持 av / BV / EP / SS）
           BBDown <视频地址> -p 1-5         仅下载第 1~5 集
-          BBDown <视频地址> --audio-only   仅下载音频
+          BBDown <视频地址> -g a           仅下载音频
+          BBDown <视频地址> -g av -W s     不下载字幕
           BBDown opus <专栏地址|cv号>      导出专栏为 Markdown
           BBDown --help                    查看全部参数说明
         """);
@@ -235,6 +236,11 @@ internal sealed class Program
             // 专栏导出走独立链路：不构造 WorkContext，也就不会因为缺少 ffmpeg 而失败
             if (opusCommand || OpusInputResolver.TryParse(myOption.Url, out _))
             {
+                foreach (var debug in ContentSelector.DescribeInactive(myOption.Content, ContentMode.Opus))
+                {
+                    LogDebug(debug);
+                }
+
                 await OpusDownload.RunAsync(myOption, allowBareId: opusCommand, AppEnv.CancellationToken);
                 return 0;
             }
@@ -242,6 +248,11 @@ internal sealed class Program
             // 直播录制同样走独立链路：产物是无限增长的流，分 P 选择、清晰度优先级那套解析对它无意义
             if (!opusCommand && LiveInputResolver.TryParse(myOption.Url, out var liveTarget))
             {
+                foreach (var debug in ContentSelector.DescribeInactive(myOption.Content, ContentMode.Live))
+                {
+                    LogDebug(debug);
+                }
+
                 try
                 {
                     await LiveDownload.RunAsync(myOption, liveTarget, AppEnv.CancellationToken);

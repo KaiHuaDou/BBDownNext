@@ -185,8 +185,7 @@ public static partial class SubUtil
     {
         try
         {
-            var subtitles = await fetch( );
-            return subtitles.Exists(s => string.IsNullOrEmpty(s.url)) ? null : subtitles;
+            return FilterUsable(await fetch( ));
         }
         catch (Exception ex)
         {
@@ -194,6 +193,14 @@ public static partial class SubUtil
             LogDebug("字幕候选接口不可用: {0}", ex.Message);
             return null;
         }
+    }
+
+    // view 接口的 AI 字幕只有 lan 没有下载地址（subtitle_url 恒为空），属正常数据而非接口故障，
+    // 逐条过滤即可；全部无效才整表回退
+    internal static List<Subtitle>? FilterUsable(List<Subtitle> subtitles)
+    {
+        var valid = subtitles.Where(s => !string.IsNullOrEmpty(s.url)).ToList( );
+        return valid.Count == 0 ? null : valid;
     }
 
     internal static List<Subtitle> ReadSubtitles(JsonElement array, string lanKey, string urlKey, string pathPrefix, bool intl)

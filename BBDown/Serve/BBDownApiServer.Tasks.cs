@@ -64,7 +64,7 @@ public partial class BBDownApiServer
         option = ApplyServeWorkDir(option);
         option = ApplyServeHost(option);
 
-        var (cookie, token) = CredentialStore.LoadAll(option.Cookie, option.AccessToken, option.UseTvApi, option.UseAppApi);
+        var (cookie, token) = CredentialStore.LoadAll(option.Cookie, option.AccessToken, option.Api);
         var aid = await InputResolver.GetAvIdAsync(option.Url, new AppConfig(cookie, token, option.Host, option.EpHost, option.TvHost, option.Area, ""));
         var task = CreateTask(aid, option.Url);
         var claimed = runningTasks.GetOrAdd(aid, task);

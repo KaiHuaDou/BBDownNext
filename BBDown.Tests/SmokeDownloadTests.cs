@@ -31,7 +31,7 @@ public class SmokeDownloadTests
             Url = url,
             WorkDir = workDir,
             SkipMux = true,
-            NoCover = true,
+            Content = DownloadContent.Audio | DownloadContent.Video,
             SingleThread = false,
             NoForceHttp = false,
             DfnPriority = "360P 流畅,480P 清晰,720P 高清",

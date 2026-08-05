@@ -26,27 +26,26 @@ internal static class DashDownload
         if (parsedResult.VideoTracks.Count == 0)
         {
             LogWarn("没有符合要求的视频流");
-            if (myOption.VideoOnly)
-            {
-                return PageOutcome.Abort(selected);
-            }
         }
 
         if (parsedResult.AudioTracks.Count == 0)
         {
             LogWarn("没有符合要求的音频流");
-            if (myOption.AudioOnly)
-            {
-                return PageOutcome.Abort(selected);
-            }
         }
 
-        if (myOption.AudioOnly)
+        // 内容集要求 a/v 但解析不到任何音视频轨 → 中止；单一轨缺失属自然失效，有另一轨则照常产出
+        if (parsedResult.VideoTracks.Count == 0 && parsedResult.AudioTracks.Count == 0
+            && myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
+        {
+            return PageOutcome.Abort(selected);
+        }
+
+        if (!myOption.Content.Has(DownloadContent.Video))
         {
             parsedResult.VideoTracks.Clear( );
         }
 
-        if (myOption.VideoOnly)
+        if (!myOption.Content.Has(DownloadContent.Audio))
         {
             parsedResult.AudioTracks.Clear( );
             parsedResult.BackgroundAudioTracks.Clear( );
@@ -82,17 +81,26 @@ internal static class DashDownload
         var savePath = SavePath.Build(ctx, pageCtx, selectedVideo, selectedAudio);
         LogDebug("Format After: " + savePath);
 
-        if (ctx.Run.DownloadDanmaku && await PageAssets.DownloadDanmakuAsync(session, savePath, ct))
+        if (myOption.Content.Has(DownloadContent.Danmaku) && await PageAssets.DownloadDanmakuAsync(session, savePath, ct))
         {
             return PageOutcome.Abort(selected);
         }
 
-        if (myOption.CoverOnly)
+        if (myOption.Content.Has(DownloadContent.Cover))
         {
             var newCoverPath = Path.ChangeExtension(savePath, Path.GetExtension(pageCtx.CoverUrl));
             await DownloadFileAsync(pageCtx.CoverUrl, newCoverPath, downloadConfig, ct);
             MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
             sink.Saved?.Invoke(newCoverPath);
+            if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
+            {
+                return PageOutcome.Abort(selected);
+            }
+        }
+
+        // 纯字幕 / 纯评论等无音视频内容：字幕已在 PrepareAsync 产出，此处统一中止
+        if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
+        {
             return PageOutcome.Abort(selected);
         }
 

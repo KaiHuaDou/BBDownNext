@@ -1,0 +1,211 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace BBDown;
+
+/// <summary>
+/// 下载内容标记，与 --get / --with / --without 的内容字符一一对应。
+/// 命令行按「get ∪ with − without」解析为规范化标志集后存入 <see cref="DownloadRequest.Content"/>，
+/// 消费点用 <see cref="Has"/> / <see cref="HasAny"/> 查询。
+/// </summary>
+[Flags]
+internal enum DownloadContent
+{
+    None = 0,
+    Audio = 1 << 0,        // a
+    Video = 1 << 1,        // v
+    Cover = 1 << 2,        // c：单独下载一个封面图像文件
+    MuxCover = 1 << 3,     // C：封面混流进视频文件
+    Danmaku = 1 << 4,      // d
+    OpusImage = 1 << 5,    // i：专栏图片
+    MuxMetadata = 1 << 6,  // m
+    FrontMatter = 1 << 7,  // M：专栏 YAML front matter
+    Comments = 1 << 8,     // o
+    FullComments = 1 << 9, // O：全部评论
+    AiSubtitle = 1 << 10,  // S
+    Subtitle = 1 << 11,    // s
+}
+
+/// <summary>内容字符的适用域：字符落在模式域之外时自然失效（debug 提示，不警告）。</summary>
+internal enum ContentMode
+{
+    Video,
+    Opus,
+    Live,
+}
+
+internal static class ContentSelector
+{
+    internal const string Default = "avmsCiM";
+
+    /// <summary>字符的唯一规范顺序，同时用于输出、互转与警告文案。</summary>
+    private static readonly (char Ch, DownloadContent Flag, string Name)[] Order =
+    [
+        ('a', DownloadContent.Audio, "音频"),
+        ('c', DownloadContent.Cover, "独立封面"),
+        ('C', DownloadContent.MuxCover, "封面混流"),
+        ('d', DownloadContent.Danmaku, "弹幕"),
+        ('i', DownloadContent.OpusImage, "专栏图片"),
+        ('m', DownloadContent.MuxMetadata, "元数据混流"),
+        ('M', DownloadContent.FrontMatter, "YAML front matter"),
+        ('o', DownloadContent.Comments, "评论"),
+        ('O', DownloadContent.FullComments, "全部评论"),
+        ('S', DownloadContent.AiSubtitle, "AI 字幕"),
+        ('s', DownloadContent.Subtitle, "字幕"),
+        ('v', DownloadContent.Video, "视频"),
+    ];
+
+    private static readonly string ValidChars = string.Concat(Order.Select(e => e.Ch));
+
+    /// <summary>默认内容集 a v m s C i M（opus 模式下仅 i / M 生效）。</summary>
+    internal static DownloadContent DefaultFlags { get; } = Resolve([Default], [], [], false, false, false, false, out _);
+
+    /// <summary>
+    /// get ∪ with − without。仅「用户显式写错」产出警告；
+    /// 依赖自然失效（C/m 无 a/v、配套选项无对应字符）同样警告，模式失效由 <see cref="DescribeInactive"/> 走 debug。
+    /// </summary>
+    internal static DownloadContent Resolve(
+        IEnumerable<string> get,
+        IEnumerable<string> with,
+        IEnumerable<string> without,
+        bool commentCountExplicit,
+        bool commentSortExplicit,
+        bool commentFormatsExplicit,
+        bool danmakuFormatsExplicit,
+        out List<string> warnings)
+    {
+        warnings = [];
+        var flags = Apply(DownloadContent.None, get, subtract: false, warnings);
+        flags = Apply(flags, with, subtract: false, warnings);
+        flags = Apply(flags, without, subtract: true, warnings);
+
+        // 同时使用 o / O 按 O 处理，不警告
+        if (flags.Has(DownloadContent.Comments) && flags.Has(DownloadContent.FullComments))
+        {
+            flags &= ~DownloadContent.Comments;
+        }
+
+        if (!flags.HasAny(DownloadContent.Audio | DownloadContent.Video)
+            && flags.HasAny(DownloadContent.MuxCover | DownloadContent.MuxMetadata))
+        {
+            warnings.Add("未选择音频或视频，封面混流（C）与元数据混流（m）不生效");
+        }
+
+        if ((commentCountExplicit || commentSortExplicit || commentFormatsExplicit)
+            && !flags.HasAny(DownloadContent.Comments | DownloadContent.FullComments))
+        {
+            warnings.Add("已设置评论选项，但内容中未包含 o / O，评论不会下载");
+        }
+
+        if (danmakuFormatsExplicit && !flags.Has(DownloadContent.Danmaku))
+        {
+            warnings.Add("已设置 --danmaku-formats，但内容中未包含 d，弹幕不会下载");
+        }
+
+        return flags;
+    }
+
+    /// <summary>各模式下自然失效的内容标记 → debug 文案列表（不警告）。</summary>
+    internal static List<string> DescribeInactive(DownloadContent content, ContentMode mode)
+    {
+        var active = mode switch
+        {
+            ContentMode.Opus => DownloadContent.OpusImage | DownloadContent.FrontMatter,
+            ContentMode.Live => DownloadContent.Audio | DownloadContent.Video,
+            _ => ~(DownloadContent.OpusImage | DownloadContent.FrontMatter),
+        };
+        var list = new List<string>( );
+        foreach (var entry in Order)
+        {
+            if (content.Has(entry.Flag) && (entry.Flag & active) == 0)
+            {
+                list.Add($"{entry.Name}（{entry.Ch}）在{ModeName(mode)}模式下不生效");
+            }
+        }
+        return list;
+    }
+
+    /// <summary>按规范顺序输出内容集，serve 契约用字符串形式。</summary>
+    internal static string ToNormalizedString(DownloadContent content)
+    {
+        var builder = new StringBuilder( );
+        foreach (var entry in Order)
+        {
+            if (content.Has(entry.Flag))
+            {
+                builder.Append(entry.Ch);
+            }
+        }
+        return builder.ToString( );
+    }
+
+    /// <summary>解析 serve 传入的内容集字符串，非法字符忽略。</summary>
+    internal static DownloadContent FromNormalizedString(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return DownloadContent.None;
+        }
+        var flags = DownloadContent.None;
+        foreach (var ch in value)
+        {
+            foreach (var entry in Order)
+            {
+                if (entry.Ch == ch)
+                {
+                    flags |= entry.Flag;
+                    break;
+                }
+            }
+        }
+        return flags;
+    }
+
+    internal static bool Has(this DownloadContent content, DownloadContent flag)
+    {
+        return (content & flag) == flag;
+    }
+
+    internal static bool HasAny(this DownloadContent content, DownloadContent flags)
+    {
+        return (content & flags) != 0;
+    }
+
+    private static DownloadContent Apply(DownloadContent flags, IEnumerable<string> segments, bool subtract, List<string> warnings)
+    {
+        foreach (var segment in segments)
+        {
+            foreach (var ch in segment)
+            {
+                var found = false;
+                foreach (var entry in Order)
+                {
+                    if (entry.Ch != ch)
+                    {
+                        continue;
+                    }
+                    flags = subtract ? flags & ~entry.Flag : flags | entry.Flag;
+                    found = true;
+                    break;
+                }
+                if (!found)
+                {
+                    warnings.Add($"无效的内容字符「{ch}」（有效字符：{ValidChars}）");
+                }
+            }
+        }
+        return flags;
+    }
+
+    private static string ModeName(ContentMode mode)
+    {
+        return mode switch
+        {
+            ContentMode.Opus => "专栏导出",
+            ContentMode.Live => "直播录制",
+            _ => "视频下载",
+        };
+    }
+}

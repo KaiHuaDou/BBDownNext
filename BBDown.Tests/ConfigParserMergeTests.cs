@@ -43,8 +43,8 @@ public sealed class ConfigParserMergeTests : IDisposable
     [Fact]
     public void Config_SuppliesOptionMissingFromCommandLine( )
     {
-        var opt = Merge("--danmaku\n--work-dir \"D:/videos\"\n", SampleUrl);
-        Assert.True(opt.DownloadDanmaku);
+        var opt = Merge("-g avd\n--work-dir \"D:/videos\"\n", SampleUrl);
+        Assert.True(opt.Content.Has(DownloadContent.Danmaku));
         Assert.Equal("D:/videos", opt.WorkDir);
     }
 
@@ -55,27 +55,34 @@ public sealed class ConfigParserMergeTests : IDisposable
         Assert.Equal("D:/from-cli", opt.WorkDir);
     }
 
-    // 默认值为 true 的开关，配置文件必须能关掉。
+    // string[] 选项：命令行显式给过 --get 则配置里的 --get 被跳过，不会重复累积
     [Fact]
-    public void Config_CanEnableAllowAi( )
+    public void Config_GetSkippedWhenCommandLineExplicit( )
     {
-        var opt = Merge("--allow-ai\n", SampleUrl);
-        Assert.True(opt.AllowAi);
+        var opt = Merge("-g d\n", SampleUrl, "-g", "av");
+        Assert.Equal(DownloadContent.Audio | DownloadContent.Video, opt.Content);
+    }
+
+    [Fact]
+    public void Config_CanAddAiSubtitle( )
+    {
+        var opt = Merge("-w S\n", SampleUrl);
+        Assert.True(opt.Content.Has(DownloadContent.AiSubtitle));
     }
 
     [Fact]
     public void Config_IgnoresCommentsAndBlankLines( )
     {
-        var opt = Merge("# 这是注释\n\n--danmaku\n", SampleUrl);
-        Assert.True(opt.DownloadDanmaku);
+        var opt = Merge("# 这是注释\n\n-g avd\n", SampleUrl);
+        Assert.True(opt.Content.Has(DownloadContent.Danmaku));
     }
 
     [Fact]
     public void Config_SuppliesUrlWhenCommandLineHasNone( )
     {
-        var opt = Merge($"{SampleUrl}\n--danmaku\n");
+        var opt = Merge($"{SampleUrl}\n-g avd\n");
         Assert.Equal(SampleUrl, opt.Url);
-        Assert.True(opt.DownloadDanmaku);
+        Assert.True(opt.Content.Has(DownloadContent.Danmaku));
     }
 
     [Fact]

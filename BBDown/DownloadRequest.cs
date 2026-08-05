@@ -16,9 +16,10 @@ namespace BBDown;
 internal sealed record DownloadRequest
 {
     public string Url { get; init; } = default!;
-    public bool UseTvApi { get; init; }
-    public bool UseAppApi { get; init; }
-    public bool UseIntlApi { get; init; }
+    /// <summary>API 解析通道（web / tv / app / intl），单值选择。</summary>
+    public ApiType Api { get; init; } = ApiType.Web;
+    /// <summary>下载内容标志集（--get ∪ --with − --without），消费点用 <see cref="ContentSelector.Has"/> 查询。</summary>
+    public DownloadContent Content { get; init; } = ContentSelector.DefaultFlags;
     public bool UseMP4box { get; init; }
     public string? EncodingPriority { get; init; }
     public string? DfnPriority { get; init; }
@@ -30,28 +31,14 @@ internal sealed record DownloadRequest
     public bool Interactive { get; init; }
     public bool HideStreams { get; init; }
     public bool SingleThread { get; init; }
-    public bool NoMetadata { get; init; }
-    public bool VideoOnly { get; init; }
-    public bool AudioOnly { get; init; }
-    public bool DanmakuOnly { get; init; }
-    public bool CoverOnly { get; init; }
-    public bool SubOnly { get; init; }
     public bool Debug { get; init; }
     public bool SkipMux { get; init; }
-    public bool NoSub { get; init; }
-    public bool NoCover { get; init; }
-    /// <summary>专栏导出时不下载图片，Markdown 中保留远程图片链接</summary>
-    public bool NoImages { get; init; }
     public bool NoForceHttp { get; init; }
-    public bool DownloadDanmaku { get; init; }
     public string? DownloadDanmakuFormats { get; init; }
     /// <summary>要下载的评论条数，0 表示不下载评论</summary>
     public int CommentCount { get; init; }
     public string? CommentSort { get; init; }
     public string? CommentFormats { get; init; }
-    /// <summary>逐条抓取楼中楼全部回复，而非只保留接口内联的前几条</summary>
-    public bool FullComment { get; init; }
-    public bool AllowAi { get; init; }
     public bool VideoAscending { get; init; }
     public bool AudioAscending { get; init; }
     public bool AllowPcdn { get; init; }

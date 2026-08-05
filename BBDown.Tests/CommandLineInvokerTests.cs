@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 
+using BBDown.Core;
+
 namespace BBDown.Tests;
 
 public class CommandLineInvokerTests
@@ -21,22 +23,87 @@ public class CommandLineInvokerTests
         return captured!;
     }
 
-    // P0-1: --no-metadata 曾未注册到 RootCommand，被静默丢弃。
-    [Fact]
-    public async Task NoMetadata_Flag_EnablesOption( )
-    {
-        var opt = await ParseAsync(SampleUrl, "--no-metadata");
-        Assert.True(opt.NoMetadata);
-    }
+    // ---- 内容集（--get / --with / --without）----
 
     [Fact]
-    public async Task NoMetadata_DefaultsToFalse( )
+    public async Task Get_DefaultsToAvmsCiM( )
     {
         var opt = await ParseAsync(SampleUrl);
-        Assert.False(opt.NoMetadata);
+        Assert.Equal(ContentSelector.DefaultFlags, opt.Content);
     }
 
-    // P0-2: 默认开启的开关曾被无条件覆盖成 false。不加 -st 即视为多线程（默认 SingleThread 为 false）。
+    [Fact]
+    public async Task Get_SetsContent( )
+    {
+        var opt = await ParseAsync(SampleUrl, "-g", "av");
+        Assert.Equal(DownloadContent.Audio | DownloadContent.Video, opt.Content);
+    }
+
+    [Fact]
+    public async Task Get_MultipleValuesMerge( )
+    {
+        var opt = await ParseAsync(SampleUrl, "-g", "av", "--get", "s");
+        Assert.True(opt.Content.Has(DownloadContent.Audio));
+        Assert.True(opt.Content.Has(DownloadContent.Video));
+        Assert.True(opt.Content.Has(DownloadContent.Subtitle));
+    }
+
+    [Fact]
+    public async Task With_AddsOnTopOfDefault( )
+    {
+        var opt = await ParseAsync(SampleUrl, "-w", "d");
+        Assert.True(opt.Content.Has(DownloadContent.Danmaku));
+        Assert.True(opt.Content.Has(DownloadContent.Audio));
+    }
+
+    [Fact]
+    public async Task Without_RemovesFromDefault( )
+    {
+        var opt = await ParseAsync(SampleUrl, "-W", "s");
+        Assert.False(opt.Content.Has(DownloadContent.Subtitle));
+        Assert.True(opt.Content.Has(DownloadContent.Audio));
+    }
+
+    [Fact]
+    public async Task Combined_GetWithWithout( )
+    {
+        var opt = await ParseAsync(SampleUrl, "-g", "av", "-w", "c", "-W", "v");
+        Assert.Equal(DownloadContent.Audio | DownloadContent.Cover, opt.Content);
+    }
+
+    // ---- API 通道（--api）----
+
+    [Fact]
+    public async Task Api_DefaultsToWeb( )
+    {
+        var opt = await ParseAsync(SampleUrl);
+        Assert.Equal(ApiType.Web, opt.Api);
+    }
+
+    [Fact]
+    public async Task Api_ParsesValuesIgnoringCase( )
+    {
+        Assert.Equal(ApiType.Tv, (await ParseAsync(SampleUrl, "--api", "TV")).Api);
+        Assert.Equal(ApiType.App, (await ParseAsync(SampleUrl, "-a", "app")).Api);
+        Assert.Equal(ApiType.Intl, (await ParseAsync(SampleUrl, "--api", "intl")).Api);
+    }
+
+    [Fact]
+    public void Api_InvalidValue_ReportsError( )
+    {
+        var root = CommandLineInvoker.GetRootCommand(_ => Task.FromResult(0));
+        Assert.NotEmpty(root.Parse([SampleUrl, "--api", "bogus"]).Errors);
+    }
+
+    [Fact]
+    public async Task InfoOnly_AliasI( )
+    {
+        var opt = await ParseAsync(SampleUrl, "-i");
+        Assert.True(opt.OnlyShowInfo);
+    }
+
+    // ---- 其余既有开关 ----
+
     [Fact]
     public async Task SingleThread_DefaultsToFalse( )
     {
@@ -58,22 +125,6 @@ public class CommandLineInvokerTests
         Assert.False(opt.NoForceHttp);
     }
 
-    // P0-3: --allow-ai 反转语义——默认不下载 AI 字幕，加选项才下载。
-    [Fact]
-    public async Task AllowAi_DefaultsToFalse( )
-    {
-        var opt = await ParseAsync(SampleUrl);
-        Assert.False(opt.AllowAi);
-    }
-
-    [Fact]
-    public async Task AllowAi_Flag_Enables( )
-    {
-        var opt = await ParseAsync(SampleUrl, "--allow-ai");
-        Assert.True(opt.AllowAi);
-    }
-
-    // 默认拦截充电专属试看片段，加选项才放行
     [Fact]
     public async Task AllowPreview_DefaultsToFalse( )
     {
@@ -88,7 +139,6 @@ public class CommandLineInvokerTests
         Assert.True(opt.AllowPreview);
     }
 
-    // --no-force-host 反转语义——默认强制替换 host，加选项才不替换。
     [Fact]
     public async Task NoForceHost_DefaultsToFalse( )
     {
@@ -150,71 +200,63 @@ public class CommandLineInvokerTests
         Assert.False(opt.EncodingFirst);
     }
 
-    // ---- 评论下载（--comment） ----
+    // ---- 评论下载（--comments-*）----
 
     [Fact]
-    public async Task CommentCount_DefaultsToZero( )
+    public async Task CommentsCount_DefaultsToZero( )
     {
         var opt = await ParseAsync(SampleUrl);
         Assert.Equal(0, opt.CommentCount);
     }
 
     [Fact]
-    public async Task CommentCount_ParsesAfterUrl( )
+    public async Task CommentsCount_ParsesAfterUrl( )
     {
-        var opt = await ParseAsync(SampleUrl, "--comment", "100");
+        var opt = await ParseAsync(SampleUrl, "--comments-count", "100");
         Assert.Equal(100, opt.CommentCount);
     }
 
     [Fact]
-    public async Task CommentCount_ParsesBeforeUrl( )
+    public async Task CommentsCount_ParsesBeforeUrl( )
     {
-        // 不放 ArgumentArity：位置参数 url 始终能落到自己头上，不会被 --comment 吞掉
-        var opt = await ParseAsync("--comment", "100", SampleUrl);
+        // 不放 ArgumentArity：位置参数 url 始终能落到自己头上，不会被 --comments-count 吞掉
+        var opt = await ParseAsync("--comments-count", "100", SampleUrl);
         Assert.Equal(100, opt.CommentCount);
     }
 
     [Fact]
-    public async Task CommentSort_AliasCms( )
+    public async Task CommentsSort_AliasCs( )
     {
-        var opt = await ParseAsync(SampleUrl, "-cms", "time");
+        var opt = await ParseAsync(SampleUrl, "-cs", "time");
         Assert.Equal("time", opt.CommentSort);
     }
 
     [Fact]
-    public async Task CommentFormats_AliasCmf( )
+    public async Task CommentsFormats_AliasCf( )
     {
-        var opt = await ParseAsync(SampleUrl, "-cmf", "txt");
+        var opt = await ParseAsync(SampleUrl, "-cf", "txt");
         Assert.Equal("txt", opt.CommentFormats);
     }
 
     [Fact]
-    public async Task FullComment_Flag( )
-    {
-        var opt = await ParseAsync(SampleUrl, "--full-comment");
-        Assert.True(opt.FullComment);
-    }
-
-    [Fact]
-    public void Comment_RequiresIntegerValue( )
+    public void Comments_RequiresIntegerValue( )
     {
         var root = CommandLineInvoker.GetRootCommand(_ => Task.FromResult(0));
-        // 缺值：--comment 之后没有整数
-        Assert.NotEmpty(root.Parse([SampleUrl, "--comment"]).Errors);
+        // 缺值：--comments-count 之后没有整数
+        Assert.NotEmpty(root.Parse([SampleUrl, "--comments-count"]).Errors);
         // 非整数：把 URL 当值消费会转换失败
-        Assert.NotEmpty(root.Parse([SampleUrl, "--comment", SampleUrl]).Errors);
+        Assert.NotEmpty(root.Parse([SampleUrl, "--comments-count", SampleUrl]).Errors);
     }
 
     [Fact]
-    public void CommentOptions_RegisteredToRootCommand( )
+    public void CommentsOptions_RegisteredToRootCommand( )
     {
-        // 漏加进 RootCommand 集合会被 System.CommandLine 静默丢弃：用真实解析证明四个选项（含别名）都已注册
+        // 漏加进 RootCommand 集合会被 System.CommandLine 静默丢弃：用真实解析证明选项（含别名）都已注册
         var root = CommandLineInvoker.GetRootCommand(_ => Task.FromResult(0));
-        var parseResult = root.Parse([SampleUrl, "-cm", "7", "-cms", "time", "-cmf", "txt", "--full-comment"]);
+        var parseResult = root.Parse([SampleUrl, "-cn", "7", "-cs", "time", "-cf", "txt"]);
         Assert.Empty(parseResult.Errors); // 主选项与三个别名都被识别，无「未知选项」
-        Assert.Equal(7, parseResult.GetValue<int>("--comment"));
-        Assert.Equal("time", parseResult.GetValue<string>("--comment-sort"));
-        Assert.Equal("txt", parseResult.GetValue<string>("--comment-formats"));
-        Assert.True(parseResult.GetValue<bool>("--full-comment"));
+        Assert.Equal(7, parseResult.GetValue<int>("--comments-count"));
+        Assert.Equal("time", parseResult.GetValue<string>("--comments-sort"));
+        Assert.Equal("txt", parseResult.GetValue<string>("--comments-formats"));
     }
 }

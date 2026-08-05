@@ -36,11 +36,9 @@ internal sealed record MuxRequest(
     string Pic,
     string Lang,
     List<Subtitle>? Subs,
-    bool AudioOnly,
-    bool VideoOnly,
+    DownloadContent Content,
     List<ViewPoint>? Points,
     long PubTime,
-    bool NoMetadata,
     bool IsHevc);
 
 internal static class Muxer
@@ -93,7 +91,7 @@ internal static class Muxer
         var trackId = 0;
         if (req.VideoPath.Length != 0)
         {
-            args.AddRange(["-add", $"{req.VideoPath}#trackID={(req.AudioOnly && req.AudioPath.Length == 0 ? 2 : 1)}:name="]);
+            args.AddRange(["-add", $"{req.VideoPath}#trackID={(!req.Content.Has(DownloadContent.Video) && req.AudioPath.Length == 0 ? 2 : 1)}:name="]);
             trackId++;
         }
 
@@ -196,7 +194,7 @@ internal static class Muxer
 
         if (req.Pic.Length != 0)
         {
-            meta.AddRange([$"-disposition:v:{(req.AudioOnly ? 0 : 1)}", "attached_pic"]);
+            meta.AddRange([$"-disposition:v:{(!req.Content.Has(DownloadContent.Video) ? 0 : 1)}", "attached_pic"]);
         }
 
         if (chapterFile != null)
@@ -211,7 +209,7 @@ internal static class Muxer
 
         args.AddRange(meta);
 
-        if (!req.NoMetadata)
+        if (req.Content.Has(DownloadContent.MuxMetadata))
         {
             args.AddRange(["-metadata", $"title={(req.EpisodeId.Length == 0 ? req.Title : req.EpisodeId)}"]);
             args.AddRange(["-metadata", $"comment={BiliApi.VideoPage}/{req.Bvid}/"]);
@@ -242,7 +240,7 @@ internal static class Muxer
         }
 
         args.AddRange(["-c:v", "copy", "-c:a", "copy"]);
-        if (req.AudioOnly && req.AudioPath.Length == 0)
+        if (!req.Content.Has(DownloadContent.Video) && req.AudioPath.Length == 0)
         {
             args.Add("-vn");
         }
@@ -265,12 +263,12 @@ internal static class Muxer
     {
         var videoPath = req.VideoPath;
         var audioPath = req.AudioPath;
-        if (req.AudioOnly && audioPath.Length != 0)
+        if (!req.Content.Has(DownloadContent.Video) && audioPath.Length != 0)
         {
             videoPath = "";
         }
 
-        if (req.VideoOnly)
+        if (!req.Content.Has(DownloadContent.Audio))
         {
             audioPath = "";
         }

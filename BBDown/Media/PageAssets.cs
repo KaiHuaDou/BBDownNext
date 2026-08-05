@@ -24,19 +24,21 @@ internal static class PageAssets
         var p = pageCtx.Page;
         Directory.CreateDirectory(pageCtx.TempDir);
 
-        if (!myOption.NoCover && !myOption.SubOnly && !File.Exists(pageCtx.CoverPath) && !myOption.DanmakuOnly && !myOption.CoverOnly)
+        // 混流封面（C）需要临时封面文件；独立封面（c）不走临时目录，由 DashDownload 直接落到输出路径
+        if (myOption.Content.Has(DownloadContent.MuxCover) && !File.Exists(pageCtx.CoverPath))
         {
             await DownloadFileAsync(pageCtx.CoverUrl, pageCtx.CoverPath, new DownloadConfig { Cookie = ctx.Fetch.Cfg.Cookie, Aria2cPath = ctx.Run.Tools.Aria2c }, ct);
         }
 
-        if (myOption.NoSub || myOption.DanmakuOnly || myOption.CoverOnly)
+        // 无 s / S 则不下字幕；S 不依赖 s（AI 字幕与普通字幕独立）
+        if (!myOption.Content.HasAny(DownloadContent.Subtitle | DownloadContent.AiSubtitle))
         {
             return [];
         }
 
         LogDebug("获取字幕...");
-        var subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.UseIntlApi, ctx.Fetch.Cfg, ct);
-        if (!myOption.AllowAi && subtitleInfo.Count != 0)
+        var subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.Api == ApiType.Intl, ctx.Fetch.Cfg, ct);
+        if (!myOption.Content.Has(DownloadContent.AiSubtitle) && subtitleInfo.Count != 0)
         {
             Log("跳过下载 AI 字幕");
             subtitleInfo = [.. subtitleInfo.Where(s => !s.lan.StartsWith("ai-"))];
@@ -48,9 +50,13 @@ internal static class PageAssets
             Log($"下载字幕 {s.lan} => {SubUtil.GetSubtitleCode(s.lan).Name}...");
             LogDebug("下载：{0}", s.url);
             await SubUtil.SaveSubtitleAsync(s.url, s.path, ctx.Fetch.Cfg, ct);
-            if (myOption.SubOnly && File.Exists(s.path) && File.ReadAllText(s.path).Length != 0)
+            if (File.Exists(s.path) && File.ReadAllText(s.path).Length != 0)
             {
                 MoveSubtitleToOutput(s, ctx, pageCtx);
+            }
+            else if (File.Exists(s.path))
+            {
+                File.Delete(s.path);
             }
         }
 
@@ -68,6 +74,8 @@ internal static class PageAssets
 
         outSubPath = Path.ChangeExtension(outSubPath, $".{s.lan}.srt");
         File.Move(s.path, outSubPath, true);
+        // 移动后临时路径失效，回写输出路径供混流内嵌与收尾逻辑使用
+        s.path = outSubPath;
     }
 
     internal static async Task<bool> DownloadDanmakuAsync(DownloadSession session, string savePath, CancellationToken ct = default)
@@ -100,7 +108,8 @@ internal static class PageAssets
             File.Delete(danmakuXmlPath);
         }
 
-        if (!myOption.DanmakuOnly)
+        // 仅有弹幕（d）而无音视频时，弹幕落盘即中止；有音视频则继续走下载流程
+        if (myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
         {
             return false;
         }

@@ -15,12 +15,11 @@ namespace BBDown.Core;
 
 public static class Parser
 {
-    public static async Task<ParsedResult> ExtractTracksAsync(string aidOri, string aid, string cid, string epId, bool tvApi, bool intlApi, bool appApi, string encoding, AppConfig cfg, string qn = "0", CancellationToken ct = default)
+    public static async Task<ParsedResult> ExtractTracksAsync(string aidOri, string aid, string cid, string epId, ApiType api, string encoding, AppConfig cfg, string qn = "0", CancellationToken ct = default)
     {
-        PlayUrlRequest req = new(aidOri, aid, cid, epId, tvApi, intlApi, appApi, encoding, cfg);
+        PlayUrlRequest req = new(aidOri, aid, cid, epId, api, encoding, cfg);
 
-        // intl 与 app 同时指定时沿用 intl, 与 FetchAsync 的优先级保持一致
-        if (req.AppApi && !req.IntlApi)
+        if (req.Api == ApiType.App)
         {
             return await AppTrackReader.FetchAsync(req, ct);
         }
@@ -50,7 +49,7 @@ public static class Parser
             result.RawResponse = await PlayUrlClient.FetchAsync(req, Config.MaxQn, ct);
             using var maxQnDoc = JsonDocument.Parse(result.RawResponse);
             var maxQnRoot = PlayUrlResponse.GetRootNode(maxQnDoc.RootElement, nodeName);
-            DashTrackReader.Collect(result, firstRoot, maxQnRoot, req.TvApi);
+            DashTrackReader.Collect(result, firstRoot, maxQnRoot, req.Api == ApiType.Tv);
             if (DashTrackReader.DeclaredButMissing(maxQnRoot, result, Config.AiRepairQn))
             {
                 LogWarn("该视频存在「智能修复」画质，当前账号非大会员无法获取");

@@ -1,6 +1,8 @@
 using System.IO;
 using System.Threading.Tasks;
 
+using BBDown.Core;
+
 namespace BBDown.Tests;
 
 public class CredentialStoreTests
@@ -34,7 +36,7 @@ public class CredentialStoreTests
         {
             await CredentialStore.SaveTvToken("fromfile", null, dir);
             // LoadAll 有意不剥离 access_token= 前缀：调用方须传入纯令牌（前缀剥离已移除）。
-            var (cookie, token) = CredentialStore.LoadAll("cliCookie", "cli", false, true, dir);
+            var (cookie, token) = CredentialStore.LoadAll("cliCookie", "cli", ApiType.App, dir);
             Assert.Equal("cliCookie", cookie);
             Assert.Equal("cli", token);
         }
@@ -87,7 +89,7 @@ public class CredentialStoreTests
         try
         {
             await CredentialStore.SaveWebCookie("filecookie", dir);
-            var (cookie, token) = CredentialStore.LoadAll(null, null, false, false, dir);
+            var (cookie, token) = CredentialStore.LoadAll(null, null, ApiType.Web, dir);
             Assert.Equal("filecookie", cookie);
             Assert.Equal("", token);
         }
@@ -108,7 +110,7 @@ public class CredentialStoreTests
         try
         {
             await CredentialStore.SaveTvToken("fromfile", dir: dir);
-            var (_, token) = CredentialStore.LoadAll(null, null, false, false, dir);
+            var (_, token) = CredentialStore.LoadAll(null, null, ApiType.Web, dir);
             Assert.Equal("", token);
         }
         finally

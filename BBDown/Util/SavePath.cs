@@ -4,12 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
+using BBDown.Core;
+
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.FileNameUtil;
 
 namespace BBDown.Util;
-
 internal static partial class SavePath
 {
     public static string SinglePageDefaultSavePath { get; } = "<videoTitle>";
@@ -41,7 +42,7 @@ internal static partial class SavePath
         return i < 0 ? "[试看]" + relative : relative[..(i + 1)] + "[试看]" + relative[(i + 1)..];
     }
 
-    internal static string Format(string savePathFormat, string title, Video? videoTrack, Audio? audioTrack, Page p, int pagesCount, string apiType, long pubTime)
+    internal static string Format(string savePathFormat, string title, Video? videoTrack, Audio? audioTrack, Page p, int pagesCount, ApiType apiType, long pubTime)
     {
         var result = savePathFormat.Replace('\\', '/');
         var regex = InfoRegex( );
@@ -84,7 +85,7 @@ internal static partial class SavePath
                 "audioBandwidth" => audioTrack == null ? "" : audioTrack.bandwidth.ToString( ),
                 "publishDate" => Utils.FormatTimeStamp(pubTime, defaultDateFormat),
                 "videoDate" => Utils.FormatTimeStamp(p.pubTime, defaultDateFormat),
-                "apiType" => apiType,
+                "apiType" => apiType.ToString( ).ToUpperInvariant( ),
                 _ => UnknownPlaceholder(key)
             };
             replacements.Add((m.Index, m.Length, v ?? ""));

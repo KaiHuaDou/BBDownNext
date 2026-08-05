@@ -72,15 +72,42 @@ public class BBDownApiServerTests
         var req = new ServeRequestOptions
         {
             Url = "https://www.bilibili.com/video/BV1xx411c7XD",
-            UseTvApi = true,
+            Api = ApiType.Tv,
             Cookie = "SESSDATA=abc",
             AllowPreview = true
         };
         var opts = req.ToDownloadRequest( );
 
-        Assert.True(opts.UseTvApi);
+        Assert.Equal(ApiType.Tv, opts.Api);
         Assert.Equal("SESSDATA=abc", opts.Cookie);
         Assert.True(opts.AllowPreview);
+    }
+
+    [Fact]
+    public void ServeRequestOptions_ToDownloadRequest_MapsContentAndApi( )
+    {
+        var req = new ServeRequestOptions
+        {
+            Url = "https://www.bilibili.com/video/BV1xx411c7XD",
+            Content = ContentSelector.FromNormalizedString("avmsCiM"),
+            Api = ApiType.Intl
+        };
+        var opts = req.ToDownloadRequest( );
+
+        Assert.Equal(ContentSelector.DefaultFlags, opts.Content);
+        Assert.Equal(ApiType.Intl, opts.Api);
+    }
+
+    [Fact]
+    public void ServeRequestOptions_JsonRoundTrip_ParsesContentAndApiStrings( )
+    {
+        // 请求体用字符串表达内容集与 API 通道，与 CLI 输入一致；转换后落入枚举字段
+        const string json = """{"Url":"https://www.bilibili.com/video/BV1xx411c7XD","Content":"av","Api":"tv"}""";
+        var req = JsonSerializer.Deserialize<ServeRequestOptions>(json, DownloadRequestJsonContext.Default.ServeRequestOptions)!;
+        var opts = req.ToDownloadRequest( );
+
+        Assert.Equal(DownloadContent.Audio | DownloadContent.Video, opts.Content);
+        Assert.Equal(ApiType.Tv, opts.Api);
     }
 
     #endregion

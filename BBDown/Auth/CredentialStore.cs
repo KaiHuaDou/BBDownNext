@@ -4,6 +4,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
+using BBDown.Core;
+
 using static BBDown.Core.Logger;
 
 namespace BBDown.Auth;
@@ -137,7 +139,7 @@ internal static class CredentialStore
     /// 合并命令行传入与本地文件的凭据：命令行优先；缺失时回退到对应类型的本地文件。
     /// </summary>
     public static (string cookie, string token) LoadAll(
-        string? cliCookie, string? cliToken, bool useTvApi, bool useAppApi, string? dir = null)
+        string? cliCookie, string? cliToken, ApiType api, string? dir = null)
     {
         var cookie = cliCookie ?? "";
         var token = cliToken ?? "";
@@ -148,13 +150,13 @@ internal static class CredentialStore
             cookie = localCookie;
         }
 
-        if (string.IsNullOrEmpty(token) && useTvApi && LoadTvToken(dir) is { Length: > 0 } tvToken)
+        if (string.IsNullOrEmpty(token) && api == ApiType.Tv && LoadTvToken(dir) is { Length: > 0 } tvToken)
         {
             Log("加载本地 token...");
             token = tvToken;
         }
 
-        if (string.IsNullOrEmpty(token) && useAppApi && LoadAppToken(dir) is { Length: > 0 } appToken)
+        if (string.IsNullOrEmpty(token) && api == ApiType.App && LoadAppToken(dir) is { Length: > 0 } appToken)
         {
             Log("加载本地 token...");
             token = appToken;

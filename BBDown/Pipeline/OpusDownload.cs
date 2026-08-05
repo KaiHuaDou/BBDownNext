@@ -54,7 +54,7 @@ internal static class OpusDownload
         }
 
         // 专栏只需要 cookie，不需要 token / wbi；凭据加载与 VideoInfo.FetchAsync 保持一致
-        var (cookie, _) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, false, false);
+        var (cookie, _) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, ApiType.Web);
         var cfg = new AppConfig(cookie, "", myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
 
         // opus/detail 要求 Cookie 中带非空 buvid3；平时这一步在 VideoInfo.FetchAsync 完成，旁路后必须自己补
@@ -82,14 +82,14 @@ internal static class OpusDownload
         }
 
         IReadOnlyDictionary<string, string>? imageMap = null;
-        if (!myOption.NoImages && CountImages(doc) > 0)
+        if (myOption.Content.Has(DownloadContent.OpusImage) && CountImages(doc) > 0)
         {
             var imageDir = Path.Combine(workDir, baseName, "images");
             imageMap = await DownloadImagesAsync(doc, imageDir, $"{baseName}/images", cfg, ct);
         }
 
         var markdown = OpusMarkdownRenderer.Render(doc, new OpusRenderOptions(
-            EmbedFrontMatter: !myOption.NoMetadata,
+            EmbedFrontMatter: myOption.Content.Has(DownloadContent.FrontMatter),
             ImagePathMap: imageMap));
 
         // Encoding.UTF8 会写出 BOM，多数 YAML front matter 解析器会因此认不出首行的 ---

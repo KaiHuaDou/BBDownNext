@@ -20,12 +20,11 @@ internal sealed record RunConfig(
     Dictionary<string, int> DfnPriority,
     string FirstEncoding,
     bool EncodingFirst,
-    bool DownloadDanmaku,
+    DownloadContent Content,
     DanmakuFormat[] DownloadDanmakuFormats,
     int CommentCount,
     bool CommentSortHot,
     CommentFormat[] CommentFormats,
-    bool FullComment,
     string Input,
     string Lang,
     int Delay,
@@ -49,7 +48,6 @@ internal static class WorkSetup
         var (encodingPriority, firstEncoding) = ParseEncodingPriority(req);
         var dfnPriority = ParseDfnPriority(req);
 
-        var downloadDanmaku = req.DownloadDanmaku || req.DanmakuOnly;
         var downloadDanmakuFormats = ParseDownloadDanmakuFormats(req);
 
         var commentCount = Math.Max(0, req.CommentCount);
@@ -66,12 +64,11 @@ internal static class WorkSetup
             DfnPriority: dfnPriority,
             FirstEncoding: firstEncoding,
             EncodingFirst: req.EncodingFirst,
-            DownloadDanmaku: downloadDanmaku,
+            Content: req.Content,
             DownloadDanmakuFormats: downloadDanmakuFormats,
             CommentCount: commentCount,
             CommentSortHot: commentSortHot,
             CommentFormats: commentFormats,
-            FullComment: req.FullComment,
             Input: req.Url,
             Lang: lang,
             Delay: delay,
@@ -207,6 +204,7 @@ internal static class WorkSetup
 
     /// <summary>
     /// 处理有冲突的选项。不原地改写入参（DownloadRequest 不可变），返回修正后的副本（C2）。
+    /// 内容字符的冲突（AudioOnly / VideoOnly 互斥等）已由 <see cref="ContentSelector.Resolve"/> 在解析层消解。
     /// </summary>
     internal static DownloadRequest HandleConflictingOptions(DownloadRequest myOption)
     {
@@ -214,11 +212,6 @@ internal static class WorkSetup
         {
             // 手动选择时不能隐藏流
             HideStreams = !myOption.Interactive && myOption.HideStreams,
-            // audioOnly 和 videoOnly 同时开启则全部忽视
-            AudioOnly = (!myOption.AudioOnly || !myOption.VideoOnly) && myOption.AudioOnly,
-            VideoOnly = (!myOption.AudioOnly || !myOption.VideoOnly) && myOption.VideoOnly,
-            // 关字幕时忽略仅字幕
-            SubOnly = !myOption.NoSub && myOption.SubOnly,
         };
     }
 

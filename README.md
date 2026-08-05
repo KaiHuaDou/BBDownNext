@@ -29,13 +29,14 @@
 
 - 内容与来源
     - **视频 / 番剧 / 课程** · 直播回放、收藏夹、合集 / 系列、UP 主空间列表
+    - **内容组合选择** · `-g` / `-w` / `-W` 自由组合音频、视频、字幕、弹幕、封面、评论等（get ∪ with − without）
     - **多 P 批量选择** · `-p` 支持单集、列表、区间、`latest`
     - **专栏 / 图文导出** · `opus` 子命令，转为 Markdown，图片可选本地下载
 
 - 解析引擎
-    - **4 种模式**：`TV` / `APP` / `INTL` / `WEB`，自动应对区域限制
+    - **4 种模式**：`--api` 单选 `web` / `tv` / `app` / `intl`，自动应对区域限制
     - **兼容 BiliPlus 代理**，WEB 模式自动 WBI 签名
-    - **解析优先**：`--show-info` 查看可用流，`-ia` 交互式选择清晰度
+    - **解析优先**：`--info-only` 查看可用流，`-ia` 交互式选择清晰度
 
 - 媒体与封装
     - **DASH / FLV** 封装 · 杜比视界、HDR、8K、高码率音视频流
@@ -111,19 +112,19 @@ dotnet publish BBDown -r <RID> -c Release -o <DEST>
 BBDown "https://www.bilibili.com/video/BV16h4y137YS"
 
 # 仅解析，不下载，查看可用流
-BBDown "BV16h4y137YS" --show-info
+BBDown "BV16h4y137YS" -i
 
 # 仅下载音频
-BBDown "BV16h4y137YS" -a
+BBDown "BV16h4y137YS" -g a
 
 # 指定清晰度与编码优先级
 BBDown "BV16h4y137YS" -q "1080P 高码率" -e "avc,flac"
 
 # 下载番剧 / 课程（需要会员凭据）
-BBDown "ep68540" --tv-api --access-token "你的token"
+BBDown "ep68540" --api tv --access-token "你的token"
 
 # 只看下一个 UP 的投稿列表，不下载
-BBDown "space402787936" --show-info
+BBDown "space402787936" --info-only
 
 # 下载一篇专栏并导出为 Markdown（默认下载图片到 images/ 子目录）
 BBDown opus cv51908655
@@ -155,30 +156,28 @@ BBDown "live12345" -lq 400
 
 ### 解析模式
 
-| 参数         | 简写    | 说明                                                         |
-| ------------ | ------- | ------------------------------------------------------------ |
-| `--tv-api`   | `-tv`   | 使用 TV 端解析模式（用于番剧 / 大会员等内容）                |
-| `--app-api`  | `-app`  | 使用 APP 端解析模式（gRPC，番剧仅 HEVC）                     |
-| `--intl-api` | `-intl` | 使用国际版（东南亚视频）解析模式                             |
-| `--host`     |         | 指定 BiliPlus host（详见脚注 [^host]）                       |
-| `--ep-host`  |         | 指定 BiliPlus EP host（详见脚注 [^ep-host]）                 |
-| `--tv-host`  |         | 自定义 TV 端接口请求 Host（用于代理 `api.snm0516.aisee.tv`） |
-| `--area`     |         | 使用 BiliPlus 时必选，指定区域：`hk` / `tw` / `th`           |
+| 参数        | 简写 | 说明                                                                                        |
+| ----------- | ---- | ------------------------------------------------------------------------------------------- |
+| `--api`     | `-a` | 指定 API 解析通道：`web` / `tv` / `app` / `intl`，默认 `web`，忽略大小写（详见脚注 [^api]） |
+| `--host`    |      | 指定 BiliPlus host（详见脚注 [^host]）                                                      |
+| `--ep-host` |      | 指定 BiliPlus EP host（详见脚注 [^ep-host]）                                                |
+| `--tv-host` |      | 自定义 TV 端接口请求 Host（用于代理 `api.snm0516.aisee.tv`）                                |
+| `--area`    |      | 使用 BiliPlus 时必选，指定区域：`hk` / `tw` / `th`                                          |
 
-> 同时指定多个解析模式时，优先级为 **TV > APP > INTL > WEB**（见 `DetermineApiType`）。例如 `--app-api --intl-api` 同时给出时实际走 **APP**。
+> `--api` 单值选择解析通道；`web` 之外的模式按需携带对应凭据（`--access-token` 等）。番剧 / 课程在 `tv` 或 `intl` 下不可用时自动回退 `web`。
 
 ### 清晰度与编码
 
-| 参数                  | 简写    | 说明                                                     |
-| --------------------- | ------- | -------------------------------------------------------- |
-| `--encoding-priority` | `-e`    | 视频及音频编码选择优先级（详见脚注 [^encodingpriority]） |
-| `--dfn-priority`      | `-q`    | 画质优先级（详见脚注 [^dfnpriority]）                    |
-| `--video-ascending`   |         | 视频升序（最小体积优先）                                 |
-| `--audio-ascending`   |         | 音频升序（最小体积优先）                                 |
-| `--interactive`       | `-ia`   | 交互式选择清晰度                                         |
-| `--hide-streams`      | `-hs`   | 不显示所有可用音视频流                                   |
-| `--show-info`         | `-info` | 仅解析而不进行下载                                       |
-| `--all`               |         | 展示所有分 P 标题                                        |
+| 参数                  | 简写  | 说明                                                     |
+| --------------------- | ----- | -------------------------------------------------------- |
+| `--encoding-priority` | `-e`  | 视频及音频编码选择优先级（详见脚注 [^encodingpriority]） |
+| `--dfn-priority`      | `-q`  | 画质优先级（详见脚注 [^dfnpriority]）                    |
+| `--video-ascending`   |       | 视频升序（最小体积优先）                                 |
+| `--audio-ascending`   |       | 音频升序（最小体积优先）                                 |
+| `--interactive`       | `-ia` | 交互式选择清晰度                                         |
+| `--hide-streams`      | `-hs` | 不显示所有可用音视频流                                   |
+| `--info-only`         | `-i`  | 仅解析而不进行下载                                       |
+| `--all`               |       | 展示所有分 P 标题                                        |
 
 > 同时指定 `-e` 与 `-q` 时，以命令行书写的先后为准（写在前的优先）。`-q` 仅作用于清晰度筛选，编码仍由 `-e` 控制。
 
@@ -189,26 +188,36 @@ BBDown "live12345" -lq 400
 
 ### 下载内容
 
-| 参数                | 简写   | 说明                                                       |
-| ------------------- | ------ | ---------------------------------------------------------- |
-| `--video-only`      | `-v`   | 仅下载视频                                                 |
-| `--audio-only`      | `-a`   | 仅下载音频                                                 |
-| `--danmaku-only`    | `-d`   | 仅下载弹幕                                                 |
-| `--cover-only`      | `-c`   | 仅下载封面                                                 |
-| `--sub-only`        | `-s`   | 仅下载字幕                                                 |
-| `--danmaku`         | `-dd`  | 下载弹幕（与音视频一并下载）                               |
-| `--danmaku-formats` | `-ddf` | 指定需下载的弹幕格式（详见脚注 [^danmakuformats]）         |
-| `--comment`         | `-cm`  | 下载评论区前 N 条评论（默认 `0`，即不下载）                |
-| `--comment-sort`    | `-cms` | 评论排序：`hot`（热度，默认）或 `time`（最新）             |
-| `--comment-formats` | `-cmf` | 指定评论导出格式（详见脚注 [^commentformats]）             |
-| `--full-comment`    |        | 额外抓取每条主评论的楼中楼回复（详见脚注 [^fullcomment]）  |
-| `--skip-mux`        |        | 跳过混流步骤                                               |
-| `--no-sub`          |        | 跳过字幕下载                                               |
-| `--no-cover`        |        | 跳过封面下载                                               |
-| `--allow-ai`        |        | 下载 AI 字幕（默认不下载，加此选项才下载）                 |
-| `--allow-preview`   |        | 允许下载充电专属视频的试看片段（详见脚注 [^allowpreview]） |
-| `--no-metadata`     |        | 精简混流，不写入描述、作者等元数据                         |
-| `--lang`            |        | 设置混流音频语言代码，如 `chi`、`jpn` 等                   |
+| 参数                 | 简写   | 说明                                                       |
+| -------------------- | ------ | ---------------------------------------------------------- |
+| `--get`              | `-g`   | 设置下载内容字符集，默认 `avmsCiM`（详见脚注 [^get]）      |
+| `--with`             | `-w`   | 在 `--get` 基础上追加内容字符                              |
+| `--without`          | `-W`   | 在 `--get` 与 `--with` 基础上移除内容字符                  |
+| `--danmaku-formats`  | `-ddf` | 指定需下载的弹幕格式（详见脚注 [^danmakuformats]）         |
+| `--comments-count`   | `-cn`  | 下载评论区前 N 条评论（默认 `0`，即不下载）                |
+| `--comments-sort`    | `-cs`  | 评论排序：`hot`（热度，默认）或 `time`（最新）             |
+| `--comments-formats` | `-cf`  | 指定评论导出格式（详见脚注 [^commentformats]）             |
+| `--skip-mux`         |        | 跳过混流步骤                                               |
+| `--allow-preview`    |        | 允许下载充电专属视频的试看片段（详见脚注 [^allowpreview]） |
+| `--lang`             |        | 设置混流音频语言代码，如 `chi`、`jpn` 等                   |
+
+内容字符对照表：
+
+| 字符 | 含义         | 字符 | 含义                         |
+| ---- | ------------ | ---- | ---------------------------- |
+| `a`  | 音频         | `m`  | 混流元数据（标题 / 描述等）  |
+| `v`  | 视频         | `M`  | 专栏 YAML front matter       |
+| `c`  | 独立封面文件 | `o`  | 评论                         |
+| `C`  | 封面混流     | `O`  | 全部评论（含楼中楼全部回复） |
+| `d`  | 弹幕         | `S`  | AI 字幕                      |
+| `i`  | 专栏图片     | `s`  | 字幕                         |
+
+[^get]: 最终内容为 `--get ∪ --with − --without`，多个 `--get` / `--with` / `--without` 自动合并：
+
+    - `o` / `O` 同时出现按 `O` 处理，不警告；
+    - `c` 与 `C` 相互独立，可同时选择；
+    - `S` 不依赖 `s`；
+    - 仅当没有 `a` / `v` 时 `C` / `m` 不生效并警告。
 
 ### 直播录制
 
@@ -313,26 +322,27 @@ BBDown "BV1xx" -M "<publishDate:yyyy>/<publishDate:MMdd> <pageTitle>"
 
 ### `opus` 参数
 
-将 B 站专栏（opus / read）抓取并转换为 Markdown。默认会把正文中的图片下载到本地 `<标题>/images/` 子目录，并在 Markdown 中用相对路径引用；加 `--no-images` 可跳过下载、保留原始远程图片链接。v1 仅支持**单篇**专栏，不支持批量 / 合集。
+将 B 站专栏（opus / read）抓取并转换为 Markdown。默认会把正文中的图片下载到本地 `<标题>/images/` 子目录，并在 Markdown 中用相对路径引用。内容集沿用根命令的默认 `avmsCiM`（专栏下仅 `i` / `M` 生效）：默认下载图片、输出 YAML front matter；加 `-W i` 跳过图片、加 `-W M` 不输出 front matter。v1 仅支持**单篇**专栏，不支持批量 / 合集。
 
-| 参数            | 简写  | 说明                                                                                       |
-| --------------- | ----- | ------------------------------------------------------------------------------------------ |
-| （位置参数）    |       | 专栏地址或 cv 号 / opus id：`https://www.bilibili.com/opus/{id}`、`cv{cv_id}`、`opus:{id}` |
-| `--no-images`   |       | 不下载图片，Markdown 中保留远程图片链接                                                    |
-| `--no-metadata` |       | 不输出 Markdown 头部的 YAML front matter（含标题 / 作者 / 发布时间等元数据）               |
-| `--work-dir`    |       | 设置输出工作目录（`.md` 与其 `images/` 落在该目录下）                                      |
-| `--cookie`      |       | 字符串 cookie，用于下载登录可见的专栏内容                                                  |
-| `--user-agent`  | `-ua` | 指定 user-agent；不指定则使用随机 user-agent                                               |
-| `--debug`       |       | 输出调试日志                                                                               |
+| 参数           | 简写  | 说明                                                                                       |
+| -------------- | ----- | ------------------------------------------------------------------------------------------ |
+| （位置参数）   |       | 专栏地址或 cv 号 / opus id：`https://www.bilibili.com/opus/{id}`、`cv{cv_id}`、`opus:{id}` |
+| `--get`        | `-g`  | 设置内容字符集（默认 `avmsCiM`；`i` 图片、`M` YAML front matter）                          |
+| `--with`       | `-w`  | 在 `--get` 基础上追加内容字符                                                               |
+| `--without`    | `-W`  | 移除内容字符（如 `-W i` 不下载图片、`-W M` 不输出 front matter）                           |
+| `--work-dir`   |       | 设置输出工作目录（`.md` 与其 `images/` 落在该目录下）                                      |
+| `--cookie`     |       | 字符串 cookie，用于下载登录可见的专栏内容                                                  |
+| `--user-agent` | `-ua` | 指定 user-agent；不指定则使用随机 user-agent                                               |
+| `--debug`      |       | 输出调试日志                                                                               |
 
-> 根命令（`BBDown <输入>`）在输入形如 `https://www.bilibili.com/opus/...` 时会**自动识别**并走专栏导出支路；只有形如 `opus 1230485246732926996` 这样**裸数字**的写法才需要显式 `opus` 子命令（否则会被当作视频 av 号）。`--no-images` / `--no-metadata` 在根命令下同样可用。
+> 根命令（`BBDown <输入>`）在输入形如 `https://www.bilibili.com/opus/...` 时会**自动识别**并走专栏导出支路；只有形如 `opus 1230485246732926996` 这样**裸数字**的写法才需要显式 `opus` 子命令（否则会被当作视频 av 号）。内容集选项在根命令下同样可用。
 
 ```bash
-# 下载一篇专栏并导出为 Markdown（图片下载到 <标题>/images/）
+# 下载一篇专栏并导出为 Markdown（图片下载到 <标题>/images/，含 front matter）
 BBDown opus "https://www.bilibili.com/opus/1230485246732926996"
 
 # 不下载图片、不输出 front matter，适合纯文本归档
-BBDown opus cv51908655 --no-images --no-metadata
+BBDown opus cv51908655 -W i -W M
 ```
 
 ### `serve` 参数
@@ -376,7 +386,7 @@ BBDown 支持从配置文件读取参数，避免每次都在命令行重复输�
 
 ```ini
 # BBDown.config 示例
---tv-api
+--api tv
 --dfn-priority 1080P 高码率, 720P 流畅
 --cookie SESSDATA=xxxxxx
 
@@ -495,7 +505,7 @@ FLV 封装固定以最高清晰度（qn=127）请求播放地址，用户的清�
 
 [^commentformats]: 指定评论导出格式，逗号分隔，默认同时导出 `json,txt`。`json` 为完整结构化数据（含每条评论的会员等级、点赞数、IP 属地、配图与楼中楼）；`txt` 为便于阅读的纯文本。注意未登录时接口不下发 `IP属地`，故 txt 中相应字段会缺失——属预期。
 
-[^fullcomment]: 默认只保留一级评论响应里内联的最多 3 条楼中楼预览。加此选项会额外调用楼中楼接口逐页抓全，请求量与评论条数成正比，单个热门楼层可能堆到数百乃至数千条回复，显著拉长任务耗时，请按需使用。
+[^api]: 各通道特性：`web` 为常规网页接口（WBI 签名，UGC 需 Cookie）；`tv` 为 TV 端接口（需 TV access_token，番剧 / 大会员内容）；`app` 为 APP 端 gRPC 接口（番剧仅 HEVC）；`intl` 为国际版接口（东南亚区域，需 access_token）。番剧输入走 `intl` 需给出具体 `ep` 号。
 
 [^stoponerror]: 遇到分 P 下载失败时立即停止，而不是继续下载其余分 P。默认继续，并在末尾汇总失败的分 P 后非零退出。
 

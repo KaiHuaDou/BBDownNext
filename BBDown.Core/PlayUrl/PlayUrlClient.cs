@@ -24,17 +24,17 @@ internal static partial class PlayUrlClient
 
     internal static async Task<string> FetchAsync(PlayUrlRequest req, string qn = "0", CancellationToken ct = default)
     {
-        LogDebug("aid={0},cid={1},epId={2},tvApi={3},IntlApi={4},qn={5}", req.Aid, req.Cid, req.EpId, req.TvApi, req.IntlApi, qn);
+        LogDebug("aid={0},cid={1},epId={2},api={3},qn={4}", req.Aid, req.Cid, req.EpId, req.Api, qn);
 
-        if (req.IntlApi)
+        if (req.Api == ApiType.Intl)
         {
             return await FetchIntlAsync(req, qn, "0", ct);
         }
 
         LogDebug("bangumi={0},cheese={1}", req.IsBangumi, req.IsCheese);
 
-        var api = BuildPrefix(req.TvApi, req.IsBangumi, req.IsCheese, req.Cfg.TvHost, req.Cfg.Host)
-            + (req.TvApi ? BuildTvQuery(req, qn) : BuildWebQuery(req, qn));
+        var api = BuildPrefix(req.Api == ApiType.Tv, req.IsBangumi, req.IsCheese, req.Cfg.TvHost, req.Cfg.Host)
+            + (req.Api == ApiType.Tv ? BuildTvQuery(req, qn) : BuildWebQuery(req, qn));
 
         var webJson = await GetWebSourceAsync(api, req.Cfg, null, ct);
         if (!PlayUrlResponse.IsVipRestricted(webJson))

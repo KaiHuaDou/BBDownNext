@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BBDown.Core;
 using BBDown.Core.Entity;
 using BBDown.Download;
 using BBDown.Mux;
@@ -39,7 +40,7 @@ internal static class FlvDownload
                 // 重新解析
                 parsedResult.VideoTracks.Clear( );
                 parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.aid, p.cid, p.epid,
-                    myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, dfns[vIndex], ct);
+                    myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, dfns[vIndex], ct);
                 if (p.points.Count == 0)
                 {
                     p.points = parsedResult.ExtraPoints;
@@ -55,6 +56,12 @@ internal static class FlvDownload
             TrackSelect.PrintFlvTracksInfo(parsedResult, clips, myOption.OnlyShowInfo);
 
             if (myOption.OnlyShowInfo)
+            {
+                return PageOutcome.Abort(selected);
+            }
+
+            // 纯字幕等无音视频内容：FLV 源不产弹幕/封面，字幕已在 PrepareAsync 产出，直接中止
+            if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
             {
                 return PageOutcome.Abort(selected);
             }

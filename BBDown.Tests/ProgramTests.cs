@@ -39,34 +39,6 @@ public class ProgramTests
     }
 
     [Fact]
-    public void DetermineApiType_DefaultsToWeb( )
-    {
-        var o = new DownloadRequest( );
-        Assert.Equal("WEB", VideoInfo.DetermineApiType(o));
-    }
-
-    [Fact]
-    public void DetermineApiType_TvApi( )
-    {
-        var o = new DownloadRequest { UseTvApi = true };
-        Assert.Equal("TV", VideoInfo.DetermineApiType(o));
-    }
-
-    [Fact]
-    public void DetermineApiType_AppApi( )
-    {
-        var o = new DownloadRequest { UseAppApi = true };
-        Assert.Equal("APP", VideoInfo.DetermineApiType(o));
-    }
-
-    [Fact]
-    public void DetermineApiType_IntlApi( )
-    {
-        var o = new DownloadRequest { UseIntlApi = true };
-        Assert.Equal("INTL", VideoInfo.DetermineApiType(o));
-    }
-
-    [Fact]
     public void ParseEncodingPriority_NullInput_YieldsEmpty( )
     {
         var o = new DownloadRequest { EncodingPriority = null };
@@ -193,20 +165,11 @@ public class ProgramTests
     }
 
     [Fact]
-    public void HandleConflictingOptions_AudioOnlyAndVideoOnlyBothCleared( )
+    public void HandleConflictingOptions_KeepsHideStreamsWhenNotInteractive( )
     {
-        var o = new DownloadRequest { AudioOnly = true, VideoOnly = true };
+        var o = new DownloadRequest { HideStreams = true };
         var r = WorkSetup.HandleConflictingOptions(o);
-        Assert.False(r.AudioOnly);
-        Assert.False(r.VideoOnly);
-    }
-
-    [Fact]
-    public void HandleConflictingOptions_NoSubClearsSubOnly( )
-    {
-        var o = new DownloadRequest { NoSub = true, SubOnly = true };
-        var r = WorkSetup.HandleConflictingOptions(o);
-        Assert.False(r.SubOnly);
+        Assert.True(r.HideStreams);
     }
 
     [Fact]

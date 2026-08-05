@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 using BBDown.Core.Util;
@@ -54,6 +55,31 @@ public class SubUtilTests
     public void ReadSubtitles_EmptyArrayProducesEmptyList( )
     {
         Assert.Empty(Read("[]", "lan", "subtitle_url", "1/1.2", false));
+    }
+
+    private static List<Entity.Entity.Subtitle> Subs(params string[] urls)
+    {
+        return urls.Select((url, i) => new Entity.Entity.Subtitle { lan = $"l{i}", url = url, path = $"p{i}" }).ToList( );
+    }
+
+    // view 接口的 AI 字幕 url 恒为空，应被过滤而不影响有效条目
+    [Fact]
+    public void FilterUsable_DropsEmptyUrlsKeepsValidOnes( )
+    {
+        var filtered = SubUtil.FilterUsable(Subs("", "https://x/a.json", "//y/b.json"));
+        Assert.Equal(["https://x/a.json", "//y/b.json"], filtered!.ConvertAll(s => s.url));
+    }
+
+    [Fact]
+    public void FilterUsable_AllEmptyMeansUnusable( )
+    {
+        Assert.Null(SubUtil.FilterUsable(Subs("", "")));
+    }
+
+    [Fact]
+    public void FilterUsable_EmptyListMeansUnusable( )
+    {
+        Assert.Null(SubUtil.FilterUsable([]));
     }
 
     [Fact]

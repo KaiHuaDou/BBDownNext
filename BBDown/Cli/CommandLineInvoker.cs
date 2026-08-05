@@ -1,237 +1,44 @@
 using System;
 using System.CommandLine;
 using System.CommandLine.Parsing;
+using System.Linq;
 using System.Threading.Tasks;
 
 using BBDown.Core;
 using BBDown.Util;
 
+using static BBDown.Cli.CliOptions;
+using static BBDown.Core.Logger;
+
 namespace BBDown.Cli;
 
 internal static class CommandLineInvoker
 {
-    private static readonly Argument<string> Url = new("url") { Description = "视频地址 或 av|bv|BV|ep|ss，也可传直播间地址进行录制" };
-    private static readonly Argument<string> OpusInput = new("input") { Description = "专栏地址 或 opus id|cv 号" };
-    private static readonly Option<bool> UseTvApi = new("--tv-api", ["-tv"]) { Description = "使用 TV 端解析模式" };
-    private static readonly Option<bool> UseAppApi = new("--app-api", ["-app"]) { Description = "使用 APP 端解析模式" };
-    private static readonly Option<bool> UseIntlApi = new("--intl-api", ["-intl"]) { Description = "使用国际版（东南亚视频）解析模式" };
-    private static readonly Option<bool> UseMP4box = new("--mp4box", []) { Description = "使用 MP4Box 来混流" };
-    private static readonly Option<string> EncodingPriority = new("--encoding-priority", ["-e"])
-    {
-        Description = """
-        视频及音频编码的选择优先级，用逗号分隔。
-        例：hevc,av1,avc,flac,eac3,m4a
-        """
-    };
-    private static readonly Option<string> DfnPriority = new("--dfn-priority", ["-q"])
-    {
-        Description = """
-        画质优先级，用逗号分隔。
-        例：8K 超高清, 1080P 高码率, HDR 真彩, 杜比视界
-        """
-    };
-    private static readonly Option<bool> OnlyShowInfo = new("--show-info", ["-info"]) { Description = "仅解析而不进行下载" };
-    private static readonly Option<bool> HideStreams = new("--hide-streams", ["-hs"]) { Description = "不要显示所有可用音视频流" };
-    private static readonly Option<bool> Interactive = new("--interactive", ["-ia"]) { Description = "交互式选择清晰度" };
-    private static readonly Option<bool> ShowAll = new("--all", []) { Description = "展示所有分 P 标题" };
-    private static readonly Option<bool> UseAria2c = new("--aria2c", ["-aria2"]) { Description = "调用 aria2c 进行下载（你需要自行准备可执行文件）" };
-    private static readonly Option<string> Aria2cArgs = new("--aria2c-args", [])
-    {
-        Description = """
-        调用 aria2c 的附加参数（含空格的参数用引号包裹）。
-        默认参数包含 "-x16 -s16 -j16 -k 5M"
-        """
-    };
-    private static readonly Option<bool> SingleThread = new("--single-thread", ["-st"])
-    {
-        Description = "使用单线程下载，用于不支持 Range 的服务器。"
-    };
-    private static readonly Option<string> SelectPage = new("--select-page", ["-p"])
-    {
-        Description = """
-        选择分 P。
-          all              全部
-          8                单集
-          1,2,5            逗号列表
-          3-5              闭区间（含两端：3,4,5）；3-3 仅第 3 集
-          16-              开区间，到末集
-          -22              开区间，从首集到 22
-          1,6-10,15-latest 混合写法
-          latest / new     最后一集（最新一集）
-          last / LAST      倒数第二集
-        关键字大小写不敏感；越界数字自动夹紧到有效边界；非法项忽略并提醒。
-        """
-    };
-    private static readonly Option<bool> NoMetadata = new("--no-metadata", []) { Description = "精简混流，不增加描述、作者等信息" };
-    private static readonly Option<bool> AudioOnly = new("--audio-only", ["-a"]) { Description = "仅下载音频" };
-    private static readonly Option<bool> VideoOnly = new("--video-only", ["-v"]) { Description = "仅下载视频" };
-    private static readonly Option<bool> DanmakuOnly = new("--danmaku-only", ["-d"]) { Description = "仅下载弹幕" };
-    private static readonly Option<bool> CoverOnly = new("--cover-only", ["-c"]) { Description = "仅下载封面" };
-    private static readonly Option<bool> SubOnly = new("--sub-only", ["-s"]) { Description = "仅下载字幕" };
-    private static readonly Option<bool> Debug = new("--debug", []) { Description = "输出调试日志" };
-    private static readonly Option<bool> SkipMux = new("--skip-mux", []) { Description = "跳过混流步骤" };
-    private static readonly Option<bool> NoSub = new("--no-sub", []) { Description = "跳过字幕下载" };
-    private static readonly Option<bool> NoCover = new("--no-cover", []) { Description = "跳过封面下载" };
-    private static readonly Option<bool> NoImages = new("--no-images", []) { Description = "导出专栏时不下载图片，Markdown 中保留远程图片链接" };
-    // 与视频侧的 NoMetadata 同名不同义（那边指混流标签），描述文案必须分开，否则 opus --help 会答非所问
-    private static readonly Option<bool> NoFrontMatter = new("--no-metadata", []) { Description = "不输出 Markdown 头部的 YAML front matter" };
-    private static readonly Option<bool> NoForceHttp = new("--no-force-http", []) { Description = "下载音视频时避免降级为 HTTP" };
-    private static readonly Option<bool> DownloadDanmaku = new("--danmaku", ["-dd"]) { Description = "下载弹幕" };
-    private static readonly Option<string> DownloadDanmakuFormats = new("--danmaku-formats", ["-ddf"])
-    {
-        Description = "指定需下载的弹幕格式，逗号分隔",
-        DefaultValueFactory = _ => "xml,ass"
-    };
-    // 不设 ArgumentArity.ZeroOrOne：url 是位置参数，可选值会让 `bbdown --comment BV1xx` 把 BV 号吃成 --comment 的值
-    private static readonly Option<int> CommentCount = new("--comment", ["-cm"])
-    {
-        Description = "下载评论区前 N 条评论，默认 0（不下载）"
-    };
-    private static readonly Option<string> CommentSort = new("--comment-sort", ["-cms"])
-    {
-        Description = "评论排序：hot（热度，与网页默认一致）或 time（最新）",
-        DefaultValueFactory = _ => "hot"
-    };
-    private static readonly Option<string> CommentFormats = new("--comment-formats", ["-cmf"])
-    {
-        Description = "指定需导出的评论格式，逗号分隔",
-        DefaultValueFactory = _ => "json,txt"
-    };
-    private static readonly Option<bool> FullComment = new("--full-comment", [])
-    {
-        Description = "抓取每条评论的全部楼中楼回复（请求数成倍增加，耗时显著变长）"
-    };
-    private static readonly Option<bool> AllowAi = new("--allow-ai", []) { Description = "下载 AI 字幕" };
-    private static readonly Option<bool> VideoAscending = new("--video-ascending", []) { Description = "视频升序（最小体积优先）" };
-    private static readonly Option<bool> AudioAscending = new("--audio-ascending", []) { Description = "音频升序（最小体积优先）" };
-    private static readonly Option<bool> AllowPcdn = new("--allow-pcdn", []) { Description = "不替换 PCDN 域名，仅在正常情况与 --upos-host 均无法下载时使用" };
-    private static readonly Option<bool> AllowPreview = new("--allow-preview", []) { Description = "允许下载充电专属视频的试看片段，输出文件名带 [试看] 前缀" };
-    private static readonly Option<int> LiveQualityOption = new("--live-quality", ["-lq"])
-    {
-        Description = "直播录制清晰度：10000 原画（默认）、400 蓝光、250 超清、150 高清、80 流畅；未登录时服务端通常只给到 250",
-        DefaultValueFactory = _ => Core.Live.LiveQuality.Original
-    };
-    private static readonly Option<string> Lang = new("--lang", []) { Description = "设置混流的音频语言（代码），如 chi, jpn 等" };
-    private static readonly Option<string> UserAgent = new("--user-agent", ["-ua"]) { Description = "指定 user-agent，否则使用随机 user-agent" };
-    private static readonly Option<string> Cookie = new("--cookie", []) { Description = "设置字符串 cookie 用以下载网页接口的会员内容" };
-    private static readonly Option<string> AccessToken = new("--access-token", ["-token"]) { Description = "设置 access_token 用以下载 TV/APP 接口的会员内容" };
-    private static readonly Option<string> WorkDir = new("--work-dir", []) { Description = "设置程序的工作目录" };
-    private static readonly Option<string> FFmpegPath = new("--ffmpeg-path", []) { Description = "设置 FFmpeg 的路径" };
-    private static readonly Option<string> Mp4boxPath = new("--mp4box-path", []) { Description = "设置 MP4Box 的路径" };
-    private static readonly Option<string> Aria2cPath = new("--aria2c-path", []) { Description = "设置 aria2c 的路径" };
-    private static readonly Option<string> UposHost = new("--upos-host", []) { Description = "自定义 upos 服务器" };
-    private static readonly Option<bool> NoForceHost = new("--no-force-host", []) { Description = "不强制替换下载服务器 host" };
-    private static readonly Option<bool> SaveRecords = new("--save-records", []) { Description = "将下载过的视频记录到本地文件中，用于后续跳过下载同个视频" };
-    private static readonly Option<bool> StopOnError = new("--stop-on-error", [])
-    {
-        Description = """
-        遇到分 P 下载失败时立即停止，而不是继续下载其余分 P。
-        默认继续，并在末尾汇总失败的分 P 后非零退出。
-        """
-    };
-    private static readonly Option<string> DelayPerPage = new("--delay-per-page", []) { Description = "设置下载合集分 P 之间的下载间隔时间（单位：秒）", DefaultValueFactory = _ => "0" };
-    private static readonly Option<string> FilePattern = new("--file-pattern", ["-F"])
-    {
-        Description = $"""
-        使用内置变量自定义单 P 存储文件名：
-
-        <videoTitle>：视频主标题
-        <pageNumber>：视频分 P 序号
-        <pageNumberWithZero>：视频分 P 序号（前缀补零）
-        <pageTitle>：视频分 P 标题
-        <bvid>：视频 BV 号
-        <aid>：视频 aid
-        <cid>：视频 cid
-        <dfn>：视频清晰度
-        <res>：视频分辨率
-        <fps>：视频帧率
-        <videoCodecs>：视频编码
-        <videoBandwidth>：视频码率
-        <audioCodecs>：音频编码
-        <audioBandwidth>：音频码率
-        <ownerName>：上传者名称
-        <ownerMid>：上传者 mid
-        <publishDate>：收藏夹/番剧/合集发布时间
-        <videoDate>：视频发布时间（分 P 视频发布时间与 <publishDate> 相同）
-        <apiType>：API 类型（TV/APP/INTL/WEB）
-
-        默认为：{SavePath.SinglePageDefaultSavePath}
-        """
-    };
-    private static readonly Option<string> MultiFilePattern = new("--multi-file-pattern", ["-M"])
-    {
-        Description = $"""
-        使用内置变量自定义多 P 存储文件名：
-
-        默认为：{SavePath.MultiPageDefaultSavePath}
-        """
-    };
-    private static readonly Option<string> Host = new("--host", [])
-    {
-        Description = """
-        指定 BiliPlus host。
-        使用 BiliPlus 需要 access_token，无需 cookie。
-        解析服务器能够获取你账号的大部分权限，请谨慎使用！
-        """,
-        DefaultValueFactory = _ => BiliApi.MainHost
-    };
-    private static readonly Option<string> EpHost = new("--ep-host", [])
-    {
-        Description = """
-        指定 BiliPlus EP host。
-        用于代理 api.bilibili.com/pgc/view/web/season
-        大部分解析服务器不支持代理该接口
-        """,
-        DefaultValueFactory = _ => BiliApi.MainHost
-    };
-    private static readonly Option<string> TvHost = new("--tv-host", [])
-    {
-        Description = "自定义 TV 端接口请求 Host",
-        DefaultValueFactory = _ => BiliApi.TvHost
-    };
-    private static readonly Option<string> Area = new("--area", []) { Description = "（hk|tw|th）使用 BiliPlus 时指定 BiliPlus area" };
-    private static readonly Option<string> ConfigFile = new("--config", [])
-    {
-        Description = "读取指定的 BBDown 本地配置文件",
-        DefaultValueFactory = _ => "BBDown.config"
-    };
-
     public static RootCommand GetRootCommand(Func<DownloadRequest, Task<int>> action)
     {
         var rootCommand = new RootCommand
         {
             Url,
-            UseTvApi,
-            UseAppApi,
-            UseIntlApi,
+            ApiOption,
+            Content,
+            WithContent,
+            WithoutContent,
             UseMP4box,
             EncodingPriority,
             DfnPriority,
-            OnlyShowInfo,
+            InfoOnly,
             ShowAll,
             UseAria2c,
             Interactive,
             HideStreams,
             SingleThread,
-            VideoOnly,
-            AudioOnly,
-            DanmakuOnly,
-            SubOnly,
-            CoverOnly,
             Debug,
             SkipMux,
-            NoMetadata,
-            NoSub,
-            NoCover,
-            NoImages,
             NoForceHttp,
-            DownloadDanmaku,
             DownloadDanmakuFormats,
-            CommentCount,
-            CommentSort,
-            CommentFormats,
-            FullComment,
-            AllowAi,
+            CommentsCount,
+            CommentsSort,
+            CommentsFormats,
             VideoAscending,
             AudioAscending,
             AllowPcdn,
@@ -263,41 +70,42 @@ internal static class CommandLineInvoker
 
         rootCommand.SetAction(async parseResult =>
         {
+            var content = ContentSelector.Resolve(
+                parseResult.GetValue(Content) ?? [],
+                parseResult.GetValue(WithContent) ?? [],
+                parseResult.GetValue(WithoutContent) ?? [],
+                commentCountExplicit: IsExplicit(parseResult, "--comments-count"),
+                commentSortExplicit: IsExplicit(parseResult, "--comments-sort"),
+                commentFormatsExplicit: IsExplicit(parseResult, "--comments-formats"),
+                danmakuFormatsExplicit: IsExplicit(parseResult, "--danmaku-formats"),
+                out var warnings);
+            foreach (var warning in warnings)
+            {
+                LogWarn(warning);
+            }
+
             var option = new DownloadRequest
             {
-                UseTvApi = parseResult.GetValue(UseTvApi)!,
+                Api = parseResult.GetValue(ApiOption),
                 Url = parseResult.GetValue(Url) ?? "",
-                UseAppApi = parseResult.GetValue(UseAppApi)!,
-                UseIntlApi = parseResult.GetValue(UseIntlApi)!,
+                Content = content,
                 UseMP4box = parseResult.GetValue(UseMP4box)!,
                 EncodingPriority = parseResult.GetValue(EncodingPriority) ?? "",
                 DfnPriority = parseResult.GetValue(DfnPriority) ?? "",
                 EncodingFirst = ResolveEncodingFirst(parseResult),
-                OnlyShowInfo = parseResult.GetValue(OnlyShowInfo)!,
+                OnlyShowInfo = parseResult.GetValue(InfoOnly)!,
                 ShowAll = parseResult.GetValue(ShowAll)!,
                 UseAria2c = parseResult.GetValue(UseAria2c)!,
                 Interactive = parseResult.GetValue(Interactive)!,
                 HideStreams = parseResult.GetValue(HideStreams)!,
                 SingleThread = parseResult.GetValue(SingleThread)!,
-                NoMetadata = parseResult.GetValue(NoMetadata)!,
-                VideoOnly = parseResult.GetValue(VideoOnly)!,
-                AudioOnly = parseResult.GetValue(AudioOnly)!,
-                DanmakuOnly = parseResult.GetValue(DanmakuOnly)!,
-                CoverOnly = parseResult.GetValue(CoverOnly)!,
-                SubOnly = parseResult.GetValue(SubOnly)!,
                 Debug = parseResult.GetValue(Debug)!,
                 SkipMux = parseResult.GetValue(SkipMux)!,
-                NoSub = parseResult.GetValue(NoSub)!,
-                NoCover = parseResult.GetValue(NoCover)!,
-                NoImages = parseResult.GetValue(NoImages)!,
                 NoForceHttp = parseResult.GetValue(NoForceHttp)!,
-                DownloadDanmaku = parseResult.GetValue(DownloadDanmaku)!,
                 DownloadDanmakuFormats = parseResult.GetValue(DownloadDanmakuFormats) ?? "",
-                CommentCount = parseResult.GetValue(CommentCount),
-                CommentSort = parseResult.GetValue(CommentSort) ?? "",
-                CommentFormats = parseResult.GetValue(CommentFormats) ?? "",
-                FullComment = parseResult.GetValue(FullComment)!,
-                AllowAi = parseResult.GetValue(AllowAi)!,
+                CommentCount = parseResult.GetValue(CommentsCount),
+                CommentSort = parseResult.GetValue(CommentsSort) ?? "",
+                CommentFormats = parseResult.GetValue(CommentsFormats) ?? "",
                 VideoAscending = parseResult.GetValue(VideoAscending)!,
                 AudioAscending = parseResult.GetValue(AudioAscending)!,
                 AllowPcdn = parseResult.GetValue(AllowPcdn)!,
@@ -335,14 +143,16 @@ internal static class CommandLineInvoker
     /// <summary>
     /// 专栏导出子命令。与视频下载共用 <see cref="DownloadRequest"/>，但只暴露专栏用得上的选项：
     /// 画质、编码、混流、分 P 之类的参数对 Markdown 毫无意义，塞进帮助文本只会误导。
+    /// 内容集沿用与根命令相同的默认 avmsCi（专栏下仅 i 生效，M 需显式给出）。
     /// </summary>
     public static Command GetOpusCommand(Func<DownloadRequest, Task<int>> action)
     {
         Command command = new("opus", "下载专栏 / 图文动态并导出为 Markdown")
         {
             OpusInput,
-            NoImages,
-            NoFrontMatter,
+            Content,
+            WithContent,
+            WithoutContent,
             WorkDir,
             Cookie,
             UserAgent,
@@ -352,8 +162,11 @@ internal static class CommandLineInvoker
         command.SetAction(async parseResult => await action(new DownloadRequest
         {
             Url = parseResult.GetValue(OpusInput) ?? "",
-            NoImages = parseResult.GetValue(NoImages)!,
-            NoMetadata = parseResult.GetValue(NoFrontMatter)!,
+            Content = ContentSelector.Resolve(
+                parseResult.GetValue(Content) ?? [],
+                parseResult.GetValue(WithContent) ?? [],
+                parseResult.GetValue(WithoutContent) ?? [],
+                false, false, false, false, out _),
             WorkDir = parseResult.GetValue(WorkDir) ?? "",
             Cookie = parseResult.GetValue(Cookie) ?? "",
             UserAgent = parseResult.GetValue(UserAgent) ?? "",
@@ -361,6 +174,12 @@ internal static class CommandLineInvoker
         }));
 
         return command;
+    }
+
+    // 判断选项是否由命令行显式给出（而非默认值）：评论 / 弹幕配套选项未给对应内容字符时要警告
+    private static bool IsExplicit(ParseResult parseResult, string name)
+    {
+        return parseResult.CommandResult.Children.OfType<OptionResult>( ).Any(o => !o.Implicit && o.Option.Name == name);
     }
 
     /// <summary>

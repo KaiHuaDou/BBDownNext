@@ -39,18 +39,18 @@ public class OpusCommandTests
     }
 
     [Fact]
-    public async Task OpusCommand_NoImages_DefaultsToFalse( )
+    public async Task OpusCommand_ImageDefaultOnAndCanBeRemoved( )
     {
-        Assert.False((await ParseOpusAsync("opus", "cv1")).NoImages);
-        Assert.True((await ParseOpusAsync("opus", "cv1", "--no-images")).NoImages);
+        Assert.True((await ParseOpusAsync("opus", "cv1")).Content.Has(DownloadContent.OpusImage));
+        Assert.False((await ParseOpusAsync("opus", "cv1", "-W", "i")).Content.Has(DownloadContent.OpusImage));
     }
 
-    // opus 侧的 --no-metadata 指的是 YAML front matter，语义与视频侧不同但落在同一字段上
+    // opus 默认内容集 avmsCiM 含 M：front matter 默认输出，-W M 可关闭
     [Fact]
-    public async Task OpusCommand_NoMetadata_MapsToSameField( )
+    public async Task OpusCommand_FrontMatterOnByDefaultAndCanBeRemoved( )
     {
-        Assert.False((await ParseOpusAsync("opus", "cv1")).NoMetadata);
-        Assert.True((await ParseOpusAsync("opus", "cv1", "--no-metadata")).NoMetadata);
+        Assert.True((await ParseOpusAsync("opus", "cv1")).Content.Has(DownloadContent.FrontMatter));
+        Assert.False((await ParseOpusAsync("opus", "cv1", "-W", "M")).Content.Has(DownloadContent.FrontMatter));
     }
 
     [Fact]
@@ -63,9 +63,9 @@ public class OpusCommandTests
         Assert.True(opt.Debug);
     }
 
-    // 根命令也要认 --no-images，用户可以直接 `bbdown <专栏地址> --no-images` 而不写子命令
+    // 根命令也要认 -W i，用户可以直接 `bbdown <专栏地址> -W i` 而不写子命令
     [Fact]
-    public async Task RootCommand_AlsoAcceptsNoImages( )
+    public async Task RootCommand_AlsoAcceptsWithoutContent( )
     {
         DownloadRequest? captured = null;
         var root = CommandLineInvoker.GetRootCommand(o =>
@@ -74,9 +74,9 @@ public class OpusCommandTests
             return Task.FromResult(0);
         });
 
-        await root.Parse(["https://www.bilibili.com/opus/1230485246732926996", "--no-images"])
+        await root.Parse(["https://www.bilibili.com/opus/1230485246732926996", "-W", "i"])
             .InvokeAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(captured);
-        Assert.True(captured!.NoImages);
+        Assert.False(captured!.Content.Has(DownloadContent.OpusImage));
     }
 }

@@ -36,7 +36,7 @@ internal static class PageDownload
 
                 //调用解析
                 var parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.aid, p.cid, p.epid,
-                    myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, ct: ct);
+                    myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, ct: ct);
                 if (p.points.Count == 0)
                 {
                     p.points = parsedResult.ExtraPoints;
@@ -52,7 +52,7 @@ internal static class PageDownload
                     LogWarn(string.IsNullOrEmpty(playerInfo.UpowerTitle) ? "充电专属视频" : playerInfo.UpowerTitle);
                     LogWarn($"当前账号未充电该 UP 主，只能获取 {FormatTime(parsedResult.Duration, true)} 的试看片段（完整视频 {FormatTime(p.dur, true)}）", false);
                     // 这三个开关都不产出视频文件，中止反而挡掉用户诊断问题的手段
-                    if (myOption.OnlyShowInfo || myOption.CoverOnly || myOption.DanmakuOnly)
+                    if (myOption.OnlyShowInfo || !myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
                     {
                         LogWarn("当前仅输出信息/封面/弹幕，不受影响", false);
                     }
@@ -71,11 +71,6 @@ internal static class PageDownload
                 if (!myOption.OnlyShowInfo)
                 {
                     subtitleInfo = await PageAssets.PrepareAsync(session, ct);
-                    if (myOption.SubOnly)
-                    {
-                        MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
-                        return PageOutcome.Abort(selected);
-                    }
                 }
 
                 session = session with { Subtitles = subtitleInfo };

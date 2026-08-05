@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using BBDown.Core;
 
@@ -16,9 +17,12 @@ namespace BBDown.Serve;
 internal sealed class ServeRequestOptions
 {
     public string Url { get; set; } = default!;
-    public bool UseTvApi { get; set; }
-    public bool UseAppApi { get; set; }
-    public bool UseIntlApi { get; set; }
+    /// <summary>API 解析通道（web / tv / app / intl，忽略大小写），缺省回落 web。</summary>
+    [JsonConverter(typeof(ApiTypeJsonConverter))]
+    public ApiType Api { get; set; } = ApiType.Web;
+    /// <summary>下载内容字符集（如 "avmsCiM"），非法字符忽略，缺省回落默认内容集。</summary>
+    [JsonConverter(typeof(DownloadContentJsonConverter))]
+    public DownloadContent Content { get; set; } = ContentSelector.DefaultFlags;
     public bool UseMP4box { get; set; }
     public string? EncodingPriority { get; set; }
     public string? DfnPriority { get; set; }
@@ -29,23 +33,12 @@ internal sealed class ServeRequestOptions
     public bool Interactive { get; set; }
     public bool HideStreams { get; set; }
     public bool SingleThread { get; set; }
-    public bool NoMetadata { get; set; }
-    public bool VideoOnly { get; set; }
-    public bool AudioOnly { get; set; }
-    public bool DanmakuOnly { get; set; }
-    public bool CoverOnly { get; set; }
-    public bool SubOnly { get; set; }
     public bool SkipMux { get; set; }
-    public bool NoSub { get; set; }
-    public bool NoCover { get; set; }
     public bool NoForceHttp { get; set; }
-    public bool DownloadDanmaku { get; set; }
     public string? DownloadDanmakuFormats { get; set; }
     public int CommentCount { get; set; }
     public string? CommentSort { get; set; }
     public string? CommentFormats { get; set; }
-    public bool FullComment { get; set; }
-    public bool AllowAi { get; set; }
     public bool VideoAscending { get; set; }
     public bool AudioAscending { get; set; }
     public bool AllowPcdn { get; set; }

@@ -44,7 +44,7 @@ internal static class CommentDownload
             oid.ToString(CultureInfo.InvariantCulture),
             ctx.Run.CommentCount,
             ctx.Run.CommentSortHot,
-            ctx.Run.FullComment,
+            ctx.Run.Content.Has(DownloadContent.FullComments),
             ctx.Fetch.Cfg,
             ct);
 
@@ -65,7 +65,7 @@ internal static class CommentDownload
                         await File.WriteAllTextAsync(path, JsonSerializer.Serialize(document, JsonContext.CommentDocument), ct);
                         break;
                     case CommentFormat.Txt:
-                        await File.WriteAllTextAsync(path, CommentRenderer.Render(document, ctx.Run.FullComment), ct);
+                        await File.WriteAllTextAsync(path, CommentRenderer.Render(document, ctx.Run.Content.Has(DownloadContent.FullComments)), ct);
                         break;
                 }
             }

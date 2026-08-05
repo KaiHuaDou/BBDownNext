@@ -24,7 +24,7 @@ internal static class LiveDownload
         var tools = WorkSetup.ResolveToolPaths(myOption);
         var workDir = WorkSetup.ResolveWorkDir(myOption);
 
-        var (cookie, _) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, false, false);
+        var (cookie, _) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, ApiType.Web);
         var cfg = new AppConfig(cookie, "", myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
 
         Log("获取直播间信息...");

@@ -23,7 +23,8 @@ public class MuxerArgsTests
         string bvid, string videoPath, string audioPath,
         List<AudioMaterial>? audioMaterial = null, string outPath = "", string desc = "", string title = "",
         string author = "", string episodeId = "", string pic = "", string lang = "",
-        List<Subtitle>? subs = null, bool audioOnly = false, long pubTime = 0, bool noMetadata = false)
+        List<Subtitle>? subs = null, DownloadContent content = DownloadContent.Audio | DownloadContent.Video | DownloadContent.MuxMetadata,
+        long pubTime = 0)
         => new(
             UseMp4box: false,
             Bvid: bvid,
@@ -39,11 +40,9 @@ public class MuxerArgsTests
             Pic: pic,
             Lang: lang,
             Subs: subs,
-            AudioOnly: audioOnly,
-            VideoOnly: false,
+            Content: content,
             Points: null,
             PubTime: pubTime,
-            NoMetadata: noMetadata,
             IsHevc: false);
 
     private static string? ValueAfter(List<string> args, string flag)
@@ -88,7 +87,8 @@ public class MuxerArgsTests
     [Fact]
     public void BuildFFmpegArgs_SimplyMuxDropsAllMetadataFlags( )
     {
-        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", desc: "简介", title: "标题", author: "UP主", episodeId: "第1话", lang: "zh", noMetadata: true);
+        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", desc: "简介", title: "标题", author: "UP主", episodeId: "第1话", lang: "zh",
+            content: DownloadContent.Audio | DownloadContent.Video);
         var args = Muxer.BuildFFmpegArgs(req, null, false);
 
         Assert.DoesNotContain("-metadata", args);
@@ -144,7 +144,7 @@ public class MuxerArgsTests
     [Fact]
     public void BuildFFmpegArgs_AudioOnlyWithoutAudioTrackDropsVideo( )
     {
-        var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.m4a", title: "t", audioOnly: true);
+        var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.m4a", title: "t", content: DownloadContent.Audio);
         var args = Muxer.BuildFFmpegArgs(req, null, false);
 
         Assert.Contains("-vn", args);
@@ -155,7 +155,7 @@ public class MuxerArgsTests
     {
         var withVideo = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", title: "t", pic: "/tmp/c.jpg");
         var withVideoArgs = Muxer.BuildFFmpegArgs(withVideo, null, false);
-        var audioOnly = Req(Bvid, "", "/tmp/a.m4a", outPath: "/out/x.m4a", title: "t", pic: "/tmp/c.jpg", audioOnly: true);
+        var audioOnly = Req(Bvid, "", "/tmp/a.m4a", outPath: "/out/x.m4a", title: "t", pic: "/tmp/c.jpg", content: DownloadContent.Audio);
         var audioOnlyArgs = Muxer.BuildFFmpegArgs(audioOnly, null, false);
 
         Assert.Equal("attached_pic", ValueAfter(withVideoArgs, "-disposition:v:1"));
@@ -191,7 +191,7 @@ public class MuxerArgsTests
     [Fact]
     public void BuildMp4boxArgs_AudioOnlyWithoutAudioUsesTrackTwo( )
     {
-        var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.m4a", title: "t", audioOnly: true);
+        var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.m4a", title: "t", content: DownloadContent.Audio);
         var args = Muxer.BuildMp4boxArgs(req, null, false);
 
         Assert.Contains("/tmp/v.mp4#trackID=2:name=", args);

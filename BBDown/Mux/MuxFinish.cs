@@ -50,7 +50,7 @@ internal static class MuxFinish
         }
 
         var p = pageCtx.Page;
-        var savePath = myOption.AudioOnly ? ToAudioOnlyPath(inputs.SavePath) : inputs.SavePath;
+        var savePath = !myOption.Content.Has(DownloadContent.Video) ? ToAudioOnlyPath(inputs.SavePath) : inputs.SavePath;
         var streams = string.IsNullOrEmpty(inputs.AudioPath) ? "视频" : "音视频";
         Log($"开始混流{streams}{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
         var req = new MuxRequest(
@@ -68,11 +68,9 @@ internal static class MuxFinish
             Pic: File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
             Lang: ctx.Run.Lang,
             Subs: subtitleInfo,
-            AudioOnly: myOption.AudioOnly,
-            VideoOnly: myOption.VideoOnly,
+            Content: myOption.Content,
             Points: p.points,
             PubTime: p.pubTime,
-            NoMetadata: myOption.NoMetadata,
             IsHevc: inputs.IsHevc);
         var code = await Muxer.MuxAV(req, ct);
         if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
@@ -81,7 +79,7 @@ internal static class MuxFinish
             return PageOutcome.Abort(selected);
         }
 
-        Cleanup(pageCtx, inputs.VideoPath, inputs.AudioPath, subtitleInfo, inputs.AudioMaterial);
+        Cleanup(pageCtx, inputs.VideoPath, inputs.AudioPath, inputs.AudioMaterial);
         return PageOutcome.Done(savePath, selected);
     }
 
@@ -98,7 +96,7 @@ internal static class MuxFinish
         }
     }
 
-    internal static void Cleanup(PageContext pageCtx, string videoPath, string audioPath, List<Subtitle> subtitleInfo, List<AudioMaterial> audioMaterial)
+    internal static void Cleanup(PageContext pageCtx, string videoPath, string audioPath, List<AudioMaterial> audioMaterial)
     {
         Log("清理临时文件...");
         SafeDelete(videoPath);
@@ -111,11 +109,6 @@ internal static class MuxFinish
         if (pageCtx.Page.points.Count != 0 && !string.IsNullOrEmpty(trackPath))
         {
             SafeDelete(Path.Combine(Path.GetDirectoryName(trackPath) ?? "", "chapters"));
-        }
-
-        foreach (var s in subtitleInfo)
-        {
-            SafeDelete(s.path);
         }
 
         foreach (var a in audioMaterial)

@@ -239,7 +239,7 @@ public class DownloadTests
     public void FormatSavePath_ReplacesBasicPlaceholdersAndAppendsExtension( )
     {
         var p = MakePage(index: 3, aid: "114514", cid: "1919810", title: "分P标题");
-        var result = SavePath.Format("<videoTitle>/[P<pageNumber>]<pageTitle>", "视频标题", null, null, p, 3, "WEB", 0);
+        var result = SavePath.Format("<videoTitle>/[P<pageNumber>]<pageTitle>", "视频标题", null, null, p, 3, ApiType.Web, 0);
         Assert.Equal("视频标题/[P3]分P标题.mp4", result);
     }
 
@@ -247,7 +247,7 @@ public class DownloadTests
     public void FormatSavePath_PadsPageNumberWithZero( )
     {
         var p = MakePage(index: 3);
-        var result = SavePath.Format("<pageNumberWithZero>", "t", null, null, p, 100, "WEB", 0);
+        var result = SavePath.Format("<pageNumberWithZero>", "t", null, null, p, 100, ApiType.Web, 0);
         Assert.Equal("003.mp4", result);
     }
 
@@ -255,7 +255,7 @@ public class DownloadTests
     public void FormatSavePath_NormalizesBackslashAndKeepsMp4( )
     {
         var p = MakePage( );
-        var result = SavePath.Format("<aid>\\<cid>.mp4", "t", null, null, p, 1, "WEB", 0);
+        var result = SavePath.Format("<aid>\\<cid>.mp4", "t", null, null, p, 1, ApiType.Web, 0);
         Assert.Equal("114514/1919810.mp4", result);
     }
 
@@ -263,7 +263,7 @@ public class DownloadTests
     public void FormatSavePath_EmptyTrackPlaceholdersResolveToEmpty( )
     {
         var p = MakePage( );
-        var result = SavePath.Format("<aid><dfn><videoCodecs><audioCodecs>", "t", null, null, p, 1, "WEB", 0);
+        var result = SavePath.Format("<aid><dfn><videoCodecs><audioCodecs>", "t", null, null, p, 1, ApiType.Web, 0);
         Assert.Equal("114514.mp4", result);
     }
 
@@ -273,7 +273,7 @@ public class DownloadTests
         var p = MakePage( );
         var v = MakeVideo("120", "4K 超清", "HEVC", 8000);
         var a = MakeAudio("30280", "mp4a.40.2", 320);
-        var result = SavePath.Format("<dfn>-<videoCodecs>-<videoBandwidth>-<audioCodecs>-<audioBandwidth>", "t", v, a, p, 1, "WEB", 0);
+        var result = SavePath.Format("<dfn>-<videoCodecs>-<videoBandwidth>-<audioCodecs>-<audioBandwidth>", "t", v, a, p, 1, ApiType.Web, 0);
         Assert.Equal("4K 超清-HEVC-8000-mp4a.40.2-320.mp4", result);
     }
 
@@ -281,7 +281,7 @@ public class DownloadTests
     public void FormatSavePath_UnknownPlaceholderIsPreserved( )
     {
         var p = MakePage( );
-        var result = SavePath.Format("<aid>-<nope>", "t", null, null, p, 1, "WEB", 0);
+        var result = SavePath.Format("<aid>-<nope>", "t", null, null, p, 1, ApiType.Web, 0);
         Assert.Equal("114514-<nope>.mp4", result);
     }
 
@@ -289,14 +289,14 @@ public class DownloadTests
     public void FormatSavePath_ApiTypePlaceholder( )
     {
         var p = MakePage( );
-        Assert.Equal("TV.mp4", SavePath.Format("<apiType>", "t", null, null, p, 1, "TV", 0));
+        Assert.Equal("TV.mp4", SavePath.Format("<apiType>", "t", null, null, p, 1, ApiType.Tv, 0));
     }
 
     [Fact]
     public void FormatSavePath_CustomDateFormat( )
     {
         var p = MakePage(pubTime: 1600000000);
-        var result = SavePath.Format("<videoDate:yyyy>", "t", null, null, p, 1, "WEB", 0);
+        var result = SavePath.Format("<videoDate:yyyy>", "t", null, null, p, 1, ApiType.Web, 0);
         Assert.Equal("2020.mp4", result);
     }
 
@@ -304,7 +304,7 @@ public class DownloadTests
     public void FormatSavePath_StripsSlashFromTitle( )
     {
         var p = MakePage( );
-        var result = SavePath.Format("<videoTitle>", "a/b", null, null, p, 1, "WEB", 0);
+        var result = SavePath.Format("<videoTitle>", "a/b", null, null, p, 1, ApiType.Web, 0);
         Assert.DoesNotContain('/', result);
     }
 
@@ -314,7 +314,7 @@ public class DownloadTests
     {
         var p = MakePage( );
         var v = MakeVideo("120", "<aid>", "AVC", 1000);
-        var result = SavePath.Format("<dfn>-<aid>", "t", v, null, p, 1, "WEB", 0);
+        var result = SavePath.Format("<dfn>-<aid>", "t", v, null, p, 1, ApiType.Web, 0);
         Assert.Equal("<aid>-114514.mp4", result);
     }
 
@@ -322,14 +322,14 @@ public class DownloadTests
     public void FormatSavePath_KeepsUppercaseExtension( )
     {
         var p = MakePage( );
-        Assert.Equal("114514.MP4", SavePath.Format("<aid>.MP4", "t", null, null, p, 1, "WEB", 0));
+        Assert.Equal("114514.MP4", SavePath.Format("<aid>.MP4", "t", null, null, p, 1, ApiType.Web, 0));
     }
 
     [Fact]
     public void FormatSavePath_EscapesWindowsReservedTitle( )
     {
         var p = MakePage( );
-        Assert.Equal("_CON.mp4", SavePath.Format("<videoTitle>", "CON", null, null, p, 1, "WEB", 0));
+        Assert.Equal("_CON.mp4", SavePath.Format("<videoTitle>", "CON", null, null, p, 1, ApiType.Web, 0));
     }
 
     [Fact]

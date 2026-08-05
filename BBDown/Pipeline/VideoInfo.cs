@@ -22,7 +22,7 @@ internal sealed record FetchResult(
     VInfo VInfo,
     AppConfig Cfg,
     string FetchedAid,
-    string ApiType);
+    ApiType ApiType);
 
 internal static class VideoInfo
 {
@@ -35,7 +35,7 @@ internal static class VideoInfo
     public static async Task<(DownloadRequest Effective, FetchResult Fetch)> FetchAsync(DownloadRequest myOption, RunConfig runConfig, CancellationToken ct = default)
     {
         // 加载认证信息
-        var (cookie, token) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, myOption.UseTvApi, myOption.UseAppApi);
+        var (cookie, token) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, myOption.Api);
 
         // 主动续期 web cookie（best-effort，持有 refresh_token 才尝试；进程内仅一次）
         if (Interlocked.CompareExchange(ref cookieRefreshed, 1, 0) == 0)
@@ -64,13 +64,13 @@ internal static class VideoInfo
             accountProbeTask = null;
         }
 
-        if (myOption is { UseIntlApi: false, UseTvApi: false })
+        if (myOption.Api == ApiType.Web)
         {
             PrintAccountStatus(info);
         }
         else if (!string.IsNullOrEmpty(token))
         {
-            Log($"已使用 {DetermineApiType(myOption)} 凭据");
+            Log($"已使用 {myOption.Api.ToString( ).ToUpperInvariant( )} 凭据");
         }
 
         Log("获取 aid...");
@@ -82,10 +82,10 @@ internal static class VideoInfo
             throw new ArgumentException("aid 无效");
         }
 
-        (aid, var vInfo) = await FetchVideoInfoAsync(aid, cfg, myOption.UseIntlApi, ct);
+        (aid, var vInfo) = await FetchVideoInfoAsync(aid, cfg, myOption.Api == ApiType.Intl, ct);
         myOption = NormalizeOptionsAfterFetch(myOption, vInfo);
         PrintVideoSummary(vInfo, myOption);
-        var apiType = DetermineApiType(myOption);
+        var apiType = myOption.Api;
         PrintPagesInfo(vInfo, myOption);
 
         return (myOption, new FetchResult(vInfo, cfg, aid, apiType));
@@ -125,16 +125,16 @@ internal static class VideoInfo
     /// </summary>
     private static DownloadRequest NormalizeOptionsAfterFetch(DownloadRequest myOption, VInfo vInfo)
     {
-        if (vInfo.IsSteinGate && myOption.UseTvApi)
+        if (vInfo.IsSteinGate && myOption.Api == ApiType.Tv)
         {
             Log("视频为互动视频，暂时不支持 TV API，回退到 WEB API。");
-            return myOption with { UseTvApi = false };
+            return myOption with { Api = ApiType.Web };
         }
 
-        if (vInfo.IsCheese && myOption.UseIntlApi)
+        if (vInfo.IsCheese && myOption.Api == ApiType.Intl)
         {
             LogWarn("课程为国内内容，不支持 INTL API，回退到 WEB API。");
-            return myOption with { UseIntlApi = false };
+            return myOption with { Api = ApiType.Web };
         }
 
         return myOption;
@@ -158,7 +158,7 @@ internal static class VideoInfo
         }
 
         var bvid = vInfo.PagesInfo.FirstOrDefault( )?.bvid;
-        if (!string.IsNullOrEmpty(bvid) && !myOption.UseIntlApi)
+        if (!string.IsNullOrEmpty(bvid) && myOption.Api != ApiType.Intl)
         {
             Log($"视频 URL：{BiliApi.VideoPage}/{bvid}/");
         }
@@ -168,11 +168,6 @@ internal static class VideoInfo
         {
             Log($"UP 主页：{BiliApi.SpacePage}/{mid}");
         }
-    }
-
-    internal static string DetermineApiType(DownloadRequest myOption)
-    {
-        return myOption.UseTvApi ? "TV" : (myOption.UseAppApi ? "APP" : (myOption.UseIntlApi ? "INTL" : "WEB"));
     }
 
     private static void PrintPagesInfo(VInfo vInfo, DownloadRequest myOption)

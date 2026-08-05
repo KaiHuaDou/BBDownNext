@@ -20,6 +20,10 @@
 - 评论区下载：新增 `--comment N`（默认 `0` 不下载，前 N 条）、`--comment-sort hot|time`（默认热度）、`--comment-formats json,txt`（默认两者都导出）、`--full-comment`（额外翻页抓全楼中楼）。走 `/x/v2/reply/wbi/main`（WBI 签名 + 游标分页），产物为 `<标题>.comments.json` / `<标题>.comments.txt`；按 `aid` 去重，与视频下载互不干扰，抓取失败降级为「拿到多少算多少」。`CommentFormat` 与弹幕格式解析逻辑各自独立。
 - 直播录制：传入直播间地址（`live:` / `live.bilibili.com` / `m.live.bilibili.com`，房间短号自动换算）即可录制；新增 `--live-quality` / `-lq` 选项指定清晰度，默认原画（10000），可选 250 超清 / 400 蓝光 / 15000 2K / 20000 4K / 30000 杜比。录制为独立链路，不经 `WorkContext` 与音视频混流主干，拉取 `http_stream` + `flv` 流地址后分段落盘；录制中 `Ctrl+Break` 停录并合并为单个 mp4，`Ctrl+C` 中断则保留分段不合并。
 - serve 单任务取消：新增 `POST /stop-task/{id}`，取消单个运行中 / 排队中的任务，不影响其余任务（全局 `Ctrl+C` 仍取消所有任务）。
+- 内容组合选择：新增 `--get` / `-g`（默认 `avmsCiM`）、`--with` / `-w`、`--without` / `-W`，以字符集组合下载内容（get ∪ with − without），多个 `--get` / `--with` / `--without` 自动合并。字符含义：`a` 音频、`c` 独立封面、`C` 封面混流、`d` 弹幕、`i` 专栏图片、`m` 混流元数据、`M` 专栏 YAML front matter、`o` 评论、`O` 全部评论、`S` AI 字幕、`s` 字幕、`v` 视频。
+- API 通道单选：新增 `--api` / `-a`（默认 `web`，可选 `web` / `tv` / `app` / `intl`，忽略大小写），取代 `--tv-api` / `--app-api` / `--intl-api` 三个独立开关。
+- 评论选项更名：`--comments-count` / `-cn`、`--comments-sort` / `-cs`、`--comments-formats` / `-cf`（原 `--comment` / `-cm`、`--comment-sort` / `-cms`、`--comment-formats` / `-cmf`）。
+- 仅解析选项更名：`--info-only` / `-i`（原 `--show-info` / `-info`）。
 
 ### 变更
 
@@ -36,6 +40,10 @@
 - 轨道排序改用 `Config.QualityRank` 权重（取代原先隐式 qn 数值降序）：默认原生 1080P 优先于智能修复，未收录档位按 qn 数值插入位而非一律甩到末尾。
 - 选轨与 playurl 查询等内部方法开放为 `internal` 以便单元测试覆盖。
 - CI：Release 说明改为从 `CHANGELOG.md` 抽取对应版本小节（不再依赖自动生成 notes）。
+- 内容选择选项整体移除：`--video-only` / `--audio-only` / `--danmaku-only` / `--cover-only` / `--sub-only` / `--danmaku` / `--no-sub` / `--no-cover` / `--no-metadata` / `--full-comment` / `--allow-ai` / `--no-images`，改用 `-g` / `-w` / `-W` 字符集表达（如 `-g a` 仅音频、`-W s` 不下载字幕、`-w S` 下载 AI 字幕、`-w d` 附带下载弹幕、`-g O` 全量评论）。
+- 评论下载触发条件变更：需内容集含 `o` / `O` **且** `--comments-count > 0` 才真正抓取；`O` 替代 `--full-comment` 控制楼中楼深度。
+- 专栏导出行为变更：内容集默认含 `M`，默认输出 YAML front matter；图片下载由 `i` 控制（`-W i` 不下载图片、`-W M` 不输出 front matter）。
+- 非法 `--api` 值在命令行报错退出；serve 请求体中的 `Api` / `Content` 使用字符串表达，非法值回落默认。
 
 ### 修复
 
