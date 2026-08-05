@@ -1,4 +1,3 @@
-using System.CommandLine;
 using System.Threading.Tasks;
 
 namespace BBDown.Tests;

@@ -4,8 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 
-using BBDown.Core.Util;
 using BBDown.Core;
+using BBDown.Core.Util;
 using BBDown.Download;
 using BBDown.Mux;
 

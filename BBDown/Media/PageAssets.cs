@@ -5,8 +5,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core.Util;
 using BBDown.Core;
+using BBDown.Core.Util;
 using BBDown.Mux;
 using BBDown.Util;
 

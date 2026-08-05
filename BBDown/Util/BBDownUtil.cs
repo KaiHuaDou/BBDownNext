@@ -13,7 +13,7 @@ namespace BBDown.Util;
 internal static partial class Utils
 {
     /// <summary>
-    /// 输入一堆已存在的文件, 合并到新文件
+    /// 输入一堆已存在的文件，合并到新文件
     /// </summary>
     public static void CombineMultipleFilesIntoSingleFile(string[] files, string outputFilePath)
     {
@@ -112,7 +112,7 @@ internal static partial class Utils
     }
 
     /// <summary>
-    /// 获取url字符串参数, 返回参数值字符串
+    /// 获取 url 字符串参数，返回参数值字符串
     /// </summary>
     public static string GetQueryString(string name, string url)
     {

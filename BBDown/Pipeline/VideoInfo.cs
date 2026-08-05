@@ -4,9 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Auth;
+using BBDown.Core;
 using BBDown.Core.Entity;
 using BBDown.Core.Fetcher;
-using BBDown.Core;
 using BBDown.Util;
 
 using static BBDown.Core.Logger;

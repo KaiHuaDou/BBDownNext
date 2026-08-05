@@ -43,7 +43,9 @@ public class BangumiInfoFetcherTests
         private readonly Func<HttpRequestMessage, HttpResponseMessage> responder = responder;
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(responder(request));
+        {
+            return Task.FromResult(responder(request));
+        }
     }
 
     private static async Task<T> WithStubClient<T>(string body, Func<Task<T>> act)
@@ -66,7 +68,7 @@ public class BangumiInfoFetcherTests
     }
 
     [Fact]
-    public async Task FetchAsync_SsForm_PullsWholeSeasonWithEmptyIndex()
+    public async Task FetchAsync_SsForm_PullsWholeSeasonWithEmptyIndex( )
     {
         var info = await WithStubClient(SeasonJson, ( ) => BangumiInfoFetcher.FetchAsync("ep:ss2539", AppConfig.Empty));
 
@@ -78,7 +80,7 @@ public class BangumiInfoFetcherTests
     }
 
     [Fact]
-    public async Task FetchAsync_EpForm_LocatesSingleEpisodeAndSetsIndex()
+    public async Task FetchAsync_EpForm_LocatesSingleEpisodeAndSetsIndex( )
     {
         // ep 形态回归：按 ep_id 拉整季、定位到目标集的 Index，且 section 扫描仍生效
         var info = await WithStubClient(SeasonJson, ( ) => BangumiInfoFetcher.FetchAsync("ep:63471", AppConfig.Empty));
@@ -89,7 +91,7 @@ public class BangumiInfoFetcherTests
     }
 
     [Fact]
-    public async Task FetchAsync_SsForm_ApiError_ThrowsInvalidOpNotBangumiNotFound()
+    public async Task FetchAsync_SsForm_ApiError_ThrowsInvalidOpNotBangumiNotFound( )
     {
         // ss 形态接口无 result 时，必须抛 InvalidOperationException（而非 BangumiNotFoundException），
         // 否则会触发 FetcherRegistry 的课程误回退。

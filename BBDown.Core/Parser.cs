@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -11,7 +9,6 @@ using BBDown.Core.Util;
 
 using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
-using static BBDown.Core.PlayUrl.TrackFactory;
 using static BBDown.Core.Util.JsonUtil;
 
 namespace BBDown.Core;

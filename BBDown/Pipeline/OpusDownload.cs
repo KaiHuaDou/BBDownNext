@@ -8,9 +8,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Auth;
+using BBDown.Core;
 using BBDown.Core.Opus;
 using BBDown.Core.Util;
-using BBDown.Core;
 
 using static BBDown.Core.Logger;
 using static BBDown.Download.DownloadUtil;
@@ -62,9 +62,9 @@ internal static class OpusDownload
 
         Log("获取专栏信息...");
         var doc = await OpusFetcher.FetchAsync(target, cfg, ct);
-        Log($"标题: {doc.Title}");
-        Log($"作者: {doc.AuthorName}");
-        Log($"段落数: {doc.Paragraphs.Count}，图片数: {CountImages(doc)}");
+        Log($"标题：{doc.Title}");
+        Log($"作者：{doc.AuthorName}");
+        Log($"段落数：{doc.Paragraphs.Count}，图片数：{CountImages(doc)}");
 
         var baseName = FileNameUtil.GetValidFileName(doc.Title);
         if (string.IsNullOrEmpty(baseName))

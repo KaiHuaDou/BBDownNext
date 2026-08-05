@@ -182,8 +182,8 @@ internal static partial class InputResolver
     }
 
     // 新版个人空间合集/系列链接：
-    //   合集: https://space.bilibili.com/392959666/lists/1560264?type=season
-    //   系列: https://space.bilibili.com/392959666/lists/1560264?type=series
+    //   合集：https://space.bilibili.com/392959666/lists/1560264?type=season
+    //   系列：https://space.bilibili.com/392959666/lists/1560264?type=series
     private static string ResolveSpaceList(string input)
     {
         // path 最后一个 / 后到 ? 前即为 sid
@@ -229,7 +229,7 @@ internal static partial class InputResolver
         var json = await GetWebSourceAsync(api, cfg);
         using var jDoc = JsonDocument.Parse(json);
         var result = BBDown.Core.Util.JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result");
-        return $"ss{result.GetProperty("season_id").ToString( )}";
+        return $"ss{result.GetProperty("season_id")}";
     }
 
     // md（番剧详情页 id）本质是 media_id，需经 pgc/review/user 映射出 season_id。
@@ -242,7 +242,7 @@ internal static partial class InputResolver
         var json = await GetWebSourceAsync(api, cfg);
         using var jDoc = JsonDocument.Parse(json);
         var media = BBDown.Core.Util.JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result").GetProperty("media");
-        return $"ss{media.GetProperty("season_id").ToString( )}";
+        return $"ss{media.GetProperty("season_id")}";
     }
 
     [GeneratedRegex("av(\\d+)")]

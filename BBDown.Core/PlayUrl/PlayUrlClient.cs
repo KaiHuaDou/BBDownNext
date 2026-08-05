@@ -4,8 +4,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core.Util;
-
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.SignUtil;
@@ -58,7 +56,7 @@ internal static partial class PlayUrlClient
             ? $"{BiliApi.CheesePlayPage}/ep{req.EpId}"
             : $"{BiliApi.BangumiPlayPage}/ep{req.EpId}";
         var webSource = await GetWebSourceAsync(pageUrl, req.Cfg, null, ct);
-        var match = PlayerJsonRegex().Match(webSource);
+        var match = PlayerJsonRegex( ).Match(webSource);
         if (!match.Success)
         {
             throw new InvalidOperationException("从网页源码解析播放信息失败");
@@ -88,7 +86,7 @@ internal static partial class PlayUrlClient
 
     internal static string BuildTvQuery(PlayUrlRequest req, string qn)
     {
-        StringBuilder query = new();
+        StringBuilder query = new( );
         if (req.Cfg.Token.Length != 0)
         {
             query.Append($"access_key={req.Cfg.Token}&");
@@ -102,13 +100,13 @@ internal static partial class PlayUrlClient
 
         // TV 端点实测不提供 qn=100（智能修复），保持 4048 即可；强改 12240 无收益且可能触发风控
         query.Append("&fnval=4048&fnver=0&fourk=1&mid=0&mobi_app=android_tv_yst");
-        query.Append($"&object_id={req.Aid}&platform=android&playurl_type=1&qn={qn}&ts={UnixTimestamp()}");
-        return $"{query}&sign={AppSign(query.ToString(), TvAppSecret)}";
+        query.Append($"&object_id={req.Aid}&platform=android&playurl_type=1&qn={qn}&ts={UnixTimestamp( )}");
+        return $"{query}&sign={AppSign(query.ToString( ), TvAppSecret)}";
     }
 
     internal static string BuildWebQuery(PlayUrlRequest req, string qn)
     {
-        StringBuilder query = new();
+        StringBuilder query = new( );
         var fnval = req.IsBangumi ? Config.FnvalPgc : Config.Fnval;
         query.Append($"support_multi_audio=true&from_client=BROWSER&avid={req.Aid}&cid={req.Cid}&fnval={fnval}&fnver=0&fourk=1");
         if (req.Cfg.Area.Length != 0)
@@ -128,8 +126,8 @@ internal static partial class PlayUrlClient
             query.Append("&try_look=1");
         }
 
-        query.Append($"&wts={UnixTimestamp()}");
-        return req.IsBangumi ? query.ToString() : WbiSign(query.ToString(), req.Cfg);
+        query.Append($"&wts={UnixTimestamp( )}");
+        return req.IsBangumi ? query.ToString( ) : WbiSign(query.ToString( ), req.Cfg);
     }
 
     internal static async Task<string> FetchIntlAsync(PlayUrlRequest req, string qn, string code = "0", CancellationToken ct = default)
@@ -138,7 +136,7 @@ internal static partial class PlayUrlClient
         var isBiliPlus = cfg.Host != BiliApi.MainHost;
         var api = $"https://{(isBiliPlus ? cfg.Host : BiliApi.IntlWebHost)}{BiliApi.IntlPlayUrlPath}?";
 
-        StringBuilder query = new();
+        StringBuilder query = new( );
         if (cfg.Token.Length != 0)
         {
             query.Append($"access_key={cfg.Token}&");
@@ -153,15 +151,15 @@ internal static partial class PlayUrlClient
         query.Append($"&cid={req.Cid}&ep_id={req.EpId}&platform=android&prefer_code_type={code}&qn={qn}");
         if (isBiliPlus)
         {
-            query.Append($"&ts={UnixTimestamp()}");
+            query.Append($"&ts={UnixTimestamp( )}");
         }
 
         query.Append("&s_locale=zh_SG");
-        var param = query.ToString();
+        var param = query.ToString( );
         return await GetWebSourceAsync(api + (isBiliPlus ? $"{param}&sign={AppSign(param, BiliPlusAppSecret)}" : param), cfg, null, ct);
     }
 
     // 网页源码兜底时抠取 window.__playinfo__ 里的 JSON；宿主类为 partial 以承载源生成正则
     [GeneratedRegex("window.__playinfo__=([\\s\\S]*?)<\\/script>")]
-    private static partial Regex PlayerJsonRegex();
+    private static partial Regex PlayerJsonRegex( );
 }

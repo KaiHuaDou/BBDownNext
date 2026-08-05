@@ -4,7 +4,6 @@ using System.Text.Json;
 
 using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.PlayUrl.TrackFactory;
 using static BBDown.Core.Util.JsonUtil;
 
@@ -79,8 +78,8 @@ internal static class DashTrackReader
             var v = BuildVideo(node, pDur);
             if (!tvApi)
             {
-                v.res = node.GetProperty("width").ToString() + "x" + node.GetProperty("height").ToString();
-                v.fps = node.GetProperty("frame_rate").ToString();
+                v.res = node.GetProperty("width").ToString( ) + "x" + node.GetProperty("height").ToString( );
+                v.fps = node.GetProperty("frame_rate").ToString( );
             }
 
             if (!result.VideoTracks.Contains(v))
@@ -100,13 +99,13 @@ internal static class DashTrackReader
             return false;
         }
 
-        if (dash.TryGetProperty("audio", out var audio) && audio.ValueKind == JsonValueKind.Array && audio.GetArrayLength() > 0)
+        if (dash.TryGetProperty("audio", out var audio) && audio.ValueKind == JsonValueKind.Array && audio.GetArrayLength( ) > 0)
         {
             return true;
         }
 
         if (dash.TryGetProperty("dolby", out var dolby) && dolby.ValueKind == JsonValueKind.Object
-            && dolby.TryGetProperty("audio", out var dolbyAudio) && dolbyAudio.ValueKind == JsonValueKind.Array && dolbyAudio.GetArrayLength() > 0)
+            && dolby.TryGetProperty("audio", out var dolbyAudio) && dolbyAudio.ValueKind == JsonValueKind.Array && dolbyAudio.GetArrayLength( ) > 0)
         {
             return true;
         }
@@ -128,7 +127,7 @@ internal static class DashTrackReader
         AppendDolbyAndHiRes(audio, root, tvApi);
         foreach (var node in audio)
         {
-            result.AudioTracks.Add(BuildAudio(node, pDur, NormalizeAudioCodec(node.GetProperty("codecs").ToString())));
+            result.AudioTracks.Add(BuildAudio(node, pDur, NormalizeAudioCodec(node.GetProperty("codecs").ToString( ))));
         }
     }
 
@@ -148,7 +147,7 @@ internal static class DashTrackReader
         if (dash.TryGetProperty("dolby", out var dolby) && dolby.ValueKind == JsonValueKind.Object
             && dolby.TryGetProperty("audio", out var dolbyAudio) && dolbyAudio.ValueKind == JsonValueKind.Array)
         {
-            audio.AddRange(dolbyAudio.EnumerateArray());
+            audio.AddRange(dolbyAudio.EnumerateArray( ));
         }
 
         //处理Hi-Res无损

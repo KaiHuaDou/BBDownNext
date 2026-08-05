@@ -4,8 +4,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core.Entity;
 using BBDown.Core;
+using BBDown.Core.Entity;
 using BBDown.Download;
 using BBDown.Mux;
 using BBDown.Util;

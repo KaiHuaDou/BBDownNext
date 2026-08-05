@@ -49,7 +49,7 @@ public static class Config
 
     // Qualities 的 qn 顺序缓存为数组，供 QualityRank 在每次轨道排序比较时 O(1) 查下标，
     // 避免对每对比较都重新投影一次 Qualities
-    private static readonly string[] QualityOrder = Qualities.Select(q => q.Qn).ToArray( );
+    private static readonly string[] QualityOrder = [.. Qualities.Select(q => q.Qn)];
 
     public static string MaxQn => Qualities[0].Qn;
 

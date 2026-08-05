@@ -203,26 +203,34 @@ public static class SpaceListFetcher
         return (fetched, failures);
     }
 
-    private static bool IsRisk(JsonElement data) =>
-        (data.TryGetProperty("is_risk", out var risk) && risk.ValueKind == JsonValueKind.True)
+    private static bool IsRisk(JsonElement data)
+    {
+        return (data.TryGetProperty("is_risk", out var risk) && risk.ValueKind == JsonValueKind.True)
         || (data.TryGetProperty("gaia_res_type", out var gaia) && gaia.ValueKind == JsonValueKind.Number && gaia.GetInt32( ) != 0);
+    }
 
     // is_lesson_video / is_live_playback 是 num，is_charging_arc 是 bool → 统一容错读取
-    private static bool ReadFlag(JsonElement obj, string name) =>
-        obj.TryGetProperty(name, out var v)
+    private static bool ReadFlag(JsonElement obj, string name)
+    {
+        return obj.TryGetProperty(name, out var v)
         && v.ValueKind switch
         {
             JsonValueKind.True => true,
             JsonValueKind.Number => v.GetInt32( ) != 0,
             _ => false
         };
+    }
 
-    private static string ReadStr(JsonElement obj, string name) =>
-        obj.TryGetProperty(name, out var v) && v.ValueKind is JsonValueKind.String or JsonValueKind.Number
+    private static string ReadStr(JsonElement obj, string name)
+    {
+        return obj.TryGetProperty(name, out var v) && v.ValueKind is JsonValueKind.String or JsonValueKind.Number
             ? v.ToString( )
             : "";
+    }
 
-    private static SpaceItem ReadItem(JsonElement v) => new(
+    private static SpaceItem ReadItem(JsonElement v)
+    {
+        return new(
         Aid: ReadStr(v, "aid"),
         Title: ReadStr(v, "title").Trim( ),
         Desc: ReadStr(v, "description").Trim( ),
@@ -233,4 +241,5 @@ public static class SpaceListFetcher
         IsLesson: ReadFlag(v, "is_lesson_video"),
         IsLivePlayback: ReadFlag(v, "is_live_playback"),
         IsCharging: ReadFlag(v, "is_charging_arc"));
+    }
 }

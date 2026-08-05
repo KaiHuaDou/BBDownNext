@@ -2,7 +2,6 @@ using System.Text.Json;
 
 using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.PlayUrl.TrackFactory;
 using static BBDown.Core.Util.JsonUtil;
 
@@ -37,22 +36,22 @@ internal static class IntlTrackReader
     internal static void Collect(ParsedResult result, JsonElement videoInfo)
     {
         // 缺字段时不应抛 KeyNotFoundException（P1-6）
-        var pDur = videoInfo.TryGetProperty("timelength", out var tl) ? tl.GetInt32() / 1000 : 0;
+        var pDur = videoInfo.TryGetProperty("timelength", out var tl) ? tl.GetInt32( ) / 1000 : 0;
         result.Duration = pDur;
 
-        foreach (var stream in videoInfo.GetProperty("stream_list").EnumerateArray())
+        foreach (var stream in videoInfo.GetProperty("stream_list").EnumerateArray( ))
         {
             if (!stream.TryGetProperty("dash_video", out var dashVideo))
             {
                 continue;
             }
 
-            if (dashVideo.GetProperty("base_url").ToString().Length == 0)
+            if (dashVideo.GetProperty("base_url").ToString( ).Length == 0)
             {
                 continue;
             }
 
-            var v = BuildVideo(dashVideo, pDur, stream.GetProperty("stream_info").GetProperty("quality").ToString());
+            var v = BuildVideo(dashVideo, pDur, stream.GetProperty("stream_info").GetProperty("quality").ToString( ));
             if (!result.VideoTracks.Contains(v))
             {
                 result.VideoTracks.Add(v);
@@ -62,7 +61,7 @@ internal static class IntlTrackReader
         // 缺字段时不应抛 KeyNotFoundException（P1-6）
         if (videoInfo.TryGetProperty("dash_audio", out var dashAudioArr) && dashAudioArr.ValueKind == JsonValueKind.Array)
         {
-            foreach (var node in dashAudioArr.EnumerateArray())
+            foreach (var node in dashAudioArr.EnumerateArray( ))
             {
                 var a = BuildAudio(node, pDur, "M4A");
                 if (!result.AudioTracks.Contains(a))

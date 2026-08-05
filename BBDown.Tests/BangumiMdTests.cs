@@ -121,7 +121,7 @@ public class BangumiMdTests
     }
 
     [Fact]
-    public async Task GetAvIdAsync_BangumiMd_ApiError_ThrowsReadableMessage()
+    public async Task GetAvIdAsync_BangumiMd_ApiError_ThrowsReadableMessage( )
     {
         // 旧实现会把 "md2539" 直接拼进 media_id 导致 -400，再因缺 result 抛 KeyNotFoundException。
         // 现在应抛带 code/message 的可读异常，而非 KeyNotFoundException。

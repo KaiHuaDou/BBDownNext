@@ -20,24 +20,24 @@ internal static class FlvTrackReader
         double size = 0;
         double length = 0;
         //获取所有分段
-        foreach (var node in root.GetProperty("durl").EnumerateArray())
+        foreach (var node in root.GetProperty("durl").EnumerateArray( ))
         {
-            result.Clips.Add(node.GetProperty("url").ToString());
-            size += node.GetProperty("size").GetDouble();
-            length += node.GetProperty("length").GetDouble();
+            result.Clips.Add(node.GetProperty("url").ToString( ));
+            size += node.GetProperty("size").GetDouble( );
+            length += node.GetProperty("length").GetDouble( );
         }
 
         result.Dfns.AddRange(ReadAcceptedDfns(root));
-        result.Duration = (int)length / 1000;
+        result.Duration = (int) length / 1000;
 
-        var quality = root.GetProperty("quality").ToString();
-        Video v = new()
+        var quality = root.GetProperty("quality").ToString( );
+        Video v = new( )
         {
             id = quality,
             dfn = Config.GetQualityName(quality),
             baseUrl = "",
-            codecs = VideoCodec(root.GetProperty("video_codecid").ToString()),
-            dur = (int)length / 1000,
+            codecs = VideoCodec(root.GetProperty("video_codecid").ToString( )),
+            dur = (int) length / 1000,
             size = size
         };
         if (!result.VideoTracks.Contains(v))
@@ -51,13 +51,13 @@ internal static class FlvTrackReader
         //TV模式可用清晰度
         if (root.TryGetProperty("qn_extras", out var qnExtras))
         {
-            return qnExtras.EnumerateArray().Select(node => node.GetProperty("qn").ToString());
+            return qnExtras.EnumerateArray( ).Select(node => node.GetProperty("qn").ToString( ));
         }
 
         //非tv模式可用清晰度
         if (root.TryGetProperty("accept_quality", out var acceptQuality))
         {
-            return acceptQuality.EnumerateArray().Select(node => node.ToString()).Where(qn => !string.IsNullOrEmpty(qn));
+            return acceptQuality.EnumerateArray( ).Select(node => node.ToString( )).Where(qn => !string.IsNullOrEmpty(qn));
         }
 
         return [];

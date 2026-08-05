@@ -35,6 +35,7 @@ public static class BangumiInfoFetcher
                 var (code, message) = ReadApiError(infoJson.RootElement);
                 throw new InvalidOperationException($"获取番剧信息失败(code={code})：{message}");
             }
+
             throw new BangumiNotFoundException($"未找到 EP/SS 对应的番剧信息：ep_id={raw}");
         }
 

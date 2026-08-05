@@ -13,8 +13,8 @@ public class InputResolverSpaceTests
     [InlineData("https://space.bilibili.com/402787936/", "spaceMid:402787936")]
     [InlineData("https://space.bilibili.com/402787936/upload/video", "spaceMid:402787936")]
     [InlineData("https://space.bilibili.com/402787936/video?tid=0", "spaceMid:402787936")]
-        [InlineData("402787936", "ep:402787936")]
-        [InlineData("space402787936", "spaceMid:402787936")]
+    [InlineData("402787936", "ep:402787936")]
+    [InlineData("space402787936", "spaceMid:402787936")]
     public async Task GetAvIdAsync_SpaceInput_ResolvesToSpaceMidPrefix(string input, string expected)
     {
         var result = await InputResolver.GetAvIdAsync(input, AppConfig.Empty);

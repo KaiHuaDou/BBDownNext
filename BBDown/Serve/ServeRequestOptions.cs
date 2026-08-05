@@ -1,7 +1,5 @@
 using System.Text.Json;
 
-using BBDown.Core;
-
 namespace BBDown.Serve;
 
 /// <summary>
@@ -41,6 +39,10 @@ internal sealed class ServeRequestOptions
     public bool NoForceHttp { get; set; }
     public bool DownloadDanmaku { get; set; }
     public string? DownloadDanmakuFormats { get; set; }
+    public int CommentCount { get; set; }
+    public string? CommentSort { get; set; }
+    public string? CommentFormats { get; set; }
+    public bool FullComment { get; set; }
     public bool AllowAi { get; set; }
     public bool VideoAscending { get; set; }
     public bool AudioAscending { get; set; }

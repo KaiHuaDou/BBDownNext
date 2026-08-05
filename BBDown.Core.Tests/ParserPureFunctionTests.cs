@@ -1,7 +1,6 @@
 using System.Linq;
 using System.Text.Json;
 
-using BBDown.Core;
 using BBDown.Core.PlayUrl;
 
 namespace BBDown.Core.Tests;
@@ -139,5 +138,4 @@ public class ParserPureFunctionTests
         var req = new PlayUrlRequest("ep:123", "1", "2", "123", TvApi: true, IntlApi: false, AppApi: false, Encoding: "", AppConfig.Empty);
         Assert.Contains("fnval=4048", PlayUrlClient.BuildTvQuery(req, "0"));
     }
-
 }

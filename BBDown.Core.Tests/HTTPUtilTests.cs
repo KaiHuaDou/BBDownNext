@@ -1,7 +1,6 @@
 using System.Linq;
 using System.Net.Http;
 
-using BBDown.Core;
 using BBDown.Core.Util;
 
 namespace BBDown.Core.Tests;

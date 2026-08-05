@@ -77,8 +77,10 @@ public class SpaceListFetcherTests
         }
     }
 
-    private static HttpResponseMessage Ok(string body) =>
-        new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+    private static HttpResponseMessage Ok(string body)
+    {
+        return new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+    }
 
     private static async Task<T> WithRoutedStub<T>(Func<HttpRequestMessage, HttpResponseMessage> responder, Func<Task<T>> act)
     {
@@ -115,7 +117,7 @@ public class SpaceListFetcherTests
     public async Task SpaceList_ParsesAndFlattens_WithSkipAndLessonFilter( )
     {
         var requestedViewAids = new List<string>( );
-        var responder = (HttpRequestMessage req) =>
+        HttpResponseMessage responder(HttpRequestMessage req)
         {
             var url = req.RequestUri!.AbsoluteUri;
             if (url.Contains("/x/space/wbi/arc/search"))
@@ -140,7 +142,7 @@ public class SpaceListFetcherTests
             }
 
             return new HttpResponseMessage(HttpStatusCode.NotFound);
-        };
+        }
 
         var info = await WithRoutedStub(responder, ( ) => SpaceListFetcher.FetchAsync("spaceMid:402787936", AppConfig.Empty));
 

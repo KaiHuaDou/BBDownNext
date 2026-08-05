@@ -1,4 +1,3 @@
-using System;
 using System.Text.Json;
 
 using static BBDown.Core.Util.JsonUtil;
@@ -26,7 +25,7 @@ internal static class PlayUrlResponse
             {
                 if (doc.RootElement.TryGetProperty(key, out var message)
                     && message.ValueKind == JsonValueKind.String
-                    && message.GetString() == "大会员专享限制")
+                    && message.GetString( ) == "大会员专享限制")
                 {
                     return true;
                 }

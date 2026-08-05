@@ -1,12 +1,12 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
+
 using BBDown.Core;
 
 namespace BBDown.Tests;
@@ -388,6 +388,7 @@ public class BBDownApiServerTests
             var now = Interlocked.Increment(ref running);
             int old;
             while ((old = Volatile.Read(ref peak)) < now && Interlocked.CompareExchange(ref peak, now, old) != old) { }
+
             await release.Task;
             Interlocked.Decrement(ref running);
         }, TestContext.Current.CancellationToken)).ToList( );
