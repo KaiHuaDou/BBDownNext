@@ -82,6 +82,25 @@ internal static class CommandLineInvoker
         Description = "指定需下载的弹幕格式，逗号分隔",
         DefaultValueFactory = _ => "xml,ass"
     };
+    // 不设 ArgumentArity.ZeroOrOne：url 是位置参数，可选值会让 `bbdown --comment BV1xx` 把 BV 号吃成 --comment 的值
+    private static readonly Option<int> CommentCount = new("--comment", ["-cm"])
+    {
+        Description = "下载评论区前 N 条评论，默认 0（不下载）"
+    };
+    private static readonly Option<string> CommentSort = new("--comment-sort", ["-cms"])
+    {
+        Description = "评论排序：hot（热度，与网页默认一致）或 time（最新）",
+        DefaultValueFactory = _ => "hot"
+    };
+    private static readonly Option<string> CommentFormats = new("--comment-formats", ["-cmf"])
+    {
+        Description = "指定需导出的评论格式，逗号分隔",
+        DefaultValueFactory = _ => "json,txt"
+    };
+    private static readonly Option<bool> FullComment = new("--full-comment", [])
+    {
+        Description = "抓取每条评论的全部楼中楼回复（请求数成倍增加，耗时显著变长）"
+    };
     private static readonly Option<bool> AllowAi = new("--allow-ai", []) { Description = "下载 AI 字幕" };
     private static readonly Option<bool> VideoAscending = new("--video-ascending", []) { Description = "视频升序（最小体积优先）" };
     private static readonly Option<bool> AudioAscending = new("--audio-ascending", []) { Description = "音频升序（最小体积优先）" };
@@ -203,6 +222,10 @@ internal static class CommandLineInvoker
             NoForceHttp,
             DownloadDanmaku,
             DownloadDanmakuFormats,
+            CommentCount,
+            CommentSort,
+            CommentFormats,
+            FullComment,
             AllowAi,
             VideoAscending,
             AudioAscending,
@@ -264,6 +287,10 @@ internal static class CommandLineInvoker
                 NoForceHttp = parseResult.GetValue(NoForceHttp)!,
                 DownloadDanmaku = parseResult.GetValue(DownloadDanmaku)!,
                 DownloadDanmakuFormats = parseResult.GetValue(DownloadDanmakuFormats) ?? "",
+                CommentCount = parseResult.GetValue(CommentCount),
+                CommentSort = parseResult.GetValue(CommentSort) ?? "",
+                CommentFormats = parseResult.GetValue(CommentFormats) ?? "",
+                FullComment = parseResult.GetValue(FullComment)!,
                 AllowAi = parseResult.GetValue(AllowAi)!,
                 VideoAscending = parseResult.GetValue(VideoAscending)!,
                 AudioAscending = parseResult.GetValue(AudioAscending)!,

@@ -149,4 +149,72 @@ public class CommandLineInvokerTests
         var opt = await ParseAsync(SampleUrl, "-e", "hevc,avc");
         Assert.False(opt.EncodingFirst);
     }
+
+    // ---- 评论下载（--comment） ----
+
+    [Fact]
+    public async Task CommentCount_DefaultsToZero( )
+    {
+        var opt = await ParseAsync(SampleUrl);
+        Assert.Equal(0, opt.CommentCount);
+    }
+
+    [Fact]
+    public async Task CommentCount_ParsesAfterUrl( )
+    {
+        var opt = await ParseAsync(SampleUrl, "--comment", "100");
+        Assert.Equal(100, opt.CommentCount);
+    }
+
+    [Fact]
+    public async Task CommentCount_ParsesBeforeUrl( )
+    {
+        // 不放 ArgumentArity：位置参数 url 始终能落到自己头上，不会被 --comment 吞掉
+        var opt = await ParseAsync("--comment", "100", SampleUrl);
+        Assert.Equal(100, opt.CommentCount);
+    }
+
+    [Fact]
+    public async Task CommentSort_AliasCms( )
+    {
+        var opt = await ParseAsync(SampleUrl, "-cms", "time");
+        Assert.Equal("time", opt.CommentSort);
+    }
+
+    [Fact]
+    public async Task CommentFormats_AliasCmf( )
+    {
+        var opt = await ParseAsync(SampleUrl, "-cmf", "txt");
+        Assert.Equal("txt", opt.CommentFormats);
+    }
+
+    [Fact]
+    public async Task FullComment_Flag( )
+    {
+        var opt = await ParseAsync(SampleUrl, "--full-comment");
+        Assert.True(opt.FullComment);
+    }
+
+    [Fact]
+    public void Comment_RequiresIntegerValue( )
+    {
+        var root = CommandLineInvoker.GetRootCommand(_ => Task.FromResult(0));
+        // 缺值：--comment 之后没有整数
+        Assert.NotEmpty(root.Parse([SampleUrl, "--comment"]).Errors);
+        // 非整数：把 URL 当值消费会转换失败
+        Assert.NotEmpty(root.Parse([SampleUrl, "--comment", SampleUrl]).Errors);
+    }
+
+    [Fact]
+    public void CommentOptions_RegisteredToRootCommand( )
+    {
+        // 漏加进 RootCommand 集合会被 System.CommandLine 静默丢弃：用真实解析证明四个选项（含别名）都已注册
+        var root = CommandLineInvoker.GetRootCommand(_ => Task.FromResult(0));
+        var parseResult = root.Parse([SampleUrl, "-cm", "7", "-cms", "time", "-cmf", "txt", "--full-comment"]);
+        Assert.Empty(parseResult.Errors); // 主选项与三个别名都被识别，无「未知选项」
+        Assert.Equal(7, parseResult.GetValue<int>("--comment"));
+        Assert.Equal("time", parseResult.GetValue<string>("--comment-sort"));
+        Assert.Equal("txt", parseResult.GetValue<string>("--comment-formats"));
+        Assert.True(parseResult.GetValue<bool>("--full-comment"));
+    }
 }

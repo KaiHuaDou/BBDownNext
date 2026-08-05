@@ -39,6 +39,8 @@ public static class BiliApi
     public const string SpaceArcSearch = $"https://{MainHost}/x/space/wbi/arc/search";
     public const string OpusDetail = $"https://{MainHost}/x/polymer/web-dynamic/v1/opus/detail";
     public const string ArticleView = $"https://{MainHost}/x/article/view";
+    public const string ReplyWbiMain = $"https://{MainHost}/x/v2/reply/wbi/main";
+    public const string ReplyReply = $"https://{MainHost}/x/v2/reply/reply";
 
     // grpc / protobuf 端点
     public const string GrpcPlayView = "https://grpc.biliapi.net/bilibili.app.playurl.v1.PlayURL/PlayView";

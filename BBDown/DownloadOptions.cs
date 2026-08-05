@@ -44,6 +44,12 @@ internal class DownloadOptions
     public bool NoForceHttp { get; set; }
     public bool DownloadDanmaku { get; set; }
     public string? DownloadDanmakuFormats { get; set; }
+    /// <summary>要下载的评论条数，0 表示不下载评论</summary>
+    public int CommentCount { get; set; }
+    public string? CommentSort { get; set; }
+    public string? CommentFormats { get; set; }
+    /// <summary>逐条抓取楼中楼全部回复，而非只保留接口内联的前几条</summary>
+    public bool FullComment { get; set; }
     public bool AllowAi { get; set; }
     public bool VideoAscending { get; set; }
     public bool AudioAscending { get; set; }

@@ -152,6 +152,38 @@ public class ProgramTests
         Assert.Equal(DanmakuFormatInfo.DefaultFormats, formats);
     }
 
+    // 评论与弹幕是两个互不相干的特性，解析逻辑各自独立：下列断言不引用任何 Danmaku 类型
+    [Fact]
+    public void ParseCommentFormats_EmptyInput_UsesDefault( )
+    {
+        var o = new DownloadOptions { CommentFormats = null };
+        Assert.Equal(CommentFormatInfo.DefaultFormats, WorkSetup.ParseCommentFormats(o));
+    }
+
+    [Fact]
+    public void ParseCommentFormats_ParsesExplicit( )
+    {
+        var o = new DownloadOptions { CommentFormats = "json,txt" };
+        var formats = WorkSetup.ParseCommentFormats(o);
+        Assert.Contains(CommentFormat.Json, formats);
+        Assert.Contains(CommentFormat.Txt, formats);
+    }
+
+    [Fact]
+    public void ParseCommentFormats_CaseInsensitiveAndDeduped( )
+    {
+        var o = new DownloadOptions { CommentFormats = "TXT,json,txt" };
+        var formats = WorkSetup.ParseCommentFormats(o);
+        Assert.Equal([CommentFormat.Txt, CommentFormat.Json], formats); // 去重后保持首次出现顺序
+    }
+
+    [Fact]
+    public void ParseCommentFormats_InvalidFallsBackToDefault( )
+    {
+        var o = new DownloadOptions { CommentFormats = "json,bogus" };
+        Assert.Equal(CommentFormatInfo.DefaultFormats, WorkSetup.ParseCommentFormats(o));
+    }
+
     [Fact]
     public void HandleConflictingOptions_InteractiveForcesShowStreams( )
     {

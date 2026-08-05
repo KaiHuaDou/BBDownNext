@@ -149,7 +149,7 @@ internal static class PageDownload
                && actualDuration < fullDuration * 0.9 && fullDuration - actualDuration >= 30;
     }
 
-    private static PageContext BuildPageContext(Page p, WorkContext ctx, List<Page> selectedPagesInfo)
+    internal static PageContext BuildPageContext(Page p, WorkContext ctx, List<Page> selectedPagesInfo)
     {
         var vInfo = ctx.VInfo!;
         var selectedPagesCount = selectedPagesInfo.Count;

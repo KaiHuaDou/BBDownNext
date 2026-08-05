@@ -30,6 +30,7 @@ BBDown/
 │   ├── DownloadTask.cs     # serve 任务状态/快照 record（DownloadStatus / DownloadTask / DownloadTaskSnapshot）
 │   ├── ChargedPreviewException.cs # 充电专属试看中止异常
 │   ├── DanmakuFormat.cs    # 弹幕格式信息
+│   ├── CommentFormat.cs    # 评论格式信息（与弹幕各自独立，解析逻辑不共用）
 │   │
 │   ├── Cli/                # 命名空间 BBDown.Cli — 命令行解析
 │   │   ├── CommandLineInvoker.cs  # 全部 CLI 选项与别名 (GetRootCommand)
@@ -49,6 +50,7 @@ BBDown/
 │   │   ├── DashDownload.cs         # DASH 轨下载 (RunAsync)
 │   │   ├── FlvDownload.cs          # FLV 分段下载与合并 (RunAsync)
 │   │   ├── PageAssets.cs           # 封面/字幕准备、弹幕下载
+│   │   ├── CommentDownload.cs       # 评论区导出（按 --comment-formats 落盘 json/txt，挂 PageQueue）
 │   │   └── TrackSelect.cs          # 轨道排序、信息打印、交互选轨
 │   │
 │   ├── Mux/                # 命名空间 BBDown.Mux — 混流与收尾
@@ -99,6 +101,7 @@ BBDown/
 │   ├── Entity/             # VInfo / Page / Video / Audio / ParsedResult 等
 │   ├── APP/                # APP gRPC 协议 (proto 生成代码)
 │   └── DanmakuUtil.cs      # 弹幕获取 (xml/ass)
+│   ├── Comment/             # 评论区抓取与渲染（WBI 分页 / 楼中楼 / JSON·TXT 渲染）
 │
 ├── BBDown.Tests/           # 针对 BBDown 的 xUnit 测试
 └── BBDown.Core.Tests/      # 针对 BBDown.Core 的 xUnit 测试
@@ -132,7 +135,8 @@ Parser.ExtractTracksAsync (编排，按 API 模式委派到 PlayUrl/*) → Parse
 DownloadPipeline.RunAsync (BBDown.Pipeline，三段下载主干，CLI 与 serve 共用)
   │  ① WorkSetup.Build      → WorkContext (进程级初始化、账号探测)
   │  ② VideoInfo.FetchAsync → WorkContext (标题/分P/封面/弹幕入口)
-  │  ③ PageQueue.RunAsync   → 逐分 P 编排
+  │  ③ PageQueue.RunAsync   → 逐分 P 编排（--comment>0 时逐分 P 委托内先跑 CommentDownload，按 aid 去重；与视频下载互不干扰）
+  │     └─ CommentDownload.RunAsync (WBI 分页抓评论 → 按 --comment-formats 落盘 json/txt)
   ▼
 PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分派 DASH/FLV)
   │  ├─ DashDownload.RunAsync   / FlvDownload.RunAsync
@@ -216,10 +220,11 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 
 ---
 
-## 8. 字幕 / 弹幕 / 文件名
+## 8. 字幕 / 弹幕 / 评论 / 文件名
 
 - **字幕 (`SubUtil`)**：已登录账号可走 WEB/TV；**未登录时只能走 APP gRPC** 获取字幕。AI 字幕默认不下载，需 `--allow-ai` 显式开启。
 - **弹幕 (`DanmakuUtil`)**：支持 XML / ASS 两种格式（`--danmaku-formats`），ASS 参数全部硬编码不可配，无去重 / 过滤。
+- **评论 (`CommentFetcher` / `CommentRenderer` / `CommentDownload`)**：走 `/x/v2/reply/wbi/main`（WBI 签名 + 游标分页）。`--comment N` 默认 `0`（不下载），`--comment-sort` 选 `hot`/`time`，`--comment-formats` 选 `json`/`txt`（`CommentFormat` 与弹幕格式**两个互不相干的特性，解析逻辑各自独立**）。评论区按 **aid** 绑定、与 cid / 分 P 无关，挂在 `PageQueue.RunAsync` 逐分 P 委托里用局部 `HashSet` 按 aid 去重，**DASH 与 FLV 两条路径都覆盖**；多 P 同 aid 只抓一次。默认只保留一级评论内联的最多 3 条楼中楼预览，`--full-comment` 才额外翻页抓全。抓取失败一律降级为「拿到多少算多少」，只有 WBI 签名错误（`-403`）才抛异常——评论下载与视频下载互不干扰。
 - **文件名 (`FileNameUtil`)**：按 **UTF-8 字节数截断，上限 200 字节**（约 66 个汉字），避免过长路径；变量支持自定义日期格式 `<publishDate:yyyyMMdd>` / `<videoDate:格式>`。
 
 ---

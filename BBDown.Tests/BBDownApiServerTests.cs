@@ -14,7 +14,7 @@ namespace BBDown.Tests;
 /// <summary>
 /// P0-9：为 <see cref="BBDownApiServer"/> 补回归测试。
 /// 重点是 serve 请求契约 <see cref="ServeRequestOptions"/>（受控子集，结构上无法注入主机可控字段）
-/// 与 <see cref="BBDownApiServer.IsSafeWebHook"/>（SSRF 防护），以及变更类端点必须是 POST（P1-15）。
+/// 与 <see cref="SsrfGuard.IsSafeWebHook"/>（SSRF 防护），以及变更类端点必须是 POST（P1-15）。
 /// </summary>
 public class BBDownApiServerTests
 {
@@ -92,7 +92,7 @@ public class BBDownApiServerTests
     [InlineData("https://1.2.3.4/report")]
     public void IsSafeWebHook_AllowsPublicHttpHttps(string url)
     {
-        Assert.True(BBDownApiServer.IsSafeWebHook(new Uri(url)));
+        Assert.True(SsrfGuard.IsSafeWebHook(new Uri(url)));
     }
 
     [Theory]
@@ -111,7 +111,7 @@ public class BBDownApiServerTests
     [InlineData("file:///etc/passwd")]
     public void IsSafeWebHook_RejectsLoopbackPrivateAndNonHttp(string url)
     {
-        Assert.False(BBDownApiServer.IsSafeWebHook(new Uri(url)));
+        Assert.False(SsrfGuard.IsSafeWebHook(new Uri(url)));
     }
 
     #endregion
@@ -313,7 +313,7 @@ public class BBDownApiServerTests
     [InlineData("ff02::1")]                  // IPv6 多播
     public void IsPrivateAddress_RejectsPrivate(string ip)
     {
-        Assert.True(BBDownApiServer.IsPrivateAddress(IPAddress.Parse(ip)));
+        Assert.True(SsrfGuard.IsPrivateAddress(IPAddress.Parse(ip)));
     }
 
     [Theory]
@@ -327,7 +327,7 @@ public class BBDownApiServerTests
     [InlineData("2001:db8::1")]             // 文档地址（公网段）
     public void IsPrivateAddress_AllowsPublic(string ip)
     {
-        Assert.False(BBDownApiServer.IsPrivateAddress(IPAddress.Parse(ip)));
+        Assert.False(SsrfGuard.IsPrivateAddress(IPAddress.Parse(ip)));
     }
 
     #endregion

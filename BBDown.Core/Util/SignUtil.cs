@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
@@ -65,6 +66,28 @@ public static class SignUtil
         }
 
         return sb.ToString( );
+    }
+
+    /// <summary>
+    /// 以键值对集合构建 WBI 签名 query：剔除旧 w_rid、按 key 升序、对每个值做 encodeURIComponent 风格编码，
+    /// 缺失 wts 时自动补当前时间戳，最后追加 w_rid。reply/wbi/main 的 pagination_str 是一段 JSON，
+    /// 必须经此编码后参与签名，才能保证 canonical 与线上 URL 同源（<see cref="WbiEncodeValue"/> 仅过滤 !'()*）。
+    /// </summary>
+    public static string WbiSignedQuery(IEnumerable<KeyValuePair<string, string>> parameters, AppConfig cfg)
+    {
+        var pairs = parameters.Where(p => p.Key != "w_rid").ToList( );
+        if (!pairs.Exists(p => p.Key == "wts"))
+        {
+            pairs.Add(new KeyValuePair<string, string>("wts", UnixTimestamp( )));
+        }
+
+        var query = string.Join("&",
+            pairs
+                .Select(p => (p.Key, Value: WbiEncodeValue(p.Value)))
+                .OrderBy(p => p.Key, StringComparer.Ordinal)
+                .Select(p => $"{p.Key}={p.Value}"));
+
+        return cfg.Wbi.Length == 0 ? query : $"{query}&w_rid={Md5Hex(query + cfg.Wbi)}";
     }
 
     /// <summary>

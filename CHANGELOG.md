@@ -17,6 +17,7 @@
 - 番剧详情页（`md{数字}`）解析为对应番剧，默认下载整季全部正片分集（`md2539` 或 `https://www.bilibili.com/bangumi/media/md2539`；内部编码为 `ep:ss{季_id}`，复用既有番剧整季链路）。
 - 智能修复（AI 超分，qn=100）画质：番剧 / 课程 playurl 与番剧播放页请求改用含 8192 智能修复位的 fnval（12240）；WEB 端点按 PGC/UGC 分发（UGC 保持 4048，避免带该位返回 -400），TV 端点始终 4048。
 - 智能修复权限提示：当 `support_formats` 声明该档但 dash 实际缺失对应轨道时，提示需登录大会员账号后重试。
+- 评论区下载：新增 `--comment N`（默认 `0` 不下载，前 N 条）、`--comment-sort hot|time`（默认热度）、`--comment-formats json,txt`（默认两者都导出）、`--full-comment`（额外翻页抓全楼中楼）。走 `/x/v2/reply/wbi/main`（WBI 签名 + 游标分页），产物为 `<标题>.comments.json` / `<标题>.comments.txt`；按 `aid` 去重，与视频下载互不干扰，抓取失败降级为「拿到多少算多少」。`CommentFormat` 与弹幕格式解析逻辑各自独立。
 
 ### 变更
 

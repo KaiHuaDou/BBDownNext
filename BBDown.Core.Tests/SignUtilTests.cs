@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 using BBDown.Core.Util;
@@ -65,6 +66,68 @@ public class SignUtilTests
         var wts = signed.Split('&').Single(p => p.StartsWith("wts=", StringComparison.Ordinal))["wts=".Length..];
         Assert.InRange(long.Parse(wts), DateTimeOffset.Now.ToUnixTimeSeconds( ) - 60, DateTimeOffset.Now.ToUnixTimeSeconds( ));
         Assert.Equal(SignUtil.WbiSign($"aid=1&cid=2&wts={wts}", WbiTestConfig), signed);
+    }
+
+    [Fact]
+    public void WbiSignedQuery_EncodesJsonValueAndSignsEncodedForm( )
+    {
+        // reply/wbi/main 的 pagination_str 是一段 JSON，是全站唯一含 { } " : 的 WBI 参数。
+        // 断言编码结果直接出现在 query 里：canonical 与线上 URL 必须是同一个字符串，否则服务端解出的值对不上签名。
+        var signed = SignUtil.WbiSignedQuery(
+            [
+                new("type", "1"),
+                new("oid", "170001"),
+                new("mode", "3"),
+                new("plat", "1"),
+                new("seek_rpid", ""),
+                new("web_location", "1315875"),
+                new("pagination_str", """{"offset":""}"""),
+                new("wts", "1702204169"),
+            ],
+            WbiTestConfig);
+
+        Assert.Equal(
+            "mode=3&oid=170001&pagination_str=%7B%22offset%22%3A%22%22%7D&plat=1&seek_rpid=&type=1"
+            + "&web_location=1315875&wts=1702204169&w_rid=3d454e9d1b395a8d14f7e3d6e8e048b4",
+            signed);
+    }
+
+    [Fact]
+    public void WbiSignedQuery_MatchesWbiSignForPlainValues( )
+    {
+        // 与既有 WbiSign 对同一组纯数字参数必须得出同一个 w_rid，两条签名路径不能分叉
+        var signed = SignUtil.WbiSignedQuery(
+            [new("foo", "114"), new("bar", "514"), new("zab", "1919810"), new("wts", "1702204169")],
+            WbiTestConfig);
+
+        Assert.EndsWith("&w_rid=8f6f2b5b3d485fe1886cec6a0be8c5d4", signed, StringComparison.Ordinal);
+        Assert.StartsWith("bar=514&foo=114&wts=1702204169&zab=1919810", signed, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WbiSignedQuery_WritingOrderIrrelevant( )
+    {
+        KeyValuePair<string, string>[] forward = [new("a", "2"), new("m", "3"), new("z", "1"), new("wts", "1702204169")];
+        KeyValuePair<string, string>[] shuffled = [new("z", "1"), new("wts", "1702204169"), new("a", "2"), new("m", "3")];
+
+        Assert.Equal(SignUtil.WbiSignedQuery(forward, WbiTestConfig), SignUtil.WbiSignedQuery(shuffled, WbiTestConfig));
+    }
+
+    [Fact]
+    public void WbiSignedQuery_DropsStaleWridAndAppendsTimestamp( )
+    {
+        var signed = SignUtil.WbiSignedQuery([new("oid", "1"), new("w_rid", "deadbeef")], WbiTestConfig);
+
+        Assert.DoesNotContain("deadbeef", signed, StringComparison.Ordinal);
+        var wts = signed.Split('&').Single(p => p.StartsWith("wts=", StringComparison.Ordinal))["wts=".Length..];
+        Assert.InRange(long.Parse(wts), DateTimeOffset.Now.ToUnixTimeSeconds( ) - 60, DateTimeOffset.Now.ToUnixTimeSeconds( ));
+    }
+
+    [Fact]
+    public void WbiSignedQuery_EmptyWbi_OmitsSignature( )
+    {
+        var signed = SignUtil.WbiSignedQuery([new("oid", "1"), new("wts", "1702204169")], AppConfig.Empty);
+        Assert.Equal("oid=1&wts=1702204169", signed);
     }
 
     [Fact]

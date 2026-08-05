@@ -37,6 +37,9 @@ internal static class PageQueue
 
         ctx = ctx with { SavePathFormat = SavePath.Resolve(myOption, totalPages, vInfo.IsBangumi, vInfo.IsBangumiEnd) };
 
+        // 评论区按 aid 绑定，与 cid / 分 P 无关；多 P 同 aid 只抓一次
+        var commentedAids = new HashSet<string>(StringComparer.Ordinal);
+
         var errors = await RunPagesAsync(pagesInfo, myOption.StopOnError, async (p, token) =>
         {
             if (pagesInfo.Count > 1 && ctx.Delay > 0)
@@ -46,6 +49,12 @@ internal static class PageQueue
             }
 
             Log($"开始解析 P{p.index}：{p.aid}...（{pagesInfo.IndexOf(p) + 1} / {pagesInfo.Count}）");
+
+            // 评论区关闭也能立刻反馈，视频下载失败也不丢评论；放在视频下载之前。--show-info 仅解析不产出评论
+            if (ctx.CommentCount > 0 && !myOption.OnlyShowInfo && commentedAids.Add(p.aid))
+            {
+                await CommentDownload.RunAsync(ctx, PageDownload.BuildPageContext(p, ctx, pagesInfo), relatedTask, token);
+            }
 
             if (myOption.SaveArchivesToFile && ArchiveLog.CheckArchive(p.aid, p.cid))
             {

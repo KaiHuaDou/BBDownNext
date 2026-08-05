@@ -42,6 +42,10 @@ internal static class WorkSetup
         var downloadDanmaku = myOption.DownloadDanmaku || myOption.DanmakuOnly;
         var downloadDanmakuFormats = ParseDownloadDanmakuFormats(myOption);
 
+        var commentCount = Math.Max(0, myOption.CommentCount);
+        var commentSortHot = !string.Equals(myOption.CommentSort, "time", StringComparison.OrdinalIgnoreCase);
+        var commentFormats = ParseCommentFormats(myOption);
+
         var input = myOption.Url;
         var lang = myOption.Lang;
         var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
@@ -55,6 +59,10 @@ internal static class WorkSetup
             EncodingFirst: myOption.EncodingFirst,
             DownloadDanmaku: downloadDanmaku,
             DownloadDanmakuFormats: downloadDanmakuFormats,
+            CommentCount: commentCount,
+            CommentSortHot: commentSortHot,
+            CommentFormats: commentFormats,
+            FullComment: myOption.FullComment,
             Input: input,
             SavePathFormat: "",
             Lang: lang,
@@ -113,6 +121,24 @@ internal static class WorkSetup
         }
 
         return [.. formats.Select(DanmakuFormatInfo.FromFormatName)];
+    }
+
+    internal static CommentFormat[] ParseCommentFormats(DownloadOptions myOption)
+    {
+        if (string.IsNullOrEmpty(myOption.CommentFormats))
+        {
+            return CommentFormatInfo.DefaultFormats;
+        }
+
+        var formats = myOption.CommentFormats.Replace("，", ",").ToLower( ).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (formats.Any(format => !CommentFormatInfo.AllFormatNames.Contains(format)))
+        {
+            LogError($"包含不支持的评论导出格式：{myOption.CommentFormats}。");
+            return CommentFormatInfo.DefaultFormats;
+        }
+
+        // 去重：同一格式写两遍只会让后一次覆盖前一次，白跑一趟 IO
+        return [.. formats.Select(CommentFormatInfo.FromFormatName).Distinct( )];
     }
 
     /// <summary>
