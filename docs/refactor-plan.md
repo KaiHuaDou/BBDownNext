@@ -181,14 +181,14 @@ Program  (入口: CLI 装配 / 信号 / 进程接线)            ← 根，仅�
 - **验收**：不存在「建空值占位再 `with` 补全」的 record；grep 不到 `SavePathFormat = ""` 这类初始化。
 - **风险**：需同步改所有引用 `WorkContext` 的签名；可随 Phase 2 一起做。
 
-> **落地情况（✅ 完成；Phase 2 item 3 部分完成）**
+> **落地情况（✅ 完成；含 Phase 2 item 3 深层收尾）**
 > - `DownloadOptions` 改名为不可变 record `DownloadRequest`（`git mv DownloadOptions.cs → DownloadRequest.cs`，全仓 29 个文件做 `DownloadOptions`/`DownloadRequest` 及 `DownloadOptionsJsonContext`/`DownloadRequestJsonContext` 重命名）；所有属性 `init`，`WithSecretsRedacted` 返回 `with` 副本。
 > - 在途修正一律返回「修正后的副本」而非原地改写入参（C2）：`HandleConflictingOptions`、`NormalizeOptionsAfterFetch`（TV/INTL 在拿到视频信息后翻转 `UseTvApi/UseIntlApi`）、`ApplyServeWorkDir`、`ApplyServeHost`、`ResolveWorkDir` 全部改为 `with` 返回新副本；调用方信赖「传入后不被改」。
 > - `WorkSetup.Build` 输入 `DownloadRequest`、输出不可变 `RunConfig`（仅装启动即可确定的值：优先级表、弹幕/评论格式、Input、Lang、Delay、ToolPaths、WorkDir）；`VideoInfo.FetchAsync` 返回 `(DownloadRequest Effective, FetchResult Fetch)`，`FetchResult` 携带「跑中才得到」的 `VInfo/Cfg/FetchedAid/ApiType`，向下透传而非回填（C5）。
 > - `WorkContext` 仍在 `PageQueue.RunAsync` 中**一次性组装**（消除了原 `ctx = ctx with { SavePathFormat = ... }` 的空占位 + 补全漂移），`SavePathFormat` 用 `SavePath.Resolve` 算清一次后直接传入。
 > - serve 投影：`ServeRequestOptions.ToDownloadRequest` 经 JSON 往返 + `with` 显式把主机可控字段回落安全默认值（FFmpegPath/Mp4boxPath/Aria2cPath/Aria2cArgs/WorkDir/FilePattern/MultiFilePattern/UserAgent → `""`，Host/EpHost/TvHost → `BiliApi` 官方默认）。**注意**：record 经 STJ 反序列化时字段初始化器被跳过（改用生成构造器、字符串参数默认 `null`），故必须在 `with` 里兜底，否则会回流 `null`；并顺手让 `BBDownAria2c.SplitArgs` 对 `null` 入参返回空列表，避免深链路 NRE。
 > - 回归：`ProgramTests.HandleConflictingOptions_*`、`BBDownApiServerTests.ServeRequestOptions_ToDownloadRequest_IgnoresHostControlledInjection`；`dotnet test` 全绿（BBDown.Tests 451 / BBDown.Core.Tests 421），`just check-deps` 通过，Debug/Release 0 警告 0 错误。
-> - **待办（Phase 2 item 3 部分）**：更深的分 P 阶段（`DashDownload`/`FlvDownload`/`PageAssets`）仍接收散参而非窄 record；`Muxer.MuxAV` 的 20 余入参尚未收敛成 record——留待后续里程碑或独立小步重构。
+> - **Phase 2 item 3 深层收尾（✅ 已完成）**：`Muxer.MuxAV` 的 20 余入参收敛为不可变 `MuxRequest` record（`Muxer.MuxAV`/`BuildFFmpegArgs`/`BuildMp4boxArgs` 统一消费 `MuxRequest req`，`MuxFinish` 负责组装并 `with` 折叠 `AudioOnly`/`VideoOnly` 后的路径）；`PageAssets.PrepareAsync` 收窄为接收窄 `DownloadSession`（与已有的 `DownloadDanmakuAsync` 一致），`PageDownload` 调整顺序——先建 `DownloadSession`（含 `IsPreview` 最终值），再 `PrepareAsync` 填字幕，再 `with { Subtitles = ... }`，保证 `SavePath.cs` 经 session 读到的 `IsPreview` 正确。`DashDownload`/`FlvDownload` 本已采用窄 `DownloadSession`，无需改。Debug/Release 0 警告 0 错误，`just check-deps` 通过，测试全绿（BBDown.Tests 451 / BBDown.Core.Tests 421）。
 
 ### Phase 6 — `Program.Main` 拆分命令构造器（解决 C7）
 动机：283 行 God Method 同时做装配与路由。

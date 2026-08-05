@@ -53,14 +53,28 @@ internal static class MuxFinish
         var savePath = myOption.AudioOnly ? ToAudioOnlyPath(inputs.SavePath) : inputs.SavePath;
         var streams = string.IsNullOrEmpty(inputs.AudioPath) ? "视频" : "音视频";
         Log($"开始混流{streams}{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
-        var code = await Muxer.MuxAV(inputs.UseMp4box, p.bvid, inputs.VideoPath, inputs.AudioPath, inputs.AudioMaterial, savePath, ctx.Tools,
-            pageCtx.Desc,
-            pageCtx.Title,
-            p.ownerName ?? "",
-            pageCtx.EpisodeTitle,
-            File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
-            ctx.Lang,
-            subtitleInfo, myOption.AudioOnly, myOption.VideoOnly, p.points, p.pubTime, myOption.NoMetadata, inputs.IsHevc, ct);
+        var req = new MuxRequest(
+            UseMp4box: inputs.UseMp4box,
+            Bvid: p.bvid,
+            VideoPath: inputs.VideoPath,
+            AudioPath: inputs.AudioPath,
+            AudioMaterial: inputs.AudioMaterial,
+            OutPath: savePath,
+            Tools: ctx.Tools,
+            Desc: pageCtx.Desc,
+            Title: pageCtx.Title,
+            Author: p.ownerName ?? "",
+            EpisodeId: pageCtx.EpisodeTitle,
+            Pic: File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
+            Lang: ctx.Lang,
+            Subs: subtitleInfo,
+            AudioOnly: myOption.AudioOnly,
+            VideoOnly: myOption.VideoOnly,
+            Points: p.points,
+            PubTime: p.pubTime,
+            NoMetadata: myOption.NoMetadata,
+            IsHevc: inputs.IsHevc);
+        var code = await Muxer.MuxAV(req, ct);
         if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
         {
             LogError("混流失败");

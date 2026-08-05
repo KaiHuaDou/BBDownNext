@@ -17,6 +17,32 @@ using static BBDown.Util.Utils;
 
 namespace BBDown.Mux;
 
+/// <summary>
+/// 一次混流的不可变入参集合，由 <see cref="MuxFinish"/> 组装后交给 <see cref="Muxer.MuxAV"/>。
+/// 把原先 20 余散参收敛为单一值对象（M2 item 3 深层收尾），调用方按名填字段、不再数位置。
+/// </summary>
+internal sealed record MuxRequest(
+    bool UseMp4box,
+    string Bvid,
+    string VideoPath,
+    string AudioPath,
+    List<AudioMaterial> AudioMaterial,
+    string OutPath,
+    ToolPaths Tools,
+    string Desc,
+    string Title,
+    string Author,
+    string EpisodeId,
+    string Pic,
+    string Lang,
+    List<Subtitle>? Subs,
+    bool AudioOnly,
+    bool VideoOnly,
+    List<ViewPoint>? Points,
+    long PubTime,
+    bool NoMetadata,
+    bool IsHevc);
+
 internal static class Muxer
 {
     internal static async Task<int> RunExe(string app, List<string> args, CancellationToken ct = default)
@@ -53,8 +79,19 @@ internal static class Muxer
         return string.Join(' ', args.Select(a => a.Length == 0 || a.Contains(' ') ? $"\"{a}\"" : a));
     }
 
-    internal static List<string> BuildMp4boxArgs(string url, string videoPath, string audioPath, string outPath, string desc, string title, string author, string episodeId, string pic, string lang, List<Subtitle> subs, bool audioOnly, string? chapterFile, bool debugLog)
+    internal static List<string> BuildMp4boxArgs(MuxRequest req, List<Subtitle> subs, string? chapterFile, bool debugLog)
     {
+        var url = $"{BiliApi.VideoPage}/{req.Bvid}/";
+        var videoPath = req.VideoPath;
+        var audioPath = req.AudioPath;
+        var outPath = req.OutPath;
+        var desc = req.Desc;
+        var title = req.Title;
+        var author = req.Author;
+        var episodeId = req.EpisodeId;
+        var pic = req.Pic;
+        var lang = req.Lang;
+        var audioOnly = req.AudioOnly;
         List<string> args = [];
         if (debugLog)
         {
@@ -113,8 +150,22 @@ internal static class Muxer
         return args;
     }
 
-    internal static List<string> BuildFFmpegArgs(string url, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, string desc, string title, string author, string episodeId, string pic, string lang, List<Subtitle> subs, bool audioOnly, string? chapterFile, long pubTime, bool noMetadata, bool tagHvc1, bool debugLog)
+    internal static List<string> BuildFFmpegArgs(MuxRequest req, List<Subtitle> subs, string? chapterFile, bool tagHvc1, bool debugLog)
     {
+        var url = $"{BiliApi.VideoPage}/{req.Bvid}/";
+        var videoPath = req.VideoPath;
+        var audioPath = req.AudioPath;
+        var audioMaterial = req.AudioMaterial;
+        var outPath = req.OutPath;
+        var desc = req.Desc;
+        var title = req.Title;
+        var author = req.Author;
+        var episodeId = req.EpisodeId;
+        var pic = req.Pic;
+        var lang = req.Lang;
+        var audioOnly = req.AudioOnly;
+        var pubTime = req.PubTime;
+        var noMetadata = req.NoMetadata;
         List<string> args = ["-loglevel", debugLog ? "verbose" : "warning", "-y"];
         List<string> meta = [];
         var inputCount = 0;
@@ -232,37 +283,42 @@ internal static class Muxer
         return args;
     }
 
-    public static async Task<int> MuxAV(bool useMp4box, string bvid, string videoPath, string audioPath, List<AudioMaterial> audioMaterial, string outPath, ToolPaths tools, string desc = "", string title = "", string author = "", string episodeId = "", string pic = "", string lang = "", List<Subtitle>? subs = null, bool audioOnly = false, bool videoOnly = false, List<ViewPoint>? points = null, long pubTime = 0, bool noMetadata = false, bool isHevc = false, CancellationToken ct = default)
+    public static async Task<int> MuxAV(MuxRequest req, CancellationToken ct = default)
     {
-        if (audioOnly && audioPath.Length != 0)
+        var videoPath = req.VideoPath;
+        var audioPath = req.AudioPath;
+        if (req.AudioOnly && audioPath.Length != 0)
         {
             videoPath = "";
         }
 
-        if (videoOnly)
+        if (req.VideoOnly)
         {
             audioPath = "";
         }
 
-        var url = $"{BiliApi.VideoPage}/{bvid}/";
-        var validSubs = subs?.Where(s => File.Exists(s.path) && File.ReadAllText(s.path).Length != 0).ToList( ) ?? [];
+        // 把音视频独占修正回写进副本，下游 Build* 只读 req 上的路径
+        req = req with { VideoPath = videoPath, AudioPath = audioPath };
 
-        var outDir = Path.GetDirectoryName(outPath);
+        var url = $"{BiliApi.VideoPage}/{req.Bvid}/";
+        var validSubs = req.Subs?.Where(s => File.Exists(s.path) && File.ReadAllText(s.path).Length != 0).ToList( ) ?? [];
+
+        var outDir = Path.GetDirectoryName(req.OutPath);
         if (!string.IsNullOrEmpty(outDir))
         {
             Directory.CreateDirectory(outDir);
         }
 
         string? chapterFile = null;
-        if (points != null && points.Count != 0)
+        if (req.Points is { Count: > 0 } points)
         {
             chapterFile = Path.Combine(Path.GetDirectoryName(videoPath.Length == 0 ? audioPath : videoPath)!, "chapters");
-            File.WriteAllText(chapterFile, useMp4box ? ChapterMeta.GetMp4boxMetaString(points) : ChapterMeta.GetFFmpegMetaString(points));
+            File.WriteAllText(chapterFile, req.UseMp4box ? ChapterMeta.GetMp4boxMetaString(points) : ChapterMeta.GetFFmpegMetaString(points));
         }
 
-        return useMp4box
-            ? await RunExe(tools.Mp4box, BuildMp4boxArgs(url, videoPath, audioPath, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, Config.DebugLog), ct)
-            : await RunExe(tools.Ffmpeg, BuildFFmpegArgs(url, videoPath, audioPath, audioMaterial, outPath, desc, title, author, episodeId, pic, lang, validSubs, audioOnly, chapterFile, pubTime, noMetadata, isHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog), ct);
+        return req.UseMp4box
+            ? await RunExe(req.Tools.Mp4box, BuildMp4boxArgs(req, validSubs, chapterFile, Config.DebugLog), ct)
+            : await RunExe(req.Tools.Ffmpeg, BuildFFmpegArgs(req, validSubs, chapterFile, req.IsHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX), Config.DebugLog), ct);
     }
 
     public static async Task MergeFLV(string[] files, string outPath, ToolPaths tools, CancellationToken ct = default)

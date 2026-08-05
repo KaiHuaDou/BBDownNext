@@ -30,54 +30,56 @@ internal static class PageDownload
         {
             try
             {
-                LogDebug("获取播放器信息...");
-                var playerInfo = await ChapterMeta.FetchPlayerV2Async(p.cid, p.aid, ctx.Cfg);
-                p.points = playerInfo.Points;
+            LogDebug("获取播放器信息...");
+            var playerInfo = await ChapterMeta.FetchPlayerV2Async(p.cid, p.aid, ctx.Cfg);
+            p.points = playerInfo.Points;
 
-                if (!myOption.OnlyShowInfo)
+            //调用解析
+            var parsedResult = await ExtractTracksAsync(ctx.FetchedAid, p.aid, p.cid, p.epid,
+                myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.FirstEncoding, ctx.Cfg, ct: ct);
+            if (p.points.Count == 0)
+            {
+                p.points = parsedResult.ExtraPoints;
+            }
+
+            if (Config.DebugLog)
+            {
+                File.WriteAllText(Path.Combine(ctx.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.RawResponse);
+            }
+
+            if (IsTruncatedPreview(playerInfo.UpowerExclusive, p.dur, parsedResult.Duration))
+            {
+                LogWarn(string.IsNullOrEmpty(playerInfo.UpowerTitle) ? "充电专属视频" : playerInfo.UpowerTitle);
+                LogWarn($"当前账号未充电该 UP 主，只能获取 {FormatTime(parsedResult.Duration, true)} 的试看片段（完整视频 {FormatTime(p.dur, true)}）", false);
+                // 这三个开关都不产出视频文件，中止反而挡掉用户诊断问题的手段
+                if (myOption.OnlyShowInfo || myOption.CoverOnly || myOption.DanmakuOnly)
                 {
-                    subtitleInfo = await PageAssets.PrepareAsync(myOption, ctx, pageCtx, ct);
-                    if (myOption.SubOnly)
-                    {
-                        MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
-                        return PageOutcome.Abort(selected);
-                    }
+                    LogWarn("当前仅输出信息/封面/弹幕，不受影响", false);
                 }
-
-                //调用解析
-                var parsedResult = await ExtractTracksAsync(ctx.FetchedAid, p.aid, p.cid, p.epid,
-                    myOption.UseTvApi, myOption.UseIntlApi, myOption.UseAppApi, ctx.FirstEncoding, ctx.Cfg, ct: ct);
-                if (p.points.Count == 0)
+                else if (myOption.AllowPreview)
                 {
-                    p.points = parsedResult.ExtraPoints;
+                    pageCtx = pageCtx with { IsPreview = true };
                 }
-
-                if (Config.DebugLog)
+                else
                 {
-                    File.WriteAllText(Path.Combine(ctx.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.RawResponse);
+                    throw new ChargedPreviewException($"P{p.index}（{p.aid}）为充电视频试看片段，已跳过。");
                 }
+            }
 
-                if (IsTruncatedPreview(playerInfo.UpowerExclusive, p.dur, parsedResult.Duration))
+            // 先以空字幕占位建好 session（此时 pageCtx 已含最终 IsPreview 标记），再交给 PrepareAsync 填充字幕
+            var session = new DownloadSession(myOption, ctx, pageCtx, [], BuildDownloadConfig(myOption, ctx.Cfg, ctx.Tools, sink), sink);
+            if (!myOption.OnlyShowInfo)
+            {
+                subtitleInfo = await PageAssets.PrepareAsync(session, ct);
+                if (myOption.SubOnly)
                 {
-                    LogWarn(string.IsNullOrEmpty(playerInfo.UpowerTitle) ? "充电专属视频" : playerInfo.UpowerTitle);
-                    LogWarn($"当前账号未充电该 UP 主，只能获取 {FormatTime(parsedResult.Duration, true)} 的试看片段（完整视频 {FormatTime(p.dur, true)}）", false);
-                    // 这三个开关都不产出视频文件，中止反而挡掉用户诊断问题的手段
-                    if (myOption.OnlyShowInfo || myOption.CoverOnly || myOption.DanmakuOnly)
-                    {
-                        LogWarn("当前仅输出信息/封面/弹幕，不受影响", false);
-                    }
-                    else if (myOption.AllowPreview)
-                    {
-                        pageCtx = pageCtx with { IsPreview = true };
-                    }
-                    else
-                    {
-                        throw new ChargedPreviewException($"P{p.index}（{p.aid}）为充电视频试看片段，已跳过。");
-                    }
+                    MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
+                    return PageOutcome.Abort(selected);
                 }
+            }
 
-                var session = new DownloadSession(myOption, ctx, pageCtx, subtitleInfo, BuildDownloadConfig(myOption, ctx.Cfg, ctx.Tools, sink), sink);
-                outcome = await DispatchAsync(parsedResult, session, selected, ct);
+            session = session with { Subtitles = subtitleInfo };
+            outcome = await DispatchAsync(parsedResult, session, selected, ct);
                 if (pageCtx.IsPreview)
                 {
                     outcome = outcome with { Preview = true };

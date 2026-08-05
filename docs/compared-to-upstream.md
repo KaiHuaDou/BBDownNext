@@ -137,7 +137,7 @@
 
 ### 2.12 归档记录
 
-- **`--save-records`**（`BBDown/CommandLineInvoker.cs`：`SaveRecords` → `DownloadOptions.SaveArchivesToFile`）：下载成功后追加到 `BBDown.archives`，行格式为 Tab 分隔的 `<aid>\t<cid>\t<路径>`，键为 `(aid, cid)`（`BBDown/ArchiveLog.cs`）。下次运行对同 `(aid, cid)` 跳过下载。
+- **`--save-records`**（`BBDown/CommandLineInvoker.cs`：`SaveRecords` → `DownloadRequest.SaveArchivesToFile`）：下载成功后追加到 `BBDown.archives`，行格式为 Tab 分隔的 `<aid>\t<cid>\t<路径>`，键为 `(aid, cid)`（`BBDown/ArchiveLog.cs`）。下次运行对同 `(aid, cid)` 跳过下载。
 
 ### 2.13 测试与工程化
 

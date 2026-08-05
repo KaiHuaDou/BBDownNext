@@ -18,8 +18,9 @@ namespace BBDown.Media;
 
 internal static class PageAssets
 {
-    internal static async Task<List<Subtitle>> PrepareAsync(DownloadRequest myOption, WorkContext ctx, PageContext pageCtx, CancellationToken ct = default)
+    internal static async Task<List<Subtitle>> PrepareAsync(DownloadSession session, CancellationToken ct = default)
     {
+        var (myOption, ctx, pageCtx, _, _, _) = session;
         var p = pageCtx.Page;
         Directory.CreateDirectory(pageCtx.TempDir);
 

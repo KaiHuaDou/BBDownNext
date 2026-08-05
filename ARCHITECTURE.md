@@ -22,7 +22,7 @@ BBDown/
 ├── BBDown/                 # 入口可执行项目 (Sdk.Web, PackAsTool)，命名空间 BBDown（根契约层 + 入口）
 │   ├── Program.cs          # Main、子命令装配、serve 启动、全局取消、RunApp
 │   ├── AppEnv.cs           # 进程级环境：AppDir / CancellationToken / Cancel()（切断底层对 Program 的反向依赖）
-│   ├── DownloadOptions.cs  # 运行时配置 (含 WithSecretsRedacted)
+│   ├── DownloadRequest.cs  # 不可变运行时配置 record (含 WithSecretsRedacted)
 │   ├── DownloadSession.cs  # 分 P 生命周期恒定入参 record
 │   ├── WorkContext.cs      # 工作上下文 record
 │   ├── PageContext.cs      # 分 P 上下文 record
@@ -50,13 +50,13 @@ BBDown/
 │   │   ├── PageDownload.cs         # 单分 P 下载入口，分派 DASH/FLV (RunAsync / DispatchAsync)
 │   │   ├── DashDownload.cs         # DASH 轨下载 (RunAsync)
 │   │   ├── FlvDownload.cs          # FLV 分段下载与合并 (RunAsync)
-│   │   ├── PageAssets.cs           # 封面/字幕准备、弹幕下载
+│   │   ├── PageAssets.cs           # 封面/字幕准备、弹幕下载（`PrepareAsync` 现收窄接收 `DownloadSession`）
 │   │   ├── CommentDownload.cs       # 评论区导出（按 --comment-formats 落盘 json/txt，挂 PageQueue）
 │   │   └── TrackSelect.cs          # 轨道排序、信息打印、交互选轨
 │   │
 │   ├── Mux/                # 命名空间 BBDown.Mux — 混流与收尾
 │   │   ├── MuxFinish.cs            # 混流收尾、跳过已存在、清理临时文件 (DASH/FLV 共用)
-│   │   ├── Muxer.cs                # FFmpeg/MP4Box 混流、FLV 合并
+│   │   ├── Muxer.cs                # FFmpeg/MP4Box 混流、FLV 合并（混流入参收敛为不可变 `MuxRequest` record）
 │   │   └── ChapterMeta.cs          # 章节元数据
 │   │
 │   ├── Download/           # 命名空间 BBDown.Download — 下载传输层
@@ -111,7 +111,7 @@ BBDown/
 
 **依赖方向**：`BBDown` → `BBDown.Core`；两个测试项目分别依赖对应实现。Core 不反向依赖入口项目，保证核心逻辑可独立测试。
 
-**入口项目内部分层**：`BBDown` 主项目按职责细分为若干子命名空间（对应同名子文件夹），根命名空间 `BBDown` 仅保留两类类型——① 进程入口（`Program` / `AppEnv`）与全局取消；② **根契约层** record（`DownloadOptions` / `DownloadSession` / `WorkContext` / `PageContext` / `PageOutcome` / `PipelineSink` / `ToolPaths` / `ChargedPreviewException` / `DanmakuFormat`），它们被各子命名空间交叉引用，故刻意留在根层避免循环依赖。子命名空间之间的引用一律显式 `using`：`Cli` / `Pipeline` 被 `Program` 引用；`Pipeline` 内部 `DownloadPipeline → WorkSetup → VideoInfo → PageQueue` 单向串联；`Media` 依赖 `Mux`（`MuxFinish`）与 `Download`（下载入口）；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。所有子命名空间类型通过 C# 嵌套命名空间查找可见根层类型，反之亦然（测试项目用 csproj 全局 `<Using>` 补齐）。
+**入口项目内部分层**：`BBDown` 主项目按职责细分为若干子命名空间（对应同名子文件夹），根命名空间 `BBDown` 仅保留两类类型——① 进程入口（`Program` / `AppEnv`）与全局取消；② **根契约层** record（`DownloadRequest` / `DownloadSession` / `WorkContext` / `PageContext` / `PageOutcome` / `PipelineSink` / `ToolPaths` / `ChargedPreviewException` / `DanmakuFormat`），它们被各子命名空间交叉引用，故刻意留在根层避免循环依赖。子命名空间之间的引用一律显式 `using`：`Cli` / `Pipeline` 被 `Program` 引用；`Pipeline` 内部 `DownloadPipeline → WorkSetup → VideoInfo → PageQueue` 单向串联；`Media` 依赖 `Mux`（`MuxFinish`）与 `Download`（下载入口）；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。所有子命名空间类型通过 C# 嵌套命名空间查找可见根层类型，反之亦然（测试项目用 csproj 全局 `<Using>` 补齐）。
 
 ---
 
@@ -181,7 +181,7 @@ PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分�
 - **令牌鉴权**：`SetUpServer` → `FinalizeAuth(url)` 判定监听地址：
     - 绑定**回环地址**（默认 `127.0.0.1`）→ 免令牌。
     - 绑定**非回环地址**（如 `0.0.0.0`）且未显式 `--serve-token` → 自动生成令牌并打印，客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，否则返回 `401`。
-- **请求契约收窄**：`ServeRequestOptions` 是 `DownloadOptions` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Debug`/`UserAgent`/`ConfigFile`），这些一律以服务端启动配置为准，即便请求传入也会被忽略。
+- **请求契约收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Debug`/`UserAgent`/`ConfigFile`），这些一律以服务端启动配置为准，即便请求传入也会被忽略。
 - **SSRF 防护**：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点。
 - **CORS**：默认**完全关闭**（不发送 `Access-Control-Allow-Origin` 头），从根本上消除恶意网页经浏览器发起的 CSRF 面；仅当显式 `--cors-origin <url>` 时才对该单一来源开放（用于同源之外的 Web 前端），且公网暴露仍需配合反向代理与 TLS。
 - **容量上限**：已完成任务保留上限 `MaxFinishedTasks = 200`，超出按策略淘汰。
@@ -234,7 +234,7 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 ## 9. 构建与 AOT
 
 - SDK：`Microsoft.NET.Sdk.Web`（`BBDown`）、`Microsoft.NET.Sdk`（`BBDown.Core` / 测试）。
-- `BBDown.Core` 标记 `IsAotCompatible=true`；序列化一律用 `JsonSerializerContext` 源生成器（`CredentialJsonContext` / `DownloadOptionsJsonContext` / `PartJsonContext` / `AppJsonSerializerContext`），禁止运行时反射。
+- `BBDown.Core` 标记 `IsAotCompatible=true`；序列化一律用 `JsonSerializerContext` 源生成器（`CredentialJsonContext` / `DownloadRequestJsonContext` / `PartJsonContext` / `AppJsonSerializerContext`），禁止运行时反射。
 - 全局 `TreatWarningsAsErrors=true`、`Nullable enable`、`LangVersion latest`、集中式包版本（`Directory.Packages.props`）。
 - 发布 AOT：`dotnet publish -c Release -r <RID> /p:PublishAot=true`。注意 AOT 下 `BBDown.data` 等 JSON 必须走源生成器，否则会被裁剪导致反序列化失败。
 

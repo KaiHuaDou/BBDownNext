@@ -84,7 +84,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 - **Endpoint：** `/add-task`
 - **Method：** POST
 - **Description：** 向任务列表新增一个下载任务。
-- **Request Body：** JSON 格式的任务信息，需符合 `ServeRequestOptions`（由 `DownloadOptions` 裁剪出的受控子集）。不要求包含所有字段，**只需有 `Url` 字段**即可；`Url` 支持与命令行相同的 `av|bv|BV|ep|ss` 编号。
+- **Request Body：** JSON 格式的任务信息，需符合 `ServeRequestOptions`（由 `DownloadRequest` 裁剪出的受控子集）。不要求包含所有字段，**只需有 `Url` 字段**即可；`Url` 支持与命令行相同的 `av|bv|BV|ep|ss` 编号。
 - **Response：**
     - 请求有效并成功加入队列：`200 OK`。
     - 请求体无法解析：`400 Bad Request`，错误消息为 `"输入有误"`。
@@ -153,12 +153,12 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | `Running`  | `IReadOnlyList<DownloadTask>` | 正在运行的任务列表 |
 | `Finished` | `IReadOnlyList<DownloadTask>` | 已完成的任务列表   |
 
-### `DownloadOptions` / `ServeRequestOptions`
+### `DownloadRequest` / `ServeRequestOptions`
 
-`DownloadOptions` 是贯穿解析与下载全流程的运行时配置，其字段与命令行参数几乎一一对应，取值使用命令行中会用的值即可。字段会随版本变化，请以对应版本的源码为准：
+`DownloadRequest` 是贯穿解析与下载全流程的运行时配置，其字段与命令行参数几乎一一对应，取值使用命令行中会用的值即可。字段会随版本变化，请以对应版本的源码为准：
 
-- [`BBDown/DownloadOptions.cs`](./BBDown/DownloadOptions.cs)：所有运行时配置字段定义。
-- [`BBDown/ServeRequestOptions.cs`](./BBDown/ServeRequestOptions.cs)：serve 请求契约，是 `DownloadOptions` 的受控子集，并在其基础上新增 `CallBackWebHook`。
+- [`BBDown/DownloadRequest.cs`](./BBDown/DownloadRequest.cs)：所有运行时配置字段定义。
+- [`BBDown/ServeRequestOptions.cs`](./BBDown/ServeRequestOptions.cs)：serve 请求契约，是 `DownloadRequest` 的受控子集，并在其基础上新增 `CallBackWebHook`。
 
 ---
 
