@@ -44,6 +44,7 @@ internal static class CommandLineInvoker
             CommentsSort,
             CommentsFormats,
             SkipMux,
+            DrmKey,
             AllowPreview,
             Lang,
             // 直播录制
@@ -110,6 +111,7 @@ internal static class CommandLineInvoker
                 SingleThread = parseResult.GetValue(SingleThread)!,
                 Debug = parseResult.GetValue(Debug)!,
                 SkipMux = parseResult.GetValue(SkipMux)!,
+                DrmKeys = parseResult.GetValue(DrmKey) ?? [],
                 NoForceHttp = parseResult.GetValue(NoForceHttp)!,
                 DownloadDanmakuFormats = parseResult.GetValue(DownloadDanmakuFormats) ?? "",
                 CommentCount = parseResult.GetValue(CommentsCount),

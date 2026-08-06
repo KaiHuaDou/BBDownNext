@@ -101,4 +101,75 @@ public class TrackFactoryTests
     {
         Assert.Equal(expected, TrackFactory.VideoCodec(code));
     }
+
+    // ═══ DRM 字段解析 ═══
+
+    [Fact]
+    public void BuildVideo_ReadsBiliDrmUri( )
+    {
+        var v = TrackFactory.BuildVideo(Parse("""{"id":80,"bandwidth":2048000,"codecid":12,"base_url":"http://v","bilidrm_uri":"uri:bili://d8f66b93db284984b4e7fc50d71278ff"}"""), 120);
+
+        Assert.True(v.IsDrm);
+        Assert.Equal("bili_drm", v.DrmType);
+        Assert.Equal("uri:bili://d8f66b93db284984b4e7fc50d71278ff", v.BiliDrmUri);
+        Assert.Null(v.WidevinePssh);
+    }
+
+    [Fact]
+    public void BuildVideo_ReadsWidevinePssh_InfersTypeWhenFieldMissing( )
+    {
+        var v = TrackFactory.BuildVideo(Parse("""{"id":80,"bandwidth":2048000,"codecid":12,"base_url":"http://v","widevine_pssh":"AAAAdXBzc2gA"}"""), 120);
+
+        Assert.True(v.IsDrm);
+        Assert.Equal("widevine", v.DrmType);
+        Assert.Equal("AAAAdXBzc2gA", v.WidevinePssh);
+        Assert.Null(v.BiliDrmUri);
+    }
+
+    [Fact]
+    public void BuildVideo_DrmTypeFieldTakesPrecedence( )
+    {
+        var v = TrackFactory.BuildVideo(Parse("""{"id":80,"bandwidth":2048000,"codecid":12,"base_url":"http://v","drm_type":"widevine","bilidrm_uri":"uri:bili://d8f66b93db284984b4e7fc50d71278ff"}"""), 120);
+
+        Assert.Equal("widevine", v.DrmType);
+    }
+
+    [Fact]
+    public void BuildVideo_NoDrmFields( )
+    {
+        var v = TrackFactory.BuildVideo(Parse("""{"id":80,"bandwidth":2048000,"codecid":7,"base_url":"http://v"}"""), 120);
+
+        Assert.False(v.IsDrm);
+        Assert.Equal("", v.DrmType);
+        Assert.Null(v.WidevinePssh);
+        Assert.Null(v.BiliDrmUri);
+    }
+
+    [Fact]
+    public void BuildVideo_NullDrmFieldsAreIgnored( )
+    {
+        var v = TrackFactory.BuildVideo(Parse("""{"id":80,"bandwidth":2048000,"codecid":7,"base_url":"http://v","bilidrm_uri":null,"widevine_pssh":null}"""), 120);
+
+        Assert.False(v.IsDrm);
+        Assert.Equal("", v.DrmType);
+    }
+
+    [Fact]
+    public void BuildAudio_ReadsBiliDrmUri( )
+    {
+        var a = TrackFactory.BuildAudio(Parse("""{"id":30280,"bandwidth":128000,"codecs":"mp4a.40.2","base_url":"http://a","bilidrm_uri":"uri:bili://d8f66b93db284984b4e7fc50d71278ff"}"""), 120);
+
+        Assert.True(a.IsDrm);
+        Assert.Equal("bili_drm", a.DrmType);
+        Assert.Equal("uri:bili://d8f66b93db284984b4e7fc50d71278ff", a.BiliDrmUri);
+    }
+
+    [Fact]
+    public void BuildAudio_NoDrmFields( )
+    {
+        var a = TrackFactory.BuildAudio(Parse("""{"id":30280,"bandwidth":128000,"codecs":"mp4a.40.2","base_url":"http://a"}"""), 120);
+
+        Assert.False(a.IsDrm);
+        Assert.Equal("", a.DrmType);
+    }
 }

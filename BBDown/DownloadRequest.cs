@@ -34,6 +34,8 @@ internal sealed record DownloadRequest
     public bool SingleThread { get; init; }
     public bool Debug { get; init; }
     public bool SkipMux { get; init; }
+    /// <summary>DRM 解密密钥（--drm-key 可多次）：kid:key 或纯 key。serve 下不可用：key 属凭据，不进 serve 契约。</summary>
+    public string[] DrmKeys { get; init; } = [];
     public bool NoForceHttp { get; init; }
     public string? DownloadDanmakuFormats { get; init; }
     /// <summary>要下载的评论条数，0 表示不下载评论</summary>

@@ -68,7 +68,7 @@
     - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行（无需 Dockerfile）
 
 - 工程品质
-    - **900+ 单元测试**，覆盖全部核心路径
+    - **930+ 单元测试**，覆盖全部核心路径
     - **深度重构** · 按职责分层（`Cli` / `Pipeline` / `Media` / `Mux` / `Serve` / `Download` / `Auth` / `Util`），依赖单向成树（`check-deps` 守护），不可变契约 record 贯穿全链路，纯函数与 AOT 安全源生成器，可维护性高
 
 ## 与原版 BBDown 的差异
@@ -217,6 +217,7 @@ BBDown "live12345" -lq 400
 | `--comments-sort`    | `-cs`  | 评论排序：`hot`（热度，默认）或 `time`（最新）             |
 | `--comments-formats` | `-cf`  | 指定评论导出格式（详见脚注 [^commentformats]）             |
 | `--skip-mux`         |        | 跳过混流步骤                                               |
+| `--drm-key`          |        | 提供 DRM 解密密钥（详见脚注 [^drmkey]）                    |
 | `--allow-preview`    |        | 允许下载充电专属视频的试看片段（详见脚注 [^allowpreview]） |
 | `--lang`             |        | 设置混流音频语言代码，如 `chi`、`jpn` 等                   |
 
@@ -554,6 +555,8 @@ FLV 封装固定以最高清晰度（qn=127）请求播放地址，用户的清�
 [^stoponerror]: 遇到分 P 下载失败时立即停止，而不是继续下载其余分 P。默认继续，并在末尾汇总失败的分 P 后非零退出。
 
 [^allowpreview]: UP 主的充电专属稿件，在当前账号没有充电权限时接口不会报错，而是照常返回成功并只下发几分钟的试看片段。BBDown 默认会在下载前识别并跳过（退出码 `2`），避免产出被报告为「下载成功」的残片。加此选项则保留试看片段，输出文件名带 `[试看]` 前缀以便与完整视频区分。登录一个已为该 UP 主充电的账号（`BBDown login`）即可正常下载完整视频，无需此选项。
+
+[^drmkey]: 提供 DRM 解密密钥，可多次传入，格式 `kid:key` 或纯 `key`（后者为全局默认）。`key` / `kid` 均为 16 字节，可用 32 位 hex 或 base64 编码。BBDown 默认解析 DRM 信息并尝试自动解密：提供匹配 `kid` 的 key 时自动解密后混流；未提供 key 或通道不支持（Widevine）时明确提示并**保留加密文件**（位于临时目录，路径会打印在日志中）。仅用于你拥有合法授权的内容。
 
 [^host]: 指定 BiliPlus host。使用 BiliPlus 需要 access_token、不需要 cookie；解析服务器能够获取你账号的大部分权限，请谨慎使用！
 

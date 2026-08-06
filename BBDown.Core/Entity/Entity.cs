@@ -78,6 +78,11 @@ public static class Entity
         public long bandwidth { get; set; }
         public int dur { get; set; }
         public double size { get; set; }
+        // DRM：逐流下发，驱动解密与提示。不参与 Equals/GetHashCode——同画质同编码轨 DRM 状态必然一致
+        public bool IsDrm { get; set; }
+        public string DrmType { get; set; } = "";
+        public string? WidevinePssh { get; set; }
+        public string? BiliDrmUri { get; set; }
 
         public override bool Equals(object? obj)
         {
@@ -105,6 +110,12 @@ public static class Entity
         public required string codecs { get; set; }
         public required long bandwidth { get; set; }
         public required int dur { get; set; }
+
+        // DRM：逐流下发，驱动解密与提示。不参与 Equals/GetHashCode——同画质同编码轨 DRM 状态必然一致
+        public bool IsDrm { get; set; }
+        public string DrmType { get; set; } = "";
+        public string? WidevinePssh { get; set; }
+        public string? BiliDrmUri { get; set; }
 
         // E-AC-3 => EAC3
         public string shortCodecs => codecs.ToUpper( ).Replace("-", string.Empty);

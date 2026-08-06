@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 
+using BBDown.Drm;
+
 using static BBDown.Core.Logger;
 using static BBDown.Util.Utils;
 
@@ -29,6 +31,8 @@ internal sealed record RunConfig(
     string Lang,
     int Delay,
     ToolPaths Tools,
+    // --drm-key 条目在任务启动时解析一次，全任务共享；解析告警只打印一遍
+    DrmKeySource DrmKeys,
     string WorkDir);
 
 internal static class WorkSetup
@@ -70,6 +74,7 @@ internal static class WorkSetup
             Lang: lang,
             Delay: delay,
             Tools: tools,
+            DrmKeys: new DrmKeySource(myOption.DrmKeys),
             WorkDir: workDir);
     }
 

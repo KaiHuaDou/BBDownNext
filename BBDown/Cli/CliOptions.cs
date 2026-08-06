@@ -129,6 +129,15 @@ internal static class CliOptions
         DefaultValueFactory = _ => "json,txt"
     };
     internal static readonly Option<bool> SkipMux = new("--skip-mux", []) { Description = "跳过混流步骤" };
+    internal static readonly Option<string[]> DrmKey = new("--drm-key", [])
+    {
+        Description = """
+        提供 DRM 解密密钥（可多次传入）。
+        格式：kid:key 或纯 key；key/kid 为 16 字节，可用 32 位 hex 或 base64 编码。
+        纯 key 作为全局默认，用于所有未绑定 KID 的加密轨。
+        """,
+        DefaultValueFactory = _ => []
+    };
     internal static readonly Option<bool> AllowPreview = new("--allow-preview", []) { Description = "允许下载充电专属视频的试看片段，输出文件名带 [试看] 前缀" };
     internal static readonly Option<string> Lang = new("--lang", []) { Description = "设置混流的音频语言（代码），如 chi, jpn 等" };
 

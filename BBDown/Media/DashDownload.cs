@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BBDown.Core;
 using BBDown.Core.Entity;
 using BBDown.Download;
+using BBDown.Drm;
 using BBDown.Mux;
 using BBDown.Util;
 
@@ -118,6 +119,7 @@ internal static class DashDownload
         var audioPath = pageCtx.AudioPath;
         List<AudioMaterial> audioMaterial = [];
         var useMp4box = myOption.UseMP4box;
+        var backgroundPath = "";
         if (selectedVideo != null)
         {
             // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
@@ -139,7 +141,7 @@ internal static class DashDownload
 
         if (selectedBackgroundAudio != null)
         {
-            var backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.aid}.{p.cid}.P{p.index}.back_ground.m4a");
+            backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.aid}.{p.cid}.P{p.index}.back_ground.m4a");
             Log($"开始下载 P{p.index} 背景配音...");
             await DownloadAsync(selectedBackgroundAudio.baseUrl, backgroundPath, downloadConfig, ct: ct);
             audioMaterial.Add(new AudioMaterial { title = "背景音频", personName = "", path = backgroundPath });
@@ -162,6 +164,39 @@ internal static class DashDownload
         }
 
         Log($"P{p.index} 下载完成");
+        // DRM 轨解密：下载完成后统一处理，成功产物覆盖加密原件（后续混流与清理路径不变）；
+        // 任一轨不可解/失败时保留文件、跳过混流
+        var decryptOk = true;
+        if (selectedVideo != null)
+        {
+            decryptOk &= await DecryptTrackIfNeededAsync(session, videoPath, selectedVideo.IsDrm, selectedVideo.DrmType, selectedVideo.BiliDrmUri, ct);
+        }
+
+        if (selectedAudio != null)
+        {
+            decryptOk &= await DecryptTrackIfNeededAsync(session, audioPath, selectedAudio.IsDrm, selectedAudio.DrmType, selectedAudio.BiliDrmUri, ct);
+        }
+
+        if (selectedBackgroundAudio != null)
+        {
+            decryptOk &= await DecryptTrackIfNeededAsync(session, backgroundPath, selectedBackgroundAudio.IsDrm, selectedBackgroundAudio.DrmType, selectedBackgroundAudio.BiliDrmUri, ct);
+        }
+
+        foreach (var role in parsedResult.RoleAudioList)
+        {
+            var roleAudio = role.audio.ElementAtOrDefault(aIndex);
+            if (roleAudio != null)
+            {
+                decryptOk &= await DecryptTrackIfNeededAsync(session, role.path, roleAudio.IsDrm, roleAudio.DrmType, roleAudio.BiliDrmUri, ct);
+            }
+        }
+
+        if (!decryptOk)
+        {
+            LogError($"P{p.index} 存在无法解密的 DRM 轨道，已保留原始文件，跳过混流");
+            return PageOutcome.Abort(selected);
+        }
+
         if (parsedResult.VideoTracks.Count == 0)
         {
             videoPath = "";
@@ -174,5 +209,34 @@ internal static class DashDownload
 
         var inputs = new MuxFinish.MuxInputs(savePath, videoPath, audioPath, audioMaterial, useMp4box, selectedVideo?.codecs == "HEVC");
         return await MuxFinish.RunAsync(session, inputs, selected, ct);
+    }
+
+    // 解密选中轨（含背景音/配音）：非 DRM 轨直接放行；解密成功产物覆盖加密原件；
+    // 不可解/失败返回 false 并打印保留路径与补救方法
+    private static async Task<bool> DecryptTrackIfNeededAsync(DownloadSession session, string path, bool isDrm, string drmType, string? biliDrmUri, CancellationToken ct)
+    {
+        if (!isDrm)
+        {
+            return true;
+        }
+
+        var destPath = path + ".dec.mp4";
+        var result = await DrmDecryptor.DecryptAsync(drmType, biliDrmUri, path, destPath, session.Ctx.Run.DrmKeys, session.Ctx.Run.Tools.Ffmpeg, ct);
+        switch (result)
+        {
+            case DrmResult.Decrypted:
+                File.Move(destPath, path, true);
+                return true;
+            case DrmResult.KeyMissing:
+                var kid = DrmDecryptor.KidFromUri(biliDrmUri);
+                LogWarn($"该轨为 bili_drm 加密且未提供匹配 key（KID={kid}），已保留加密文件：{path}。用 --drm-key {kid}:<key> 传入密钥后重试");
+                return false;
+            case DrmResult.Unsupported:
+                LogError($"该轨为 Widevine 加密，无法自动解密，已保留加密文件：{path}");
+                return false;
+            default:
+                LogError($"该轨解密失败，已保留加密文件：{path}");
+                return false;
+        }
     }
 }

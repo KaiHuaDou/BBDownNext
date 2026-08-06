@@ -6,6 +6,12 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
+## [v2.0.0-alpha.4]
+
+### 新增
+
+- DRM 解密支持：默认解析 playurl 中的 DRM 信息（`is_drm` / `drm_type` / `bilidrm_uri`），新增 `--drm-key` 直接传入解密密钥（`kid:key` 或纯 `key`，hex / base64 均可，可多次）。bili_drm 通道提供匹配 key 时自动解密后混流；未提供 key、Widevine 通道或解密失败时明确提示原因并**保留加密文件**（原始 `.m4s` 不删除，路径打印在日志中）。不内置 SPC/CKC 协议逆向，key 仅由用户提供。
+
 ## [v2.0.0-alpha.3]
 
 ### 新增
@@ -157,3 +163,4 @@
 [v2.0.0-alpha.1]: <https://github.com/KaiHuaDou/BBDownNext/compare/259a5558cee0a349a7ebb60bd31e40c88e5bc1ed...v2.0.0-alpha.1>
 [v2.0.0-alpha.2]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.1...v2.0.0-alpha.2>
 [v2.0.0-alpha.3]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.2...v2.0.0-alpha.3>
+[v2.0.0-alpha.4]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.3...v2.0.0-alpha.4>
