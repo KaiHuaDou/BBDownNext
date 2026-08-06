@@ -1,18 +1,11 @@
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Fetcher;
-using BBDown.Core.Util;
 
 namespace BBDown.Core.Tests;
-
-// HTTP 桩测试必须串行：它们会替换进程级静态 AppHttpClient，并行会互相踩踏
-[CollectionDefinition]
-public sealed class HttpStubCollectionDefinition;
 
 [Collection<HttpStubCollectionDefinition>]
 public class HttpStubFetcherTests
@@ -58,39 +51,10 @@ public class HttpStubFetcherTests
     }
     """;
 
-    private sealed class StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
-    {
-        private readonly Func<HttpRequestMessage, HttpResponseMessage> responder = responder;
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            return Task.FromResult(responder(request));
-        }
-    }
-
-    private static async Task<T> WithStubClient<T>(HttpStatusCode status, string body, Func<Task<T>> act)
-    {
-        var original = HTTPUtil.AppHttpClient;
-        using var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(status)
-        {
-            Content = new StringContent(body, Encoding.UTF8, "application/json")
-        });
-        using var client = new HttpClient(handler, disposeHandler: false);
-        HTTPUtil.AppHttpClient = client;
-        try
-        {
-            return await act( );
-        }
-        finally
-        {
-            HTTPUtil.AppHttpClient = original;
-        }
-    }
-
     [Fact]
     public async Task FavList_SinglePage_ParsesMediasWithoutNetwork( )
     {
-        var info = await WithStubClient(HttpStatusCode.OK, FavJson,
+        var info = await HttpStub.WithJsonResponse(FavJson,
             ( ) => FavListFetcher.FetchAsync("https://space.bilibili.com/3/favlist?fid=12345:678", AppConfig.Empty));
 
         Assert.Equal("我的收藏夹", info.Title);
@@ -114,7 +78,7 @@ public class HttpStubFetcherTests
     {
         // 负向对照：桩返回 404 必须穿透为异常，证明请求确实走了桩而非真实网络
         await Assert.ThrowsAsync<HttpRequestException>(( ) =>
-            WithStubClient(HttpStatusCode.NotFound, "",
+            HttpStub.WithResponder(_ => new HttpResponseMessage(HttpStatusCode.NotFound),
                 ( ) => FavListFetcher.FetchAsync("https://space.bilibili.com/3/favlist?fid=12345:678", AppConfig.Empty)));
     }
 }

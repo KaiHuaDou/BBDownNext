@@ -163,10 +163,16 @@ internal static class VideoInfo
             Log($"视频 URL：{BiliApi.VideoPage}/{bvid}/");
         }
 
-        var mid = vInfo.PagesInfo.FirstOrDefault(p => !string.IsNullOrEmpty(p.ownerMid))?.ownerMid;
-        if (!string.IsNullOrEmpty(mid))
+        // 列表型输入（稍后再看 / 收藏夹等）可能混合多个 UP，此时展示首个 ownerMid 会误导；
+        // 仅当全部视频归属同一 UP 时才显示 UP 主页。
+        var ownerMids = vInfo.PagesInfo
+            .Where(p => !string.IsNullOrEmpty(p.ownerMid))
+            .Select(p => p.ownerMid)
+            .Distinct( )
+            .ToList( );
+        if (ownerMids.Count == 1)
         {
-            Log($"UP 主页：{BiliApi.SpacePage}/{mid}");
+            Log($"UP 主页：{BiliApi.SpacePage}/{ownerMids[0]}");
         }
     }
 

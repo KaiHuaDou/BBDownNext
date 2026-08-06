@@ -47,6 +47,20 @@ internal static partial class InputResolver
             return GetAidByBV(BVRegex( ).Match(input).Groups[1].Value);
         }
 
+        // 稍后再看页：/watchlater/、/watchlater/#/list、/list/watchlater 等形态。
+        // 分享链接携带 bvid/oid 参数指向单个视频时只下载该视频（bvid 优先，本地解码），否则按整个列表处理。
+        if (input.Contains("/watchlater"))
+        {
+            var bvid = GetQueryString("bvid", input);
+            if (bvid.Length > 0)
+            {
+                return GetAidByBV(BVRegex( ).Match(bvid).Groups[1].Value);
+            }
+
+            var oid = GetQueryString("oid", input);
+            return oid.Length > 0 ? oid : IdPrefix.WatchLater;
+        }
+
         if (input.Contains("/cheese/"))
         {
             return await ResolveCheeseAsync(input);

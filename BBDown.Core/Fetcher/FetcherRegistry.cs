@@ -20,6 +20,7 @@ public static class FetcherRegistry
         (s => s.StartsWith(IdPrefix.EpColon),    FetchEpisodeAsync),
         (s => s.StartsWith(IdPrefix.SeriesBizId),(s, c, _, t) => MediaListFetcher.FetchListAsync(s[IdPrefix.SeriesBizId.Length..], 5, true, "系列", c, t)),
         (s => s.StartsWith(IdPrefix.FavId),      (s, c, _, t) => FavListFetcher.FetchAsync(s, c, t)),
+        (s => s.StartsWith(IdPrefix.WatchLater), (s, c, _, t) => WatchLaterFetcher.FetchAsync(s, c, t)),
         (s => s.StartsWith(IdPrefix.ListBizId),  (s, c, _, t) => FetchMediaListWithSeriesFallback(s, c, t)),
         (s => s.StartsWith(IdPrefix.SpaceMid),   (s, c, _, t) => SpaceListFetcher.FetchAsync(s, c, t)),
     ];

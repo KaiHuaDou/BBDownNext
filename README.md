@@ -164,6 +164,7 @@ BBDown "live12345" -lq 400
 - **番剧 / 影视 / 课程**：`/bangumi/play/...`、`/cheese/...`、番剧 `md{数字}` 详情页（如 `https://www.bilibili.com/bangumi/media/md2539`，或简写 `md2539`）、`/bangumi/play/ss{季_id}`（或简写 `ss{数字}`）。`md` 与 `ss` 两种入口**均默认下载整季全部正片分集**（不含 OP/ED/PV 等 `section` 内容，可用 `-p` 指定具体集）；`ep{数字}` 则只下载该单集。
 - **合集 / 系列**：UP 主空间的 `lists/` 页面（`business=space_collection` 为合集，`business=space_series` 为系列）
 - **收藏夹**：UP 主空间的 `favlist` 页面
+- **稍后再看**：`https://www.bilibili.com/watchlater/`、`https://www.bilibili.com/watchlater/#/list`、`https://www.bilibili.com/list/watchlater`（整个列表按添加顺序作为大列表下载，多 P 自动展开，支持 `-p` / `-iap`；接口私有，需登录 Cookie）。分享链接带 `bvid` / `oid` 参数时只下载该单个视频。
 - **空间投稿列表**：UP 主空间首页 / `upload/video` / `video?tid=0`，也可直接传 UP mid（`402787936`）或 `space402787936`。默认按**最新发布**（`pubdate`）倒序拉取**全部**投稿；课堂视频、无法解析的稿件（直播回放 / 充电专属 / 已删除等）会**跳过并告警**，不中断整批。
 - **专栏 / 图文**：`https://www.bilibili.com/opus/{opus_id}`、`https://www.bilibili.com/mobile/opus/{opus_id}`、`https://www.bilibili.com/read/cv{cv_id}`、`https://www.bilibili.com/read/mobile/{cv_id}`，以及前缀写法 `opus:{opus_id}` / `opus{opus_id}` / `cv{cv_id}`。专栏导出为 Markdown 文件，详见 [专栏 / 图文导出](#专栏--图文导出)。
 - **直播间**（独立录制链路）：`https://live.bilibili.com/{房间号}`、`https://m.live.bilibili.com/{房间号}`、`live:{房间号}`（房间号短号自动换算为真实 ID）。裸数字按 `ep` 解析、不进入直播链路；直播链路不依赖 `WorkContext`，直接拉取 `http_stream` + `flv` 流地址录制。

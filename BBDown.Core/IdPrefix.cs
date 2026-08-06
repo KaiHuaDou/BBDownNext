@@ -27,6 +27,9 @@ public static class IdPrefix
     /// <summary>UP 主空间投稿列表前缀，切片长度 9</summary>
     public const string SpaceMid = "spaceMid:";
 
+    /// <summary>稍后再看列表前缀，切片长度 11</summary>
+    public const string WatchLater = "watchLater:";
+
     /// <summary>直播间前缀，切片长度 5</summary>
     public const string Live = "live:";
 

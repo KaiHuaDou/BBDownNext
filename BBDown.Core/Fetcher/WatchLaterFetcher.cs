@@ -1,0 +1,119 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
+using BBDown.Core.Entity;
+
+using static BBDown.Core.Entity.Entity;
+using static BBDown.Core.Util.HTTPUtil;
+using static BBDown.Core.Util.JsonUtil;
+
+namespace BBDown.Core.Fetcher;
+
+/// <summary>
+/// 稍后再看列表解析
+/// https://www.bilibili.com/watchlater/
+/// </summary>
+public static class WatchLaterFetcher
+{
+    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
+    {
+        var json = await GetWebSourceAsync(BiliApi.ToviewList, cfg, null, ct);
+        using var jDoc = JsonDocument.Parse(json);
+
+        // toview 是私有接口，未登录返回 -101，先给出可操作的提示再走统一错误处理
+        if (ReadApiError(jDoc.RootElement).Code == -101)
+        {
+            throw new InvalidOperationException("获取稍后再看列表需要登录，请通过 --cookie 或配置文件提供 SESSDATA");
+        }
+
+        var data = GetApiData(jDoc.RootElement, "稍后再看列表");
+        var medias = EnumerateArrayOrEmpty(data.GetProperty("list")).ToList( );
+        if (medias.Count == 0)
+        {
+            throw new InvalidOperationException("稍后再看列表为空");
+        }
+
+        // 多P视频此前逐个串行发 view 拿分P列表，改为限并发并行拉取
+        var multiPIds = medias
+            .Where(m => m.GetProperty("videos").GetInt32( ) > 1)
+            .Select(m => m.GetProperty("aid").ToString( ))
+            .ToList( );
+        var fetched = new ConcurrentDictionary<string, VInfo>(StringComparer.Ordinal);
+        using (var throttler = new SemaphoreSlim(8))
+        {
+            var tasks = multiPIds.Select(async aid =>
+            {
+                await throttler.WaitAsync(ct);
+                try
+                {
+                    fetched[aid] = await NormalInfoFetcher.FetchAsync(aid, cfg, ct);
+                }
+                finally
+                {
+                    throttler.Release( );
+                }
+            }).ToArray( );
+            await Task.WhenAll(tasks);
+        }
+
+        List<Page> pagesInfo = [];
+        var index = 1;
+        foreach (var m in medias)
+        {
+            var aid = m.GetProperty("aid").ToString( );
+            if (m.GetProperty("videos").GetInt32( ) > 1 && fetched.TryGetValue(aid, out var tmpInfo))
+            {
+                foreach (var item in tmpInfo.PagesInfo)
+                {
+                    var p = item.CopyWith(index++);
+                    p.title = m.GetProperty("title").ToString( ) + $"_P{item.index}_{item.title}";
+                    p.cover = tmpInfo.Pic;
+                    p.desc = m.GetProperty("desc").ToString( );
+                    if (!pagesInfo.Contains(p))
+                    {
+                        pagesInfo.Add(p);
+                    }
+                }
+            }
+            else
+            {
+                Page p = new( )
+                {
+                    index = index++,
+                    aid = aid,
+                    cid = m.GetProperty("cid").ToString( ),
+                    epid = "",
+                    title = m.GetProperty("title").ToString( ),
+                    dur = m.GetProperty("duration").GetInt32( ),
+                    res = "",
+                    pubTime = m.GetProperty("pubdate").GetInt64( ),
+                    cover = m.GetProperty("pic").ToString( ),
+                    desc = m.GetProperty("desc").ToString( ),
+                    ownerName = m.GetProperty("owner").GetProperty("name").ToString( ),
+                    ownerMid = m.GetProperty("owner").GetProperty("mid").ToString( ),
+                };
+                if (!pagesInfo.Contains(p))
+                {
+                    pagesInfo.Add(p);
+                }
+            }
+        }
+
+        var info = new VInfo
+        {
+            Title = "稍后再看",
+            Desc = "",
+            Pic = "",
+            PubTime = 0,
+            PagesInfo = pagesInfo,
+            IsBangumi = false
+        };
+
+        return info;
+    }
+}

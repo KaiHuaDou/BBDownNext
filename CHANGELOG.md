@@ -10,6 +10,7 @@
 
 ### 新增
 
+- 稍后再看列表下载：输入 `https://www.bilibili.com/watchlater/`、`https://www.bilibili.com/watchlater/#/list`、`https://www.bilibili.com/list/watchlater` 等地址时，把整个稍后再看列表按添加顺序当作一个大列表下载，多 P 视频自动展开分 P，支持 `-p` / `-iap`；接口私有，需要登录 Cookie（未登录时提示通过 `--cookie` 或配置文件提供 SESSDATA）。分享链接携带 `bvid` / `oid` 参数时只下载该单个视频（`bvid` 优先，本地解码）。
 - 交互式逐集选择分 P：新增 `--interactive-pages` / `-iap`，下载前列出全部分 P 逐个确认是否下载（`[y]` 要，`[n]` 不要，`[a]` 剩余全部要，`[q]` 剩余全部不要，直接回车表示不要）；与 `--pages` 同时给出时以交互选择为准。
 - Web 登录成功后自动校验凭据并打印账号名（best-effort，校验失败仅告警，不阻断登录）。
 - Windows 7 兼容：`win-x64` 产物接入 YY-Thunks 与 VC-LTL（构建时 `-p:WindowsWin7Compat=true`），可在 Windows 7 上直接运行，无需安装 .NET 运行时；Windows 7 用户需先安装 [KB3140245](https://support.microsoft.com/help/3140245)（TLS 1.1 / 1.2 支持）。
@@ -25,6 +26,7 @@
 - 旧版专栏（data.type == 0）HTML 降级转换策略调整：白名单标签（链接 / 加粗 / 斜体 / 代码 / 引用 / 标题 / 列表 / 分割线 / 段落换行）可靠转换为 Markdown，其余标签（img、span 样式、figure、table 等）原样保留——CommonMark 支持内嵌 HTML，保真优于剥壳；仅解码正文文本段，标签属性内的 HTML 实体（如 &quot;）保留原样；旧版转换产物标记 IsRawMarkdown，渲染时跳过行内转义。
 - OpusImageUtil 抽出 NormalizeProtocol 统一协议补全（// 补 https、http 升 https），OpusHtmlToMarkdown 与 OpusMarkdownRenderer 复用，删除两处重复的 NormalizeUrl。
 - 移除 `opus` 子命令：专栏 / 图文导出统一走根命令自动识别（`BBDown <专栏地址>`、`BBDown opus{id}`、`BBDown cv{id}`）；裸数字不再触发专栏，保留给视频 av 号简写。
+- 列表型输入的「UP 主页」展示收紧：仅当列表内全部视频归属同一 UP 时才打印主页链接，混合多个 UP 的列表（稍后再看、收藏夹等）不再打印仅代表首个视频作者的误导性主页。
 
 ### 修复
 

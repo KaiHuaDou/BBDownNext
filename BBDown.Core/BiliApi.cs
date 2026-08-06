@@ -42,6 +42,7 @@ public static class BiliApi
     public const string ArticleView = $"https://{MainHost}/x/article/view";
     public const string ReplyWbiMain = $"https://{MainHost}/x/v2/reply/wbi/main";
     public const string ReplyReply = $"https://{MainHost}/x/v2/reply/reply";
+    public const string ToviewList = $"https://{MainHost}/x/v2/history/toview";
 
     // 直播（均无需 Cookie 与 WBI 签名）
     public const string LiveRoomInit = $"https://{LiveApiHost}/room/v1/Room/room_init";
