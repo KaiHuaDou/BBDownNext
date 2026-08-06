@@ -1,6 +1,6 @@
 # 与原版 BBDown 的差异对照
 
-本仓库是 [nilaoda/BBDown](https://github.com/nilaoda/BBDown) 的一个增强分支（fork，远程 `KaiHuaDou/BBDown`）。
+本仓库是 [nilaoda/BBDown](https://github.com/nilaoda/BBDown) 的一个增强分支（fork，远程 `KaiHuaDou/BBDownNext`）。
 本文档逐项列出本分支相对原版的新增能力与行为改进，供选用 / 迁移时参考。
 
 > 对照基准：原版 `nilaoda/BBDown` 上游主干（README 与源码）。
@@ -8,7 +8,7 @@
 
 ## 1. 能力对照总表
 
-| 维度 | 原版 nilaoda/BBDown | 本分支（KaiHuaDou/BBDown） |
+| 维度 | 原版 nilaoda/BBDown | 本分支（KaiHuaDou/BBDownNext） |
 | --- | --- | --- |
 | **顶层子命令** | 主命令 + `logintv` 等离散命令 | `login`（统一 `--tv` / `--app`）、`opus`（新增）、`serve` 三个子命令，主命令解析视频/番剧/课程/收藏/空间 |
 | **WEB Cookie 续期** | 仅列于 TODO（「自动刷新 cookie」未实现） | 登录保存 `refresh_token`，下载前尝试用 **RSA-OAEP(SHA-256)** 加密请求主动续期 `cookie` |
@@ -25,12 +25,12 @@
 | **断点续传** | 基础续传 | 每条流维护 `<路径>.bbdown.part` 数据 + `<路径>.bbdown.json` **SHA256 指纹清单**，支持单流粒度与合集/多 P 粒度续传 |
 | **文件名日期格式** | 固定 `yyyy-MM-dd_HH-mm-ss` | 支持自定义 `<publishDate:格式>` / `<videoDate:格式>`（任意 .NET `DateTime` 格式串） |
 | **文件名长度** | 无特殊处理，超长路径易写入失败 | 按 **UTF-8 字节数截断，上限 200 字节**，并清理非法字符 / 保留设备名 / 处理首尾点 |
-| **cheese 课程** | 仅 Web；存在冗余 `ss` 请求 | 消除冗余 `ss` 请求；`--intl-api` 对其**自动回退 WEB**；**过滤锁定分集**（`BuildPages` status==2） |
-| **解析模式优先级** | 未明确文档化 | 明确 `DetermineApiType` 优先级 **TV > APP > INTL > WEB**；`--app-api --intl-api` 同给走 APP |
+| **cheese 课程** | 仅 Web；存在冗余 `ss` 请求 | 消除冗余 `ss` 请求；`--api intl` 对其**自动回退 WEB**；**过滤锁定分集**（`BuildPages` status==2） |
+| **解析模式选择** | 未明确文档化 | 单选 `--api web|tv|app|intl`（忽略大小写），取代多布尔开关的隐式优先级 |
 | **FLV / DASH 封装** | 通用说明 | DASH 先按 `-q` 请求再额外以 `MaxQn(127)` 取原始画质轨（两次并集）；FLV 固定 `qn=127`、忽略 `-q` |
 | **归档记录** | `--save-archives-to-file`（旧竖线格式） | `--save-records` 写 Tab 分隔 `BBDown.archives`（`<aid>\t<cid>\t<路径>`），键为 `(aid, cid)` |
-| **测试覆盖** | 较少 | **870+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名等） |
-| **代码现代化** | 传统结构 | god-class 拆分（如 `BBDownUtil` 按归属拆分）、现代化命名、`System.Threading.Lock`、`[GeneratedRegex]`、`Nullable enable` + `TreatWarningsAsErrors`、net9.0 |
+| **测试覆盖** | 较少 | **900+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名等） |
+| **代码结构** | 传统结构 | 深度重构：按职责拆分命名空间（`Cli` / `Pipeline` / `Media` / `Mux` / `Serve` / `Download` / `Auth` / `Util`），依赖单向成树（`just check-deps` 守护）；god-class 拆分（如 `BBDownUtil` 按归属拆分）、现代化命名、`System.Threading.Lock`、`[GeneratedRegex]`、`Nullable enable` + `TreatWarningsAsErrors`、net9.0 |
 | **直播录制** | 无 | 新增独立直播链路，直播间地址直录（`live:` / `live.bilibili.com`），`--live-quality` 选清晰度（默认原画 10000，可选 250 超清 / 400 蓝光 / 15000 2K / 20000 4K / 30000 杜比），分段 FLV 落盘后合并为 mp4（`Ctrl+Break` 停录合并 / `Ctrl+C` 中断保留分段）；录制状态机具备断流退避重连、CDN failover、编码锁定 |
 
 ## 2. 分主题详述
@@ -60,7 +60,7 @@
     - 字幕：`/x/player/wbi/v2`（`SubUtil.cs`：`PlayerWbiV2`）。
     - 空间列表：`/x/space/wbi/arc/search`（`SpaceListFetcher.cs`：`SpaceArcSearch`）。
 - **退化条件**：`cfg.Wbi` 为空（未探测账号）时 `WbiSign` 直接原样返回，不做签名（`SignUtil.WbiSign`：`if (cfg.Wbi.Length == 0) return api;`）。
-- **番剧/课程 playurl 不签名**：`PlayUrlClient.FetchAsync` 对 `IsBangumi` 分支走 `req.TvApi ? BuildTvQuery : BuildWebQuery`，不经 `WbiSign`。
+- **番剧/课程 playurl 不签名**：`PlayUrlClient.FetchAsync` 对 `IsBangumi` 分支走 `req.Api == ApiType.Tv ? BuildTvQuery : BuildWebQuery`，不经 `WbiSign`。
 - **试看时长依赖 WBI**：充电试看判定需走 WBI 签名的 playurl 才能拿到真实试看时长；非 WBI 的 `x/player/playurl` 返回的 `timelength` 是声称的完整时长，会误判（见 2.7）。
 
 ### 2.4 serve 模式
@@ -88,9 +88,9 @@
 - **抓取与渲染**（`BBDown.Core/Opus/`）：
     - `OpusFetcher`：拉取专栏详情（依赖 cookie 中的 `buvid3`，旁路后自行 `Buvid.InitAsync`）。
     - `OpusHtmlToMarkdown`：将专栏正文 HTML 转为 Markdown（标签模式用 `[GeneratedRegex]` 集中在 `OpusRegexes`）。
-    - `OpusMarkdownRenderer`：渲染为带 YAML front matter（标题/作者/段落数等，可用 `--no-metadata` 关闭）的 Markdown，图片按 `OpusImageUtil` 下载到 `<标题>/images/` 并以相对路径内联。
+    - `OpusMarkdownRenderer`：渲染为带 YAML front matter（标题/作者/段落数等，可用 `-W M` 关闭）的 Markdown，图片按 `OpusImageUtil` 下载到 `<标题>/images/` 并以相对路径内联。
     - `OpusImageUtil`：归一化图片 URL、按 SHA256 前 8 位命名去重、失败时保留远程链接。
-- **产物**：`<标题>.md` + `<标题>/images/` 目录；已存在非空 `.md` 时跳过（与 `MuxFinish.TrySkipExisting` 同语义）。选项 `--no-images`（保留远程链接）、`--no-metadata`（不加 front matter）。
+- **产物**：`<标题>.md` + `<标题>/images/` 目录；已存在非空 `.md` 时跳过（与 `MuxFinish.TrySkipExisting` 同语义）。内容集沿用默认 `avmsCiM`（专栏下仅 `i` / `M` 生效）：`-W i` 保留远程图片链接，`-W M` 不加 front matter。
 
 ### 2.6 UP 主空间投稿列表
 
@@ -105,7 +105,7 @@
 
 - **判定**（`BBDown/PageDownload.cs`：`IsTruncatedPreview`）：双条件——稿件 `is_upower_exclusive == true`（稿件属性，与账号无关）**且** playurl 下发时长 `actual < full * 0.9` 且 `full - actual >= 30`（秒）。30 秒下限用于避开 `timelength`(ms) 与 `duration`(整秒) 的固有封装误差。
 - **异常与退出码**（`BBDown/ChargedPreviewException.cs`、`BBDown/Program.cs`：`RunApp` / `IsChargedPreviewOnly`）：
-    - 命中且非 `--allow-preview`、非 `--info`/`--cover-only`/`--danmaku-only` 模式 → 抛 `ChargedPreviewException`，该分 P 跳过。
+    - 命中且非 `--allow-preview`、非 `--info-only` 且内容集不含 `a` / `v`（仅信息 / 封面 / 弹幕等）时 → 抛 `ChargedPreviewException`，该分 P 跳过。
     - 全部所选分 P 均为试看 → 退出码 **2**；混合（部分试看 + 部分真实失败）→ 退出码 **1**（使 2 成为强断言）；`Ctrl+C` → 退出码 **130**。
     - `--allow-preview`：输出文件名末段加 `[试看]` 前缀（`SavePath.ApplyPreviewPrefix`），退出码 0。
     - 信息/封面/弹幕模式仅提示，不中止。
@@ -128,12 +128,12 @@
 ### 2.10 课程（cheese）解析
 
 - **消除冗余 `ss` 请求**：cheese 输入 `cheese/ss` 直接取 `season_id` 拉整季，不再「先请求取首集 ep_id、再拉整季」（`InputResolver.ResolveCheeseAsync`；`CheeseInfoFetcher.FetchAsync`）。
-- **intl 自动回退 WEB**：`NormalizeOptionsAfterFetch` 在 cheese 场景下将 `--intl-api` 回退为 WEB（`BBDown/Program.cs`）。
+- **intl 自动回退 WEB**：`NormalizeOptionsAfterFetch` 在 cheese 场景下将 `--api intl` 回退为 WEB（`BBDown/Pipeline/VideoInfo.cs`）。
 - **过滤锁定分集**：`CheeseInfoFetcher.BuildPages` 跳过 `status == 2`（未购买/锁定）的分集；抽为纯函数便于单测。
 
-### 2.11 封装格式与 API 优先级
+### 2.11 封装格式与 API 选择
 
-- **API 优先级**（`BBDown/VideoInfo.cs`：`DetermineApiType`）：**TV > APP > INTL > WEB**；`--app-api --intl-api` 同给走 APP（`Parser.ExtractTracksAsync` 中 `req.AppApi && !req.IntlApi` 才走 APP 分支，委派 `AppTrackReader.FetchAsync`）。
+- **API 通道**（`BBDown.Core/ApiType.cs`：`ApiType` 枚举 + `ApiTypeUtil.TryParse`）：单选 `--api web|tv|app|intl`（忽略大小写），取代原多布尔开关；APP 分支由 `Parser.ExtractTracksAsync` 中 `req.Api == ApiType.App` 委派 `AppTrackReader.FetchAsync`。
 - **DASH 封装**（`DashTrackReader.Collect`）：先按 `-q` 请求一次收集轨道，再额外以 `MaxQn(127)` 请求一次取原始画质视频轨，两次视频轨取并集；音轨取第二次结果（二次请求降级时回退首次结果的音轨，避免杜比/Hi-Res-only 片源被丢）。
 - **FLV 封装**（`FlvTrackReader.Collect`）：强制 `qn = MaxQn(127)`，忽略 `-q`，只产出单一最高清流（仍可按 `-e` 选编码）。
 
@@ -143,7 +143,7 @@
 
 ### 2.13 测试与工程化
 
-- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **870+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、空间列表等。
+- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **900+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、空间列表等。
 - **AOT 与现代化**：
     - `BBDown/Directory.Build.props`：`<PublishAot>true</PublishAot>`，直接 `dotnet publish BBDown -r <RID> -c Release`（CI 命令见 `.github/workflows/ci.yml`，RID 矩阵 8 个）。
     - `Directory.Build.props`：`<TargetFramework>net9.0</TargetFramework>`、`<Nullable>enable</Nullable>`、`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`、`<AnalysisLevel>latest-all</AnalysisLevel>`。
@@ -172,7 +172,7 @@
 - **断点续传**：`BBDown/PartFile.cs`（`PartFile` / `PartManifest` / `Fingerprint`）。
 - **文件名**：`BBDown.Core/Util/FileNameUtil.cs`（`MaxBytes = 200`）、`BBDown/SavePath.cs`（`Format` 的 `<publishDate:格式>` / `<videoDate:格式>`）。
 - **cheese 增强**：`BBDown.Core/Fetcher/CheeseInfoFetcher.cs`（`BuildPages`）、`BBDown/Program.cs`（`NormalizeOptionsAfterFetch`）。
-- **封装/优先级**：`BBDown.Core/PlayUrl/`（`DashTrackReader.Collect` / `FlvTrackReader.Collect` / `IntlTrackReader.Collect` / `AppTrackReader.FetchAsync`，请求由 `PlayUrlClient` 发出）；`Parser.ExtractTracksAsync` 负责编排；`DetermineApiType` 在 `BBDown/VideoInfo.cs`、`BBDown.Core/Config.cs`（`MaxQn`）。
+- **封装/通道**：`BBDown.Core/PlayUrl/`（`DashTrackReader.Collect` / `FlvTrackReader.Collect` / `IntlTrackReader.Collect` / `AppTrackReader.FetchAsync`，请求由 `PlayUrlClient` 发出）；`Parser.ExtractTracksAsync` 负责编排；`ApiType` 枚举与解析在 `BBDown.Core/ApiType.cs`，`BBDown.Core/Config.cs`（`MaxQn`）。
 - **归档**：`BBDown/ArchiveLog.cs`、`BBDown/CommandLineInvoker.cs`（`SaveRecords`）。
 - **AOT/现代化**：`BBDown/Directory.Build.props`、`Directory.Build.props`。
 - **直播录制**：`BBDown/Pipeline/LiveDownload.cs`、`BBDown/Live/`（LiveFileNaming / LiveMuxer / LiveProgress / LiveRecorder / LiveSegmentWriter / LiveSignal）、`BBDown.Core/Live/`（LiveInputResolver / LiveFetcher / LiveRoomInfo）。

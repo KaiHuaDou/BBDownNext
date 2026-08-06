@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: "📖 使用文档（README）"
-    url: "https://github.com/KaiHuaDou/BBDown#readme"
+    url: "https://github.com/KaiHuaDou/BBDownNext#readme"
     about: "安装方式、参数说明、常见问题请先查阅 README。"
+  - name: "💬 讨论区（Discussions）"
+    url: "https://github.com/KaiHuaDou/BBDownNext/discussions"
+    about: "使用交流、功能建议请前往 Discussions。"

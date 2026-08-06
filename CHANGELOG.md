@@ -120,5 +120,5 @@
 - 可执行文件查找不再优先当前目录。
 - aria2c / ffmpeg / mp4box 改用 `ArgumentList`，消除命令行参数注入。
 
-[2.0.0-alpha.1]: https://github.com/KaiHuaDou/BBDown/compare/259a5558cee0a349a7ebb60bd31e40c88e5bc1ed...v2.0.0-alpha.1
-[v2.0.0-alpha.2]: https://github.com/KaiHuaDou/BBDown/compare/v2.0.0-alpha.1...v2.0.0-alpha.2
+[2.0.0-alpha.1]: https://github.com/KaiHuaDou/BBDownNext/compare/259a5558cee0a349a7ebb60bd31e40c88e5bc1ed...v2.0.0-alpha.1
+[v2.0.0-alpha.2]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.1...v2.0.0-alpha.2

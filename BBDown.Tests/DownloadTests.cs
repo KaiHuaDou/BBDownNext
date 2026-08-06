@@ -185,6 +185,79 @@ public class DownloadTests
         Assert.Equal("out/v.1.0.m4a", MuxFinish.ToAudioOnlyPath("out/v.1.0.mp4"));
     }
 
+    private static DownloadSession MakeSkipSession(DownloadContent content, string tempDir)
+    {
+        return new DownloadSession(
+            new DownloadRequest { Content = content },
+            default!,
+            new PageContext(
+                Page: MakePage( ),
+                Title: "t",
+                Desc: "",
+                EpisodeTitle: "",
+                TempDir: tempDir,
+                VideoPath: "",
+                AudioPath: "",
+                CoverPath: Path.Combine(tempDir, "cover.jpg"),
+                CoverUrl: "",
+                PubTime: 0,
+                PagesCount: 1,
+                DeleteCoverAfterMux: true),
+            [], default!, default);
+    }
+
+    // 内容集无 v（仅音频）时产物为 .m4a：跳过检测必须认 .m4a，.mp4 存在不算已下载
+    [Fact]
+    public void TrySkipExisting_AudioOnly_ChecksM4a( )
+    {
+        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_skip_" + Guid.NewGuid( ).ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var mp4 = Path.Combine(dir, "video.mp4");
+            var m4a = Path.Combine(dir, "video.m4a");
+            File.WriteAllText(mp4, "x");
+            var session = MakeSkipSession(DownloadContent.Audio, dir);
+            Assert.Null(MuxFinish.TrySkipExisting(session, mp4, false));
+
+            File.WriteAllText(m4a, "x");
+            Assert.NotNull(MuxFinish.TrySkipExisting(session, mp4, false));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+    }
+
+    // 内容集含 v 时产物为 .mp4：.m4a 存在不算已下载
+    [Fact]
+    public void TrySkipExisting_VideoContent_ChecksMp4( )
+    {
+        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_skip_" + Guid.NewGuid( ).ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var mp4 = Path.Combine(dir, "video.mp4");
+            var m4a = Path.Combine(dir, "video.m4a");
+            File.WriteAllText(m4a, "x");
+            var session = MakeSkipSession(DownloadContent.Audio | DownloadContent.Video, dir);
+            Assert.Null(MuxFinish.TrySkipExisting(session, mp4, false));
+
+            File.WriteAllText(mp4, "x");
+            Assert.NotNull(MuxFinish.TrySkipExisting(session, mp4, false));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+    }
+
     [Theory]
     [InlineData("HEVC")]
     [InlineData("AV1")]

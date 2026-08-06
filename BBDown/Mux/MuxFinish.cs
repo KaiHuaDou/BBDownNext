@@ -23,9 +23,15 @@ internal static class MuxFinish
 
     /// <summary>
     /// 目标文件已存在且非空时登记路径、清掉临时产物并返回中止结果；需要下载则返回 null。
+    /// 内容集无 v（仅音频）时产物为 .m4a，跳过检测须用同一扩展名，否则重跑会重复下载。
     /// </summary>
     internal static PageOutcome? TrySkipExisting(DownloadSession session, string savePath, bool selected)
     {
+        if (!session.Options.Content.Has(DownloadContent.Video))
+        {
+            savePath = ToAudioOnlyPath(savePath);
+        }
+
         if (!File.Exists(savePath) || new FileInfo(savePath).Length == 0)
         {
             return null;

@@ -3,7 +3,6 @@
 以下方向可用于后续规划（不代表已实装，具体以各版本 Release Notes 与源码为准）：
 
 - [ ] /medialist/play/
-- [x] 直播混流：[in#0/flv @ 000000000070f500] Attempted to read next track in single-track mode。（已由独立 `LiveMuxer` 取代 `Muxer.MergeFLV` 解决：分段 FLV 合并为 mp4 时按编码分派 bitstream filter，不再复用通用 FLV 合并路径）
 - [ ] 普通 UGC 的 APP 解析改用`bilibili.app.playerunite.v1.Player/PlayViewUnite`，按照编码优先级请求并合并 AVC、HEVC 和 AV1 视频流；PGC 番剧仍使用原接口。
     - APP 最高仅 480P，或低于`--dfn-priority`明确请求的档位时，额外比较一次 WEB 结果。只有 WEB 视频档位更高才合并 WEB 视频，APP 普通、杜比和 Hi-Res 音频保持不变；WEB 比较失败继续使用已有 APP 结果。
     - 集成方可通过隐藏参数`--app-buvid`传入每账号稳定的 37 位 APP 设备标识；未传或格式无效时仅在当前进程内生成稳定临时值。
@@ -16,3 +15,4 @@
 - [ ] UP 主/合集/收藏夹订阅。
 - [ ] 合集下载 P1 给到时间最早。
 - [ ] Opus 更好的 HTML 转 Markdown 策略
+- [ ] 评论图片下载支持

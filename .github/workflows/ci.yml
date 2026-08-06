@@ -8,8 +8,6 @@ on:
       - "**/*.md"
       - "docs/**"
       - "LICENSE"
-      - "bilibili-API-collect/**"
-      - "LiteBoard-Icon/**"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/PULL_REQUEST_TEMPLATE.md"
   pull_request:
@@ -18,8 +16,6 @@ on:
       - "**/*.md"
       - "docs/**"
       - "LICENSE"
-      - "bilibili-API-collect/**"
-      - "LiteBoard-Icon/**"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/PULL_REQUEST_TEMPLATE.md"
   workflow_dispatch:
@@ -103,11 +99,6 @@ jobs:
   build-windows:
     name: Build Windows (${{ matrix.rid }})
     needs: [test]
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.author_association == 'MEMBER' ||
-      github.event.pull_request.author_association == 'OWNER' ||
-      github.event.pull_request.author_association == 'COLLABORATOR'
     runs-on: windows-latest
     timeout-minutes: 30
     strategy:
@@ -141,11 +132,6 @@ jobs:
   build-macos:
     name: Build macOS (${{ matrix.rid }})
     needs: [test]
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.author_association == 'MEMBER' ||
-      github.event.pull_request.author_association == 'OWNER' ||
-      github.event.pull_request.author_association == 'COLLABORATOR'
     runs-on: macos-latest
     timeout-minutes: 45
     strategy:
@@ -178,11 +164,6 @@ jobs:
   build-linux:
     name: Build Linux (glibc) (${{ matrix.rid }})
     needs: [test]
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.author_association == 'MEMBER' ||
-      github.event.pull_request.author_association == 'OWNER' ||
-      github.event.pull_request.author_association == 'COLLABORATOR'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:
@@ -236,11 +217,6 @@ jobs:
   build-linux-musl:
     name: Build Linux (musl) (${{ matrix.rid }})
     needs: [test]
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.author_association == 'MEMBER' ||
-      github.event.pull_request.author_association == 'OWNER' ||
-      github.event.pull_request.author_association == 'COLLABORATOR'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:
@@ -293,11 +269,6 @@ jobs:
   pack:
     name: Pack .NET tool (nupkg)
     needs: test
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.author_association == 'MEMBER' ||
-      github.event.pull_request.author_association == 'OWNER' ||
-      github.event.pull_request.author_association == 'COLLABORATOR'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

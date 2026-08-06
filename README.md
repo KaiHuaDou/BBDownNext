@@ -7,7 +7,9 @@
 <p align="center">
   <img alt=".NET" src="https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" />
-  <a href="https://github.com/KaiHuaDou/BBDown/releases"><img alt="Release" src="https://img.shields.io/github/v/release/KaiHuaDou/BBDown?label=release" /></a>
+  <a href="https://github.com/KaiHuaDou/BBDownNext/releases"><img alt="Release" src="https://img.shields.io/github/v/release/KaiHuaDou/BBDownNext?label=release" /></a>
+  <a href="https://github.com/KaiHuaDou/BBDownNext/issues"><img alt="Issues" src="https://img.shields.io/github/issues/KaiHuaDou/BBDownNext" /></a>
+  <a href="https://github.com/KaiHuaDou/BBDownNext/discussions"><img alt="Discussions" src="https://img.shields.io/badge/Discussions-%E5%BC%80%E5%90%AF-1EAEDB" /></a>
 </p>
 
 <p align="center">
@@ -22,6 +24,8 @@
   <a href="./TODO.md">路线图</a> ·
   <a href="#与原版-bbdown-的差异">与原版差异</a>
 </p>
+
+> 问题反馈与功能建议请前往 [Issues](https://github.com/KaiHuaDou/BBDownNext/issues)；使用交流请前往 [Discussions](https://github.com/KaiHuaDou/BBDownNext/discussions)。
 
 ---
 
@@ -60,9 +64,11 @@
 - 扩展与集成
     - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./API.md)
     - **纯命令行** · 跨平台（Win / Linux / macOS）· .NET 9 · AOT 单文件发布
+    - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行（无需 Dockerfile）
 
 - 工程品质
-    - **870+ 单元测试**，覆盖全部核心路径
+    - **900+ 单元测试**，覆盖全部核心路径
+    - **深度重构** · 按职责分层（`Cli` / `Pipeline` / `Media` / `Mux` / `Serve` / `Download` / `Auth` / `Util`），依赖单向成树（`check-deps` 守护），不可变契约 record 贯穿全链路，纯函数与 AOT 安全源生成器，可维护性高
 
 ## 与原版 BBDown 的差异
 
@@ -70,16 +76,16 @@
 
 ## 安装
 
-前往 [Releases](https://github.com/KaiHuaDou/BBDown/releases) 页面，下载最新发布版本。
+前往 [Releases](https://github.com/KaiHuaDou/BBDownNext/releases) 页面，下载最新发布版本。
 
-前往 [Actions](https://github.com/KaiHuaDou/BBDown/actions) 页面，下载构建版本。
+前往 [Actions](https://github.com/KaiHuaDou/BBDownNext/actions) 页面，下载构建版本。
 
 ## 构建
 
 需要先安装 [.NET SDK](https://dot.net)（版本 ≥ 9.0，具体版本以仓库 `global.json` 为准）。
 
 ```bash
-git clone https://github.com/KaiHuaDou/BBDown.git --depth 1
+git clone https://github.com/KaiHuaDou/BBDownNext.git --depth 1
 cd BBDown
 
 dotnet build -c Release
@@ -95,7 +101,7 @@ dotnet publish BBDown -r <RID> -c Release -o <DEST>
 
 构建产物位于 `<DEST>` 中
 
-特定平台细节可参考 [ci.yml](https://github.com/KaiHuaDou/BBDown/blob/master/.github/workflows/ci.yml)
+特定平台细节可参考 [ci.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/ci.yml)
 
 ## 依赖
 
@@ -104,6 +110,8 @@ dotnet publish BBDown -r <RID> -c Release -o <DEST>
 - **aria2c**：可选，用于多线程加速下载。可用 `--aria2c` 启用，或用 `--aria2c-path` 指定路径。
 
 > 放在 BBDown 同目录或系统 `PATH` 中即可被自动识别。专栏导出（`opus`）不经过混流，无需 FFmpeg。
+>
+> **容器部署**：`linux-musl-x64` / `linux-musl-arm64` 产物为静态链接，无动态依赖，可直接 `COPY` 进 `scratch` / `distroless` 等镜像运行，无需 Dockerfile 构建；需要混流时在镜像中自带 FFmpeg（或使用 `--skip-mux` 跳过混流）。
 
 ## 快速开始
 
@@ -219,6 +227,23 @@ BBDown "live12345" -lq 400
     - `S` 不依赖 `s`；
     - 仅当没有 `a` / `v` 时 `C` / `m` 不生效并警告。
 
+#### 旧选项参考表
+
+| 旧选项                  | 新写法                                     |
+| ----------------------- | ------------------------------------------ |
+| `--audio-only` / `-a`   | `-W v`（默认集去掉视频）                   |
+| `--video-only` / `-v`   | `-W a`（默认集去掉音频）                   |
+| `--danmaku-only` / `-d` | `-g d`（默认集不含弹幕，重设为仅弹幕）     |
+| `--cover-only` / `-c`   | `-g c`（默认集不含独立封面，重设为仅封面） |
+| `--sub-only` / `-s`     | `-g s`                                     |
+| `--danmaku` / `-dd`     | `-w d`（默认集上附加弹幕）                 |
+| `--no-sub`              | `-W s`                                     |
+| `--no-cover`            | `-W C`（默认集不含独立封面，去掉封面混流） |
+| `--no-metadata`         | `-W m`                                     |
+| `--full-comment`        | `-g O`（另需 `--comments-count > 0`）      |
+| `--allow-ai`            | `-w S`（默认集含字幕，附加 AI 字幕）       |
+| `--no-images`           | `-W i`（专栏）                             |
+
 ### 直播录制
 
 | 参数             | 简写  | 说明                                                                                                    |
@@ -328,7 +353,7 @@ BBDown "BV1xx" -M "<publishDate:yyyy>/<publishDate:MMdd> <pageTitle>"
 | -------------- | ----- | ------------------------------------------------------------------------------------------ |
 | （位置参数）   |       | 专栏地址或 cv 号 / opus id：`https://www.bilibili.com/opus/{id}`、`cv{cv_id}`、`opus:{id}` |
 | `--get`        | `-g`  | 设置内容字符集（默认 `avmsCiM`；`i` 图片、`M` YAML front matter）                          |
-| `--with`       | `-w`  | 在 `--get` 基础上追加内容字符                                                               |
+| `--with`       | `-w`  | 在 `--get` 基础上追加内容字符                                                              |
 | `--without`    | `-W`  | 移除内容字符（如 `-W i` 不下载图片、`-W M` 不输出 front matter）                           |
 | `--work-dir`   |       | 设置输出工作目录（`.md` 与其 `images/` 落在该目录下）                                      |
 | `--cookie`     |       | 字符串 cookie，用于下载登录可见的专栏内容                                                  |
@@ -472,6 +497,19 @@ FLV 封装固定以最高清晰度（qn=127）请求播放地址，用户的清�
 **Q：配置文件和命令行的优先级？**
 
 命令行未显式给出的选项，才会由配置文件补齐；命令行已给出的以命令行为准。
+
+## 致谢
+
+- [nilaoda/BBDown](https://github.com/nilaoda/BBDown) 用于原版 BBDown：本项目由其衍生，登录、接口解析等核心设计沿袭自原作者 nilaoda。
+- [QRCoder](https://github.com/codebude/QRCoder) 用于生成扫码登录二维码。
+- [protobuf](https://github.com/protocolbuffers/protobuf) 用于 APP 端 gRPC 消息序列化。
+- [gRPC](https://github.com/grpc/grpc) 用于 APP 端接口协议。
+- [System.CommandLine](https://github.com/dotnet/command-line-api) 用于命令行解析。
+- [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect) 用于 B 站接口文档参考（随仓库以子目录形式附带）。
+- [bilibili-grpc-api](https://github.com/SeeFlowerX/bilibili-grpc-api) 用于 APP 端 gRPC 协议定义。
+- [FFmpeg](https://github.com/FFmpeg/FFmpeg) 用于音视频下载与混流。
+- [GPAC](https://github.com/gpac/gpac) 用于 MP4Box 混流。
+- [aria2](https://github.com/aria2/aria2) 用于 aria2c 多线程下载。
 
 ## 许可证
 
