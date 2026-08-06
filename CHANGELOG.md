@@ -24,6 +24,7 @@
 - 扫码登录（Web / TV / APP）轮询接入全局取消与失败重试：`Ctrl+C` 可立即终止扫码等待，单次轮询失败自动重试至多 3 次，网络抖动不再直接中断登录。
 - 旧版专栏（data.type == 0）HTML 降级转换策略调整：白名单标签（链接 / 加粗 / 斜体 / 代码 / 引用 / 标题 / 列表 / 分割线 / 段落换行）可靠转换为 Markdown，其余标签（img、span 样式、figure、table 等）原样保留——CommonMark 支持内嵌 HTML，保真优于剥壳；仅解码正文文本段，标签属性内的 HTML 实体（如 &quot;）保留原样；旧版转换产物标记 IsRawMarkdown，渲染时跳过行内转义。
 - OpusImageUtil 抽出 NormalizeProtocol 统一协议补全（// 补 https、http 升 https），OpusHtmlToMarkdown 与 OpusMarkdownRenderer 复用，删除两处重复的 NormalizeUrl。
+- 移除 `opus` 子命令：专栏 / 图文导出统一走根命令自动识别（`BBDown <专栏地址>`、`BBDown opus{id}`、`BBDown cv{id}`）；裸数字不再触发专栏，保留给视频 av 号简写。
 
 ### 修复
 

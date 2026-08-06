@@ -61,12 +61,11 @@ internal sealed class Program
     {
         Console.CancelKeyPress += Console_CancelKeyPress;
 
-        var rootCommand = CommandLineInvoker.GetRootCommand(myOption => RunApp(myOption, opusCommand: false));
+        var rootCommand = CommandLineInvoker.GetRootCommand(RunApp);
         rootCommand.Description = "BBDown 是一个哔哩哔哩视频下载 / 解析命令行工具。";
         rootCommand.TreatUnmatchedTokensAsErrors = false;
 
         rootCommand.Subcommands.Add(BuildLoginCommand( ));
-        rootCommand.Subcommands.Add(CommandLineInvoker.GetOpusCommand(myOption => RunApp(myOption, opusCommand: true)));
         rootCommand.Subcommands.Add(BuildServeCommand( ));
 
         var parserConfiguration = new ParserConfiguration( )
@@ -215,12 +214,12 @@ internal sealed class Program
           BBDown <视频地址> -p 1-5         仅下载第 1~5 集
           BBDown <视频地址> -g a           仅下载音频
           BBDown <视频地址> -g av -W s     不下载字幕
-          BBDown opus <专栏地址|cv号>      导出专栏为 Markdown
+          BBDown <专栏地址|cv 号>          导出专栏为 Markdown
           BBDown --help                    查看全部参数说明
         """);
     }
 
-    private static async Task<int> RunApp(DownloadRequest myOption, bool opusCommand)
+    private static async Task<int> RunApp(DownloadRequest myOption)
     {
         // 进程级全局状态只在每次 CLI 运行起点设置一次（serve 模式不在此路径；
         // ServeRequestOptions 已剔除 Debug/UserAgent，故 serve 任务不触碰这些全局，避免并发互相踩踏）。
@@ -234,19 +233,19 @@ internal sealed class Program
         try
         {
             // 专栏导出走独立链路：不构造 WorkContext，也就不会因为缺少 ffmpeg 而失败
-            if (opusCommand || OpusInputResolver.TryParse(myOption.Url, out _))
+            if (OpusInputResolver.TryParse(myOption.Url, out _))
             {
                 foreach (var debug in ContentSelector.DescribeInactive(myOption.Content, ContentMode.Opus))
                 {
                     LogDebug(debug);
                 }
 
-                await OpusDownload.RunAsync(myOption, allowBareId: opusCommand, AppEnv.CancellationToken);
+                await OpusDownload.RunAsync(myOption, AppEnv.CancellationToken);
                 return 0;
             }
 
             // 直播录制同样走独立链路：产物是无限增长的流，分 P 选择、清晰度优先级那套解析对它无意义
-            if (!opusCommand && LiveInputResolver.TryParse(myOption.Url, out var liveTarget))
+            if (LiveInputResolver.TryParse(myOption.Url, out var liveTarget))
             {
                 foreach (var debug in ContentSelector.DescribeInactive(myOption.Content, ContentMode.Live))
                 {

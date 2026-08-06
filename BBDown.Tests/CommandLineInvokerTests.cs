@@ -259,4 +259,35 @@ public class CommandLineInvokerTests
         Assert.Equal("time", parseResult.GetValue<string>("--comments-sort"));
         Assert.Equal("txt", parseResult.GetValue<string>("--comments-formats"));
     }
+
+    // ---- 专栏输入（无子命令，根命令直接识别）----
+
+    [Fact]
+    public async Task OpusInput_OpusUrl_PassesThrough( )
+    {
+        var opt = await ParseAsync("https://www.bilibili.com/opus/1230485246732926996");
+        Assert.Equal("https://www.bilibili.com/opus/1230485246732926996", opt.Url);
+    }
+
+    [Fact]
+    public async Task OpusInput_OpusPrefix_PassesThrough( )
+    {
+        var opt = await ParseAsync("opus1230485246732926996");
+        Assert.Equal("opus1230485246732926996", opt.Url);
+    }
+
+    [Fact]
+    public async Task OpusInput_CvId_PassesThrough( )
+    {
+        var opt = await ParseAsync("cv51908655");
+        Assert.Equal("cv51908655", opt.Url);
+    }
+
+    // 根命令下 -W i 对专栏输入同样生效：默认含图片内容，可移除
+    [Fact]
+    public async Task OpusInput_WithoutImage_RemovesImageFlag( )
+    {
+        var opt = await ParseAsync("https://www.bilibili.com/opus/1230485246732926996", "-W", "i");
+        Assert.False(opt.Content.Has(DownloadContent.OpusImage));
+    }
 }

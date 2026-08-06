@@ -24,7 +24,7 @@ namespace BBDown.Pipeline;
 /// </summary>
 internal static class OpusDownload
 {
-    internal static async Task RunAsync(DownloadRequest myOption, bool allowBareId = true, CancellationToken ct = default)
+    internal static async Task RunAsync(DownloadRequest myOption, CancellationToken ct = default)
     {
         Config.SetDebugLog(myOption.Debug);
         if (!string.IsNullOrEmpty(myOption.UserAgent))
@@ -48,7 +48,7 @@ internal static class OpusDownload
             }
         }
 
-        if (!OpusInputResolver.TryParse(input, out var target, allowBareId))
+        if (!OpusInputResolver.TryParse(input, out var target))
         {
             throw new ArgumentException($"无法识别的专栏地址：{myOption.Url}");
         }

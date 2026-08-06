@@ -10,7 +10,7 @@
 
 | 维度 | 原版 nilaoda/BBDown | 本分支（KaiHuaDou/BBDownNext） |
 | --- | --- | --- |
-| **顶层子命令** | 主命令 + `logintv` 等离散命令 | `login`（统一 `--tv` / `--app`）、`opus`（新增）、`serve` 三个子命令，主命令解析视频/番剧/课程/收藏/空间 |
+| **顶层子命令** | 主命令 + `logintv` 等离散命令 | `login`（统一 `--tv` / `--app`）、`serve` 两个子命令，主命令解析视频/番剧/课程/收藏/空间，并自动识别专栏地址 |
 | **WEB Cookie 续期** | 仅列于 TODO（「自动刷新 cookie」未实现） | 登录保存 `refresh_token`，下载前尝试用 **RSA-OAEP(SHA-256)** 加密请求主动续期 `cookie` |
 | **凭据存储** | 分离文件 `BBDownTV.data` / `BBDownApp.data`（APP 还需抓包后复制） | 单一 **`BBDown.data`**（同一 JSON 对象，源生成器序列化，AOT 安全）；WEB/TV/APP 分别落盘、互不覆盖 |
 | **APP 端登录** | 无法自动获取，需抓包 `authorization: identify_v1` 并写入 `BBDownApp.data` | `login --app` **扫码登录** APP 账号，自动保存 |
@@ -19,7 +19,7 @@
 | **WBI 签名降风控** | playurl / view 等接口明文或仅简单 sign | 对 playurl（wbi/playurl）、view（wbi/view）、字幕（player/wbi/v2）、空间列表（space/wbi/arc/search）均做标准 WBI 签名；未探测账号时退化为不签名 |
 | **serve 鉴权** | 基础令牌 | 回环地址免令牌；非回环地址强制令牌（`X-BBDown-Token` 头或 `?token=` 查询），否则 401 |
 | **serve 安全** | 请求体基本透传 | 请求契约收窄为受控子集 DTO；host 三兄弟与 work-dir 服务端固定；回调地址 **SSRF 防护**（拒绝内网/回环，连接前二次校验）；**CORS 默认关闭** |
-| **专栏/图文导出** | 无 | 新增 `opus` 子命令，将专栏/图文动态导出为 Markdown + 图片目录 |
+| **专栏/图文导出** | 无 | 主命令自动识别专栏地址（`/opus/`、`/read/`、`opus{id}` / `cv{id}`），导出为 Markdown + 图片目录 |
 | **UP 主空间投稿列表** | 无 | 新增 `SpaceListFetcher` 与 space URL 解析，可下载某 UP 全部投稿 |
 | **充电专属试看识别** | 无专门处理（按普通失败或下载残缺片段） | `IsTruncatedPreview` 双条件判定，命中抛 `ChargedPreviewException`，退出码 2 表示全部为试看（可 `--allow-preview` 放行） |
 | **断点续传** | 基础续传 | 每条流维护 `<路径>.bbdown.part` 数据 + `<路径>.bbdown.json` **SHA256 指纹清单**，支持单流粒度与合集/多 P 粒度续传 |
@@ -38,7 +38,7 @@
 ### 2.1 子命令与入口
 
 - **`login`**：统一入口，无标志登录 WEB，加 `--tv` 登录 TV，加 `--app` 登录 APP（`BBDown/Program.cs`：`loginCommand` 的 `SetAction` → `Login.Web/TV/App`）。原版 `logintv` 已合并进 `login --tv`。
-- **`opus`**：新增子命令，导出专栏/图文为 Markdown（`BBDown/CommandLineInvoker.cs`：`GetOpusCommand`；`BBDown/Program.cs`：`rootCommand.Subcommands.Add(... GetOpusCommand(...))`）。
+- **专栏导出无子命令**：主命令在 `RunApp` 顶部用 `OpusInputResolver.TryParse` 识别专栏地址并分流（`BBDown/Program.cs`：`RunApp` 的 `OpusInputResolver.TryParse(...)` 分支），不注册子命令。
 - **`serve`**：服务器模式，选项含 `--listen` / `--serve-token` / `--work-dir` / `--host` / `--ep-host` / `--tv-host` / `--cors-origin` / `--max-concurrent`（`BBDown/Program.cs`：`BuildServeCommand`）。
 - 主命令解析范围：`av` / `BV` / `ep` / `ss` / `md`、合集（`listBizId`）/ 系列（`seriesBizId`）、收藏夹（`favId`）、空间（`spaceMid`）、cheese（`cheese:`）（`BBDown/InputResolver.cs`：`GetAvIdAsync`）。
 
@@ -80,11 +80,11 @@
 
 ### 2.5 专栏/图文导出（Opus）
 
-- **入口与分流**：`opus` 子命令或根命令下识别到专栏地址时，在 `Program.RunApp` 早于 `WorkSetup.Build` 分流到 `OpusDownload.RunAsync`，因此不构造 `WorkContext`、不探测 `ffmpeg`、不经过音视频保存路径（`BBDown/Program.cs`：`RunApp` 的 `opusCommand || OpusInputResolver.TryParse(...)` 分支）。
-- **地址解析**（`BBDown.Core/Opus/OpusInputResolver.cs`：`TryParse`，`allowBareId` 门控）：
+- **入口与分流**：主命令在 `Program.RunApp` 顶部用 `OpusInputResolver.TryParse` 识别专栏地址，早于 `WorkSetup.Build` 分流到 `OpusDownload.RunAsync`，因此不构造 `WorkContext`、不探测 `ffmpeg`、不经过音视频保存路径（`BBDown/Program.cs`：`RunApp` 的 `OpusInputResolver.TryParse(...)` 分支）。
+- **地址解析**（`BBDown.Core/Opus/OpusInputResolver.cs`：`TryParse`）：
     - URL：`/opus/<id>`、`/read/cv<id>`、`/read/mobile/<id>`（支持 `//` 协议相对、`m.`、带 query）。
     - 简写：`opus:<id>`、`opus<id>`、`cv<id>`。
-    - 裸数字（仅 `opus` 子命令入口 `allowBareId=true` 允许）：≥15 位视为 opus 雪花 id，否则视为 cv id；根命令下裸数字不触发专栏（归属视频链路）。
+    - 裸数字一律拒绝（归属视频链路，避免 `av` 号简写被误判为专栏）。
 - **抓取与渲染**（`BBDown.Core/Opus/`）：
     - `OpusFetcher`：拉取专栏详情（依赖 cookie 中的 `buvid3`，旁路后自行 `Buvid.InitAsync`）。
     - `OpusHtmlToMarkdown`：将专栏正文 HTML 转为 Markdown（标签模式用 `[GeneratedRegex]` 集中在 `OpusRegexes`）。
@@ -161,12 +161,12 @@
 
 ## 3. 关键改动核实点（源码位置）
 
-- **子命令**：`BBDown/Program.cs`（`BuildLoginCommand` / `BuildServeCommand`；`GetOpusCommand` 由 `CommandLineInvoker` 提供）。
+- **子命令**：`BBDown/Program.cs`（`BuildLoginCommand` / `BuildServeCommand`；专栏导出无子命令，由 `RunApp` 内 `OpusInputResolver.TryParse` 分流）。
 - **登录三态 + Cookie 续期**：`BBDown/Login.cs`（`Web` / `TV` / `App` / `TryRefreshWebCookieIfStaleAsync` / `RefreshWebCookieAsync` / `MakeCorrespondPath` / `RefreshRsaPublicKey`）。
 - **凭据单文件 + 源生成器**：`BBDown/CredentialStore.cs`（`Credential` / `CredentialJsonContext` / `SaveWebCookie` 等）。
 - **WBI 签名**：`BBDown.Core/Util/SignUtil.cs`（`WbiSign` / `WbiEncodeValue`）；应用点 `NormalInfoFetcher.cs`、`SubUtil.cs`、`SpaceListFetcher.cs`、`BiliApi.cs`（`PlayUrlWebPath` / `ViewWbi` / `PlayerWbiV2` / `SpaceArcSearch`），playurl 侧由 `PlayUrlClient` 调用。
 - **serve 安全**：`BBDown/BBDownApiServer.cs`（`FinalizeAuth` / `IsLoopbackUrl` / `IsSafeWebHook` / `IsPrivateAddress` / `WebHookClient` / `SetUpServer` / `AddCors`）；`BBDown/ServeRequestOptions.cs`。
-- **Opus 导出**：`BBDown.Core/Opus/`（`OpusFetcher` / `OpusInputResolver` / `OpusHtmlToMarkdown` / `OpusMarkdownRenderer` / `OpusImageUtil` / `OpusRegexes` / `OpusDocument`）与 `BBDown/OpusDownload.cs`。
+- **Opus 导出**：`BBDown.Core/Opus/`（`OpusFetcher` / `OpusInputResolver` / `OpusHtmlToMarkdown` / `OpusMarkdownRenderer` / `OpusImageUtil` / `OpusRegexes` / `OpusDocument`）与 `BBDown/Pipeline/OpusDownload.cs`。
 - **空间列表**：`BBDown.Core/Fetcher/SpaceListFetcher.cs`、`BBDown/InputResolver.cs`、`BBDown.Core/Fetcher/FetcherRegistry.cs`。
 - **充电试看**：`BBDown/ChargedPreviewException.cs`、`BBDown/PageDownload.cs`（`IsTruncatedPreview` / `ShouldRetry`）、`BBDown/Program.cs`（`IsChargedPreviewOnly` / `ApplyPreviewPrefix` 经 `SavePath.cs`）。
 - **断点续传**：`BBDown/PartFile.cs`（`PartFile` / `PartManifest` / `Fingerprint`）。

@@ -62,26 +62,10 @@ public class OpusInputResolverTests
     [InlineData("https://b23.tv/abcdefg")]
     [InlineData("opusabc")]
     [InlineData("cvabc")]
+    [InlineData("51908655")]
+    [InlineData("1230485246732926996")]
     public void TryParse_NonOpusInput_ReturnsFalse(string input)
     {
         Assert.False(OpusInputResolver.TryParse(input, out _));
-    }
-
-    // 根命令下的裸数字必须留给视频链路（av 号简写），只有 opus 子命令才放行
-    [Fact]
-    public void TryParse_BareDigits_RejectedUnlessAllowed( )
-    {
-        Assert.False(OpusInputResolver.TryParse("51908655", out _));
-        Assert.False(OpusInputResolver.TryParse("1230485246732926996", out _));
-    }
-
-    [Theory]
-    [InlineData("1230485246732926996", "1230485246732926996", "")]
-    [InlineData("51908655", "", "51908655")]
-    public void TryParse_BareDigits_SplitByLength(string input, string expectedOpus, string expectedCv)
-    {
-        Assert.True(OpusInputResolver.TryParse(input, out var target, allowBareId: true));
-        Assert.Equal(expectedOpus, target.OpusId);
-        Assert.Equal(expectedCv, target.CvId);
     }
 }

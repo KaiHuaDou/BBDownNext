@@ -6,12 +6,11 @@ using BBDown.Util;
 
 namespace BBDown.Cli;
 
-/// <summary>全部 CLI 选项与别名的静态定义，供根命令与 opus 子命令共享注册。
+/// <summary>全部 CLI 选项与别名的静态定义，供根命令注册。
 /// 按 README「参数说明」的分组排列，注册顺序即 --help 显示顺序。</summary>
 internal static class CliOptions
 {
     internal static readonly Argument<string> Url = new("url") { Description = "视频地址 或 av|bv|BV|ep|ss，也可传直播间地址进行录制" };
-    internal static readonly Argument<string> OpusInput = new("input") { Description = "专栏地址 或 opus id|cv 号" };
 
     // 解析模式
     // 单值枚举：非法值进 parseResult.Errors 报错退出（serve 侧为 JSON 契约，非法值回落 web，见 ServeRequestOptions）

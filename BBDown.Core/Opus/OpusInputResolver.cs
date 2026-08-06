@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 
 namespace BBDown.Core.Opus;
 
@@ -23,12 +22,9 @@ public static class OpusInputResolver
     ///   <item>cv12345 / CV12345</item>
     ///   <item>opus123... / opus:123...</item>
     /// </list>
+    /// 裸数字一律拒绝，留给视频链路（av 号简写）。
     /// </summary>
-    /// <param name="allowBareId">
-    /// 是否允许把无前缀的纯数字当作 opus/cv id。子命令入口传 <c>true</c>；根命令自动识别传 <c>false</c>，
-    /// 否则 <c>bbdown 12345</c>（av 号简写）会被误判为专栏。纯数字按长度分界：≥15 视为 opus id，否则视为 cv id。
-    /// </param>
-    public static bool TryParse(string input, out OpusTarget target, bool allowBareId = false)
+    public static bool TryParse(string input, out OpusTarget target)
     {
         target = default;
         if (string.IsNullOrWhiteSpace(input))
@@ -96,13 +92,6 @@ public static class OpusInputResolver
         if (s.StartsWith("cv", StringComparison.OrdinalIgnoreCase) && s.Length > 2 && char.IsDigit(s[2]) && TryTakeDigits(s[2..], out var cvId))
         {
             target = new OpusTarget("", cvId);
-            return true;
-        }
-
-        // 裸数字（仅子命令入口允许）：≥15 位视为 opus 雪花 id，否则视为 cv id
-        if (allowBareId && s.All(char.IsDigit))
-        {
-            target = s.Length >= 15 ? new OpusTarget(s, "") : new OpusTarget("", s);
             return true;
         }
 

@@ -150,42 +150,6 @@ internal static class CommandLineInvoker
         return rootCommand;
     }
 
-    /// <summary>
-    /// 专栏导出子命令。与视频下载共用 <see cref="DownloadRequest"/>，但只暴露专栏用得上的选项：
-    /// 画质、编码、混流、分 P 之类的参数对 Markdown 毫无意义，塞进帮助文本只会误导。
-    /// 内容集沿用与根命令相同的默认 avmsCi（专栏下仅 i 生效，M 需显式给出）。
-    /// </summary>
-    public static Command GetOpusCommand(Func<DownloadRequest, Task<int>> action)
-    {
-        Command command = new("opus", "下载专栏 / 图文动态并导出为 Markdown")
-        {
-            OpusInput,
-            Content,
-            WithContent,
-            WithoutContent,
-            WorkDir,
-            Cookie,
-            UserAgent,
-            Debug
-        };
-
-        command.SetAction(async parseResult => await action(new DownloadRequest
-        {
-            Url = parseResult.GetValue(OpusInput) ?? "",
-            Content = ContentSelector.Resolve(
-                parseResult.GetValue(Content) ?? [],
-                parseResult.GetValue(WithContent) ?? [],
-                parseResult.GetValue(WithoutContent) ?? [],
-                false, false, false, false, out _),
-            WorkDir = parseResult.GetValue(WorkDir) ?? "",
-            Cookie = parseResult.GetValue(Cookie) ?? "",
-            UserAgent = parseResult.GetValue(UserAgent) ?? "",
-            Debug = parseResult.GetValue(Debug)!
-        }));
-
-        return command;
-    }
-
     // 判断选项是否由命令行显式给出（而非默认值）：评论 / 弹幕配套选项未给对应内容字符时要警告
     private static bool IsExplicit(ParseResult parseResult, string name)
     {

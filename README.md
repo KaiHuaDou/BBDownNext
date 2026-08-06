@@ -35,7 +35,7 @@
     - **视频 / 番剧 / 课程** · 直播回放、收藏夹、合集 / 系列、UP 主空间列表
     - **内容组合选择** · `-g` / `-w` / `-W` 自由组合音频、视频、字幕、弹幕、封面、评论等（get ∪ with − without）
     - **多 P 批量选择** · `-p` 支持单集、列表、区间、`latest`
-    - **专栏 / 图文导出** · `opus` 子命令，转为 Markdown，图片可选本地下载
+    - **专栏 / 图文导出** · 根命令自动识别专栏地址，转为 Markdown，图片可选本地下载
 
 - 解析引擎
     - **4 种模式**：`--api` 单选 `web` / `tv` / `app` / `intl`，自动应对区域限制
@@ -118,7 +118,7 @@ dotnet publish BBDown -r win-x64 -c Release -o <DEST> -p:WindowsWin7Compat=true
 - **MP4Box**：可选，用于杜比视界等特殊封装的混流。可用 `--mp4box` 切换为 MP4Box 混流，或用 `--mp4box-path` 指定路径。
 - **aria2c**：可选，用于多线程加速下载。可用 `--aria2c` 启用，或用 `--aria2c-path` 指定路径。
 
-> 放在 BBDown 同目录或系统 `PATH` 中即可被自动识别。专栏导出（`opus`）不经过混流，无需 FFmpeg。
+> 放在 BBDown 同目录或系统 `PATH` 中即可被自动识别。专栏导出不经过混流，无需 FFmpeg。
 >
 > **容器部署**：`linux-musl-x64` / `linux-musl-arm64` 产物为静态链接，无动态依赖，可直接 `COPY` 进 `scratch` / `distroless` 等镜像运行，无需 Dockerfile 构建；需要混流时在镜像中自带 FFmpeg（或使用 `--skip-mux` 跳过混流）。
 
@@ -144,8 +144,9 @@ BBDown "ep68540" --api tv --access-token "你的token"
 BBDown "space402787936" --info-only
 
 # 下载一篇专栏并导出为 Markdown（默认下载图片到 images/ 子目录）
-BBDown opus cv51908655
-BBDown opus 1230485246732926996
+BBDown "https://www.bilibili.com/opus/1230485246732926996"
+BBDown cv51908655
+BBDown opus1230485246732926996
 
 # 录制一个直播间（默认原画清晰度，短号自动换算）
 BBDown "https://live.bilibili.com/12345"
@@ -164,7 +165,7 @@ BBDown "live12345" -lq 400
 - **合集 / 系列**：UP 主空间的 `lists/` 页面（`business=space_collection` 为合集，`business=space_series` 为系列）
 - **收藏夹**：UP 主空间的 `favlist` 页面
 - **空间投稿列表**：UP 主空间首页 / `upload/video` / `video?tid=0`，也可直接传 UP mid（`402787936`）或 `space402787936`。默认按**最新发布**（`pubdate`）倒序拉取**全部**投稿；课堂视频、无法解析的稿件（直播回放 / 充电专属 / 已删除等）会**跳过并告警**，不中断整批。
-- **专栏 / 图文**（需 `opus` 子命令）：`https://www.bilibili.com/opus/{opus_id}`、`https://www.bilibili.com/mobile/opus/{opus_id}`、`https://www.bilibili.com/read/cv{cv_id}`、`https://www.bilibili.com/read/mobile/{cv_id}`，以及前缀写法 `opus:{opus_id}` / `cv{cv_id}`；`opus` 子命令下也可直接传裸 `cv` 号（如 `cv51908655`）或裸 opus id（≥15 位数字）。专栏导出为 Markdown 文件，详见 [`opus` 子命令](#opus-参数)。
+- **专栏 / 图文**：`https://www.bilibili.com/opus/{opus_id}`、`https://www.bilibili.com/mobile/opus/{opus_id}`、`https://www.bilibili.com/read/cv{cv_id}`、`https://www.bilibili.com/read/mobile/{cv_id}`，以及前缀写法 `opus:{opus_id}` / `opus{opus_id}` / `cv{cv_id}`。专栏导出为 Markdown 文件，详见 [专栏 / 图文导出](#专栏--图文导出)。
 - **直播间**（独立录制链路）：`https://live.bilibili.com/{房间号}`、`https://m.live.bilibili.com/{房间号}`、`live:{房间号}`（房间号短号自动换算为真实 ID）。裸数字按 `ep` 解析、不进入直播链路；直播链路不依赖 `WorkContext`，直接拉取 `http_stream` + `flv` 流地址录制。
 
 > 命令行、配置文件与 `serve` 接口使用同一套写法。
@@ -353,31 +354,21 @@ BBDown "BV1xx" -M "<publishDate:yyyy>/<publishDate:MMdd> <pageTitle>"
 | ------- | --------------------------------------------------------------------------------------------- |
 | `login` | 通过 APP 扫描二维码登录账号（默认 WEB；加 `--tv` 登录 TV，加 `--app` 登录 APP），凭据自动保存 |
 | `serve` | 以服务器模式运行，提供带鉴权令牌的 HTTP JSON API（详见 [API.md](./API.md)）                   |
-| `opus`  | 下载 B 站「专栏 / 图文」并导出为 Markdown 文件（见下方 [opus 参数](#opus-参数)）              |
 
-### `opus` 参数
+### 专栏 / 图文导出
 
-将 B 站专栏（opus / read）抓取并转换为 Markdown。默认会把正文中的图片下载到本地 `<标题>/images/` 子目录，并在 Markdown 中用相对路径引用。内容集沿用根命令的默认 `avmsCiM`（专栏下仅 `i` / `M` 生效）：默认下载图片、输出 YAML front matter；加 `-W i` 跳过图片、加 `-W M` 不输出 front matter。v1 仅支持**单篇**专栏，不支持批量 / 合集。
-
-| 参数           | 简写  | 说明                                                                                       |
-| -------------- | ----- | ------------------------------------------------------------------------------------------ |
-| （位置参数）   |       | 专栏地址或 cv 号 / opus id：`https://www.bilibili.com/opus/{id}`、`cv{cv_id}`、`opus:{id}` |
-| `--get`        | `-g`  | 设置内容字符集（默认 `avmsCiM`；`i` 图片、`M` YAML front matter）                          |
-| `--with`       | `-w`  | 在 `--get` 基础上追加内容字符                                                              |
-| `--without`    | `-W`  | 移除内容字符（如 `-W i` 不下载图片、`-W M` 不输出 front matter）                           |
-| `--work-dir`   |       | 设置输出工作目录（`.md` 与其 `images/` 落在该目录下）                                      |
-| `--cookie`     |       | 字符串 cookie，用于下载登录可见的专栏内容                                                  |
-| `--user-agent` | `-ua` | 指定 user-agent；不指定则使用随机 user-agent                                               |
-| `--debug`      |       | 输出调试日志                                                                               |
-
-> 根命令（`BBDown <输入>`）在输入形如 `https://www.bilibili.com/opus/...` 时会**自动识别**并走专栏导出支路；只有形如 `opus 1230485246732926996` 这样**裸数字**的写法才需要显式 `opus` 子命令（否则会被当作视频 av 号）。内容集选项在根命令下同样可用。
+根命令在输入为专栏地址（`https://www.bilibili.com/opus/...`、`https://www.bilibili.com/read/...`、`opus{id}` / `opus:{id}` / `cv{id}`）时自动识别并走专栏导出支路。默认会把正文中的图片下载到本地 `<标题>/images/` 子目录，并在 Markdown 中用相对路径引用。内容集沿用根命令的默认 `avmsCiM`（专栏下仅 `i` / `M` 生效）：默认下载图片、输出 YAML front matter；加 `-W i` 跳过图片、加 `-W M` 不输出 front matter。仅支持**单篇**专栏，不支持批量 / 合集。
 
 ```bash
 # 下载一篇专栏并导出为 Markdown（图片下载到 <标题>/images/，含 front matter）
-BBDown opus "https://www.bilibili.com/opus/1230485246732926996"
+BBDown "https://www.bilibili.com/opus/1230485246732926996"
+
+# 前缀写法：cv 号 / opus id
+BBDown cv51908655
+BBDown opus1230485246732926996
 
 # 不下载图片、不输出 front matter，适合纯文本归档
-BBDown opus cv51908655 -W i -W M
+BBDown cv51908655 -W i -W M
 ```
 
 ### `serve` 参数

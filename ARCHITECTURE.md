@@ -277,7 +277,7 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 
 ## 10. 专栏导出旁路
 
-`BBDown opus <输入>`（或根命令识别到 `https://www.bilibili.com/opus/...`）会把 B 站「专栏 / 图文」抓取并转换为 Markdown。它与音视频下载链路**完全独立**，是一条旁路，目的是避免让专栏逻辑被 `WorkSetup.Build` 的 ffmpeg 探测、混流、`SavePath.Format`（硬编码 `.mp4`）等音视频专属步骤拖累。
+根命令识别到专栏地址（`https://www.bilibili.com/opus/...`、`cv{id}`、`opus{id}` 等）时，会把 B 站「专栏 / 图文」抓取并转换为 Markdown。它与音视频下载链路**完全独立**，是一条旁路，目的是避免让专栏逻辑被 `WorkSetup.Build` 的 ffmpeg 探测、混流、`SavePath.Format`（硬编码 `.mp4`）等音视频专属步骤拖累。
 
 ### 10.1 分流点
 
@@ -288,7 +288,7 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
   │
   ▼
 OpusInputResolver.TryParse(input)   opus URL / cv 号 / opus id / 前缀写法 → OpusTarget(OpusId|CvId)
-  │  （仅 opus 子命令允许裸数字：≥15 位视为 opus id，否则视为 cv 号；根命令对裸数字一律拒绝）
+  │  （裸数字一律拒绝，留给视频链路 av 号简写）
   ▼
 OpusDownload.RunAsync (BBDown.Pipeline)  不走 WorkSetup.Build / 不构造 WorkContext / 不探测 ffmpeg
   │  ├─ CredentialStore.LoadAll   读取 WEB Cookie（专栏可能登录可见）
@@ -311,4 +311,4 @@ OpusDownload.RunAsync (BBDown.Pipeline)  不走 WorkSetup.Build / 不构造 Work
 
 ### 10.3 serve 模式说明
 
-v1 的 `serve` JSON API 仅面向音视频任务，**不支持**提交专栏导出任务（`/add-task` 的 `Url` 只识别 `av|bv|BV|ep|ss` 编号）。专栏导出目前仅通过 CLI 的 `opus` 子命令 / 根命令自动识别进行。
+v1 的 `serve` JSON API 仅面向音视频任务，**不支持**提交专栏导出任务（`/add-task` 的 `Url` 只识别 `av|bv|BV|ep|ss` 编号）。专栏导出目前仅通过 CLI 根命令自动识别进行。

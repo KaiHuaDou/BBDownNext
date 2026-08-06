@@ -185,7 +185,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 - **`--stop-on-error`：** 默认关闭，即某个分 P 下载失败时会继续下载其余分 P，最后汇总失败清单并以非零状态码退出；开启后遇到第一个失败的分 P 立即停止。
 - **`AllowPreview`：** 请求体可携带该布尔字段（对应命令行 `--allow-preview`）。充电专属稿件在无充电权限时接口照常返回成功但只下发试看片段，默认会被识别并跳过，任务表现为 `IsSuccessful == false`；传 `true` 则保留试看片段，输出文件名带 `[试看]` 前缀。
 - **CORS：** 服务器**默认关闭跨域**（不发送 `Access-Control-Allow-Origin` 头），从根本上消除浏览器侧 CSRF 面；仅当显式 `--cors-origin <url>` 时才对该单一来源开放，仅建议在本地 / 可信网络下使用。
-- **不支持专栏导出：** 当前 `serve` 模式的 `/add-task` 仅接受 `av|bv|BV|ep|ss` 编号（音视频链路），**不支持**提交专栏（opus / cv）导出任务。专栏导出请使用 CLI 的 `opus` 子命令，或在根命令下传入 `https://www.bilibili.com/opus/...` 由程序自动识别。
+- **不支持专栏导出：** 当前 `serve` 模式的 `/add-task` 仅接受 `av|bv|BV|ep|ss` 编号（音视频链路），**不支持**提交专栏（opus / cv）导出任务。专栏导出请在 CLI 根命令下传入专栏地址（`https://www.bilibili.com/opus/...`、`opus{id}`、`cv{id}`）由程序自动识别。
 - **评论下载（`--comment`）：** 请求体可携带 `CommentCount` / `CommentSort` / `CommentFormats` / `FullComment` 四个字段（与命令行选项同名同义，默认 `CommentCount=0` 即不下载）。`CommentCount > 0` 时评论区按 `aid` 去重抓取（多 P 同稿只抓一次），产物为与主文件同目录的 `<标题>.comments.json` / `<标题>.comments.txt`。注意：加 `FullComment`（额外翻页抓全楼中楼）会随评论条数线性放大请求量，显著拉长单个任务的耗时，请按需使用。
 
 ---
