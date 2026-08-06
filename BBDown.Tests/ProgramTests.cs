@@ -159,7 +159,7 @@ public class ProgramTests
     [Fact]
     public void HandleConflictingOptions_InteractiveForcesShowStreams( )
     {
-        var o = new DownloadRequest { Interactive = true, HideStreams = true };
+        var o = new DownloadRequest { InteractiveQuality = true, HideStreams = true };
         var r = WorkSetup.HandleConflictingOptions(o);
         Assert.False(r.HideStreams);
     }

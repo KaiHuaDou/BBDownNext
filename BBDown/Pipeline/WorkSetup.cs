@@ -35,41 +35,38 @@ internal static class WorkSetup
 {
     public static RunConfig Build(DownloadRequest myOption)
     {
-        // 处理冲突选项：不原地改写入参，返回修正后的副本（DownloadRequest 不可变，C2）
-        var req = HandleConflictingOptions(myOption);
-
         // 解析外部工具路径（不可变快照，作为 ToolPaths 向下透传，不写进程级静态）
-        var tools = ResolveToolPaths(req);
+        var tools = ResolveToolPaths(myOption);
 
         // 确定本次任务的工作目录（不修改进程全局 CurrentDirectory，serve 模式下多任务会互相踩踏）
-        var workDir = ResolveWorkDir(req);
+        var workDir = ResolveWorkDir(myOption);
 
         // 解析优先级
-        var (encodingPriority, firstEncoding) = ParseEncodingPriority(req);
-        var dfnPriority = ParseDfnPriority(req);
+        var (encodingPriority, firstEncoding) = ParseEncodingPriority(myOption);
+        var dfnPriority = ParseDfnPriority(myOption);
 
-        var downloadDanmakuFormats = ParseDownloadDanmakuFormats(req);
+        var downloadDanmakuFormats = ParseDownloadDanmakuFormats(myOption);
 
-        var commentCount = Math.Max(0, req.CommentCount);
-        var commentSortHot = !string.Equals(req.CommentSort, "time", StringComparison.OrdinalIgnoreCase);
-        var commentFormats = ParseCommentFormats(req);
+        var commentCount = Math.Max(0, myOption.CommentCount);
+        var commentSortHot = !string.Equals(myOption.CommentSort, "time", StringComparison.OrdinalIgnoreCase);
+        var commentFormats = ParseCommentFormats(myOption);
 
-        var lang = req.Lang;
-        var delay = int.TryParse(req.DelayPerPage, out var delayValue) ? delayValue : 0;
+        var lang = myOption.Lang;
+        var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
 
         LogDebug("AppDirectory: {0}", AppEnv.AppDir);
-        LogDebug("运行参数：{0}", JsonSerializer.Serialize(req.WithSecretsRedacted( ), DownloadRequestJsonContext.Default.DownloadRequest));
+        LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption.WithSecretsRedacted( ), DownloadRequestJsonContext.Default.DownloadRequest));
         return new RunConfig(
             EncodingPriority: encodingPriority,
             DfnPriority: dfnPriority,
             FirstEncoding: firstEncoding,
-            EncodingFirst: req.EncodingFirst,
-            Content: req.Content,
+            EncodingFirst: myOption.EncodingFirst,
+            Content: myOption.Content,
             DownloadDanmakuFormats: downloadDanmakuFormats,
             CommentCount: commentCount,
             CommentSortHot: commentSortHot,
             CommentFormats: commentFormats,
-            Input: req.Url,
+            Input: myOption.Url,
             Lang: lang,
             Delay: delay,
             Tools: tools,
@@ -211,7 +208,7 @@ internal static class WorkSetup
         return myOption with
         {
             // 手动选择时不能隐藏流
-            HideStreams = !myOption.Interactive && myOption.HideStreams,
+            HideStreams = !myOption.InteractiveQuality && myOption.HideStreams,
         };
     }
 

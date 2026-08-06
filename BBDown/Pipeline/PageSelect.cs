@@ -13,13 +13,13 @@ internal static class PageSelect
 {
     /// <summary>
     /// 获取选中的分 P 列表。返回 null 表示不筛选（全量下载）；空列表表示用户显式指定但无任何合法分 P（一个都不下）。
-    /// 语法：-p all｜1｜1,2,5｜3-5（闭区间，含两端）｜16-（开区间，到末集）｜-22（开区间，从首集）｜
+    /// 语法：--pages all｜1｜1,2,5｜3-5（闭区间，含两端）｜16-（开区间，到末集）｜-22（开区间，从首集）｜
     /// 1,2,3-3,4-5,6-10,15-latest（混合）｜latest/new=最后一集｜last/LAST=倒数第二集。
     /// 关键字大小写不敏感；表达式首尾、项内空白与尾逗号均忽略；越界数字夹紧到有效边界并提醒；倒序区间自动交换。
     /// </summary>
     internal static List<string>? Resolve(DownloadRequest myOption, VInfo vInfo, string input)
     {
-        if (string.IsNullOrWhiteSpace(myOption.SelectPage))
+        if (string.IsNullOrWhiteSpace(myOption.Pages))
         {
             //如果用户没有选择分 P, 根据 epid 或 query param 来确定某一集
             if (!string.IsNullOrEmpty(vInfo.Index))
@@ -38,7 +38,7 @@ internal static class PageSelect
             return null;
         }
 
-        if (myOption.SelectPage.Trim( ).Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        if (myOption.Pages.Trim( ).Equals("ALL", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -57,7 +57,7 @@ internal static class PageSelect
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var anyValid = false;
 
-        foreach (var rawToken in myOption.SelectPage.Split(','))
+        foreach (var rawToken in myOption.Pages.Split(','))
         {
             var token = rawToken.Trim( );
             if (token.Length == 0)
@@ -110,6 +110,39 @@ internal static class PageSelect
         }
 
         return anyValid ? [.. seen.OrderBy(int.Parse)] : [];
+    }
+
+    /// <summary>
+    /// 交互式逐集选择：对每个分 P 询问是否下载，[y] 要，[n] 不要，[a] 剩余全部要，[q] 剩余全部不要，回车=不要。
+    /// 返回空列表表示一集都没选（一个都不下）。
+    /// </summary>
+    internal static List<string> ResolveInteractive(VInfo vInfo)
+    {
+        Log("逐集选择要下载的分 P：[y] 要，[n] 不要，[a] 剩余全部要，[q] 剩余全部不要，直接回车表示不要");
+        var selected = new List<string>(vInfo.PagesInfo.Count);
+        for (var i = 0; i < vInfo.PagesInfo.Count; i++)
+        {
+            var p = vInfo.PagesInfo[i];
+            Log($"[{p.index}] {p.title}（{FormatTime(p.dur)}）是否下载？[y/n/a/q]", false);
+            var input = Console.ReadLine( );
+            var choice = string.IsNullOrWhiteSpace(input) ? "n" : input.Trim( ).ToLowerInvariant( );
+            if (choice is "y" or "yes")
+            {
+                selected.Add(p.index.ToString( ));
+            }
+            else if (choice is "a" or "all")
+            {
+                selected.AddRange(vInfo.PagesInfo[i..].Select(rest => rest.index.ToString( )));
+                break;
+            }
+            else if (choice is "q" or "quit")
+            {
+                break;
+            }
+            // n / no / 其他 / 回车：跳过本集
+        }
+
+        return selected.Count == 0 ? [] : [.. selected.OrderBy(int.Parse)];
     }
 
     // 解析单个分 P 片段：latest/new → 最后一集；last/LAST → 倒数第二集；数字越界则夹紧到有效边界并提醒。

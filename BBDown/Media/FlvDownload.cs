@@ -26,15 +26,15 @@ internal static class FlvDownload
         var p = pageCtx.Page;
         List<AudioMaterial> audioMaterial = [];
         var reParsed = false;
-        // clips/dfns 取自首次解析结果，重解析后仍沿用旧引用（与原实现一致）
-        var clips = parsedResult.Clips;
-        var dfns = parsedResult.Dfns;
         while (true)
         {
+            // 循环内重取分片/清晰度：交互重解析会替换 parsedResult，须随之刷新，否则仍下载首次解析的分段
+            var clips = parsedResult.Clips;
+            var dfns = parsedResult.Dfns;
             parsedResult.VideoTracks = TrackSelect.SortTracks(parsedResult.VideoTracks, ctx.Run.DfnPriority, ctx.Run.EncodingPriority, myOption.VideoAscending, ctx.Run.EncodingFirst);
 
             var vIndex = 0;
-            if (myOption.Interactive && !reParsed && !selected)
+            if (myOption.InteractiveQuality && !reParsed && !selected)
             {
                 vIndex = TrackSelect.PickDfn(dfns);
                 // 重新解析

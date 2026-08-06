@@ -117,13 +117,14 @@ internal static class ContentSelector
             _ => ~(DownloadContent.OpusImage | DownloadContent.FrontMatter),
         };
         var list = new List<string>( );
-        foreach (var entry in Order)
+        foreach (var (Ch, Flag, Name) in Order)
         {
-            if (content.Has(entry.Flag) && (entry.Flag & active) == 0)
+            if (content.Has(Flag) && (Flag & active) == 0)
             {
-                list.Add($"{entry.Name}（{entry.Ch}）在{ModeName(mode)}模式下不生效");
+                list.Add($"{Name}（{Ch}）在{ModeName(mode)}模式下不生效");
             }
         }
+
         return list;
     }
 
@@ -131,13 +132,14 @@ internal static class ContentSelector
     internal static string ToNormalizedString(DownloadContent content)
     {
         var builder = new StringBuilder( );
-        foreach (var entry in Order)
+        foreach (var (Ch, Flag, Name) in Order)
         {
-            if (content.Has(entry.Flag))
+            if (content.Has(Flag))
             {
-                builder.Append(entry.Ch);
+                builder.Append(Ch);
             }
         }
+
         return builder.ToString( );
     }
 
@@ -148,18 +150,20 @@ internal static class ContentSelector
         {
             return DownloadContent.None;
         }
+
         var flags = DownloadContent.None;
         foreach (var ch in value)
         {
-            foreach (var entry in Order)
+            foreach (var (Ch, Flag, Name) in Order)
             {
-                if (entry.Ch == ch)
+                if (Ch == ch)
                 {
-                    flags |= entry.Flag;
+                    flags |= Flag;
                     break;
                 }
             }
         }
+
         return flags;
     }
 
@@ -180,22 +184,25 @@ internal static class ContentSelector
             foreach (var ch in segment)
             {
                 var found = false;
-                foreach (var entry in Order)
+                foreach (var (Ch, Flag, Name) in Order)
                 {
-                    if (entry.Ch != ch)
+                    if (Ch != ch)
                     {
                         continue;
                     }
-                    flags = subtract ? flags & ~entry.Flag : flags | entry.Flag;
+
+                    flags = subtract ? flags & ~Flag : flags | Flag;
                     found = true;
                     break;
                 }
+
                 if (!found)
                 {
                     warnings.Add($"无效的内容字符「{ch}」（有效字符：{ValidChars}）");
                 }
             }
         }
+
         return flags;
     }
 

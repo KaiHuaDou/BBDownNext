@@ -6,6 +6,25 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
+## [v2.0.0-alpha.3]
+
+### 新增
+
+- 交互式逐集选择分 P：新增 `--interactive-pages` / `-iap`，下载前列出全部分 P 逐个确认是否下载（`[y]` 要，`[n]` 不要，`[a]` 剩余全部要，`[q]` 剩余全部不要，直接回车表示不要）；与 `--pages` 同时给出时以交互选择为准。
+
+### 变更
+
+- 交互式选择清晰度更名：`--interactive` / `-ia` → `--interactive-quality` / `-iaq`。
+- 手动分 P 选择更名：`--select-page` / `-p` → `--pages` / `-p`；serve 请求契约字段同步由 `selectPage` 改为 `pages`。
+- 命令行选项按 README「参数说明」分组重排（解析模式 → 清晰度与编码 → 下载内容 → 直播录制 → 下载方式与性能 → 账号与凭据 → 文件、路径与调试），`--help` 显示顺序与文档一致。
+
+### 修复
+
+- 修复交互式选择清晰度与 `--hide-streams` 的冲突消解失效：此前修正结果未贯穿到下载阶段，`-iaq -hs` 会不显示流列表却仍要求输入序号；现冲突在管道入口统一消解，手动选择时强制显示全部流。
+- 修复 FLV 源交互式选择清晰度不生效：重解析后仍沿用首次解析的分段列表，实际下载的始终是默认清晰度；现按所选清晰度刷新分段列表。
+- 修复 serve 任务可远程触发控制台输入阻塞：交互式选项（清晰度 / 逐集确认）依赖本地 stdin，现从 serve 请求契约移除，远程请求无法再让任务阻塞在 `Console.ReadLine`。
+- 修复配音流序号越界崩溃：多角色配音流数少于主音频时，序号越界的角色不再抛异常，跳过该角色的配音并告警。
+
 ## [v2.0.0-alpha.2]
 
 ### 新增
@@ -54,7 +73,7 @@
 - 番剧 / 季号接口查不到时不再因缺 `result` 抛出 `KeyNotFoundException`，改为带错误码的可读异常；`ss` 形态与非纯数字 id 不再静默回退课程接口，避免误命中 id 空间稠密、毫不相关的课程。
 - 修复 `ep` / `ss` / `md` 番剧分集时长恒显示为 `00m00s`：此前构造分集时未读取接口返回的 `duration`；现按 PGC 的毫秒单位换算为秒后填入，分集列表与体积估算随之恢复正确。
 
-## [2.0.0-alpha.1] - 2026-08-03
+## [v2.0.0-alpha.1]
 
 ### 新增
 
@@ -120,5 +139,6 @@
 - 可执行文件查找不再优先当前目录。
 - aria2c / ffmpeg / mp4box 改用 `ArgumentList`，消除命令行参数注入。
 
-[2.0.0-alpha.1]: https://github.com/KaiHuaDou/BBDownNext/compare/259a5558cee0a349a7ebb60bd31e40c88e5bc1ed...v2.0.0-alpha.1
-[v2.0.0-alpha.2]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.1...v2.0.0-alpha.2
+[v2.0.0-alpha.1]: <https://github.com/KaiHuaDou/BBDownNext/compare/259a5558cee0a349a7ebb60bd31e40c88e5bc1ed...v2.0.0-alpha.1>
+[v2.0.0-alpha.2]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.1...v2.0.0-alpha.2>
+[v2.0.0-alpha.3]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.2...v2.0.0-alpha.3>

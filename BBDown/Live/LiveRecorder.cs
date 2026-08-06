@@ -31,8 +31,8 @@ internal sealed record LiveRecordResult(IReadOnlyList<string> Segments, string C
 /// 网络、文件、计时全部经委托注入，状态机本身可离线单测。
 /// </summary>
 internal sealed class LiveRecorder(
-LiveRecorder.ResolveStream resolve,
-LiveRecorder.WriteSegment write,
+    LiveRecorder.ResolveStream resolve,
+    LiveRecorder.WriteSegment write,
     Func<TimeSpan, CancellationToken, Task>? delay = null,
     Func<string, long>? fileLength = null,
     Action<string>? deleteFile = null,

@@ -18,8 +18,21 @@ internal static class PageQueue
     {
         var vInfo = fetch.VInfo;
         var pagesInfo = vInfo.PagesInfo;
-        //获取已选择的分 P 列表
-        var selectedPages = PageSelect.Resolve(myOption, vInfo, runConfig.Input);
+        //获取已选择的分 P 列表：交互式优先，此时命令行 --pages 无意义
+        List<string>? selectedPages;
+        if (myOption.InteractivePages)
+        {
+            if (!string.IsNullOrWhiteSpace(myOption.Pages))
+            {
+                LogWarn("已同时指定 --interactive-pages 与 --pages，以交互选择为准。");
+            }
+
+            selectedPages = PageSelect.ResolveInteractive(vInfo);
+        }
+        else
+        {
+            selectedPages = PageSelect.Resolve(myOption, vInfo, runConfig.Input);
+        }
 
         Log($"共计 {pagesInfo.Count} 个分 P，已选择：" + (selectedPages == null ? "ALL" : string.Join(",", selectedPages)));
         var totalPages = pagesInfo.Count;

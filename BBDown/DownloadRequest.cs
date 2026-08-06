@@ -28,7 +28,8 @@ internal sealed record DownloadRequest
     public bool OnlyShowInfo { get; init; }
     public bool ShowAll { get; init; }
     public bool UseAria2c { get; init; }
-    public bool Interactive { get; init; }
+    /// <summary>交互式选择清晰度（--interactive-quality）。serve 下不可用：无 stdin 可交互。</summary>
+    public bool InteractiveQuality { get; init; }
     public bool HideStreams { get; init; }
     public bool SingleThread { get; init; }
     public bool Debug { get; init; }
@@ -50,7 +51,10 @@ internal sealed record DownloadRequest
     public bool StopOnError { get; init; }
     public string FilePattern { get; init; } = "";
     public string MultiFilePattern { get; init; } = "";
-    public string SelectPage { get; init; } = "";
+    /// <summary>手动指定分 P 表达式（--pages）。</summary>
+    public string Pages { get; init; } = "";
+    /// <summary>逐集确认是否下载（--interactive-pages）。serve 下不可用：无 stdin 可交互。</summary>
+    public bool InteractivePages { get; init; }
     public string Lang { get; init; } = "";
     public string UserAgent { get; init; } = "";
     public string Cookie { get; init; } = "";

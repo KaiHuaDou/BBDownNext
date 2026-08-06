@@ -32,9 +32,9 @@ public class SelectedPagesTests
         };
     }
 
-    private static List<string>? Select(string selectPage, int pageCount = 10, string? url = null, string? index = null)
+    private static List<string>? Select(string pages, int pageCount = 10, string? url = null, string? index = null)
     {
-        return PageSelect.Resolve(new DownloadRequest { SelectPage = selectPage }, MakeVInfo(pageCount, index), url ?? TestVideos.PickRandom( ));
+        return PageSelect.Resolve(new DownloadRequest { Pages = pages }, MakeVInfo(pageCount, index), url ?? TestVideos.PickRandom( ));
     }
 
     [Fact]

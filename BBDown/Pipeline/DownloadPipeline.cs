@@ -14,6 +14,9 @@ internal static class DownloadPipeline
     /// </summary>
     internal static async Task RunAsync(DownloadRequest req, PipelineSink sink = default, CancellationToken ct = default)
     {
+        // 冲突消解结果要随请求贯穿到下载阶段（RunConfig 不含交互相关字段，Build 内部消费不到），在管道入口修正一次
+        req = WorkSetup.HandleConflictingOptions(req);
+
         RunConfig runConfig;
         lock (workContextGate)
         {

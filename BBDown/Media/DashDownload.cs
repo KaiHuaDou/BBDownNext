@@ -67,7 +67,7 @@ internal static class DashDownload
 
         var vIndex = 0; // 用户手动选择的视频序号
         var aIndex = 0; // 用户手动选择的音频序号
-        if (myOption.Interactive && !selected)
+        if (myOption.InteractiveQuality && !selected)
         {
             TrackSelect.PickTracks(parsedResult, ref vIndex, ref aIndex);
             selected = true;
@@ -147,9 +147,17 @@ internal static class DashDownload
 
         foreach (var role in parsedResult.RoleAudioList)
         {
+            // 配音流数可能少于主音频，序号越界时跳过该角色的配音
+            var roleAudio = role.audio.ElementAtOrDefault(aIndex);
+            if (roleAudio == null)
+            {
+                LogWarn($"P{p.index} 配音 [{role.title}] 没有序号 {aIndex} 的音频流，已跳过");
+                continue;
+            }
+
             role.path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.path));
             Log($"开始下载 P{p.index} 配音 [{role.title}]...");
-            await DownloadAsync(role.audio[aIndex].baseUrl, role.path, downloadConfig, ct: ct);
+            await DownloadAsync(roleAudio.baseUrl, role.path, downloadConfig, ct: ct);
             audioMaterial.Add(new AudioMaterial { title = role.title, personName = role.personName, path = role.path });
         }
 

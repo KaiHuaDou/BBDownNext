@@ -40,7 +40,7 @@ internal static class VideoInfo
         // 主动续期 web cookie（best-effort，持有 refresh_token 才尝试；进程内仅一次）
         if (Interlocked.CompareExchange(ref cookieRefreshed, 1, 0) == 0)
         {
-            cookie = await Login.TryRefreshWebCookieIfStaleAsync(ct: ct);
+            cookie = await Login.TryRefreshWebCookieIfStaleAsync(token: ct);
         }
 
         // host 为空串/空白时回落官方默认，避免拼出 https:///... 抛不可读的 UriFormatException（§2.5）

@@ -37,7 +37,6 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
     - 当前超行文件
         - .\BBDown\Auth\Login.cs
         - .\BBDown.Core\Opus\OpusFetcher.cs
-        - .\BBDown\Cli\CommandLineInvoker.cs
         - .\BBDown\Download\DownloadUtil.cs
         - .\BBDown.Core\Util\HTTPUtil.cs
 

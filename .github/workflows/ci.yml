@@ -327,7 +327,8 @@ jobs:
               lines = f.read().splitlines()
 
           esc = re.escape(version)
-          pat = re.compile(r"^##\s+(?:\[)?" + esc + r"(?:\])?(?:\s*-\s*\S+)?\s*$")
+          # 方括号内允许可选的 v 前缀（CHANGELOG 标题可能是 [vX.Y.Z] 或 [X.Y.Z]）
+          pat = re.compile(r"^##\s+\[?v?" + esc + r"\]?(?:\s*-\s*\S+)?\s*$")
           start = None
           for i, line in enumerate(lines):
               if pat.match(line):

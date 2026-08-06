@@ -121,15 +121,15 @@ internal sealed class Program
         {
             if (result.GetValue(loginTvOption))
             {
-                return Login.TV( );
+                return Login.TV(AppEnv.CancellationToken);
             }
 
             if (result.GetValue(loginAppOption))
             {
-                return Login.App( );
+                return Login.App(AppEnv.CancellationToken);
             }
 
-            return Login.Web( );
+            return Login.Web(AppEnv.CancellationToken);
         });
         return command;
     }
