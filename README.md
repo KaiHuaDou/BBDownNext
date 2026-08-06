@@ -62,6 +62,7 @@
     - **CDN / PCDN 控制** `--upos-host` / `--allow-pcdn`
 
 - 扩展与集成
+    - **图形界面**（BBDown.GUI，仅 Windows）· 单窗口 WPF 封装命令行下载：任务队列与并发控制、日志实时显示、选项随 exe 便携保存；BBDown.exe 自动检测（同目录 / PATH，或手动选择）
     - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./API.md)
     - **纯命令行** · 跨平台（Win / Linux / macOS）· .NET 9 · AOT 单文件发布
     - **Windows 7 兼容** · `win-x64` 产物内置 YY-Thunks 与 VC-LTL，在 Windows 7 上可直接运行（无需安装 .NET 运行时）
@@ -111,6 +112,14 @@ dotnet publish BBDown -r win-x64 -c Release -o <DEST> -p:WindowsWin7Compat=true
 ```
 
 特定平台细节可参考 [ci.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/ci.yml)
+
+图形界面（BBDown.GUI，仅 Windows，目标框架 `net9.0-windows`）：
+
+```bash
+dotnet build BBDown.GUI -c Release
+```
+
+产物位于 `BBDown.GUI/bin/Release/net9.0-windows/` 下。运行 `BBDown.GUI.exe` 时，其同目录或系统 `PATH` 中需存在 `BBDown.exe`（启动时自动检测，也可在界面中手动选择）。
 
 ## 依赖
 

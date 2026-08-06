@@ -1,0 +1,374 @@
+<Window x:Class="BBDown.GUI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="BBDown GUI"
+        Width="1100"
+        Height="760"
+        MinWidth="900"
+        MinHeight="600"
+        Closed="WindowClosed">
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="280" />
+        </Grid.ColumnDefinitions>
+
+        <!--左侧主区-->
+        <Grid Grid.Column="0" Margin="0,0,10,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!--顶部：可执行文件与下载目标-->
+            <StackPanel Grid.Row="0">
+                <DockPanel>
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="BBDown.exe 路径" />
+                    <Button x:Name="ExeDetectButton"
+                            DockPanel.Dock="Right"
+                            Margin="5,0,0,0" Padding="15,3"
+                            Click="ExeDetectButtonClicked" Content="自动检测" />
+                    <Button x:Name="ExeSelectButton"
+                            DockPanel.Dock="Right"
+                            Margin="5,0,0,0" Padding="15,3"
+                            Click="ExeSelectButtonClicked" Content="选择…" />
+                    <TextBox x:Name="ExePathBox" LostKeyboardFocus="ExePathBoxLostKeyboardFocus" />
+                </DockPanel>
+                <TextBlock x:Name="ExeHintText" Margin="0,2,0,0" FontSize="11" />
+                <DockPanel Margin="0,10,0,0">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="下载目标" />
+                    <TextBox x:Name="TargetBox" TextChanged="TargetBoxTextChanged" />
+                </DockPanel>
+                <TextBlock x:Name="TargetHintText" Margin="0,2,0,0" FontSize="11" />
+            </StackPanel>
+
+            <!--中上：下载内容-->
+            <GroupBox Header="下载内容" Grid.Row="1" Margin="0,10,0,0">
+                <Grid Margin="3">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <CheckBox x:Name="AudioCheckBox"
+                              Grid.Row="0" Grid.Column="0"
+                              Content="音频 (a)" />
+                    <CheckBox x:Name="VideoCheckBox"
+                              Grid.Row="0" Grid.Column="1"
+                              Content="视频 (v)" />
+                    <CheckBox x:Name="CoverFileCheckBox"
+                              Grid.Row="1" Grid.Column="0"
+                              Content="封面文件 (c)" />
+                    <CheckBox x:Name="CoverMuxCheckBox"
+                              Grid.Row="1" Grid.Column="1"
+                              Content="封面混流 (C)" />
+                    <CheckBox x:Name="DanmakuCheckBox"
+                              Grid.Row="2" Grid.Column="0"
+                              Content="弹幕 (d)" />
+                    <CheckBox x:Name="ArticleImageCheckBox"
+                              Grid.Row="2" Grid.Column="1"
+                              Content="专栏图片 (i)" />
+                    <CheckBox x:Name="MetadataCheckBox"
+                              Grid.Row="3" Grid.Column="0"
+                              Content="混流元数据 (m)" />
+                    <CheckBox x:Name="YamlCheckBox"
+                              Grid.Row="3" Grid.Column="1"
+                              Content="YAML front matter (M)" />
+                    <CheckBox x:Name="CommentCheckBox"
+                              Grid.Row="4" Grid.Column="0"
+                              Content="评论 (o)" />
+                    <CheckBox x:Name="AllCommentCheckBox"
+                              Grid.Row="4" Grid.Column="1"
+                              Content="全部评论 (O)" />
+                    <CheckBox x:Name="AiSubtitleCheckBox"
+                              Grid.Row="5" Grid.Column="0"
+                              Content="AI 字幕 (S)" />
+                    <CheckBox x:Name="SubtitleCheckBox"
+                              Grid.Row="5" Grid.Column="1"
+                              Content="字幕 (s)" />
+                </Grid>
+            </GroupBox>
+
+            <!--中下：其他选项-->
+            <GroupBox Header="其他选项" Grid.Row="2" Margin="0,10,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="3">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!--常用区：左列布尔，右列输入-->
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                <CheckBox x:Name="SkipMuxCheckBox" Content="跳过混流" />
+                                <CheckBox x:Name="UseAria2cCheckBox" Content="使用 aria2c" />
+                                <CheckBox x:Name="SingleThreadCheckBox" Content="单线程下载" />
+                                <CheckBox x:Name="InfoOnlyCheckBox" Content="仅解析不下载" />
+                                <CheckBox x:Name="ShowAllCheckBox" Content="展示全部分 P 标题" />
+                                <CheckBox x:Name="UseMP4boxCheckBox" Content="使用 MP4Box" />
+                                <CheckBox x:Name="AllowPreviewCheckBox" Content="允许下载试看片段" />
+                                <CheckBox x:Name="SaveRecordsCheckBox" Content="下载记录去重" />
+                                <CheckBox x:Name="StopOnErrorCheckBox" Content="失败即停止" />
+                                <CheckBox x:Name="DebugCheckBox" Content="调试日志" />
+                                <CheckBox x:Name="VideoAscendingCheckBox" Content="视频升序（体积小优先）" />
+                                <CheckBox x:Name="AudioAscendingCheckBox" Content="音频升序（体积小优先）" />
+                            </StackPanel>
+                            <Grid Grid.Column="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="编码优先级" />
+                                <TextBox x:Name="EncodingPriorityBox"
+                                         Grid.Row="0" Grid.Column="1"
+                                         Margin="0,0,10,0" />
+                                <TextBlock Grid.Row="0" Grid.Column="2"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="画质优先级" />
+                                <TextBox x:Name="DfnPriorityBox" Grid.Row="0" Grid.Column="3" />
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="分 P 选择" />
+                                <TextBox x:Name="PagesBox"
+                                         Grid.Row="1" Grid.Column="1"
+                                         Margin="0,0,10,0" />
+                                <TextBlock Grid.Row="1" Grid.Column="2"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="弹幕格式" />
+                                <TextBox x:Name="DanmakuFormatsBox" Grid.Row="1" Grid.Column="3" />
+                                <TextBlock Grid.Row="2" Grid.Column="0"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="评论条数" />
+                                <TextBox x:Name="CommentsCountBox"
+                                         Grid.Row="2" Grid.Column="1"
+                                         Margin="0,0,10,0" />
+                                <TextBlock Grid.Row="2" Grid.Column="2"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="评论排序" />
+                                <TextBox x:Name="CommentsSortBox" Grid.Row="2" Grid.Column="3" />
+                                <TextBlock Grid.Row="3" Grid.Column="0"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="评论格式" />
+                                <TextBox x:Name="CommentsFormatsBox"
+                                         Grid.Row="3" Grid.Column="1"
+                                         Margin="0,0,10,0" />
+                                <TextBlock Grid.Row="3" Grid.Column="2"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="混流音频语言" />
+                                <TextBox x:Name="LangBox" Grid.Row="3" Grid.Column="3" />
+                                <TextBlock Grid.Row="4" Grid.Column="0"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="Cookie" />
+                                <TextBox x:Name="CookieBox"
+                                         Grid.Row="4" Grid.Column="1"
+                                         Margin="0,0,10,0" />
+                                <TextBlock Grid.Row="4" Grid.Column="2"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="access_token" />
+                                <TextBox x:Name="AccessTokenBox" Grid.Row="4" Grid.Column="3" />
+                                <TextBlock Grid.Row="5" Grid.Column="0"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="User-Agent" />
+                                <TextBox x:Name="UserAgentBox"
+                                         Grid.Row="5" Grid.Column="1"
+                                         Margin="0,0,10,0" />
+                                <TextBlock Grid.Row="5" Grid.Column="2"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="工作目录" />
+                                <TextBox x:Name="WorkDirBox" Grid.Row="5" Grid.Column="3" />
+                                <TextBlock Grid.Row="6" Grid.Column="0"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="FFmpeg 路径" />
+                                <TextBox x:Name="FFmpegPathBox"
+                                         Grid.Row="6" Grid.Column="1"
+                                         Margin="0,0,10,0" />
+                                <TextBlock Grid.Row="6" Grid.Column="2"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="MP4Box 路径" />
+                                <TextBox x:Name="Mp4boxPathBox" Grid.Row="6" Grid.Column="3" />
+                                <TextBlock Grid.Row="7" Grid.Column="0"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="aria2c 路径" />
+                                <TextBox x:Name="Aria2cPathBox"
+                                         Grid.Row="7" Grid.Column="1"
+                                         Margin="0,0,10,0" />
+                                <TextBlock Grid.Row="7" Grid.Column="2"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="aria2c 附加参数" />
+                                <TextBox x:Name="Aria2cArgsBox" Grid.Row="7" Grid.Column="3" />
+                                <TextBlock Grid.Row="8" Grid.Column="0"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="分 P 间隔（秒）" />
+                                <TextBox x:Name="DelayPerPageBox"
+                                         Grid.Row="8" Grid.Column="1"
+                                         Margin="0,0,10,0" />
+                                <TextBlock Grid.Row="8" Grid.Column="2"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="直播清晰度" />
+                                <TextBox x:Name="LiveQualityBox" Grid.Row="8" Grid.Column="3" />
+                                <TextBlock Grid.Row="9" Grid.Column="0"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="API 通道" />
+                                <ComboBox x:Name="ApiBox"
+                                          Grid.Row="9" Grid.Column="1"
+                                          Margin="0,0,10,0" />
+                                <TextBlock Grid.Row="9" Grid.Column="2"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="文件命名模式" />
+                                <TextBox x:Name="FilePatternBox" Grid.Row="9" Grid.Column="3" />
+                                <TextBlock Grid.Row="10" Grid.Column="0"
+                                           Margin="0,0,5,0" VerticalAlignment="Center"
+                                           Text="多 P 文件命名" />
+                                <TextBox x:Name="MultiFilePatternBox"
+                                         Grid.Row="10" Grid.Column="1"
+                                         Margin="0,0,10,0" />
+                            </Grid>
+                        </Grid>
+
+                        <!--高级选项-->
+                        <Expander Header="高级选项" Grid.Row="1" Margin="0,5,0,0">
+                            <Grid Margin="3,10,3,3">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                    <CheckBox x:Name="AllowPcdnCheckBox" Content="允许 PCDN" />
+                                    <CheckBox x:Name="NoForceHostCheckBox" Content="不强制替换 host" />
+                                    <CheckBox x:Name="NoForceHttpCheckBox" Content="避免降级 HTTP" />
+                                </StackPanel>
+                                <Grid Grid.Column="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0"
+                                               Margin="0,0,5,0" VerticalAlignment="Center"
+                                               Text="DRM 密钥" />
+                                    <TextBox x:Name="DrmKeyBox"
+                                             Grid.Row="0" Grid.Column="1"
+                                             Margin="0,0,10,0"
+                                             AcceptsReturn="True" MaxLines="2" />
+                                    <TextBlock Grid.Row="0" Grid.Column="2"
+                                               Margin="0,0,5,0" VerticalAlignment="Center"
+                                               Text="Host" />
+                                    <TextBox x:Name="HostBox" Grid.Row="0" Grid.Column="3" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0"
+                                               Margin="0,0,5,0" VerticalAlignment="Center"
+                                               Text="EP Host" />
+                                    <TextBox x:Name="EpHostBox"
+                                             Grid.Row="1" Grid.Column="1"
+                                             Margin="0,0,10,0" />
+                                    <TextBlock Grid.Row="1" Grid.Column="2"
+                                               Margin="0,0,5,0" VerticalAlignment="Center"
+                                               Text="TV Host" />
+                                    <TextBox x:Name="TvHostBox" Grid.Row="1" Grid.Column="3" />
+                                    <TextBlock Grid.Row="2" Grid.Column="0"
+                                               Margin="0,0,5,0" VerticalAlignment="Center"
+                                               Text="Area" />
+                                    <TextBox x:Name="AreaBox"
+                                             Grid.Row="2" Grid.Column="1"
+                                             Margin="0,0,10,0" />
+                                    <TextBlock Grid.Row="2" Grid.Column="2"
+                                               Margin="0,0,5,0" VerticalAlignment="Center"
+                                               Text="Upos Host" />
+                                    <TextBox x:Name="UposHostBox" Grid.Row="2" Grid.Column="3" />
+                                </Grid>
+                            </Grid>
+                        </Expander>
+                    </Grid>
+                </ScrollViewer>
+            </GroupBox>
+
+            <!--底部：操作按钮-->
+            <StackPanel Grid.Row="3" Margin="0,10,0,0" Orientation="Horizontal">
+                <Button x:Name="RunButton"
+                        Padding="15,3"
+                        Click="RunButtonClicked" Content="执行" />
+                <Button x:Name="EnqueueButton"
+                        Margin="10,0,0,0" Padding="15,3"
+                        Click="EnqueueButtonClicked" Content="加入任务队列" />
+                <Button x:Name="ResetButton"
+                        Margin="10,0,0,0" Padding="15,3"
+                        Click="ResetButtonClicked" Content="重置选项" />
+            </StackPanel>
+
+            <!--底部：日志区-->
+            <TextBox x:Name="LogBox"
+                     Grid.Row="4"
+                     Margin="0,10,0,0"
+                     FontFamily="Consolas"
+                     AcceptsReturn="True" HorizontalScrollBarVisibility="Auto" IsReadOnly="True"
+                     TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" />
+        </Grid>
+
+        <!--右侧边栏：任务队列-->
+        <GroupBox Header="任务队列" Grid.Column="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <DockPanel Grid.Row="0">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="并发数" />
+                    <Button x:Name="StartQueueButton"
+                            DockPanel.Dock="Right"
+                            Margin="5,0,0,0" Padding="15,3"
+                            Click="StartQueueButtonClicked" Content="开始队列" />
+                    <TextBox x:Name="ConcurrencyBox"
+                             LostKeyboardFocus="ConcurrencyBoxLostKeyboardFocus" Text="3"
+                             TextAlignment="Center" />
+                </DockPanel>
+                <ListBox x:Name="TaskList" Grid.Row="1" Margin="0,10,0,0" />
+                <StackPanel Grid.Row="2" Margin="0,10,0,0" Orientation="Horizontal">
+                    <Button x:Name="RemoveButton"
+                            Padding="15,3"
+                            Click="RemoveButtonClicked" Content="移除选中" />
+                    <Button x:Name="ClearButton"
+                            Margin="10,0,0,0" Padding="15,3"
+                            Click="ClearButtonClicked" Content="清空已完成" />
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+    </Grid>
+</Window>

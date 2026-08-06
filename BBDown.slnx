@@ -9,5 +9,6 @@
   <Project Path="BBDown.Core/BBDown.Core.csproj" />
   <Project Path="BBDown.Core.Tests/BBDown.Core.Tests.csproj" />
   <Project Path="BBDown/BBDown.csproj" />
+  <Project Path="BBDown.GUI/BBDown.GUI.csproj" Id="04b02a42-437b-40ef-acaa-c61a7f86a1b1" />
   <Project Path="BBDown.Tests/BBDown.Tests.csproj" />
 </Solution>

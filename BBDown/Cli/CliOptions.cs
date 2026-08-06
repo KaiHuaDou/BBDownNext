@@ -178,7 +178,7 @@ internal static class CliOptions
     // 文件、路径与调试
     internal static readonly Option<string> FilePattern = new("--file-pattern", ["-F"])
     {
-        Description = $"""
+        Description = """
         使用内置变量自定义单 P 存储文件名：
         <videoTitle>：视频主标题
         <pageNumber>：视频分 P 序号

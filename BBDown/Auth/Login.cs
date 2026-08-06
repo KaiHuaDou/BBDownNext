@@ -74,13 +74,8 @@ public static partial class Login
             {
                 throw;
             }
-            catch (Exception e)
+            catch (Exception e) when (++failures <= 3)
             {
-                if (++failures > 3)
-                {
-                    throw;
-                }
-
                 LogWarn($"状态轮询失败，{failures} 次重试中：{e.Message}");
                 continue;
             }

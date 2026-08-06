@@ -47,8 +47,10 @@ dotnet_diagnostic.CA5351.severity = none # bilibili WBI / APPKEY 签名强制使
 dotnet_diagnostic.CA5394.severity = none
 dotnet_diagnostic.IDE0130.severity = none
 dotnet_diagnostic.IDE1006.severity = none
+dotnet_diagnostic.IDE1075.severity = none
 dotnet_diagnostic.RCS1123.severity = none
 dotnet_diagnostic.RCS1155.severity = none
+dotnet_diagnostic.RCS1163.severity = none
 dotnet_diagnostic.CA1707.severity = none # 测试方法采用 xUnit 下划线命名（Method_Scenario_Result），属惯例而非代码坏味
 
 dotnet_code_quality_unused_parameters = all:suggestion

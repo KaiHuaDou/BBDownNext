@@ -11,6 +11,7 @@
 ### 新增
 
 - DRM 解密支持：默认解析 playurl 中的 DRM 信息（`is_drm` / `drm_type` / `bilidrm_uri`），新增 `--drm-key` 直接传入解密密钥（`kid:key` 或纯 `key`，hex / base64 均可，可多次）。bili_drm 通道提供匹配 key 时自动解密后混流；未提供 key、Widevine 通道或解密失败时明确提示原因并**保留加密文件**（原始 `.m4s` 不删除，路径打印在日志中）。不内置 SPC/CKC 协议逆向，key 仅由用户提供。
+- 图形界面 BBDown.GUI（WPF，仅 Windows）：单窗口封装命令行下载——子进程调用 BBDown.exe（stdout / stderr 重定向到日志区，UTF-8 解码，行带 `[任务N]` 前缀）；下载内容按 CLI 字符集（a / v / c / C / d / i / m / M / o / O / S / s）全量 CheckBox 配置，其余选项（布尔、输入、高级）与 CLI 参数一一对应；任务队列支持多任务排队与并发控制（1–8，运行中可调），「执行」与队列任务共享并发池；BBDown.exe 启动时自动检测（exe 同目录 → PATH，也可手动选择或自动检测）；面板选项随 exe 便携保存（`BBDown.GUI.config.json`，不保存 url 与队列）。
 
 ## [v2.0.0-alpha.3]
 

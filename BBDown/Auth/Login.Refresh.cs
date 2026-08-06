@@ -142,7 +142,7 @@ public static partial class Login
     {
         var values = headers.TryGetValues("Set-Cookie", out var setCookies)
             ? ParseSetCookies(setCookies)
-            : new Dictionary<string, string>( );
+            : [];
 
         return WebCookieNames.All(values.ContainsKey)
             ? string.Join(';', WebCookieNames.Select(n => $"{n}={EscapeCookieValue(values[n])}"))

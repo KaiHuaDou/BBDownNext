@@ -88,10 +88,11 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 - 偏好 `lock(<System.Threading.Lock gate>)`
 - 偏好 `is null`/`is not null`
 - 偏好 `await using`
+- 偏好自动属性
 - 正则表达式、路径偏好 `@""`
 - 字符串拼接偏好 `StringBuilder` 和 `$""`，避免使用 `+` 拼接
 - 空括号中间要加空格，即`( )`
-- 不要在方法/嵌套方法/构造函数上使用 `=>`
+- 不要在方法/嵌套方法/构造函数上使用 `=>`，属性可以
 - `<summary>`、`</summary>` 无论如何都单独占一行
 - **除非冲突的情况**，不要在 class 前使用 namespace 前缀，尽量使用 `using <namespace>;`（即便只有一处调用也要。
 
@@ -141,6 +142,75 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
     - 名称不要过长，Description 要充分换行
     - 输入格式
         - 涉及音视频的：`<ID><value>`（如 opusXXXXXX、BVXXXXXX）或直接 url
+
+## WPF 要求
+
+- 开发 WPF 遵守以下要求，与其他冲突以此为准
+
+- 界面设计
+    - 灵活性
+        - 不同的系统字体大小
+        - 窗口任意伸缩
+            - 可设最小 `Height`/`Width`
+    - `Margin` 从大到小：`20 -> 15 -> 10 -> 5 -> 3`
+    - 布局`Panel`
+        - 明确表格/表单（或实质类似）场景：`Grid`
+        - 其余场景：`StackPanel`/`WrapPanel`/`DockPanel`
+            - 尤其善用 `DockPanel`
+        - 禁止写死任何 `Height`/`Width`
+            - 图标场景除外
+        - 窗口最外层布局 `Panel` 至少 `Margin="10"`
+        - `Grid`
+            - 不能写死 `ColumnDefintion` 和 `RowDefintion` 的绝对大小
+        - `ZIndex`：可选取值 `1/2/4/8/16/32/64/128/256...`
+    - `Button`
+        - 推荐默认值`Padding="15,3"`，按需覆盖
+- 控件命名
+    - UpperCamelCase
+    - `TextBlock` 以 `Text` 为后缀
+    - `ListBox`/`ListView` 以 `List` 为后缀
+    - `XxxxButton` 以 `Button` 为后缀
+    - 其余 `XxxxBox` 以 `Box` 为后缀
+    - 其余以控件名为后缀
+- 事件处理程序
+    - UpperCamelCase
+    - `<控件名><事件名>`，中间无下划线
+    - `(object o, XxxxEventArgs e)`
+    - 处理逻辑相近的，可以公用事件处理程序
+        - 起手式：
+
+            ```csharp
+            if (o is not <Control> <control>)
+            {
+                return;
+            }
+
+            <control>...
+            ```
+
+        - 可以使用 `Tag` 来区分/标记
+- 文件布局
+    1. 私有字段
+    2. 公开字段/属性
+    3. 构造函数
+    4. 事件处理程序
+    5. 其他方法
+- 外部使用
+    - 永远不要 `using System.Windows.Forms`
+    - 永远不要为 WPF 程序创建任何测试
+    - 选择文件夹请使用 `ookii-dialogs-wpf` 中的 `VistaOpenFileDialog`
+    - `MessageBox` 请使用 `ookii-dialogs-wpf` 中的 `TaskDialog`
+    - `ookii-dialogs-wpf` 最新版本是 `v5.0.1`
+- 杂项
+    - 使用 `nullable`
+    - 永远要注册 `Application.DispatcherUnhandledException` 兜住所有异常
+    - 所有窗体类都应为 `public`
+    - 单独分出 `UserControl` 要经过我确认
+    - 应用程序全局变量放在 `App` 下的 `static` (`readonly` 可选) 属性。
+    - 充分使用 `VirtualizingStackPanel`
+    - 避免过深视觉树
+    - 样式具有大量重复的，在 `Theme.xaml` 新建 `Style`
+        - 在 `App.xaml` 的 `MergedDictionary` 中包含 `Theme.xaml`
 
 ## 工作
 
