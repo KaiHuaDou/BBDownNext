@@ -32,10 +32,10 @@
 ## 特性
 
 - 内容与来源
-    - **视频 / 番剧 / 课程** · 直播回放、收藏夹、合集 / 系列、UP 主空间列表
+    - **视频 / 番剧 / 课程** · 直播回放、收藏夹、合集 / 系列、UP 主空间列表、稍后再看列表
     - **内容组合选择** · `-g` / `-w` / `-W` 自由组合音频、视频、字幕、弹幕、封面、评论等（get ∪ with − without）
-    - **多 P 批量选择** · `-p` 支持单集、列表、区间、`latest`
-    - **专栏 / 图文导出** · 根命令自动识别专栏地址，转为 Markdown，图片可选本地下载
+    - **多 P 批量选择** · `-p` 支持单集、列表、区间、`latest`，`-iap` 逐集交互确认
+    - **专栏 / 图文导出** · 根命令自动识别专栏地址与纯图文动态，转为 Markdown，图片可选本地下载
 
 - 解析引擎
     - **4 种模式**：`--api` 单选 `web` / `tv` / `app` / `intl`，自动应对区域限制
@@ -44,12 +44,13 @@
 
 - 媒体与封装
     - **DASH / FLV** 封装 · 杜比视界、HDR、8K、高码率音视频流
+    - **DRM 解密** · playurl 默认解析 DRM 信息，提供匹配 `--drm-key` 时自动解密后混流（bili_drm 通道），未提供 key 或 Widevine 通道时保留加密原件
     - **编码与画质优先级** `-e` / `-q`，弹幕（XML/ASS）、字幕、封面、AI 字幕
     - **混流增强**：写入元数据与章节，支持 FFmpeg / MP4Box
 
 - 直播录制
     - **直播间直录** · 传入直播间地址（`live:` / `live.bilibili.com`）即可录制，短号自动换算真实房间号
-    - **清晰度可选** · `--live-quality`（默认原画），支持原画 / 蓝光 / 超清 / 高清 / 流畅
+    - **清晰度可选** · `--live-quality`（默认原画），支持原画 / 蓝光 / 超清 / 高清 / 流畅 / 2K / 4K / 杜比
     - **可控停录** · `Ctrl+Break` 停录并合并分段，`Ctrl+C` 中断保留分段不合并
 
 - 下载与性能
@@ -62,15 +63,15 @@
     - **CDN / PCDN 控制** `--upos-host` / `--allow-pcdn`
 
 - 扩展与集成
-    - **图形界面**（BBDown.GUI，仅 Windows）· 单窗口 WPF 封装命令行下载：任务队列与并发控制、日志实时显示、选项随 exe 便携保存；BBDown.exe 自动检测（同目录 / PATH，或手动选择）
+    - **图形界面**（BBDown.GUI，仅 Windows）· 单窗口 WPF 封装命令行下载：任务队列与并发控制、日志实时显示、选项随 exe 便携保存；BBDown.exe 自动检测（同目录 / PATH，或手动选择）；独立 CI 发布单文件产物
     - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./API.md)
     - **纯命令行** · 跨平台（Win / Linux / macOS）· .NET 9 · AOT 单文件发布
     - **Windows 7 兼容** · `win-x64` 产物内置 YY-Thunks 与 VC-LTL，在 Windows 7 上可直接运行（无需安装 .NET 运行时）
     - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行（无需 Dockerfile）
 
 - 工程品质
-    - **930+ 单元测试**，覆盖全部核心路径
-    - **深度重构** · 按职责分层（`Cli` / `Pipeline` / `Media` / `Mux` / `Serve` / `Download` / `Auth` / `Util`），依赖单向成树（`check-deps` 守护），不可变契约 record 贯穿全链路，纯函数与 AOT 安全源生成器，可维护性高
+    - **950+ 单元测试**，覆盖全部核心路径
+    - **深度重构** · 按职责分层（`Cli` / `Pipeline` / `Media` / `Mux` / `Serve` / `Download` / `Auth` / `Drm` / `Util`），依赖单向成树（`check-deps` 守护），不可变契约 record 贯穿全链路，纯函数与 AOT 安全源生成器，可维护性高
 
 ## 与原版 BBDown 的差异
 
@@ -119,7 +120,7 @@ dotnet publish BBDown -r win-x64 -c Release -o <DEST> -p:WindowsWin7Compat=true
 dotnet build BBDown.GUI -c Release
 ```
 
-产物位于 `BBDown.GUI/bin/Release/net9.0-windows/` 下。运行 `BBDown.GUI.exe` 时，其同目录或系统 `PATH` 中需存在 `BBDown.exe`（启动时自动检测，也可在界面中手动选择）。
+产物位于 `BBDown.GUI/bin/Release/net9.0-windows/` 下。运行 `BBDown.GUI.exe` 时，其同目录或系统 `PATH` 中需存在 `BBDown.exe`（启动时自动检测，也可在界面中手动选择）。图形界面由独立 CI（[gui.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/gui.yml)）在 `win-x64` / `win-arm64` 上构建单文件产物并上传，可手动触发追加到最新 Release；主 CI（`ci.yml`）不构建图形界面。
 
 ## 依赖
 
@@ -267,9 +268,9 @@ BBDown "live12345" -lq 400
 
 ### 直播录制
 
-| 参数             | 简写  | 说明                                                                                                    |
-| ---------------- | ----- | ------------------------------------------------------------------------------------------------------- |
-| `--live-quality` | `-lq` | 直播录制清晰度：10000 原画（默认）、400 蓝光、250 超清、150 高清、80 流畅；未登录时服务端通常只给到 250 |
+| 参数             | 简写  | 说明                                                                                                                                          |
+| ---------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--live-quality` | `-lq` | 直播录制清晰度：30000 杜比 / 20000 4K / 15000 2K / 10000 原画（默认）/ 400 蓝光 / 250 超清 / 150 高清 / 80 流畅；未登录时服务端通常只给到 250 |
 
 > 直播录制为独立链路：传入直播间地址后，BBDown 拉取 `http_stream` + `flv` 流地址并分段落盘；录制中 `Ctrl+Break` 可停录并把分段合并为单个 `mp4`，`Ctrl+C` 则中断录制、保留已落盘分段（不合并）。清晰度档位数值越大越清晰（30000 杜比 / 20000 4K / 15000 2K / 10000 原画 / 400 蓝光 / 250 超清 / 150 高清 / 80 流畅）。
 
@@ -298,21 +299,21 @@ BBDown "live12345" -lq 400
 
 ### 文件、路径与调试
 
-| 参数                   | 简写   | 说明                                                                  |
-| ---------------------- | ------ | --------------------------------------------------------------------- |
-| `--file-pattern`       | `-F`   | 自定义单 P 存储文件名（支持内置变量，见下）                           |
-| `--multi-file-pattern` | `-M`   | 自定义多 P 存储文件名（支持内置变量，见下）                           |
-| `--pages`              | `-p`   | 选择分 P（语法详见脚注 [^selectpage]）                                |
+| 参数                   | 简写   | 说明                                                                            |
+| ---------------------- | ------ | ------------------------------------------------------------------------------- |
+| `--file-pattern`       | `-F`   | 自定义单 P 存储文件名（支持内置变量，见下）                                     |
+| `--multi-file-pattern` | `-M`   | 自定义多 P 存储文件名（支持内置变量，见下）                                     |
+| `--pages`              | `-p`   | 选择分 P（语法详见脚注 [^selectpage]）                                          |
 | `--interactive-pages`  | `-iap` | 逐集确认是否下载：[y] 要，[n] 不要，[a] 剩余全部要，[q] 剩余全部不要，回车=不要 |
-| `--work-dir`           |        | 设置程序工作目录                                                      |
-| `--ffmpeg-path`        |        | 指定 FFmpeg 路径                                                      |
-| `--mp4box`             |        | 使用 MP4Box 来混流                                                    |
-| `--mp4box-path`        |        | 指定 MP4Box 路径                                                      |
-| `--aria2c-path`        |        | 指定 aria2c 路径                                                      |
-| `--save-records`       |        | 将下载过的视频记录到本地文件，用于后续跳过同一视频                    |
-| `--stop-on-error`      |        | 遇到分 P 下载失败时立即停止（详见脚注 [^stoponerror]）                |
-| `--config`             |        | 读取指定的 BBDown 本地配置文件（默认为程序目录下的 `BBDown.config`）  |
-| `--debug`              |        | 输出调试日志                                                          |
+| `--work-dir`           |        | 设置程序工作目录                                                                |
+| `--ffmpeg-path`        |        | 指定 FFmpeg 路径                                                                |
+| `--mp4box`             |        | 使用 MP4Box 来混流                                                              |
+| `--mp4box-path`        |        | 指定 MP4Box 路径                                                                |
+| `--aria2c-path`        |        | 指定 aria2c 路径                                                                |
+| `--save-records`       |        | 将下载过的视频记录到本地文件，用于后续跳过同一视频                              |
+| `--stop-on-error`      |        | 遇到分 P 下载失败时立即停止（详见脚注 [^stoponerror]）                          |
+| `--config`             |        | 读取指定的 BBDown 本地配置文件（默认为程序目录下的 `BBDown.config`）            |
+| `--debug`              |        | 输出调试日志                                                                    |
 
 #### 文件名内置变量
 
@@ -368,7 +369,7 @@ BBDown "BV1xx" -M "<publishDate:yyyy>/<publishDate:MMdd> <pageTitle>"
 
 ### 专栏 / 图文导出
 
-根命令在输入为专栏地址（`https://www.bilibili.com/opus/...`、`https://www.bilibili.com/read/...`、`opus{id}` / `opus:{id}` / `cv{id}`）时自动识别并走专栏导出支路。默认会把正文中的图片下载到本地 `<标题>/images/` 子目录，并在 Markdown 中用相对路径引用。内容集沿用根命令的默认 `avmsCiM`（专栏下仅 `i` / `M` 生效）：默认下载图片、输出 YAML front matter；加 `-W i` 跳过图片、加 `-W M` 不输出 front matter。仅支持**单篇**专栏，不支持批量 / 合集。
+根命令在输入为专栏地址（`https://www.bilibili.com/opus/...`、`https://www.bilibili.com/read/...`、`opus{id}` / `opus:{id}` / `cv{id}`）时自动识别并走专栏导出支路，纯图文动态（非专栏的文章类 opus）也按正文导出为 Markdown，不再误判为专栏。默认会把正文中的图片下载到本地 `<标题>/images/` 子目录，并在 Markdown 中用相对路径引用；专栏 / 图文动态的顶部相册图片随正文一并下载，并置于文档最前。内容集沿用根命令的默认 `avmsCiM`（专栏下仅 `i` / `M` 生效）：默认下载图片、输出 YAML front matter；加 `-W i` 跳过图片、加 `-W M` 不输出 front matter。仅支持**单篇**专栏 / 图文动态，不支持批量 / 合集。
 
 ```bash
 # 下载一篇专栏并导出为 Markdown（图片下载到 <标题>/images/，含 front matter）
@@ -526,6 +527,9 @@ FLV 封装固定以最高清晰度（qn=127）请求播放地址，用户的清�
 - [FFmpeg](https://github.com/FFmpeg/FFmpeg) 用于音视频下载与混流。
 - [GPAC](https://github.com/gpac/gpac) 用于 MP4Box 混流。
 - [aria2](https://github.com/aria2/aria2) 用于 aria2c 多线程下载。
+- [YY-Thunks](https://github.com/Chuyu-Team/YY-Thunks) 用于 Win7 兼容构建时在链接期补齐旧系统缺失的 API。
+- [VC-LTL](https://github.com/Chuyu-Team/VC-LTL) 用于 Win7 兼容构建时静态消除 api-ms-win-crt 依赖。
+- [PublishAotCross](https://github.com/MichalStrehovsky/PublishAotCross) 用于在 Windows 上本地交叉发布 Linux 目标。
 
 ## 许可证
 

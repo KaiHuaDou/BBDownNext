@@ -29,7 +29,10 @@ internal static class VideoInfo
     // Web Cookie 主动续期只跑一次，避免批量下载时每个视频都打 /cookie/info
     private static int cookieRefreshed;
 
-    // nav 探测（wbi 密钥）缓存：进程内只探测一次，批量下载不再逐 URL 打 nav 接口
+    // nav 探测（wbi 密钥）缓存：进程内只探测一次，批量下载不再逐 URL 打 nav 接口。
+    // 读写都用 lock 保护：并发探测只保留一个 task；失败清空时校验引用，
+    // 防止并发期间他人新建的探测被误清（旧实现无条件置 null 存在竞态窗口）
+    private static readonly Lock probeGate = new( );
     private static Task<(AccountInfo Info, string Wbi)>? accountProbeTask;
 
     public static async Task<(DownloadRequest Effective, FetchResult Fetch)> FetchAsync(DownloadRequest myOption, RunConfig runConfig, CancellationToken ct = default)
@@ -61,7 +64,7 @@ internal static class VideoInfo
         // 未拿到 wbi（网络抖动/未登录）时不缓存，允许后续 URL 重试
         if (string.IsNullOrEmpty(wbi))
         {
-            accountProbeTask = null;
+            InvalidateProbe(navTask);
         }
 
         if (myOption.Api == ApiType.Web)
@@ -95,14 +98,22 @@ internal static class VideoInfo
     // 探测失败（wbi 为空）由调用方清空 accountProbeTask 触发重试。
     private static Task<(AccountInfo Info, string Wbi)> EnsureAccountProbedAsync(AppConfig cfg, CancellationToken ct)
     {
-        var existing = accountProbeTask;
-        if (existing is null)
+        lock (probeGate)
         {
-            var created = Account.ProbeAccountAsync(cfg, ct);
-            existing = Interlocked.CompareExchange(ref accountProbeTask, created, null) ?? created;
+            return accountProbeTask ??= Account.ProbeAccountAsync(cfg, ct);
         }
+    }
 
-        return existing;
+    // 仅当缓存中仍是本次探测任务时才清空：并发下他人可能已新建探测，无条件清空会误删其成果
+    private static void InvalidateProbe(Task<(AccountInfo Info, string Wbi)> task)
+    {
+        lock (probeGate)
+        {
+            if (ReferenceEquals(accountProbeTask, task))
+            {
+                accountProbeTask = null;
+            }
+        }
     }
 
     private static void PrintAccountStatus(AccountInfo info)

@@ -123,7 +123,8 @@ internal static partial class PlayUrlClient
 
         if (req.Cfg.Cookie.Length == 0)
         {
-            query.Append("&try_look=1");
+            // 无 SESSDATA 时 gaia_source 为必要参数（videostream_url.md），缺失可能触发 v_voucher 风控
+            query.Append("&try_look=1&gaia_source=pre-load");
         }
 
         query.Append($"&wts={UnixTimestamp( )}");

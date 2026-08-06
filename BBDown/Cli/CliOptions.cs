@@ -71,8 +71,8 @@ internal static class CliOptions
         例：8K 超高清, 1080P 高码率, HDR 真彩, 杜比视界
         """
     };
-    internal static readonly Option<bool> VideoAscending = new("--video-ascending", []) { Description = "视频升序（最小体积优先）" };
-    internal static readonly Option<bool> AudioAscending = new("--audio-ascending", []) { Description = "音频升序（最小体积优先）" };
+    internal static readonly Option<bool> VideoAscending = new("--video-ascending", ["-va"]) { Description = "视频升序（最小体积优先）" };
+    internal static readonly Option<bool> AudioAscending = new("--audio-ascending", ["-aa"]) { Description = "音频升序（最小体积优先）" };
     internal static readonly Option<bool> InteractiveQuality = new("--interactive-quality", ["-iaq"]) { Description = "交互式选择清晰度" };
     internal static readonly Option<bool> HideStreams = new("--hide-streams", ["-hs"]) { Description = "不要显示所有可用音视频流" };
     internal static readonly Option<bool> InfoOnly = new("--info-only", ["-i"]) { Description = "仅解析而不进行下载" };
@@ -138,8 +138,8 @@ internal static class CliOptions
         """,
         DefaultValueFactory = _ => []
     };
-    internal static readonly Option<bool> AllowPreview = new("--allow-preview", []) { Description = "允许下载充电专属视频的试看片段，输出文件名带 [试看] 前缀" };
-    internal static readonly Option<string> Lang = new("--lang", []) { Description = "设置混流的音频语言（代码），如 chi, jpn 等" };
+    internal static readonly Option<bool> AllowPreview = new("--allow-preview", ["-P"]) { Description = "允许下载充电专属视频的试看片段，输出文件名带 [试看] 前缀" };
+    internal static readonly Option<string> Lang = new("--lang", ["-L"]) { Description = "设置混流的音频语言（代码），如 chi, jpn 等" };
 
     // 直播录制
     internal static readonly Option<int> LiveQualityOption = new("--live-quality", ["-lq"])
@@ -171,7 +171,7 @@ internal static class CliOptions
     internal static readonly Option<bool> NoForceHttp = new("--no-force-http", []) { Description = "下载音视频时避免降级为 HTTP" };
 
     // 账号与凭据
-    internal static readonly Option<string> Cookie = new("--cookie", []) { Description = "设置字符串 cookie 用以下载网页接口的会员内容" };
+    internal static readonly Option<string> Cookie = new("--cookie", ["-C"]) { Description = "设置字符串 cookie 用以下载网页接口的会员内容" };
     internal static readonly Option<string> AccessToken = new("--access-token", ["-token"]) { Description = "设置 access_token 用以下载 TV/APP 接口的会员内容" };
     internal static readonly Option<string> UserAgent = new("--user-agent", ["-ua"]) { Description = "指定 user-agent，否则使用随机 user-agent" };
 
@@ -224,7 +224,7 @@ internal static class CliOptions
         """
     };
     internal static readonly Option<bool> InteractivePages = new("--interactive-pages", ["-iap"]) { Description = "逐集确认是否下载：[y] 要，[n] 不要，[a] 剩余全部要，[q] 剩余全部不要，回车=不要" };
-    internal static readonly Option<string> WorkDir = new("--work-dir", []) { Description = "设置程序的工作目录" };
+    internal static readonly Option<string> WorkDir = new("--work-dir", ["-cwd"]) { Description = "设置程序的工作目录" };
     internal static readonly Option<string> FFmpegPath = new("--ffmpeg-path", []) { Description = "设置 FFmpeg 的路径" };
     internal static readonly Option<bool> UseMP4box = new("--mp4box", []) { Description = "使用 MP4Box 来混流" };
     internal static readonly Option<string> Mp4boxPath = new("--mp4box-path", []) { Description = "设置 MP4Box 的路径" };
@@ -237,10 +237,11 @@ internal static class CliOptions
         默认继续，并在末尾汇总失败的分 P 后非零退出。
         """
     };
-    internal static readonly Option<string> ConfigFile = new("--config", [])
+    internal static readonly Option<string> ConfigFile = new("--config", ["-c"])
     {
-        Description = "读取指定的 BBDown 本地配置文件",
-        DefaultValueFactory = _ => "BBDown.config"
+        // 不设默认值：未显式指定时 ConfigParser 回退到程序目录下的 BBDown.config（README 约定），
+        // 设了默认值会让该回退成为死分支，实际按进程 cwd 查找
+        Description = "读取指定的 BBDown 本地配置文件"
     };
     internal static readonly Option<bool> Debug = new("--debug", []) { Description = "输出调试日志" };
 }

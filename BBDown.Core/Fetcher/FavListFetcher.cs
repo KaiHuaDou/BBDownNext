@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BBDown.Core.Entity;
 
 using static BBDown.Core.Entity.Entity;
+using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
 
@@ -89,6 +90,15 @@ public static class FavListFetcher
                 try
                 {
                     fetched[id] = await NormalInfoFetcher.FetchAsync(id, cfg, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;   // Ctrl+C 不吞
+                }
+                catch (Exception ex)
+                {
+                    // 单个视频被删/风控时跳过该视频，不让整个收藏夹因一条失败而中断（与 SpaceListFetcher 一致）
+                    LogWarn($"获取多 P 视频 {id} 详情失败，已跳过：{ex.Message}");
                 }
                 finally
                 {

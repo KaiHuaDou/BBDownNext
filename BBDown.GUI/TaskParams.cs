@@ -76,11 +76,8 @@ public static class CliArgsBuilder
 
     private static void AddContent(List<string> args, string content)
     {
-        if (content.Length == 0)
-        {
-            return;
-        }
-
+        // 全空也显式传 --get ""（CLI 解析为空内容集），否则 CLI 回落默认 avmsCiM，
+        // 用户清空所有复选框反而全量下载
         args.Add("--get");
         args.Add(content);
     }

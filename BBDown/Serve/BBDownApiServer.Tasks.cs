@@ -191,13 +191,15 @@ public partial class BBDownApiServer
 
     private void TrimFinishedTasks( )
     {
-        while (finishedTasks.Count > MaxFinishedTasks)
+        if (finishedTasks.Count <= MaxFinishedTasks)
         {
-            var oldest = finishedTasks.Values.OrderBy(t => t.TaskFinishTime).FirstOrDefault( );
-            if (oldest is null || !finishedTasks.TryRemove(oldest.Aid, out _))
-            {
-                break;
-            }
+            return;
+        }
+
+        // 一次排序淘汰最旧的一批，避免循环内反复 OrderBy 造成 O(n²)
+        foreach (var oldest in finishedTasks.Values.OrderBy(t => t.TaskFinishTime).Take(finishedTasks.Count - MaxFinishedTasks))
+        {
+            finishedTasks.TryRemove(oldest.Aid, out _);
         }
     }
 }

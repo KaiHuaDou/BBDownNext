@@ -43,6 +43,7 @@ public static class MediaListFetcher
             using var listJson = JsonDocument.Parse(await GetWebSourceAsync(listApi, cfg, null, ct));
             var listData = GetApiData(listJson.RootElement, $"{label}视频列表");
             hasMore = listData.GetProperty("has_more").GetBoolean( );
+            var got = 0;
             foreach (var m in listData.GetProperty("media_list").EnumerateArray( ))
             {
                 // 只处理未失效的视频条目（与收藏夹解析逻辑保持一致）
@@ -51,6 +52,7 @@ public static class MediaListFetcher
                     continue;
                 }
 
+                got++;
                 var pageCount = m.GetProperty("page").GetInt32( );
                 var desc = m.GetProperty("intro").GetString( )!;
                 var ownerName = m.GetProperty("upper").GetProperty("name").ToString( );
@@ -83,6 +85,12 @@ public static class MediaListFetcher
                 }
 
                 oid = m.GetProperty("id").ToString( );
+            }
+
+            // 整页条目均失效时 oid 不前进、has_more 恒 true，不中断会死循环
+            if (got == 0)
+            {
+                break;
             }
         }
 

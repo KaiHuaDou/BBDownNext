@@ -26,9 +26,13 @@ env:
 
 jobs:
   build-windows:
-    name: Build GUI (win-x64)
+    name: Build GUI (${{ matrix.rid }})
     runs-on: windows-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [win-x64, win-arm64]
     steps:
       - uses: actions/checkout@v7
 
@@ -39,22 +43,36 @@ jobs:
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
 
-      - name: Publish (SingleFile, self-contained)
-        run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r win-x64 -o artifact
+      - name: Publish (framework-dependent)
+        run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} --self-contained false -o artifact-fd
 
-      - name: Stage artifact
+      - name: Stage artifact (framework-dependent)
         shell: pwsh
-        run: mv artifact/BBDown.GUI.exe artifact/BBDown.GUI-win-x64.exe
+        run: mv artifact-fd/BBDown.GUI.exe artifact-fd/BBDown.GUI-${{ matrix.rid }}-fd.exe
 
-      - name: Upload artifact
+      - name: Upload artifact (framework-dependent)
         uses: actions/upload-artifact@v7
         with:
-          name: BBDown_GUI_win-x64
-          path: artifact/BBDown.GUI-win-x64.exe
+          name: BBDown_GUI_${{ matrix.rid }}_fd
+          path: artifact-fd/BBDown.GUI-${{ matrix.rid }}-fd.exe
+          retention-days: 7
+
+      - name: Publish (self-contained)
+        run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} --self-contained true -o artifact-sc
+
+      - name: Stage artifact (self-contained)
+        shell: pwsh
+        run: mv artifact-sc/BBDown.GUI.exe artifact-sc/BBDown.GUI-${{ matrix.rid }}-sc.exe
+
+      - name: Upload artifact (self-contained)
+        uses: actions/upload-artifact@v7
+        with:
+          name: BBDown_GUI_${{ matrix.rid }}_sc
+          path: artifact-sc/BBDown.GUI-${{ matrix.rid }}-sc.exe
           retention-days: 7
 
   attach-to-latest-release:
-    name: Attach to latest release (manual)
+    name: Attach to latest release
     if: github.event_name == 'workflow_dispatch'
     needs: build-windows
     runs-on: ubuntu-latest

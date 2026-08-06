@@ -212,14 +212,14 @@ public static class DanmakuUtil
             }
 
             FontSize = attrs[2];
-            try
+            // TryParse 同时兜住 FormatException 与 OverflowException（颜色值可能超出 int 范围）
+            if (int.TryParse(attrs[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out var colorD))
             {
-                var colorD = int.Parse(attrs[3], CultureInfo.InvariantCulture);
                 Color = (colorD & 0xFFFFFF).ToString("X6", CultureInfo.InvariantCulture);
             }
-            catch (FormatException e)
+            else
             {
-                Log(e.Message);
+                Log($"无效的弹幕颜色值：{attrs[3]}");
             }
 
             Timestamp = attrs[4];

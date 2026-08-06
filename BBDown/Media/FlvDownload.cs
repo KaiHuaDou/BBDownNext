@@ -20,10 +20,11 @@ namespace BBDown.Media;
 
 internal static class FlvDownload
 {
-    internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, bool selected, CancellationToken ct = default)
+    internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, TrackSelection selection, CancellationToken ct = default)
     {
         var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, _) = session;
         var p = pageCtx.Page;
+        var (selected, _, _) = selection;
         List<AudioMaterial> audioMaterial = [];
         var reParsed = false;
         while (true)
@@ -33,22 +34,41 @@ internal static class FlvDownload
             var dfns = parsedResult.Dfns;
             parsedResult.VideoTracks = TrackSelect.SortTracks(parsedResult.VideoTracks, ctx.Run.DfnPriority, ctx.Run.EncodingPriority, myOption.VideoAscending, ctx.Run.EncodingFirst);
 
-            var vIndex = 0;
-            if (myOption.InteractiveQuality && !reParsed && !selected)
+            // 交互选清晰度：首次由用户选并记录 dfn 序号；下载失败重试时凭回传序号恢复（selection.VIndex），
+            // 两者都走「按 dfn 重解析」，保证重试不把用户所选档位静默换成默认档
+            if (myOption.InteractiveQuality && !reParsed)
             {
-                vIndex = TrackSelect.PickDfn(dfns);
-                // 重新解析
-                parsedResult.VideoTracks.Clear( );
-                parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.aid, p.cid, p.epid,
-                    myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, dfns[vIndex], ct);
-                if (p.points.Count == 0)
+                if (!selected)
                 {
-                    p.points = parsedResult.ExtraPoints;
+                    if (dfns.Count == 0)
+                    {
+                        LogWarn("FLV 源未返回清晰度列表，跳过交互选择");
+                    }
+                    else
+                    {
+                        selection = selection with { Selected = true, VIndex = TrackSelect.PickDfn(dfns) };
+                    }
                 }
 
-                reParsed = true;
-                selected = true;
-                continue;
+                // dfns 为空或序号越界时按默认档下载，避免索引越界
+                var dfn = dfns.ElementAtOrDefault(selection.VIndex);
+                if (dfn == null)
+                {
+                    LogWarn("FLV 源未返回清晰度列表，跳过交互选择");
+                }
+                else
+                {
+                    parsedResult.VideoTracks.Clear( );
+                    parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.aid, p.cid, p.epid,
+                        myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, dfn, ct);
+                    if (p.points.Count == 0)
+                    {
+                        p.points = parsedResult.ExtraPoints;
+                    }
+
+                    reParsed = true;
+                    continue;
+                }
             }
 
             CdnHost.Apply(myOption, clips, ctx.Fetch.Cfg);
@@ -57,24 +77,24 @@ internal static class FlvDownload
 
             if (myOption.OnlyShowInfo)
             {
-                return PageOutcome.Abort(selected);
+                return PageOutcome.Abort(selection);
             }
 
             // 纯字幕等无音视频内容：FLV 源不产弹幕/封面，字幕已在 PrepareAsync 产出，直接中止
             if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
             {
-                return PageOutcome.Abort(selected);
+                return PageOutcome.Abort(selection);
             }
 
-            var selectedVideo = parsedResult.VideoTracks.ElementAtOrDefault(vIndex);
+            var selectedVideo = parsedResult.VideoTracks.ElementAtOrDefault(0);
             if (IsCodecUnsupported(selectedVideo))
             {
                 LogError($"分段(FLV)源无法承载 {selectedVideo!.codecs} 编码，请改用 -e avc 重新下载");
-                return PageOutcome.Abort(selected);
+                return PageOutcome.Abort(selection);
             }
 
             var savePath = SavePath.Build(ctx, pageCtx, selectedVideo, null);
-            if (MuxFinish.TrySkipExisting(session, savePath, selected) is { } skipped)
+            if (MuxFinish.TrySkipExisting(session, savePath, selection) is { } skipped)
             {
                 return skipped;
             }
@@ -99,7 +119,7 @@ internal static class FlvDownload
 
             // 非 AVC 已在上游拒绝，混流标记恒为 false
             var inputs = new MuxFinish.MuxInputs(savePath, videoPath, "", audioMaterial, UseMp4box: false, IsHevc: false);
-            return await MuxFinish.RunAsync(session, inputs, selected, ct);
+            return await MuxFinish.RunAsync(session, inputs, selection, ct);
         }
     }
 

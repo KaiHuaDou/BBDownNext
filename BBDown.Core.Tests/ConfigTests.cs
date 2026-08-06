@@ -45,10 +45,18 @@ public class ConfigTests
     // 未收录档位按 qn 数值算插入位：比已知最高还高 => 0；介于 100 与 80 之间 => 与 100 并列；非数字 => 末尾
     [Theory]
     [InlineData("130", 0)]
-    [InlineData("90", 7)]
-    [InlineData("abc", 15)]
+    [InlineData("90", 8)]
+    [InlineData("abc", 16)]
     public void QualityRank_UnknownQnInsertsByNumericValue(string qn, int expectedRank)
     {
         Assert.Equal(expectedRank, Config.QualityRank(qn));
+    }
+
+    // HDR Vivid（qn=129，APP 端档位）已登记画质名与排序位
+    [Fact]
+    public void QualityRank_HdrVividRegistered( )
+    {
+        Assert.Equal("HDR Vivid", Config.GetQualityName("129"));
+        Assert.True(Config.QualityRank("129") < Config.QualityRank("120"));
     }
 }

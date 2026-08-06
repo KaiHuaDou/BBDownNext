@@ -56,14 +56,9 @@ internal static class PageQueue
         // 评论区按 aid 绑定，与 cid / 分 P 无关；多 P 同 aid 只抓一次
         var commentedAids = new HashSet<string>(StringComparer.Ordinal);
 
+        var isFirstPage = true;
         var errors = await RunPagesAsync(pagesInfo, myOption.StopOnError, async (p, token) =>
         {
-            if (pagesInfo.Count > 1 && ctx.Run.Delay > 0)
-            {
-                Log($"停顿 {ctx.Run.Delay} 秒...");
-                await Task.Delay(ctx.Run.Delay * 1000, token);
-            }
-
             Log($"开始解析 P{p.index}：{p.aid}...（{pagesInfo.IndexOf(p) + 1} / {pagesInfo.Count}）");
 
             // 评论区关闭也能立刻反馈，视频下载失败也不丢评论；放在视频下载之前。--info-only 仅解析不产出评论。
@@ -73,6 +68,15 @@ internal static class PageQueue
             {
                 await CommentDownload.RunAsync(ctx, PageDownload.BuildPageContext(p, ctx, pagesInfo), sink, token);
             }
+
+            // --delay-per-page 是分 P 间隔：首个分 P 与评论下载都不参与等待
+            if (!isFirstPage && ctx.Run.Delay > 0)
+            {
+                Log($"停顿 {ctx.Run.Delay} 秒...");
+                await Task.Delay(ctx.Run.Delay * 1000, token);
+            }
+
+            isFirstPage = false;
 
             if (myOption.SaveArchivesToFile && ArchiveLog.CheckArchive(p.aid, p.cid))
             {

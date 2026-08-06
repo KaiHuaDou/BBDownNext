@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Comment;
+using BBDown.Mux;
 using BBDown.Util;
 
 using static BBDown.Core.Logger;
@@ -52,6 +53,12 @@ internal static class CommentDownload
         document.Bvid = pageCtx.Page.bvid;
 
         var basePath = SavePath.Build(ctx, pageCtx, null, null);
+        // 内容集无 v（仅音频）时产物为 .m4a，评论文件须与之一致
+        if (!ctx.Run.Content.Has(DownloadContent.Video))
+        {
+            basePath = MuxFinish.ToAudioOnlyPath(basePath);
+        }
+
         Directory.CreateDirectory(Path.GetDirectoryName(basePath)!);
 
         foreach (var format in ctx.Run.CommentFormats)

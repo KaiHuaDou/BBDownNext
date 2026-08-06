@@ -23,9 +23,10 @@ internal static class PageDownload
     {
         var pageCtx = BuildPageContext(p, ctx, selectedPagesInfo);
         List<Subtitle> subtitleInfo = [];
-        var selected = false; //用户是否已经手动选择过了轨道
+        // 交互选轨状态跨重试保留：选过的序号经 PageOutcome 回传，重试恢复，避免静默降级到第 0 条轨道
+        var selection = TrackSelection.Default;
         var retryCount = 0;
-        var outcome = PageOutcome.Abort(selected);
+        var outcome = PageOutcome.Abort(TrackSelection.Default);
         while (true)
         {
             try
@@ -74,13 +75,13 @@ internal static class PageDownload
                 }
 
                 session = session with { Subtitles = subtitleInfo };
-                outcome = await DispatchAsync(parsedResult, session, selected, ct);
+                outcome = await DispatchAsync(parsedResult, session, selection, ct);
                 if (pageCtx.IsPreview)
                 {
                     outcome = outcome with { Preview = true };
                 }
 
-                selected = outcome.Selected;
+                selection = new TrackSelection(outcome.Selected, outcome.VIndex, outcome.AIndex);
                 if (outcome.Aborted)
                 {
                     return outcome;
@@ -193,16 +194,16 @@ internal static class PageDownload
         };
     }
 
-    private static async Task<PageOutcome> DispatchAsync(ParsedResult parsedResult, DownloadSession session, bool selected, CancellationToken ct = default)
+    private static async Task<PageOutcome> DispatchAsync(ParsedResult parsedResult, DownloadSession session, TrackSelection selection, CancellationToken ct = default)
     {
         if ((parsedResult.VideoTracks.Count != 0 || parsedResult.AudioTracks.Count != 0) && parsedResult.Clips.Count == 0)
         {
-            return await DashDownload.RunAsync(parsedResult, session, selected, ct);
+            return await DashDownload.RunAsync(parsedResult, session, selection, ct);
         }
 
         if (parsedResult.Clips.Count != 0 && parsedResult.Dfns.Count != 0)
         {
-            return await FlvDownload.RunAsync(parsedResult, session, selected, ct);
+            return await FlvDownload.RunAsync(parsedResult, session, selection, ct);
         }
 
         LogError("解析此分 P 失败（使用 --debug 以查看详细信息）");
@@ -212,6 +213,6 @@ internal static class PageDownload
         }
 
         LogDebug("{0}", parsedResult.RawResponse);
-        return PageOutcome.Done("", selected);
+        return PageOutcome.Done("", selection);
     }
 }

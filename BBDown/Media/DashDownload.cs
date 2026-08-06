@@ -19,10 +19,11 @@ namespace BBDown.Media;
 
 internal static class DashDownload
 {
-    internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, bool selected, CancellationToken ct = default)
+    internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, TrackSelection selection, CancellationToken ct = default)
     {
         var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, sink) = session;
         var p = pageCtx.Page;
+        var (selected, vIndex, aIndex) = selection;
 
         if (parsedResult.VideoTracks.Count == 0)
         {
@@ -38,7 +39,7 @@ internal static class DashDownload
         if (parsedResult.VideoTracks.Count == 0 && parsedResult.AudioTracks.Count == 0
             && myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
         {
-            return PageOutcome.Abort(selected);
+            return PageOutcome.Abort(selection);
         }
 
         if (!myOption.Content.Has(DownloadContent.Video))
@@ -63,15 +64,13 @@ internal static class DashDownload
         // 仅展示 跳过下载
         if (myOption.OnlyShowInfo)
         {
-            return PageOutcome.Abort(selected);
+            return PageOutcome.Abort(selection);
         }
 
-        var vIndex = 0; // 用户手动选择的视频序号
-        var aIndex = 0; // 用户手动选择的音频序号
         if (myOption.InteractiveQuality && !selected)
         {
             TrackSelect.PickTracks(parsedResult, ref vIndex, ref aIndex);
-            selected = true;
+            selection = selection with { Selected = true, VIndex = vIndex, AIndex = aIndex };
         }
 
         var selectedVideo = parsedResult.VideoTracks.ElementAtOrDefault(vIndex);
@@ -84,7 +83,7 @@ internal static class DashDownload
 
         if (myOption.Content.Has(DownloadContent.Danmaku) && await PageAssets.DownloadDanmakuAsync(session, savePath, ct))
         {
-            return PageOutcome.Abort(selected);
+            return PageOutcome.Abort(selection);
         }
 
         if (myOption.Content.Has(DownloadContent.Cover))
@@ -95,14 +94,14 @@ internal static class DashDownload
             sink.Saved?.Invoke(newCoverPath);
             if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
             {
-                return PageOutcome.Abort(selected);
+                return PageOutcome.Abort(selection);
             }
         }
 
         // 纯字幕 / 纯评论等无音视频内容：字幕已在 PrepareAsync 产出，此处统一中止
         if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
         {
-            return PageOutcome.Abort(selected);
+            return PageOutcome.Abort(selection);
         }
 
         Log("已选择的流：");
@@ -110,7 +109,7 @@ internal static class DashDownload
 
         CdnHost.Apply(myOption, selectedVideo, selectedAudio, ctx.Fetch.Cfg);
 
-        if (MuxFinish.TrySkipExisting(session, savePath, selected) is { } skipped)
+        if (MuxFinish.TrySkipExisting(session, savePath, selection) is { } skipped)
         {
             return skipped;
         }
@@ -194,7 +193,7 @@ internal static class DashDownload
         if (!decryptOk)
         {
             LogError($"P{p.index} 存在无法解密的 DRM 轨道，已保留原始文件，跳过混流");
-            return PageOutcome.Abort(selected);
+            return PageOutcome.Abort(selection);
         }
 
         if (parsedResult.VideoTracks.Count == 0)
@@ -208,7 +207,7 @@ internal static class DashDownload
         }
 
         var inputs = new MuxFinish.MuxInputs(savePath, videoPath, audioPath, audioMaterial, useMp4box, selectedVideo?.codecs == "HEVC");
-        return await MuxFinish.RunAsync(session, inputs, selected, ct);
+        return await MuxFinish.RunAsync(session, inputs, selection, ct);
     }
 
     // 解密选中轨（含背景音/配音）：非 DRM 轨直接放行；解密成功产物覆盖加密原件；

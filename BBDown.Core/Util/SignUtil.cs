@@ -15,7 +15,8 @@ public static class SignUtil
     // CA5351: MD5 由 B 站 wbi 签名协议规定，哈希值必须与服务端保持一致，不能替换为 SHA256
     // 算法见 bilibili-API-collect/docs/misc/sign/wbi.md：把含 wts 的参数按 key 升序排序后，对值做
     // encodeURIComponent 风格编码（并过滤 !'()*），末尾直接拼接 mixinKey 取 MD5 得 w_rid，再追加回原始 query。
-    // 当前 playurl 参数均为数字/固定字面量，编码为恒等变换；排序是关键修正点（旧实现按书写序拼接，与服务端不一致）。
+    // 值已含 %XX（调用方预先编码）时不再二次编码，否则 % 会被编成 %25 导致签名与线上不符；
+    // 值含未编码 & / = 时按 & 切分会断裂，此类参数请改用 <see cref="WbiSignedQuery"/>（键值对入参）。
     public static string WbiSign(string api, AppConfig cfg)
     {
         if (cfg.Wbi.Length == 0)
@@ -34,12 +35,19 @@ public static class SignUtil
             withoutWrid.Split('&')
                 .Select(part => part.Split('=', 2))
                 .Where(kv => kv.Length == 2)
-                .Select(kv => (Key: kv[0], Value: WbiEncodeValue(kv[1])))
+                .Select(kv => (Key: kv[0], Value: EncodeIfNeeded(kv[1])))
                 .OrderBy(p => p.Key, StringComparer.Ordinal)
                 .Select(p => $"{p.Key}={p.Value}"))
             + cfg.Wbi;
 
         return $"{withoutWrid}&w_rid={Md5Hex(canonical)}";
+    }
+
+    // % 是 URL 编码的专属标记：已编码值必含 %XX，未编码的 wbi 参数（数字/普通文本）不含 %，
+    // 以此判定跳过二次编码，兼顾官方算法（对未编码值编码）与调用方已编码值两种入参
+    private static string EncodeIfNeeded(string value)
+    {
+        return value.Contains('%') ? value : WbiEncodeValue(value);
     }
 
     // 与浏览器 encodeURIComponent 一致：保留 A-Za-z0-9-_.~，过滤 wbi.md 要求的 !'()*，其余按 UTF-8 字节大写十六进制转义（空格 -> %20）。

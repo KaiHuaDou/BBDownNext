@@ -25,7 +25,7 @@ internal static class MuxFinish
     /// 目标文件已存在且非空时登记路径、清掉临时产物并返回中止结果；需要下载则返回 null。
     /// 内容集无 v（仅音频）时产物为 .m4a，跳过检测须用同一扩展名，否则重跑会重复下载。
     /// </summary>
-    internal static PageOutcome? TrySkipExisting(DownloadSession session, string savePath, bool selected)
+    internal static PageOutcome? TrySkipExisting(DownloadSession session, string savePath, TrackSelection selection)
     {
         if (!session.Options.Content.Has(DownloadContent.Video))
         {
@@ -41,18 +41,18 @@ internal static class MuxFinish
         session.Sink.Saved?.Invoke(savePath);
         SafeDelete(session.PageCtx.CoverPath);
         TryDeleteEmptyDir(session.PageCtx.TempDir);
-        return PageOutcome.Abort(selected);
+        return PageOutcome.Abort(selection);
     }
 
     /// <summary>
     /// 混流并清理临时文件，DASH 与 FLV 共用。--skip-mux 时直接中止，保留已下载的裸轨。
     /// </summary>
-    internal static async Task<PageOutcome> RunAsync(DownloadSession session, MuxInputs inputs, bool selected, CancellationToken ct = default)
+    internal static async Task<PageOutcome> RunAsync(DownloadSession session, MuxInputs inputs, TrackSelection selection, CancellationToken ct = default)
     {
         var (myOption, ctx, pageCtx, subtitleInfo, _, _) = session;
         if (myOption.SkipMux)
         {
-            return PageOutcome.Abort(selected);
+            return PageOutcome.Abort(selection);
         }
 
         var p = pageCtx.Page;
@@ -82,11 +82,11 @@ internal static class MuxFinish
         if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
         {
             LogError("混流失败");
-            return PageOutcome.Abort(selected);
+            return PageOutcome.Abort(selection);
         }
 
         Cleanup(pageCtx, inputs.VideoPath, inputs.AudioPath, inputs.AudioMaterial);
-        return PageOutcome.Done(savePath, selected);
+        return PageOutcome.Done(savePath, selection);
     }
 
     internal static string ToAudioOnlyPath(string savePath)

@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -40,6 +41,16 @@ public static class Parser
         }
 
         using var firstDoc = JsonDocument.Parse(result.RawResponse);
+        // playurl 非 0 code（-400/-404/-352 等）意味着拉流失败：直接抛可读错误，
+        // 否则会静默落到根节点解析出空轨道，下游只报一句晦涩的「解析此分 P 失败」
+        var (code, message) = ReadApiError(firstDoc.RootElement);
+        if (code != 0)
+        {
+            throw new InvalidOperationException(code == -352
+                ? $"播放信息被风控拦截（code={code}）：{message}，请稍后重试或补充已登录的 Cookie"
+                : $"获取播放信息失败（code={code}）：{message}");
+        }
+
         var nodeName = PlayUrlResponse.ResolveDataNodeName(firstDoc.RootElement);
         var firstRoot = PlayUrlResponse.GetRootNode(firstDoc.RootElement, nodeName);
 

@@ -108,8 +108,9 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 - 不许在任何名称中使用 `my`
 - 接口使用 IUpperCamelCase
 - 使用 `Utils` 而非 `Util`/`Utilties`/`Helper`
-- 异步方法必须由 `Async` 结尾
+- 异步方法必须由 `Async` 结尾（测试除外）
 - Namespace / Type / Const / Property / Public 使用 UpperCamelCase
+- CONST 也可使用全大写 + 下划线
 - private 使用 snakeCase
 - 命名空间名不能作为类名的前缀、类名不能作为函数名/属性名的前缀
     - 即调用时不许出现 `XXXX<pattern>.<pattern>YYYY( )` 的情况
@@ -157,7 +158,7 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
         - 明确表格/表单（或实质类似）场景：`Grid`
         - 其余场景：`StackPanel`/`WrapPanel`/`DockPanel`
             - 尤其善用 `DockPanel`
-        - 禁止写死任何 `Height`/`Width`
+        - 不建议写死任何 `Height`/`Width`，特殊情况可以（窗口整体、大的布局面板）
             - 图标场景除外
         - 窗口最外层布局 `Panel` 至少 `Margin="10"`
         - `Grid`

@@ -52,7 +52,7 @@ internal static class PageAssets
             await SubUtil.SaveSubtitleAsync(s.url, s.path, ctx.Fetch.Cfg, ct);
             if (File.Exists(s.path) && File.ReadAllText(s.path).Length != 0)
             {
-                MoveSubtitleToOutput(s, ctx, pageCtx);
+                MoveSubtitleToOutput(s, ctx, pageCtx, !myOption.Content.Has(DownloadContent.Video));
             }
             else if (File.Exists(s.path))
             {
@@ -63,9 +63,15 @@ internal static class PageAssets
         return subtitleInfo;
     }
 
-    private static void MoveSubtitleToOutput(Subtitle s, WorkContext ctx, PageContext pageCtx)
+    private static void MoveSubtitleToOutput(Subtitle s, WorkContext ctx, PageContext pageCtx, bool audioOnly)
     {
         var outSubPath = SavePath.Build(ctx, pageCtx, null, null);
+        // 内容集无 v（仅音频）时产物为 .m4a，字幕文件须与之一致，否则音视频之外的文件仍挂在 .mp4 基底
+        if (audioOnly)
+        {
+            outSubPath = MuxFinish.ToAudioOnlyPath(outSubPath);
+        }
+
         var outDir = Path.GetDirectoryName(outSubPath);
         if (!string.IsNullOrEmpty(outDir))
         {

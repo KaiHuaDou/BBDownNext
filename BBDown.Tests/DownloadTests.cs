@@ -218,10 +218,10 @@ public class DownloadTests
             var m4a = Path.Combine(dir, "video.m4a");
             File.WriteAllText(mp4, "x");
             var session = MakeSkipSession(DownloadContent.Audio, dir);
-            Assert.Null(MuxFinish.TrySkipExisting(session, mp4, false));
+            Assert.Null(MuxFinish.TrySkipExisting(session, mp4, TrackSelection.Default));
 
             File.WriteAllText(m4a, "x");
-            Assert.NotNull(MuxFinish.TrySkipExisting(session, mp4, false));
+            Assert.NotNull(MuxFinish.TrySkipExisting(session, mp4, TrackSelection.Default));
         }
         finally
         {
@@ -244,10 +244,10 @@ public class DownloadTests
             var m4a = Path.Combine(dir, "video.m4a");
             File.WriteAllText(m4a, "x");
             var session = MakeSkipSession(DownloadContent.Audio | DownloadContent.Video, dir);
-            Assert.Null(MuxFinish.TrySkipExisting(session, mp4, false));
+            Assert.Null(MuxFinish.TrySkipExisting(session, mp4, TrackSelection.Default));
 
             File.WriteAllText(mp4, "x");
-            Assert.NotNull(MuxFinish.TrySkipExisting(session, mp4, false));
+            Assert.NotNull(MuxFinish.TrySkipExisting(session, mp4, TrackSelection.Default));
         }
         finally
         {
