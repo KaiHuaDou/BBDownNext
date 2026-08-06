@@ -35,7 +35,6 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 - 单个 `.cs` 文件不得超过 384 行（测试除外）。如因清理历史遗留问题暂时超过，必须在本次提交信息中说明原因，并在后续改动中尽快拆分。
     - 使用 `just tokei` 来分析行数
     - 当前超行文件
-        - .\BBDown\Auth\Login.cs
         - .\BBDown.Core\Opus\OpusFetcher.cs
         - .\BBDown\Download\DownloadUtil.cs
         - .\BBDown.Core\Util\HTTPUtil.cs
@@ -81,15 +80,19 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 - C# 13 最新语法：集合表达式（`[]`、模式匹配、LINQ 等等
 - **遵守我的`.editorconfig`**
-- 正则表达式不要使用不适用于源生成的语法
 - 所有语法必须兼容 AOT
+    - 正则表达式不要使用不适用于源生成的语法
 - 偏好`TryGetValue`，更偏好`GetValueOrDefault`
 - 偏好 `var`
+- 偏好 `lock(<System.Threading.Lock gate>)`
 - 偏好 `is null`/`is not null`
 - 偏好 `await using`
-- 偏好 `lock(<System.Threading.Lock gate>)`
+- 正则表达式、路径偏好 `@""`
+- 字符串拼接偏好 `StringBuilder` 和 `$""`，避免使用 `+` 拼接
 - 空括号中间要加空格，即`( )`
 - 不要在方法/嵌套方法/构造函数上使用 `=>`
+- `<summary>`、`</summary>` 无论如何都单独占一行
+- **除非冲突的情况**，不要在 class 前使用 namespace 前缀，尽量使用 `using <namespace>;`（即便只有一处调用也要。
 
 ### 命名
 
@@ -116,6 +119,7 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
     - ctx -> context
     - src -> source（惯例情况除外）
     - cmd -> command
+    - sb（尤其禁用这个！） -> builder
 - **强制大小写规范**（以下全大写的在特定情况下也可使用全小写）
     - FFmpeg / ffmpeg
     - MP4Box / mp4box

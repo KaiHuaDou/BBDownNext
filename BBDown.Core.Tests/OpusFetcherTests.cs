@@ -165,7 +165,7 @@ public class OpusFetcherTests
             "title": "旧版专栏",
             "type": 0,
             "author": { "name": "作者", "mid": 1 },
-            "content": "<p>段落一</p><p><strong>加粗</strong></p><img src=\"https://i0.hdslb.com/x.png\">"
+            "content": "<p>段落一</p><p><strong>加粗</strong></p><img src=\"https://i0.hdslb.com/x.png\"><figure class=\"img-box\"><img src=\"//i0.hdslb.com/b.png\"></figure><p><span class=\"color-pink-03\">粉字</span></p>"
           }
         }
         """;
@@ -173,10 +173,16 @@ public class OpusFetcherTests
         var doc = await WithRoutedStub(_ => Ok(LegacyJson),
             ( ) => OpusFetcher.FetchAsync(new OpusTarget("", "1"), AppConfig.Empty, TestContext.Current.CancellationToken));
 
-        var text = doc.Paragraphs[0].TextNodes[0].Text!;
+        var node = doc.Paragraphs[0].TextNodes[0];
+        var text = node.Text!;
+        Assert.True(node.IsRawMarkdown);
         Assert.Contains("段落一", text, StringComparison.Ordinal);
         Assert.Contains("**加粗**", text, StringComparison.Ordinal);
-        Assert.Contains("![](https://i0.hdslb.com/x.png)", text, StringComparison.Ordinal);
+        // 图片与样式标签原样保留，不转 ![]()
+        Assert.Contains("<img src=\"https://i0.hdslb.com/x.png\">", text, StringComparison.Ordinal);
+        Assert.Contains("<figure class=\"img-box\"><img src=\"//i0.hdslb.com/b.png\"></figure>", text, StringComparison.Ordinal);
+        Assert.Contains("<span class=\"color-pink-03\">粉字</span>", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("![", text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -216,5 +222,37 @@ public class OpusFetcherTests
     {
         using var doc = JsonDocument.Parse("""{ "fallback": { "type": 1, "id": "12345" }, "item": { "basic": {} } }""");
         Assert.Null(OpusFetcher.TryGetCvId(doc.RootElement));
+    }
+
+    // para_type 3 的 line.pic 是图片（figure 里的图），line.line_type 才是分割线
+    [Fact]
+    public void ParseParagraph_ParaType3WithLinePic_ReturnsImage( )
+    {
+        using var doc = JsonDocument.Parse("""
+        { "para_type": 3, "line": { "pic": { "url": "//i0.hdslb.com/bfs/article/a.png" } } }
+        """);
+        var p = OpusFetcher.ParseParagraph(doc.RootElement);
+        Assert.Equal(OpusParagraphKind.Image, p.Kind);
+        Assert.Equal("//i0.hdslb.com/bfs/article/a.png", p.Images[0].Url);
+    }
+
+    [Fact]
+    public void ParseParagraph_ParaType3WithLineType_ReturnsDivider( )
+    {
+        using var doc = JsonDocument.Parse("""{ "para_type": 3, "line": { "line_type": 1 } }""");
+        Assert.Equal(OpusParagraphKind.Divider, OpusFetcher.ParseParagraph(doc.RootElement).Kind);
+    }
+
+    // article/view 版 link_card 只有 show_text / biz_id，没有 title / jump_url
+    [Fact]
+    public void ParseParagraph_LinkCardWithoutTitle_UsesShowText( )
+    {
+        using var doc = JsonDocument.Parse("""
+        { "para_type": 7, "link_card": { "card": { "show_text": "马场芳郎【某科学的超电磁炮】", "link_type": 3, "biz_id": "20233251" } } }
+        """);
+        var p = OpusFetcher.ParseParagraph(doc.RootElement);
+        Assert.Equal(OpusParagraphKind.LinkCard, p.Kind);
+        Assert.Equal("马场芳郎【某科学的超电磁炮】", p.LinkTitle);
+        Assert.Equal("", p.LinkUrl);
     }
 }

@@ -9,6 +9,27 @@ namespace BBDown.Core.Opus;
 /// </summary>
 public static class OpusImageUtil
 {
+    /// <summary>协议补全：协议相对 // 补全 https，http 升 https，其余原样返回。</summary>
+    public static string NormalizeProtocol(string url)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return "";
+        }
+
+        if (url.StartsWith("//", StringComparison.Ordinal))
+        {
+            return "https:" + url;
+        }
+
+        if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            return "https://" + url[7..];
+        }
+
+        return url;
+    }
+
     public static string Normalize(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -16,16 +37,7 @@ public static class OpusImageUtil
             return "";
         }
 
-        url = url.Trim( );
-        if (url.StartsWith("//", StringComparison.Ordinal))
-        {
-            url = "https:" + url;
-        }
-        else if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-        {
-            url = "https://" + url[7..];
-        }
-
+        url = NormalizeProtocol(url.Trim( ));
         var at = url.LastIndexOf('@');
         var lastSlash = url.LastIndexOf('/');
         // 只剥文件名段里的 @（@ 在最后一个 / 之后），避免误伤 URL 路径其它位置

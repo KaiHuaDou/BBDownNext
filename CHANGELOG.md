@@ -20,6 +20,8 @@
 - 手动分 P 选择更名：`--select-page` / `-p` → `--pages` / `-p`；serve 请求契约字段同步由 `selectPage` 改为 `pages`。
 - 命令行选项按 README「参数说明」分组重排（解析模式 → 清晰度与编码 → 下载内容 → 直播录制 → 下载方式与性能 → 账号与凭据 → 文件、路径与调试），`--help` 显示顺序与文档一致。
 - 扫码登录（Web / TV / APP）轮询接入全局取消与失败重试：`Ctrl+C` 可立即终止扫码等待，单次轮询失败自动重试至多 3 次，网络抖动不再直接中断登录。
+- 旧版专栏（data.type == 0）HTML 降级转换策略调整：白名单标签（链接 / 加粗 / 斜体 / 代码 / 引用 / 标题 / 列表 / 分割线 / 段落换行）可靠转换为 Markdown，其余标签（img、span 样式、figure、table 等）原样保留——CommonMark 支持内嵌 HTML，保真优于剥壳；仅解码正文文本段，标签属性内的 HTML 实体（如 &quot;）保留原样；旧版转换产物标记 IsRawMarkdown，渲染时跳过行内转义。
+- OpusImageUtil 抽出 NormalizeProtocol 统一协议补全（// 补 https、http 升 https），OpusHtmlToMarkdown 与 OpusMarkdownRenderer 复用，删除两处重复的 NormalizeUrl。
 
 ### 修复
 
@@ -27,6 +29,9 @@
 - 修复 FLV 源交互式选择清晰度不生效：重解析后仍沿用首次解析的分段列表，实际下载的始终是默认清晰度；现按所选清晰度刷新分段列表。
 - 修复 serve 任务可远程触发控制台输入阻塞：交互式选项（清晰度 / 逐集确认）依赖本地 stdin，现从 serve 请求契约移除，远程请求无法再让任务阻塞在 `Console.ReadLine`。
 - 修复配音流序号越界崩溃：多角色配音流数少于主音频时，序号越界的角色不再抛异常，跳过该角色的配音并告警。
+- 修复 article/view 版图片（para_type 3 的 line.pic）被误判为分割线、图片丢失的问题，现正确渲染为图片段落。
+- 修复 link_card 无跳转地址（如 article/view 版角色卡只有 show_text）时输出 `> []( )` 空链接，改为输出带标题的引用文本。
+- 修复旧版专栏 HTML 转换中 img / figure / 样式标签被剥壳消失的问题，现按原样保留。
 
 ## [v2.0.0-alpha.2]
 

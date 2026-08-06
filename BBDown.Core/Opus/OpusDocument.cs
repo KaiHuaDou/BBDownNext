@@ -35,6 +35,8 @@ public sealed class OpusTextNode
     public int FontSize { get; set; }
     public bool IsFormula { get; set; }
     public string? FormulaLatex { get; set; }
+    /// <summary>Text 已是可直接输出的 Markdown（旧版 HTML 转换产物），渲染时跳过行内转义。</summary>
+    public bool IsRawMarkdown { get; set; }
 }
 
 public sealed class OpusImage

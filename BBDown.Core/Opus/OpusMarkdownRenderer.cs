@@ -137,7 +137,16 @@ public static class OpusMarkdownRenderer
                 break;
             case OpusParagraphKind.LinkCard:
                 var title = string.IsNullOrEmpty(p.LinkTitle) ? p.LinkUrl : p.LinkTitle;
-                sb.AppendLine($"> [{EscapeLinkText(title)}]({FormatLinkTarget(p.LinkUrl)})");
+                if (string.IsNullOrEmpty(p.LinkUrl))
+                {
+                    // article/view 版 link_card 只有 show_text，没有跳转地址，输出引用文本而非空链接
+                    sb.AppendLine($"> {EscapeInline(title)}");
+                }
+                else
+                {
+                    sb.AppendLine($"> [{EscapeLinkText(title)}]({FormatLinkTarget(p.LinkUrl)})");
+                }
+
                 sb.AppendLine(">");
                 sb.AppendLine( );
                 break;
@@ -174,10 +183,17 @@ public static class OpusMarkdownRenderer
                 continue;
             }
 
+            // 旧版 HTML 转换产物（含保留的 HTML 标签与转出的 Markdown 结构），已是最终形式，跳过行内转义
+            if (node.IsRawMarkdown)
+            {
+                sb.Append(node.Text ?? "");
+                continue;
+            }
+
             var text = EscapeInline(node.Text ?? "");
             if (!string.IsNullOrEmpty(node.Url))
             {
-                var url = NormalizeUrl(node.Url);
+                var url = OpusImageUtil.NormalizeProtocol(node.Url);
                 sb.Append($"[{text}]({FormatLinkTarget(url)})");
             }
             else if (node.Bold)
@@ -294,25 +310,5 @@ public static class OpusMarkdownRenderer
                      .Replace(")", "%29", StringComparison.Ordinal)
                      .Replace("#", "%23", StringComparison.Ordinal)
                      .Replace("?", "%3F", StringComparison.Ordinal);
-    }
-
-    private static string NormalizeUrl(string url)
-    {
-        if (string.IsNullOrEmpty(url))
-        {
-            return "";
-        }
-
-        if (url.StartsWith("//", StringComparison.Ordinal))
-        {
-            return "https:" + url;
-        }
-
-        if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-        {
-            return "https://" + url[7..];
-        }
-
-        return url;
     }
 }

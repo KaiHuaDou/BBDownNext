@@ -126,7 +126,7 @@ public static class OpusFetcher
                 doc.Paragraphs.Add(new OpusParagraph
                 {
                     Kind = OpusParagraphKind.Text,
-                    TextNodes = [new OpusTextNode { Text = OpusHtmlToMarkdown.Convert(content.GetString( ) ?? "") }],
+                    TextNodes = [new OpusTextNode { Text = OpusHtmlToMarkdown.Convert(content.GetString( ) ?? ""), IsRawMarkdown = true }],
                 });
                 return doc;
             }
@@ -242,8 +242,18 @@ public static class OpusFetcher
             return ParseListFormatParagraph(para, lf);
         }
 
+        // para_type 3 有两种形态：line.line_type 为分割线，line.pic 为图片（article/view 的 figure 图片落在这里）
         if (para.TryGetProperty("para_type", out var ptDiv) && ptDiv.ValueKind == JsonValueKind.Number && ptDiv.GetInt32( ) == 3)
         {
+            if (para.TryGetProperty("line", out var line) && line.ValueKind == JsonValueKind.Object
+                && line.TryGetProperty("pic", out var linePic) && linePic.ValueKind == JsonValueKind.Object)
+            {
+                var img = new OpusParagraph { Kind = OpusParagraphKind.Image };
+                var url = linePic.TryGetProperty("url", out var lu) ? (lu.GetString( ) ?? "") : "";
+                img.Images.Add(new OpusImage { Url = url });
+                return img;
+            }
+
             return new OpusParagraph { Kind = OpusParagraphKind.Divider };
         }
 
@@ -411,7 +421,9 @@ public static class OpusFetcher
         var card = linkCard.TryGetProperty("card", out var c) ? c : default;
         if (card.ValueKind == JsonValueKind.Object)
         {
-            p.LinkTitle = card.TryGetProperty("title", out var t) ? (t.GetString( ) ?? "") : "";
+            // article/view 版卡片无 title，回退 show_text（如角色卡）
+            p.LinkTitle = card.TryGetProperty("title", out var t) ? (t.GetString( ) ?? "")
+                          : (card.TryGetProperty("show_text", out var st) ? (st.GetString( ) ?? "") : "");
             var url = card.TryGetProperty("jump_url", out var ju) ? (ju.GetString( ) ?? "")
                        : (linkCard.TryGetProperty("jump_url", out var lju) ? (lju.GetString( ) ?? "") : "");
             p.LinkUrl = url;

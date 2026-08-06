@@ -11,12 +11,6 @@ internal static partial class OpusRegexes
     [GeneratedRegex(@"<(script|style)\b[^>]*>.*?</(script|style)>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     public static partial Regex ScriptStyle( );
 
-    [GeneratedRegex(@"<img\b[^>]*?src\s*=\s*""([^""]*)""[^>]*?>", RegexOptions.IgnoreCase)]
-    public static partial Regex ImgDoubleQuote( );
-
-    [GeneratedRegex(@"<img\b[^>]*?src\s*=\s*'([^']*)'[^>]*?>", RegexOptions.IgnoreCase)]
-    public static partial Regex ImgSingleQuote( );
-
     [GeneratedRegex(@"<a\b[^>]*?href\s*=\s*""([^""]*)""[^>]*?>(.*?)</a>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     public static partial Regex AnchorDoubleQuote( );
 
@@ -44,7 +38,15 @@ internal static partial class OpusRegexes
     [GeneratedRegex(@"<hr\b[^>]*/?>", RegexOptions.IgnoreCase)]
     public static partial Regex HorizontalRule( );
 
-    [GeneratedRegex(@"</(p|div|section)>", RegexOptions.IgnoreCase)]
+    // 块级开标签：p/ul/ol 是纯结构容器，直接转换行；div/section/figure/table 保留原样但前补换行
+    [GeneratedRegex(@"<(p|ul|ol)\b[^>]*>", RegexOptions.IgnoreCase)]
+    public static partial Regex BlockStart( );
+
+    [GeneratedRegex(@"<(div|section|figure|table)\b[^>]*>", RegexOptions.IgnoreCase)]
+    public static partial Regex BlockOpen( );
+
+    // 块级闭合标签：p/ul/ol 转换行；div/section/figure/table 保留标签本身，仅在其后补换行
+    [GeneratedRegex(@"</(p|ul|ol|div|section|figure|table)>", RegexOptions.IgnoreCase)]
     public static partial Regex BlockClose( );
 
     [GeneratedRegex(@"<br\s*/?>", RegexOptions.IgnoreCase)]

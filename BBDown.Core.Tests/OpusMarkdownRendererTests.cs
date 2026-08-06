@@ -200,4 +200,34 @@ public class OpusMarkdownRendererTests
         var md = RenderBody(Doc(new OpusParagraph { Kind = OpusParagraphKind.Unknown }, Text("正文")));
         Assert.Contains("正文", md, System.StringComparison.Ordinal);
     }
+
+    // 旧版 HTML 转换产物（含保留 HTML 标签与 Markdown 结构）必须原样输出，不能再转义一次
+    [Fact]
+    public void Render_RawMarkdownNode_IsNotEscaped( )
+    {
+        var p = new OpusParagraph
+        {
+            Kind = OpusParagraphKind.Text,
+            TextNodes = [new OpusTextNode
+            {
+                Text = "**加粗** [链接](https://x) <span class=\"color-pink-03\">粉字</span>",
+                IsRawMarkdown = true,
+            }],
+        };
+        var md = RenderBody(Doc(p));
+        Assert.Contains("**加粗**", md, System.StringComparison.Ordinal);
+        Assert.Contains("[链接](https://x)", md, System.StringComparison.Ordinal);
+        Assert.Contains("<span class=\"color-pink-03\">粉字</span>", md, System.StringComparison.Ordinal);
+        Assert.DoesNotContain(@"\*\*加粗\*\*", md, System.StringComparison.Ordinal);
+    }
+
+    // link_card 缺跳转地址时输出引用文本，杜绝 "> []( )" 空链接
+    [Fact]
+    public void Render_LinkCardWithoutUrl_EmitsQuoteText( )
+    {
+        var p = new OpusParagraph { Kind = OpusParagraphKind.LinkCard, LinkTitle = "角色名", LinkUrl = "" };
+        var md = RenderBody(Doc(p));
+        Assert.Contains("> 角色名", md, System.StringComparison.Ordinal);
+        Assert.DoesNotContain("> []( )", md, System.StringComparison.Ordinal);
+    }
 }
