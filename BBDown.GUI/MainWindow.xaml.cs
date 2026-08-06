@@ -29,6 +29,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent( );
         ApiBox.ItemsSource = new[] { "web", "tv", "app", "intl" };
+        foreach ((var value, var label) in LiveQualityChoices)
+        {
+            LiveQualityBox.Items.Add(new ComboBoxItem { Content = label, Tag = value });
+        }
+
         queue = new QueueRunner(Dispatch);
         queue.Changed += OnQueueChanged;
         queue.Executor = ExecuteTaskAsync;
@@ -128,6 +133,12 @@ public partial class MainWindow : Window
 
     private void StartQueueButtonClicked(object o, RoutedEventArgs e)
     {
+        if (!queue.HasWaiting)
+        {
+            AppendLog("队列中没有等待的任务");
+            return;
+        }
+
         queue.StartSchedule( );
         AppendLog("队列调度已启动");
     }
@@ -206,7 +217,8 @@ public partial class MainWindow : Window
 
     private async Task<int> ExecuteTaskAsync(TaskState state, CancellationToken token)
     {
-        var exePath = ExePathBox.Text.Trim( );
+        // 调度循环在后台线程执行，读 UI 控件须回 UI 线程
+        var exePath = await Dispatcher.InvokeAsync(ExePathBox.Text.Trim).Task;
         var args = CliArgsBuilder.Build(state.Params, state.Url);
         var index = state.Index;
         try
@@ -263,6 +275,12 @@ public partial class MainWindow : Window
         if (url.Length == 0)
         {
             AppendLog("未填写下载目标");
+            return false;
+        }
+
+        if (UrlDetector.Describe(url) is null)
+        {
+            AppendLog("下载目标无法识别，未加入队列");
             return false;
         }
 

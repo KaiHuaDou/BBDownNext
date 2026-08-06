@@ -21,9 +21,9 @@ public static class ProcessRunner
             CreateNoWindow = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            // 不显式指定编码时中文日志按系统 ANSI 解码会乱码
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
+            // 子进程按系统控制台代码页输出（中文系统为 GBK），读取端跟随系统默认编码，显式 UTF8 会乱码
+            StandardOutputEncoding = Console.OutputEncoding,
+            StandardErrorEncoding = Console.OutputEncoding,
         };
         foreach (var arg in args)
         {

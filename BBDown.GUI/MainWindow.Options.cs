@@ -1,10 +1,21 @@
+using System;
 using System.Text;
+using System.Windows.Controls;
 
 namespace BBDown.GUI;
 
 /// <summary>面板控件与 TaskParams 之间的映射，按 §3 控件组拆分为 partial，控制 MainWindow.xaml.cs 行数。</summary>
 public partial class MainWindow
 {
+    private static readonly (string Value, string Label)[] LiveQualityChoices =
+    [
+        ("10000", "10000 原画"),
+        ("400", "400 蓝光"),
+        ("250", "250 超清"),
+        ("150", "150 高清"),
+        ("80", "80 流畅"),
+    ];
+
     private TaskParams ReadOptions( )
     {
         return new TaskParams
@@ -28,10 +39,10 @@ public partial class MainWindow
             EncodingPriority = EncodingPriorityBox.Text.Trim( ),
             DfnPriority = DfnPriorityBox.Text.Trim( ),
             Pages = PagesBox.Text.Trim( ),
-            DanmakuFormats = DanmakuFormatsBox.Text.Trim( ),
+            DanmakuFormats = ReadDanmakuFormats( ),
             CommentsCount = CommentsCountBox.Text.Trim( ),
-            CommentsSort = CommentsSortBox.Text.Trim( ),
-            CommentsFormats = CommentsFormatsBox.Text.Trim( ),
+            CommentsSort = ReadCommentsSort( ),
+            CommentsFormats = ReadCommentsFormats( ),
             Lang = LangBox.Text.Trim( ),
             Cookie = CookieBox.Text.Trim( ),
             AccessToken = AccessTokenBox.Text.Trim( ),
@@ -42,7 +53,7 @@ public partial class MainWindow
             Aria2cPath = Aria2cPathBox.Text.Trim( ),
             Aria2cArgs = Aria2cArgsBox.Text.Trim( ),
             DelayPerPage = DelayPerPageBox.Text.Trim( ),
-            LiveQuality = LiveQualityBox.Text.Trim( ),
+            LiveQuality = ReadLiveQuality( ),
             Api = ApiBox.SelectedItem as string ?? "web",
             FilePattern = FilePatternBox.Text.Trim( ),
             MultiFilePattern = MultiFilePatternBox.Text.Trim( ),
@@ -53,6 +64,48 @@ public partial class MainWindow
             Area = AreaBox.Text.Trim( ),
             UposHost = UposHostBox.Text.Trim( ),
         };
+    }
+
+    private string ReadDanmakuFormats( )
+    {
+        StringBuilder builder = new( );
+        if (DanmakuXmlCheckBox.IsChecked == true)
+        {
+            builder.Append("xml");
+        }
+
+        if (DanmakuAssCheckBox.IsChecked == true)
+        {
+            builder.Append(builder.Length > 0 ? ",ass" : "ass");
+        }
+
+        return builder.ToString( );
+    }
+
+    private string ReadCommentsFormats( )
+    {
+        StringBuilder builder = new( );
+        if (CommentJsonCheckBox.IsChecked == true)
+        {
+            builder.Append("json");
+        }
+
+        if (CommentTxtCheckBox.IsChecked == true)
+        {
+            builder.Append(builder.Length > 0 ? ",txt" : "txt");
+        }
+
+        return builder.ToString( );
+    }
+
+    private string ReadCommentsSort( )
+    {
+        return SortTimeRadioButton.IsChecked == true ? "time" : "hot";
+    }
+
+    private string ReadLiveQuality( )
+    {
+        return (LiveQualityBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "10000";
     }
 
     private string ReadContent( )
@@ -142,10 +195,10 @@ public partial class MainWindow
         EncodingPriorityBox.Text = options.EncodingPriority;
         DfnPriorityBox.Text = options.DfnPriority;
         PagesBox.Text = options.Pages;
-        DanmakuFormatsBox.Text = options.DanmakuFormats;
+        ApplyDanmakuFormats(options.DanmakuFormats);
         CommentsCountBox.Text = options.CommentsCount;
-        CommentsSortBox.Text = options.CommentsSort;
-        CommentsFormatsBox.Text = options.CommentsFormats;
+        ApplyCommentsSort(options.CommentsSort);
+        ApplyCommentsFormats(options.CommentsFormats);
         LangBox.Text = options.Lang;
         CookieBox.Text = options.Cookie;
         AccessTokenBox.Text = options.AccessToken;
@@ -156,7 +209,7 @@ public partial class MainWindow
         Aria2cPathBox.Text = options.Aria2cPath;
         Aria2cArgsBox.Text = options.Aria2cArgs;
         DelayPerPageBox.Text = options.DelayPerPage;
-        LiveQualityBox.Text = options.LiveQuality;
+        ApplyLiveQuality(options.LiveQuality);
         ApiBox.SelectedItem = options.Api;
         FilePatternBox.Text = options.FilePattern;
         MultiFilePatternBox.Text = options.MultiFilePattern;
@@ -166,6 +219,38 @@ public partial class MainWindow
         TvHostBox.Text = options.TvHost;
         AreaBox.Text = options.Area;
         UposHostBox.Text = options.UposHost;
+    }
+
+    private void ApplyDanmakuFormats(string formats)
+    {
+        DanmakuXmlCheckBox.IsChecked = formats.Contains("xml", StringComparison.Ordinal);
+        DanmakuAssCheckBox.IsChecked = formats.Contains("ass", StringComparison.Ordinal);
+    }
+
+    private void ApplyCommentsFormats(string formats)
+    {
+        CommentJsonCheckBox.IsChecked = formats.Contains("json", StringComparison.Ordinal);
+        CommentTxtCheckBox.IsChecked = formats.Contains("txt", StringComparison.Ordinal);
+    }
+
+    private void ApplyCommentsSort(string sort)
+    {
+        SortHotRadioButton.IsChecked = sort == "hot";
+        SortTimeRadioButton.IsChecked = sort == "time";
+    }
+
+    private void ApplyLiveQuality(string quality)
+    {
+        foreach (ComboBoxItem item in LiveQualityBox.Items)
+        {
+            if ((item.Tag as string) == quality)
+            {
+                LiveQualityBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        LiveQualityBox.SelectedIndex = 0;
     }
 
     private void ApplyContent(string content)

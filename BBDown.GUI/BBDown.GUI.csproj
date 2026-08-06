@@ -3,7 +3,6 @@
         <OutputType>WinExe</OutputType>
         <TargetFramework>net9.0-windows</TargetFramework>
         <Nullable>enable</Nullable>
-        <ImplicitUsings>disable</ImplicitUsings>
         <UseWPF>true</UseWPF>
         <LangVersion>latest</LangVersion>
     </PropertyGroup>

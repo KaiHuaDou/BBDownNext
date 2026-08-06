@@ -1,0 +1,86 @@
+name: GUI Build & Publish
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "BBDown.GUI/**"
+      - ".github/workflows/gui.yml"
+      - "global.json"
+      - "Directory.Build.props"
+      - "Directory.Packages.props"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+  BUILD_CONFIG: Release
+
+jobs:
+  build-windows:
+    name: Build GUI (win-x64)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: "./global.json"
+          cache: true
+          cache-dependency-path: "**/Directory.Packages.props"
+
+      - name: Publish (SingleFile, self-contained)
+        run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r win-x64 -o artifact
+
+      - name: Stage artifact
+        shell: pwsh
+        run: mv artifact/BBDown.GUI.exe artifact/BBDown.GUI-win-x64.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: BBDown_GUI_win-x64
+          path: artifact/BBDown.GUI-win-x64.exe
+          retention-days: 7
+
+  attach-to-latest-release:
+    name: Attach to latest release (manual)
+    if: github.event_name == 'workflow_dispatch'
+    needs: build-windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          pattern: BBDown_GUI_*
+          merge-multiple: true
+
+      - name: Get latest release tag
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$(gh release list --limit 1 --json tagName --jq '.[0].tagName')"
+          if [ -z "$tag" ]; then
+            echo "no release found"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifacts to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ steps.latest.outputs.tag }}" artifacts/* --clobber

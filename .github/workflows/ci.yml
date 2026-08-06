@@ -10,6 +10,8 @@ on:
       - "LICENSE"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/PULL_REQUEST_TEMPLATE.md"
+      - ".github/workflows/gui.yml"
+      - "BBDown.GUI/**"
   pull_request:
     branches: [master]
     paths-ignore:
@@ -18,6 +20,8 @@ on:
       - "LICENSE"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/PULL_REQUEST_TEMPLATE.md"
+      - ".github/workflows/gui.yml"
+      - "BBDown.GUI/**"
   workflow_dispatch:
 
 concurrency:
@@ -53,7 +57,10 @@ jobs:
           cache-dependency-path: "**/Directory.Packages.props"
 
       - name: Run tests with coverage
-        run: dotnet test --configuration ${{ env.BUILD_CONFIG }} --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx" --verbosity minimal
+        # 显式指定测试项目，排除 BBDown.GUI（WPF 无测试，且 slnx 会一并构建它）
+        run: |
+          dotnet test BBDown.Tests/BBDown.Tests.csproj --configuration ${{ env.BUILD_CONFIG }} --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx" --verbosity minimal
+          dotnet test BBDown.Core.Tests/BBDown.Core.Tests.csproj --configuration ${{ env.BUILD_CONFIG }} --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx" --verbosity minimal
 
       - name: Upload test results
         if: always()

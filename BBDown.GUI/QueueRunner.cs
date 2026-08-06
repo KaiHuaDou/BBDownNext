@@ -70,6 +70,9 @@ public sealed class QueueRunner(Action<Action> dispatch)
 
     public IEnumerable<TaskState> All => waiting.Concat(running).Concat(finished);
 
+    /// <summary>是否存在等待调度的任务。</summary>
+    public bool HasWaiting => waiting.Count > 0;
+
     /// <summary>立即执行：入队尾并启动调度；并发已满时返回 true（任务排队等待）。</summary>
     public bool RunNow(TaskParams options, string url)
     {
