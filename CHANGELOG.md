@@ -13,6 +13,8 @@
 - 交互式逐集选择分 P：新增 `--interactive-pages` / `-iap`，下载前列出全部分 P 逐个确认是否下载（`[y]` 要，`[n]` 不要，`[a]` 剩余全部要，`[q]` 剩余全部不要，直接回车表示不要）；与 `--pages` 同时给出时以交互选择为准。
 - Web 登录成功后自动校验凭据并打印账号名（best-effort，校验失败仅告警，不阻断登录）。
 - Windows 7 兼容：`win-x64` 产物接入 YY-Thunks 与 VC-LTL（构建时 `-p:WindowsWin7Compat=true`），可在 Windows 7 上直接运行，无需安装 .NET 运行时；Windows 7 用户需先安装 [KB3140245](https://support.microsoft.com/help/3140245)（TLS 1.1 / 1.2 支持）。
+- 纯图文动态导出：`opus` 子命令现支持非专栏的图文动态（`item.type == 0`），按其 `MODULE_TYPE_CONTENT` 正文导出 Markdown（此前会误判为专栏导致下载失败）。
+- 顶部相册下载：专栏 / 图文动态的顶部相册（opus/detail 的 `MODULE_TYPE_TOP` 模块，前端样式 `.opus-module-top__album`）图片随正文一并下载，并置于 Markdown 文档最前。
 
 ### 变更
 
@@ -32,6 +34,8 @@
 - 修复 article/view 版图片（para_type 3 的 line.pic）被误判为分割线、图片丢失的问题，现正确渲染为图片段落。
 - 修复 link_card 无跳转地址（如 article/view 版角色卡只有 show_text）时输出 `> []( )` 空链接，改为输出带标题的引用文本。
 - 修复旧版专栏 HTML 转换中 img / figure / 样式标签被剥壳消失的问题，现按原样保留。
+- 修复纯图文动态 opus 下载失败：此前仅凭 `basic.rid_str` 判定专栏，动态的 rid_str 不是 cv 号，会请求正文接口返回 404；现按 `item.type` 区分专栏（1）与动态（0）。
+- 修复图文动态正文解析失效：`MODULE_TYPE_CONTENT` 模块类型字段读取错误，导致动态正文被判为空。
 
 ## [v2.0.0-alpha.2]
 

@@ -16,14 +16,69 @@ namespace BBDown.Core.Tests;
 [Collection<HttpStubCollectionDefinition>]
 public class OpusFetcherTests
 {
-    // opus/detail 带 htmlNewStyle 时用 item.basic.rid_str 回落到 cv 号
+    // opus/detail 带 htmlNewStyle 时用 item.basic.rid_str 回落到 cv 号；type==1 表示专栏动态
     private const string OpusDetailJson = """
     {
       "code": 0,
       "data": {
         "item": {
+          "type": 1,
           "basic": { "comment_id_str": "51908655", "rid_str": "51908655", "title": "专栏标题", "uid": 12345 },
-          "modules": []
+          "modules": [
+            {
+              "module_type": "MODULE_TYPE_TOP",
+              "module_top": {
+                "display": { "type": 1, "album": { "pics": [ { "url": "//i0.hdslb.com/top.jpg" } ] }, "video": null }
+              }
+            }
+          ]
+        }
+      }
+    }
+    """;
+
+    // 纯图文动态：type==0，rid_str 不是 cv 号，正文在 MODULE_TYPE_CONTENT，顶部相册在 MODULE_TYPE_TOP
+    private const string Type0DynamicJson = """
+    {
+      "code": 0,
+      "data": {
+        "item": {
+          "type": 0,
+          "basic": { "comment_id_str": "356382283", "rid_str": "356382283", "title": "动态标题", "uid": 201296348 },
+          "modules": [
+            {
+              "module_type": "MODULE_TYPE_TOP",
+              "module_top": {
+                "display": {
+                  "type": 1,
+                  "album": {
+                    "pics": [
+                      { "url": "http://i0.hdslb.com/bfs/new_dyn/a.jpg" },
+                      { "url": "http://i0.hdslb.com/bfs/new_dyn/b.jpg" }
+                    ]
+                  },
+                  "video": null
+                }
+              }
+            },
+            { "module_type": "MODULE_TYPE_TITLE", "module_title": { "text": "身边故事" } },
+            {
+              "module_type": "MODULE_TYPE_CONTENT",
+              "module_content": {
+                "paragraphs": [
+                  {
+                    "para_type": 1,
+                    "text": {
+                      "nodes": [
+                        { "word": { "words": "投稿人：" } },
+                        { "rich": { "orig_text": "@一本正经的米娜里", "jump_url": "", "rid": "453198525" } }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
         }
       }
     }
@@ -110,6 +165,10 @@ public class OpusFetcherTests
         Assert.Equal("51908655", doc.CvId);
         Assert.Equal(1700000000, doc.PublishTime);
         Assert.Equal(["标签A", "标签B"], doc.Tags);
+
+        // 专栏顶部相册图（module_top）置于正文最前
+        Assert.Equal(OpusParagraphKind.Image, doc.Paragraphs[0].Kind);
+        Assert.Equal("//i0.hdslb.com/top.jpg", doc.Paragraphs[0].Images[0].Url);
     }
 
     // 已知 cv 号时不该多打一次 opus/detail
@@ -126,6 +185,35 @@ public class OpusFetcherTests
         Assert.Single(urls);
         Assert.Contains("/x/article/view", urls[0], StringComparison.Ordinal);
         Assert.Equal("51908655", doc.CvId);
+    }
+
+    // 纯图文动态（type==0）：rid_str 不是 cv 号，不请求 article/view，直接按动态导出
+    [Fact]
+    public async Task FetchAsync_Type0Dynamic_ExportsAsImageText( )
+    {
+        var urls = new List<string>( );
+        var doc = await WithRoutedStub(req =>
+        {
+            urls.Add(req.RequestUri!.AbsoluteUri);
+            return Ok(Type0DynamicJson);
+        }, ( ) => OpusFetcher.FetchAsync(new OpusTarget("1084525121139376134", ""), AppConfig.Empty, TestContext.Current.CancellationToken));
+
+        Assert.Single(urls);
+        Assert.Contains("/opus/detail", urls[0], StringComparison.Ordinal);
+        Assert.Equal("", doc.CvId);
+        Assert.Equal("动态标题", doc.Title);
+
+        // 顶部相册图置于正文最前
+        var top = doc.Paragraphs[0];
+        Assert.Equal(OpusParagraphKind.Image, top.Kind);
+        Assert.Equal(2, top.Images.Count);
+        Assert.Equal("http://i0.hdslb.com/bfs/new_dyn/a.jpg", top.Images[0].Url);
+
+        var p = doc.Paragraphs[1];
+        Assert.Equal(OpusParagraphKind.Text, p.Kind);
+        Assert.Equal("投稿人：", p.TextNodes[0].Text);
+        Assert.Equal("@一本正经的米娜里", p.TextNodes[1].Text);
+        Assert.Null(p.TextNodes[1].Url);
     }
 
     [Fact]
@@ -222,6 +310,21 @@ public class OpusFetcherTests
     {
         using var doc = JsonDocument.Parse("""{ "fallback": { "type": 1, "id": "12345" }, "item": { "basic": {} } }""");
         Assert.Null(OpusFetcher.TryGetCvId(doc.RootElement));
+    }
+
+    // 纯动态（type==0）的 rid_str 不是 cv 号，必须返回 null 走图文动态导出
+    [Fact]
+    public void TryGetCvId_Type0Dynamic_ReturnsNull( )
+    {
+        using var doc = JsonDocument.Parse("""{ "fallback": null, "item": { "type": 0, "basic": { "rid_str": "356382283" } } }""");
+        Assert.Null(OpusFetcher.TryGetCvId(doc.RootElement));
+    }
+
+    [Fact]
+    public void TryGetCvId_Type1Article_UsesRidStr( )
+    {
+        using var doc = JsonDocument.Parse("""{ "item": { "type": 1, "basic": { "rid_str": "51908655" } } }""");
+        Assert.Equal("51908655", OpusFetcher.TryGetCvId(doc.RootElement));
     }
 
     // para_type 3 的 line.pic 是图片（figure 里的图），line.line_type 才是分割线
