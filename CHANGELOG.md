@@ -11,12 +11,15 @@
 ### 新增
 
 - 交互式逐集选择分 P：新增 `--interactive-pages` / `-iap`，下载前列出全部分 P 逐个确认是否下载（`[y]` 要，`[n]` 不要，`[a]` 剩余全部要，`[q]` 剩余全部不要，直接回车表示不要）；与 `--pages` 同时给出时以交互选择为准。
+- Web 登录成功后自动校验凭据并打印账号名（best-effort，校验失败仅告警，不阻断登录）。
+- Windows 7 兼容：`win-x64` 产物接入 YY-Thunks 与 VC-LTL（构建时 `-p:WindowsWin7Compat=true`），可在 Windows 7 上直接运行，无需安装 .NET 运行时；Windows 7 用户需先安装 [KB3140245](https://support.microsoft.com/help/3140245)（TLS 1.1 / 1.2 支持）。
 
 ### 变更
 
 - 交互式选择清晰度更名：`--interactive` / `-ia` → `--interactive-quality` / `-iaq`。
 - 手动分 P 选择更名：`--select-page` / `-p` → `--pages` / `-p`；serve 请求契约字段同步由 `selectPage` 改为 `pages`。
 - 命令行选项按 README「参数说明」分组重排（解析模式 → 清晰度与编码 → 下载内容 → 直播录制 → 下载方式与性能 → 账号与凭据 → 文件、路径与调试），`--help` 显示顺序与文档一致。
+- 扫码登录（Web / TV / APP）轮询接入全局取消与失败重试：`Ctrl+C` 可立即终止扫码等待，单次轮询失败自动重试至多 3 次，网络抖动不再直接中断登录。
 
 ### 修复
 

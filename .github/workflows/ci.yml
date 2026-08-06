@@ -104,7 +104,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rid: [win-x64, win-arm64]
+        include:
+          # YY-Thunks / VC-LTL 仅支持 win-x64/x86，且 Win7 无 arm64，故仅 x64 追加 Win7 兼容产物
+          - rid: win-x64
+            buildWin7: true
+          - rid: win-arm64
+            buildWin7: false
     steps:
       - uses: actions/checkout@v7
 
@@ -127,6 +132,23 @@ jobs:
         with:
           name: BBDown_${{ matrix.rid }}
           path: artifact/BBDown-${{ matrix.rid }}.exe
+          retention-days: 7
+
+      - name: Publish (Win7 compatible)
+        if: matrix.buildWin7
+        run: dotnet publish BBDown -r win-x64 -c ${{ env.BUILD_CONFIG }} -o artifact-win7 -p:WindowsWin7Compat=true
+
+      - name: Stage artifact (Win7 compatible)
+        if: matrix.buildWin7
+        shell: pwsh
+        run: mv artifact-win7/BBDown.exe artifact-win7/BBDown-win7-x64.exe
+
+      - name: Upload artifact (Win7 compatible)
+        if: matrix.buildWin7
+        uses: actions/upload-artifact@v7
+        with:
+          name: BBDown_win7_x64
+          path: artifact-win7/BBDown-win7-x64.exe
           retention-days: 7
 
   build-macos:
