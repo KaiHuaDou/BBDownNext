@@ -6,9 +6,9 @@ using System.Text.RegularExpressions;
 
 using BBDown.Core;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.FileNameUtil;
+using BBDown.Core.Entity;
 
 namespace BBDown.Util;
 internal static partial class SavePath
@@ -68,23 +68,23 @@ internal static partial class SavePath
             var v = key switch
             {
                 "videoTitle" => GetValidFileName(title),
-                "pageNumber" => p.index.ToString( ),
-                "pageNumberWithZero" => p.index.ToString( ).PadLeft(pagesCount.ToString( ).Length, '0'),
-                "pageTitle" => GetValidFileName(p.title),
-                "bvid" => p.bvid,
-                "aid" => p.aid,
-                "cid" => p.cid,
-                "ownerName" => p.ownerName == null ? "" : GetValidFileName(p.ownerName),
-                "ownerMid" => p.ownerMid ?? "",
-                "dfn" => videoTrack == null ? "" : videoTrack.dfn,
-                "res" => videoTrack == null ? "" : videoTrack.res,
-                "fps" => videoTrack == null ? "" : videoTrack.fps,
-                "videoCodecs" => videoTrack == null ? "" : videoTrack.codecs,
-                "videoBandwidth" => videoTrack == null ? "" : videoTrack.bandwidth.ToString( ),
-                "audioCodecs" => audioTrack == null ? "" : audioTrack.codecs,
-                "audioBandwidth" => audioTrack == null ? "" : audioTrack.bandwidth.ToString( ),
+                "pageNumber" => p.Index.ToString( ),
+                "pageNumberWithZero" => p.Index.ToString( ).PadLeft(pagesCount.ToString( ).Length, '0'),
+                "pageTitle" => GetValidFileName(p.Title),
+                "bvid" => p.Bvid,
+                "aid" => p.Aid,
+                "cid" => p.Cid,
+                "ownerName" => p.OwnerName == null ? "" : GetValidFileName(p.OwnerName),
+                "ownerMid" => p.OwnerMid ?? "",
+                "dfn" => videoTrack == null ? "" : videoTrack.Dfn,
+                "res" => videoTrack == null ? "" : videoTrack.Res,
+                "fps" => videoTrack == null ? "" : videoTrack.Fps,
+                "videoCodecs" => videoTrack == null ? "" : videoTrack.Codecs,
+                "videoBandwidth" => videoTrack == null ? "" : videoTrack.Bandwidth.ToString( ),
+                "audioCodecs" => audioTrack == null ? "" : audioTrack.Codecs,
+                "audioBandwidth" => audioTrack == null ? "" : audioTrack.Bandwidth.ToString( ),
                 "publishDate" => Utils.FormatTimeStamp(pubTime, defaultDateFormat),
-                "videoDate" => Utils.FormatTimeStamp(p.pubTime, defaultDateFormat),
+                "videoDate" => Utils.FormatTimeStamp(p.PubTime, defaultDateFormat),
                 "apiType" => apiType.ToString( ).ToUpperInvariant( ),
                 _ => UnknownPlaceholder(key)
             };

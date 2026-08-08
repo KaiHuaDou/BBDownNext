@@ -160,23 +160,23 @@ public class SpaceListFetcherTests
         Assert.Equal(3, info.PagesInfo.Count);
 
         var first = info.PagesInfo[0];
-        Assert.Equal("视频A", first.title);              // 单 P 直接用外层标题
-        Assert.Equal("1001", first.aid);
-        Assert.Equal("2001", first.cid);
-        Assert.Equal(120, first.dur);
-        Assert.Equal("UP主名", first.ownerName);
-        Assert.Equal("402787936", first.ownerMid);
+        Assert.Equal("视频A", first.Title);              // 单 P 直接用外层标题
+        Assert.Equal("1001", first.Aid);
+        Assert.Equal("2001", first.Cid);
+        Assert.Equal(120, first.Dur);
+        Assert.Equal("UP主名", first.OwnerName);
+        Assert.Equal("402787936", first.OwnerMid);
 
         var second = info.PagesInfo[1];
-        Assert.Equal("视频B_P1_子标题1", second.title);   // 多 P 拼接外层标题 + 分 P 序号 + 子标题
-        Assert.Equal("2002", second.cid);
+        Assert.Equal("视频B_P1_子标题1", second.Title);   // 多 P 拼接外层标题 + 分 P 序号 + 子标题
+        Assert.Equal("2002", second.Cid);
 
         var third = info.PagesInfo[2];
-        Assert.Equal("视频B_P2_子标题2", third.title);
-        Assert.Equal("2003", third.cid);
+        Assert.Equal("视频B_P2_子标题2", third.Title);
+        Assert.Equal("2003", third.Cid);
 
         // 失败稿件 1004 不应出现在结果中
-        Assert.DoesNotContain(info.PagesInfo, p => p.aid == "1004");
+        Assert.DoesNotContain(info.PagesInfo, p => p.Aid == "1004");
     }
 
     [Fact]

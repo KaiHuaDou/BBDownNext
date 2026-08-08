@@ -12,9 +12,9 @@ using BBDown.Core.Protobuf;
 
 using Google.Protobuf;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
+using BBDown.Core.Entity;
 
 namespace BBDown.Core.Util;
 
@@ -199,7 +199,7 @@ public static partial class SubUtil
     // 逐条过滤即可；全部无效才整表回退
     internal static List<Subtitle>? FilterUsable(List<Subtitle> subtitles)
     {
-        var valid = subtitles.Where(s => !string.IsNullOrEmpty(s.url)).ToList( );
+        var valid = subtitles.Where(s => !string.IsNullOrEmpty(s.Url)).ToList( );
         return valid.Count == 0 ? null : valid;
     }
 
@@ -211,7 +211,7 @@ public static partial class SubUtil
             var url = sub.GetProperty(urlKey).ToString( ).Replace("\\\\/", "/");
             // 国际版只有 json 接口给的是可转 srt 的结构，其余是 ass 成品
             var ext = !intl || url.Contains(".json") ? ".srt" : ".ass";
-            return new Subtitle { lan = lan, url = url, path = $"{pathPrefix}.{lan}{ext}" };
+            return new Subtitle { Lan = lan, Url = url, Path = $"{pathPrefix}.{lan}{ext}" };
         })];
     }
 
@@ -241,7 +241,7 @@ public static partial class SubUtil
             var body = AppHelper.ReadMessage(await GetPostResponseAsync(api, payload, headers, ct));
             var reply = new MessageParser<DmViewReply>(( ) => new DmViewReply( )).ParseFrom(body);
             return reply.Subtitle?.Subtitles?
-                .Select(s => new Subtitle { lan = s.Lan, url = s.SubtitleUrl, path = $"{pathPrefix}.{s.Lan}.srt" })
+                .Select(s => new Subtitle { Lan = s.Lan, Url = s.SubtitleUrl, Path = $"{pathPrefix}.{s.Lan}.srt" })
                 .ToList( ) ?? [];
         }
 
@@ -279,9 +279,9 @@ public static partial class SubUtil
                 continue;
             }
 
-            foreach (var item in subtitles.Where(s => s.url.StartsWith("//")))
+            foreach (var item in subtitles.Where(s => s.Url.StartsWith("//")))
             {
-                item.url = "https:" + item.url;
+                item.Url = "https:" + item.Url;
             }
 
             return subtitles;
@@ -290,7 +290,7 @@ public static partial class SubUtil
         return [];
     }
 
-    // CA1054: url 保持 string —— 该方法被 BBDown 主项目直接调用（传入 Subtitle.url 字符串），
+    // CA1054: url 保持 string —— 该方法被 BBDown 主项目直接调用（传入 Subtitle.Url 字符串），
     // 改为 System.Uri 属于跨项目破坏性变更（本次改动范围仅限 BBDown.Core）
     public static async Task SaveSubtitleAsync(string url, string path, AppConfig cfg, CancellationToken ct = default)
     {

@@ -5,7 +5,7 @@ namespace BBDown.Live;
 
 /// <summary>
 /// SIGQUIT（Windows <c>Ctrl+Break</c> / Unix <c>Ctrl+\</c>）到「停止录制」的中枢。
-/// 录制期间由 <see cref="Register"/> 挂上停止源，控制台 handler 只调 <see cref="TryRequestStop"/>，
+/// 录制期间由 <see cref="LiveSignal.Register"/> 挂上停止源，控制台 handler 只调 <see cref="LiveSignal.TryRequestStop"/>，
 /// 二者解耦以避免 handler 直接持有录制状态。
 /// </summary>
 internal static class LiveSignal
@@ -20,7 +20,7 @@ internal static class LiveSignal
     {
         ArgumentNullException.ThrowIfNull(cts);
         Interlocked.Exchange(ref active, cts);
-        return new Scope(cts);
+        return new LiveSignalScope(cts);
     }
 
     /// <summary>
@@ -52,11 +52,17 @@ internal static class LiveSignal
     }
 
     // 只在仍是自己时摘除，避免后注册者被先释放的 scope 误清
-    private sealed class Scope(CancellationTokenSource cts) : IDisposable
+    internal static void Unregister(CancellationTokenSource cts)
     {
-        public void Dispose( )
-        {
-            Interlocked.CompareExchange(ref active, null, cts);
-        }
+        Interlocked.CompareExchange(ref active, null, cts);
+    }
+}
+
+// scope 提升为顶层类型：仅承载 Register 返回的释放语义
+internal sealed class LiveSignalScope(CancellationTokenSource cts) : IDisposable
+{
+    public void Dispose( )
+    {
+        LiveSignal.Unregister(cts);
     }
 }

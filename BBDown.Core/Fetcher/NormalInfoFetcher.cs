@@ -10,7 +10,6 @@ using System.Xml;
 using BBDown.Core.Entity;
 using BBDown.Core.Util;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
 
@@ -45,18 +44,18 @@ public static partial class NormalInfoFetcher
         {
             Page p = new( )
             {
-                index = page.GetProperty("page").GetInt32( ),
-                aid = id,
-                cid = page.GetProperty("cid").ToString( ),
-                epid = "",
-                title = page.GetProperty("part").ToString( ).Trim( ),
-                dur = page.GetProperty("duration").GetInt32( ),
-                res = ReadDimension(page),
-                pubTime = pubTime, //分p视频没有发布时间
-                cover = "",
-                desc = "",
-                ownerName = ownerName,
-                ownerMid = ownerMid,
+                Index = page.GetProperty("page").GetInt32( ),
+                Aid = id,
+                Cid = page.GetProperty("cid").ToString( ),
+                EpId = "",
+                Title = page.GetProperty("part").ToString( ).Trim( ),
+                Dur = page.GetProperty("duration").GetInt32( ),
+                Res = ReadDimension(page),
+                PubTime = pubTime, //分p视频没有发布时间
+                Cover = "",
+                Desc = "",
+                OwnerName = ownerName,
+                OwnerMid = ownerMid,
             };
             pagesInfo.Add(p);
         }
@@ -87,18 +86,18 @@ public static partial class NormalInfoFetcher
                     {
                         Page p = new( )
                         {
-                            index = index++,
-                            aid = id,
-                            cid = page.GetProperty("cid").ToString( ),
-                            epid = "",
-                            title = page.GetProperty("option").ToString( ).Trim( ),
-                            dur = 0,
-                            res = "",
-                            pubTime = pubTime, //分p视频没有发布时间
-                            cover = "",
-                            desc = "",
-                            ownerName = ownerName,
-                            ownerMid = ownerMid,
+                            Index = index++,
+                            Aid = id,
+                            Cid = page.GetProperty("cid").ToString( ),
+                            EpId = "",
+                            Title = page.GetProperty("option").ToString( ).Trim( ),
+                            Dur = 0,
+                            Res = "",
+                            PubTime = pubTime, //分p视频没有发布时间
+                            Cover = "",
+                            Desc = "",
+                            OwnerName = ownerName,
+                            OwnerMid = ownerMid,
                         };
                         pagesInfo.Add(p);
                     }
@@ -118,7 +117,7 @@ public static partial class NormalInfoFetcher
             //番剧内容通常不会有分P，如果有分P则不需要epId参数
             if (pages.Count == 1 && EpIdRegex( ).Match(redirectUrl.GetString( )!) is { Success: true } epMatch)
             {
-                pagesInfo.ForEach(p => p.epid = epMatch.Groups[1].Value);
+                pagesInfo.ForEach(p => p.EpId = epMatch.Groups[1].Value);
             }
         }
 

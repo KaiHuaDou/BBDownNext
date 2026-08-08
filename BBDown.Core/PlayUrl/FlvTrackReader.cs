@@ -4,7 +4,6 @@ using System.Text.Json;
 
 using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.PlayUrl.TrackFactory;
 
 namespace BBDown.Core.PlayUrl;
@@ -33,12 +32,12 @@ internal static class FlvTrackReader
         var quality = root.GetProperty("quality").ToString( );
         Video v = new( )
         {
-            id = quality,
-            dfn = Config.GetQualityName(quality),
-            baseUrl = "",
-            codecs = VideoCodec(root.GetProperty("video_codecid").ToString( )),
-            dur = (int) length / 1000,
-            size = size
+            Id = quality,
+            Dfn = Config.GetQualityName(quality),
+            BaseUrl = "",
+            Codecs = VideoCodec(root.GetProperty("video_codecid").ToString( )),
+            Dur = (int) length / 1000,
+            Size = size
         };
         if (!result.VideoTracks.Contains(v))
         {

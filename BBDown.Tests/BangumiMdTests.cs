@@ -17,7 +17,7 @@ namespace BBDown.Tests;
 [Collection("DownloadHttpStub")]
 public class BangumiMdTests
 {
-    // 仅保留映射所需的字段：result.media.season_id。旧实现取 new_ep.id（最新一集）已改为整季。
+    // 仅保留映射所需的字段：result.media.season_id。旧实现取 new_ep.Id（最新一集）已改为整季。
     private const string ReviewUserJson = """
     {
       "code": 0,

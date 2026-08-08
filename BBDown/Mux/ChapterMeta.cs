@@ -9,10 +9,10 @@ using System.Threading.Tasks;
 using BBDown.Core;
 using BBDown.Core.Util;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Util.Utils;
+using BBDown.Core.Entity;
 
 namespace BBDown.Mux;
 
@@ -62,9 +62,9 @@ internal static partial class ChapterMeta
             {
                 points.Add(new ViewPoint( )
                 {
-                    title = point.GetProperty("content").GetString( )!,
-                    start = int.Parse(point.GetProperty("from").ToString( )),
-                    end = int.Parse(point.GetProperty("to").ToString( ))
+                    Title = point.GetProperty("content").GetString( )!,
+                    Start = int.Parse(point.GetProperty("from").ToString( )),
+                    End = int.Parse(point.GetProperty("to").ToString( ))
                 });
             }
         }
@@ -92,9 +92,9 @@ internal static partial class ChapterMeta
             const int Time = 1000;
             sb.AppendLine("[CHAPTER]");
             sb.AppendLine($"TIMEBASE=1/{Time}");
-            sb.AppendLine($"START={p.start * Time}");
-            sb.AppendLine($"END={p.end * Time}");
-            sb.AppendLine($"title={p.title}");
+            sb.AppendLine($"START={p.Start * Time}");
+            sb.AppendLine($"END={p.End * Time}");
+            sb.AppendLine($"title={p.Title}");
             sb.AppendLine( );
         }
 
@@ -109,7 +109,7 @@ internal static partial class ChapterMeta
         StringBuilder sb = new( );
         foreach (var p in points)
         {
-            sb.AppendLine($"{FormatTime(p.start, true)} {p.title}");
+            sb.AppendLine($"{FormatTime(p.Start, true)} {p.Title}");
         }
 
         return sb.ToString( );

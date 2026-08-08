@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 
 namespace BBDown.Core.PlayUrl;
 
@@ -22,13 +22,13 @@ internal static partial class TrackFactory
         id ??= node.GetProperty("id").ToString( );
         return new Video( )
         {
-            dur = dur,
-            id = id,
-            dfn = Config.GetQualityName(id),
-            bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-            baseUrl = PickBaseUrl(BuildUrlList(node)),
-            codecs = VideoCodec(node.GetProperty("codecid").ToString( )),
-            size = node.TryGetProperty("size", out var size) ? Convert.ToDouble(size.ToString( )) : 0,
+            Dur = dur,
+            Id = id,
+            Dfn = Config.GetQualityName(id),
+            Bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
+            BaseUrl = PickBaseUrl(BuildUrlList(node)),
+            Codecs = VideoCodec(node.GetProperty("codecid").ToString( )),
+            Size = node.TryGetProperty("size", out var size) ? Convert.ToDouble(size.ToString( )) : 0,
             IsDrm = ReadDrm(node, out var drmType, out var pssh, out var uri),
             DrmType = drmType,
             WidevinePssh = pssh,
@@ -41,12 +41,12 @@ internal static partial class TrackFactory
         var id = node.GetProperty("id").ToString( );
         return new Audio( )
         {
-            id = id,
-            dfn = id,
-            dur = dur,
-            bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
-            baseUrl = PickBaseUrl(BuildUrlList(node)),
-            codecs = codecs ?? node.GetProperty("codecs").ToString( ),
+            Id = id,
+            Dfn = id,
+            Dur = dur,
+            Bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
+            BaseUrl = PickBaseUrl(BuildUrlList(node)),
+            Codecs = codecs ?? node.GetProperty("codecs").ToString( ),
             IsDrm = ReadDrm(node, out var drmType, out var pssh, out var uri),
             DrmType = drmType,
             WidevinePssh = pssh,

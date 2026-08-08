@@ -36,8 +36,8 @@ public class IntlTrackReaderTests
         Assert.True(IntlTrackReader.TryGetVideoInfo(root, out var videoInfo));
         IntlTrackReader.Collect(result, videoInfo);
 
-        Assert.Equal(["127"], result.VideoTracks.Select(v => v.id).ToList( ));
-        Assert.Equal(["30280"], result.AudioTracks.Select(a => a.id).ToList( ));
+        Assert.Equal(["127"], result.VideoTracks.Select(v => v.Id).ToList( ));
+        Assert.Equal(["30280"], result.AudioTracks.Select(a => a.Id).ToList( ));
         Assert.Equal(100, result.Duration);
     }
 }

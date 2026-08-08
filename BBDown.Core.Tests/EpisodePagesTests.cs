@@ -28,8 +28,8 @@ public class EpisodePagesTests
         var pages = BangumiInfoFetcher.BuildEpisodePages(Parse(Episodes));
 
         Assert.Equal(2, pages.Count);
-        Assert.Equal([1, 2], pages.ConvertAll(p => p.index));
-        Assert.Equal(["1", "3"], pages.ConvertAll(p => p.epid));
+        Assert.Equal([1, 2], pages.ConvertAll(p => p.Index));
+        Assert.Equal(["1", "3"], pages.ConvertAll(p => p.EpId));
     }
 
     [Fact]
@@ -37,8 +37,8 @@ public class EpisodePagesTests
     {
         var pages = BangumiInfoFetcher.BuildEpisodePages(Parse(Episodes));
 
-        Assert.Equal("1 起点", pages[0].title);
-        Assert.Equal("2 终点", pages[1].title);
+        Assert.Equal("1 起点", pages[0].Title);
+        Assert.Equal("2 终点", pages[1].Title);
     }
 
     // dimension / pub_time 在部分分集上缺失，旧实现分别靠 catch 和 TryGetProperty 兜底，行为不一致
@@ -47,10 +47,10 @@ public class EpisodePagesTests
     {
         var pages = BangumiInfoFetcher.BuildEpisodePages(Parse(Episodes));
 
-        Assert.Equal("1920x1080", pages[0].res);
-        Assert.Equal(1700000000, pages[0].pubTime);
-        Assert.Equal("", pages[1].res);
-        Assert.Equal(0, pages[1].pubTime);
+        Assert.Equal("1920x1080", pages[0].Res);
+        Assert.Equal(1700000000, pages[0].PubTime);
+        Assert.Equal("", pages[1].Res);
+        Assert.Equal(0, pages[1].PubTime);
     }
 
     // 毫秒到秒的换算与脏值容忍在 JsonUtilTests 覆盖，这里只确认 dur 确实被填进 Page
@@ -59,8 +59,8 @@ public class EpisodePagesTests
     {
         var pages = BangumiInfoFetcher.BuildEpisodePages(Parse(Episodes));
 
-        Assert.Equal(2826, pages[0].dur);
-        Assert.Equal(0, pages[1].dur);
+        Assert.Equal(2826, pages[0].Dur);
+        Assert.Equal(0, pages[1].Dur);
     }
 
     [Fact]

@@ -5,7 +5,6 @@ using System.Linq;
 using BBDown.Core;
 using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Util.Utils;
 
@@ -20,7 +19,7 @@ internal static partial class TrackSelect
         parsedResult.BackgroundAudioTracks = SortTracks(parsedResult.BackgroundAudioTracks, ctx.Run.EncodingPriority, myOption.AudioAscending);
         foreach (var role in parsedResult.RoleAudioList)
         {
-            role.audio = SortTracks(role.audio, ctx.Run.EncodingPriority, myOption.AudioAscending);
+            role.Audio = SortTracks(role.Audio, ctx.Run.EncodingPriority, myOption.AudioAscending);
         }
     }
 
@@ -29,22 +28,22 @@ internal static partial class TrackSelect
         //用户同时输入了自定义分辨率优先级和自定义编码优先级，则根据输入顺序依次进行排序
         return dfnPriority.Count != 0 && encodingPriority.Count != 0 && encodingFirst
             ? [.. videoTracks
-                .OrderBy(v => encodingPriority.GetValueOrDefault(v.codecs, (byte)100))
-                .ThenBy(v => dfnPriority.GetValueOrDefault(v.dfn, 100))
-                .ThenBy(v => Config.QualityRank(v.id))
-                .ThenBy(v => videoAscending ? v.bandwidth : -v.bandwidth)]
+                .OrderBy(v => encodingPriority.GetValueOrDefault(v.Codecs, (byte)100))
+                .ThenBy(v => dfnPriority.GetValueOrDefault(v.Dfn, 100))
+                .ThenBy(v => Config.QualityRank(v.Id))
+                .ThenBy(v => videoAscending ? v.Bandwidth : -v.Bandwidth)]
             : [.. videoTracks
-                .OrderBy(v => dfnPriority.GetValueOrDefault(v.dfn, 100))
-                .ThenBy(v => encodingPriority.GetValueOrDefault(v.codecs, (byte)100))
-                .ThenBy(v => Config.QualityRank(v.id))
-                .ThenBy(v => videoAscending ? v.bandwidth : -v.bandwidth)];
+                .OrderBy(v => dfnPriority.GetValueOrDefault(v.Dfn, 100))
+                .ThenBy(v => encodingPriority.GetValueOrDefault(v.Codecs, (byte)100))
+                .ThenBy(v => Config.QualityRank(v.Id))
+                .ThenBy(v => videoAscending ? v.Bandwidth : -v.Bandwidth)];
     }
 
     internal static List<Audio> SortTracks(List<Audio> audioTracks, Dictionary<string, byte> encodingPriority, bool audioAscending)
     {
         return [.. audioTracks
-            .OrderBy(a => encodingPriority.GetValueOrDefault(a.shortCodecs, (byte)100))
-            .ThenBy(a => audioAscending ? a.bandwidth : -a.bandwidth)];
+            .OrderBy(a => encodingPriority.GetValueOrDefault(a.ShortCodecs, (byte)100))
+            .ThenBy(a => audioAscending ? a.Bandwidth : -a.Bandwidth)];
     }
 
     internal static void PrintAllTracksInfo(ParsedResult parsedResult, int pageDur, bool onlyShowInfo)
@@ -55,16 +54,16 @@ internal static partial class TrackSelect
             var index = 0;
             foreach (var a in parsedResult.BackgroundAudioTracks)
             {
-                var pDur = pageDur == 0 ? a.dur : pageDur;
-                LogColor($"{index++}. [{a.codecs}] [{a.bandwidth} kbps] [~{FormatFileSize(pDur * a.bandwidth * 1024 / 8)}]", false);
+                var pDur = pageDur == 0 ? a.Dur : pageDur;
+                LogColor($"{index++}. [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(pDur * a.Bandwidth * 1024 / 8)}]", false);
             }
 
-            Log($"共计 {parsedResult.RoleAudioList.Count} 条配音，每条包含 {parsedResult.RoleAudioList[0].audio.Count} 条配音流。");
+            Log($"共计 {parsedResult.RoleAudioList.Count} 条配音，每条包含 {parsedResult.RoleAudioList[0].Audio.Count} 条配音流。");
             index = 0;
-            foreach (var a in parsedResult.RoleAudioList[0].audio)
+            foreach (var a in parsedResult.RoleAudioList[0].Audio)
             {
-                var pDur = pageDur == 0 ? a.dur : pageDur;
-                LogColor($"{index++}. [{a.codecs}] [{a.bandwidth} kbps] [~{FormatFileSize(pDur * a.bandwidth * 1024 / 8)}]", false);
+                var pDur = pageDur == 0 ? a.Dur : pageDur;
+                LogColor($"{index++}. [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(pDur * a.Bandwidth * 1024 / 8)}]", false);
             }
         }
         //展示所有的音视频流信息
@@ -74,12 +73,12 @@ internal static partial class TrackSelect
             var index = 0;
             foreach (var v in parsedResult.VideoTracks)
             {
-                var pDur = pageDur == 0 ? v.dur : pageDur;
-                var size = v.size > 0 ? v.size : pDur * v.bandwidth * 1024 / 8;
-                LogColor($"{index++}. [{v.dfn}] [{v.res}] [{v.codecs}] [{v.fps}] [{v.bandwidth} kbps] [~{FormatFileSize(size)}]".Replace("[] ", ""), false);
+                var pDur = pageDur == 0 ? v.Dur : pageDur;
+                var size = v.Size > 0 ? v.Size : pDur * v.Bandwidth * 1024 / 8;
+                LogColor($"{index++}. [{v.Dfn}] [{v.Res}] [{v.Codecs}] [{v.Fps}] [{v.Bandwidth} kbps] [~{FormatFileSize(size)}]".Replace("[] ", ""), false);
                 if (onlyShowInfo)
                 {
-                    Console.WriteLine(v.baseUrl);
+                    Console.WriteLine(v.BaseUrl);
                 }
             }
         }
@@ -90,11 +89,11 @@ internal static partial class TrackSelect
             var index = 0;
             foreach (var a in parsedResult.AudioTracks)
             {
-                var pDur = pageDur == 0 ? a.dur : pageDur;
-                LogColor($"{index++}. [{a.codecs}] [{a.bandwidth} kbps] [~{FormatFileSize(pDur * a.bandwidth * 1024 / 8)}]", false);
+                var pDur = pageDur == 0 ? a.Dur : pageDur;
+                LogColor($"{index++}. [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(pDur * a.Bandwidth * 1024 / 8)}]", false);
                 if (onlyShowInfo)
                 {
-                    Console.WriteLine(a.baseUrl);
+                    Console.WriteLine(a.BaseUrl);
                 }
             }
         }
@@ -106,7 +105,7 @@ internal static partial class TrackSelect
         var index = 0;
         foreach (var v in parsedResult.VideoTracks)
         {
-            LogColor($"{index++}. [{v.dfn}] [{v.res}] [{v.codecs}] [{v.fps}] [~{v.size / 1024 / v.dur * 8:00} kbps] [{FormatFileSize(v.size)}]".Replace("[] ", ""), false);
+            LogColor($"{index++}. [{v.Dfn}] [{v.Res}] [{v.Codecs}] [{v.Fps}] [~{v.Size / 1024 / v.Dur * 8:00} kbps] [{FormatFileSize(v.Size)}]".Replace("[] ", ""), false);
             if (onlyShowInfo)
             {
                 clips.ForEach(Console.WriteLine);
@@ -118,15 +117,15 @@ internal static partial class TrackSelect
     {
         if (selectedVideo != null)
         {
-            var pDur = pageDur == 0 ? selectedVideo.dur : pageDur;
-            var size = selectedVideo.size > 0 ? selectedVideo.size : pDur * selectedVideo.bandwidth * 1024 / 8;
-            LogColor($"[视频] [{selectedVideo.dfn}] [{selectedVideo.res}] [{selectedVideo.codecs}] [{selectedVideo.fps}] [{selectedVideo.bandwidth} kbps] [~{FormatFileSize(size)}]".Replace("[] ", ""), false);
+            var pDur = pageDur == 0 ? selectedVideo.Dur : pageDur;
+            var size = selectedVideo.Size > 0 ? selectedVideo.Size : pDur * selectedVideo.Bandwidth * 1024 / 8;
+            LogColor($"[视频] [{selectedVideo.Dfn}] [{selectedVideo.Res}] [{selectedVideo.Codecs}] [{selectedVideo.Fps}] [{selectedVideo.Bandwidth} kbps] [~{FormatFileSize(size)}]".Replace("[] ", ""), false);
         }
 
         if (selectedAudio != null)
         {
-            var pDur = pageDur == 0 ? selectedAudio.dur : pageDur;
-            LogColor($"[音频] [{selectedAudio.codecs}] [{selectedAudio.bandwidth} kbps] [~{FormatFileSize(pDur * selectedAudio.bandwidth * 1024 / 8)}]", false);
+            var pDur = pageDur == 0 ? selectedAudio.Dur : pageDur;
+            LogColor($"[音频] [{selectedAudio.Codecs}] [{selectedAudio.Bandwidth} kbps] [~{FormatFileSize(pDur * selectedAudio.Bandwidth * 1024 / 8)}]", false);
         }
     }
 

@@ -11,7 +11,6 @@ using BBDown.Drm;
 using BBDown.Mux;
 using BBDown.Util;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Download.DownloadUtil;
 
@@ -58,7 +57,7 @@ internal static class DashDownload
 
         if (!myOption.HideStreams)
         {
-            TrackSelect.PrintAllTracksInfo(parsedResult, p.dur, myOption.OnlyShowInfo);
+            TrackSelect.PrintAllTracksInfo(parsedResult, p.Dur, myOption.OnlyShowInfo);
         }
 
         // 仅展示 跳过下载
@@ -105,7 +104,7 @@ internal static class DashDownload
         }
 
         Log("已选择的流：");
-        TrackSelect.PrintSelectedTrackInfo(selectedVideo, selectedAudio, p.dur);
+        TrackSelect.PrintSelectedTrackInfo(selectedVideo, selectedAudio, p.Dur);
 
         CdnHost.Apply(myOption, selectedVideo, selectedAudio, ctx.Fetch.Cfg);
 
@@ -122,47 +121,47 @@ internal static class DashDownload
         if (selectedVideo != null)
         {
             // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
-            if (selectedVideo.id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI(ctx.Run.Tools))
+            if (selectedVideo.Id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI(ctx.Run.Tools))
             {
                 LogWarn("您的 FFmpeg 版本小于 5.0，杜比视界将使用 MP4Box 混流...");
                 useMp4box = true;
             }
 
-            Log($"开始下载 P{p.index} 视频...");
-            await DownloadAsync(selectedVideo.baseUrl, videoPath, downloadConfig, ct: ct);
+            Log($"开始下载 P{p.Index} 视频...");
+            await DownloadAsync(selectedVideo.BaseUrl, videoPath, downloadConfig, ct: ct);
         }
 
         if (selectedAudio != null)
         {
-            Log($"开始下载 P{p.index} 音频...");
-            await DownloadAsync(selectedAudio.baseUrl, audioPath, downloadConfig, ct: ct);
+            Log($"开始下载 P{p.Index} 音频...");
+            await DownloadAsync(selectedAudio.BaseUrl, audioPath, downloadConfig, ct: ct);
         }
 
         if (selectedBackgroundAudio != null)
         {
-            backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.aid}.{p.cid}.P{p.index}.back_ground.m4a");
-            Log($"开始下载 P{p.index} 背景配音...");
-            await DownloadAsync(selectedBackgroundAudio.baseUrl, backgroundPath, downloadConfig, ct: ct);
-            audioMaterial.Add(new AudioMaterial { title = "背景音频", personName = "", path = backgroundPath });
+            backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.{p.Cid}.P{p.Index}.back_ground.m4a");
+            Log($"开始下载 P{p.Index} 背景配音...");
+            await DownloadAsync(selectedBackgroundAudio.BaseUrl, backgroundPath, downloadConfig, ct: ct);
+            audioMaterial.Add(new AudioMaterial { Title = "背景音频", PersonName = "", Path = backgroundPath });
         }
 
         foreach (var role in parsedResult.RoleAudioList)
         {
             // 配音流数可能少于主音频，序号越界时跳过该角色的配音
-            var roleAudio = role.audio.ElementAtOrDefault(aIndex);
+            var roleAudio = role.Audio.ElementAtOrDefault(aIndex);
             if (roleAudio == null)
             {
-                LogWarn($"P{p.index} 配音 [{role.title}] 没有序号 {aIndex} 的音频流，已跳过");
+                LogWarn($"P{p.Index} 配音 [{role.Title}] 没有序号 {aIndex} 的音频流，已跳过");
                 continue;
             }
 
-            role.path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.path));
-            Log($"开始下载 P{p.index} 配音 [{role.title}]...");
-            await DownloadAsync(roleAudio.baseUrl, role.path, downloadConfig, ct: ct);
-            audioMaterial.Add(new AudioMaterial { title = role.title, personName = role.personName, path = role.path });
+            role.Path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.Path));
+            Log($"开始下载 P{p.Index} 配音 [{role.Title}]...");
+            await DownloadAsync(roleAudio.BaseUrl, role.Path, downloadConfig, ct: ct);
+            audioMaterial.Add(new AudioMaterial { Title = role.Title, PersonName = role.PersonName, Path = role.Path });
         }
 
-        Log($"P{p.index} 下载完成");
+        Log($"P{p.Index} 下载完成");
         // DRM 轨解密：下载完成后统一处理，成功产物覆盖加密原件（后续混流与清理路径不变）；
         // 任一轨不可解/失败时保留文件、跳过混流
         var decryptOk = true;
@@ -183,16 +182,16 @@ internal static class DashDownload
 
         foreach (var role in parsedResult.RoleAudioList)
         {
-            var roleAudio = role.audio.ElementAtOrDefault(aIndex);
+            var roleAudio = role.Audio.ElementAtOrDefault(aIndex);
             if (roleAudio != null)
             {
-                decryptOk &= await DecryptTrackIfNeededAsync(session, role.path, roleAudio.IsDrm, roleAudio.DrmType, roleAudio.BiliDrmUri, ct);
+                decryptOk &= await DecryptTrackIfNeededAsync(session, role.Path, roleAudio.IsDrm, roleAudio.DrmType, roleAudio.BiliDrmUri, ct);
             }
         }
 
         if (!decryptOk)
         {
-            LogError($"P{p.index} 存在无法解密的 DRM 轨道，已保留原始文件，跳过混流");
+            LogError($"P{p.Index} 存在无法解密的 DRM 轨道，已保留原始文件，跳过混流");
             return PageOutcome.Abort(selection);
         }
 
@@ -206,7 +205,7 @@ internal static class DashDownload
             audioPath = "";
         }
 
-        var inputs = new MuxFinish.MuxInputs(savePath, videoPath, audioPath, audioMaterial, useMp4box, selectedVideo?.codecs == "HEVC");
+        var inputs = new MuxFinish.MuxInputs(savePath, videoPath, audioPath, audioMaterial, useMp4box, selectedVideo?.Codecs == "HEVC");
         return await MuxFinish.RunAsync(session, inputs, selection, ct);
     }
 

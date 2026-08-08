@@ -9,7 +9,6 @@ using BBDown.Core;
 using BBDown.Core.Entity;
 using BBDown.Mux;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Parser;
 using static BBDown.Download.DownloadUtil;
@@ -32,15 +31,15 @@ internal static class PageDownload
             try
             {
                 LogDebug("获取播放器信息...");
-                var playerInfo = await ChapterMeta.FetchPlayerV2Async(p.cid, p.aid, ctx.Fetch.Cfg);
-                p.points = playerInfo.Points;
+                var playerInfo = await ChapterMeta.FetchPlayerV2Async(p.Cid, p.Aid, ctx.Fetch.Cfg);
+                p.Points = playerInfo.Points;
 
                 //调用解析
-                var parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.aid, p.cid, p.epid,
+                var parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.Aid, p.Cid, p.EpId,
                     myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, ct: ct);
-                if (p.points.Count == 0)
+                if (p.Points.Count == 0)
                 {
-                    p.points = parsedResult.ExtraPoints;
+                    p.Points = parsedResult.ExtraPoints;
                 }
 
                 if (Config.DebugLog)
@@ -48,10 +47,10 @@ internal static class PageDownload
                     File.WriteAllText(Path.Combine(ctx.Run.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.RawResponse);
                 }
 
-                if (IsTruncatedPreview(playerInfo.UpowerExclusive, p.dur, parsedResult.Duration))
+                if (IsTruncatedPreview(playerInfo.UpowerExclusive, p.Dur, parsedResult.Duration))
                 {
                     LogWarn(string.IsNullOrEmpty(playerInfo.UpowerTitle) ? "充电专属视频" : playerInfo.UpowerTitle);
-                    LogWarn($"当前账号未充电该 UP 主，只能获取 {FormatTime(parsedResult.Duration, true)} 的试看片段（完整视频 {FormatTime(p.dur, true)}）", false);
+                    LogWarn($"当前账号未充电该 UP 主，只能获取 {FormatTime(parsedResult.Duration, true)} 的试看片段（完整视频 {FormatTime(p.Dur, true)}）", false);
                     // 这三个开关都不产出视频文件，中止反而挡掉用户诊断问题的手段
                     if (myOption.OnlyShowInfo || !myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
                     {
@@ -63,7 +62,7 @@ internal static class PageDownload
                     }
                     else
                     {
-                        throw new ChargedPreviewException($"P{p.index}（{p.aid}）为充电视频试看片段，已跳过。");
+                        throw new ChargedPreviewException($"P{p.Index}（{p.Aid}）为充电视频试看片段，已跳过。");
                     }
                 }
 
@@ -151,18 +150,18 @@ internal static class PageDownload
     {
         var vInfo = ctx.Fetch.VInfo!;
         var selectedPagesCount = selectedPagesInfo.Count;
-        var tempDir = Path.Combine(ctx.Run.WorkDir, p.aid);
+        var tempDir = Path.Combine(ctx.Run.WorkDir, p.Aid);
         return new PageContext(
             Page: p,
             // 原始标题，落盘前统一交给 GetValidFileName 清洗；这里保持原样是因为它还要写进容器元数据
             Title: vInfo.Title,
-            Desc: string.IsNullOrEmpty(p.desc) ? vInfo.Desc : p.desc,
+            Desc: string.IsNullOrEmpty(p.Desc) ? vInfo.Desc : p.Desc,
             EpisodeTitle: BuildEpisodeTitle(p, selectedPagesCount, vInfo.IsBangumi, vInfo.IsBangumiEnd),
             TempDir: tempDir,
-            VideoPath: Path.Combine(tempDir, $"{p.aid}.P{p.index}.{p.cid}.mp4"),
-            AudioPath: Path.Combine(tempDir, $"{p.aid}.P{p.index}.{p.cid}.m4a"),
-            CoverPath: Path.Combine(tempDir, $"{p.aid}.jpg"),
-            CoverUrl: vInfo.Pic is { Length: 0 } ? p.cover! : vInfo.Pic,
+            VideoPath: Path.Combine(tempDir, $"{p.Aid}.P{p.Index}.{p.Cid}.mp4"),
+            AudioPath: Path.Combine(tempDir, $"{p.Aid}.P{p.Index}.{p.Cid}.m4a"),
+            CoverPath: Path.Combine(tempDir, $"{p.Aid}.jpg"),
+            CoverUrl: vInfo.Pic is { Length: 0 } ? p.Cover! : vInfo.Pic,
             PubTime: vInfo.PubTime,
             PagesCount: selectedPagesCount,
             DeleteCoverAfterMux: ShouldDeleteCover(p, selectedPagesInfo));
@@ -170,14 +169,14 @@ internal static class PageDownload
 
     internal static string BuildEpisodeTitle(Page p, int pagesCount, bool isBangumi, bool isBangumiEnd)
     {
-        return pagesCount > 1 || (isBangumi && !isBangumiEnd) ? p.title : "";
+        return pagesCount > 1 || (isBangumi && !isBangumiEnd) ? p.Title : "";
     }
 
     internal static bool ShouldDeleteCover(Page p, List<Page> selectedPagesInfo)
     {
         return selectedPagesInfo.Count == 1
-            || p.index == selectedPagesInfo[^1].index
-            || p.aid != selectedPagesInfo[^1].aid;
+            || p.Index == selectedPagesInfo[^1].Index
+            || p.Aid != selectedPagesInfo[^1].Aid;
     }
 
     internal static DownloadConfig BuildDownloadConfig(DownloadRequest myOption, AppConfig cfg, ToolPaths tools, PipelineSink sink = default)

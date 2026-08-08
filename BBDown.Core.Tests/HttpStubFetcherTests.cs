@@ -61,16 +61,16 @@ public class HttpStubFetcherTests
         Assert.Equal(2, info.PagesInfo.Count);
 
         var first = info.PagesInfo[0];
-        Assert.Equal("1001", first.aid);
-        Assert.Equal("2001", first.cid);
-        Assert.Equal("视频A", first.title);
-        Assert.Equal(120, first.dur);
-        Assert.Equal("UP主名", first.ownerName);
-        Assert.Equal("12345", first.ownerMid);
+        Assert.Equal("1001", first.Aid);
+        Assert.Equal("2001", first.Cid);
+        Assert.Equal("视频A", first.Title);
+        Assert.Equal(120, first.Dur);
+        Assert.Equal("UP主名", first.OwnerName);
+        Assert.Equal("12345", first.OwnerMid);
 
         var second = info.PagesInfo[1];
-        Assert.Equal("1002", second.aid);
-        Assert.Equal("2002", second.cid);
+        Assert.Equal("1002", second.Aid);
+        Assert.Equal("2002", second.Cid);
     }
 
     [Fact]

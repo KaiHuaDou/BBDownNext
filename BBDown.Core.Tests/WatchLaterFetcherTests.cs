@@ -87,21 +87,21 @@ public class WatchLaterFetcherTests
         Assert.Equal(3, info.PagesInfo.Count);
 
         var first = info.PagesInfo[0];
-        Assert.Equal("1001", first.aid);
-        Assert.Equal("2001", first.cid);
-        Assert.Equal("视频A", first.title);
-        Assert.Equal(120, first.dur);
-        Assert.Equal("UP主A", first.ownerName);
+        Assert.Equal("1001", first.Aid);
+        Assert.Equal("2001", first.Cid);
+        Assert.Equal("视频A", first.Title);
+        Assert.Equal(120, first.Dur);
+        Assert.Equal("UP主A", first.OwnerName);
 
         var second = info.PagesInfo[1];
-        Assert.Equal("1002", second.aid);
-        Assert.Equal("2002", second.cid);
-        Assert.Equal("视频B_P1_P1", second.title);
+        Assert.Equal("1002", second.Aid);
+        Assert.Equal("2002", second.Cid);
+        Assert.Equal("视频B_P1_P1", second.Title);
 
         var third = info.PagesInfo[2];
-        Assert.Equal("1002", third.aid);
-        Assert.Equal("2003", third.cid);
-        Assert.Equal("视频B_P2_P2", third.title);
+        Assert.Equal("1002", third.Aid);
+        Assert.Equal("2003", third.Cid);
+        Assert.Equal("视频B_P2_P2", third.Title);
     }
 
     [Fact]

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Download.DownloadUtil;
+using BBDown.Core.Entity;
 
 namespace BBDown;
 

@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
@@ -81,9 +80,9 @@ public static class WatchLaterFetcher
                 foreach (var item in tmpInfo.PagesInfo)
                 {
                     var p = item.CopyWith(index++);
-                    p.title = m.GetProperty("title").ToString( ) + $"_P{item.index}_{item.title}";
-                    p.cover = tmpInfo.Pic;
-                    p.desc = m.GetProperty("desc").ToString( );
+                    p.Title = m.GetProperty("title").ToString( ) + $"_P{item.Index}_{item.Title}";
+                    p.Cover = tmpInfo.Pic;
+                    p.Desc = m.GetProperty("desc").ToString( );
                     if (!pagesInfo.Contains(p))
                     {
                         pagesInfo.Add(p);
@@ -94,18 +93,18 @@ public static class WatchLaterFetcher
             {
                 Page p = new( )
                 {
-                    index = index++,
-                    aid = aid,
-                    cid = m.GetProperty("cid").ToString( ),
-                    epid = "",
-                    title = m.GetProperty("title").ToString( ),
-                    dur = m.GetProperty("duration").GetInt32( ),
-                    res = "",
-                    pubTime = m.GetProperty("pubdate").GetInt64( ),
-                    cover = m.GetProperty("pic").ToString( ),
-                    desc = m.GetProperty("desc").ToString( ),
-                    ownerName = m.GetProperty("owner").GetProperty("name").ToString( ),
-                    ownerMid = m.GetProperty("owner").GetProperty("mid").ToString( ),
+                    Index = index++,
+                    Aid = aid,
+                    Cid = m.GetProperty("cid").ToString( ),
+                    EpId = "",
+                    Title = m.GetProperty("title").ToString( ),
+                    Dur = m.GetProperty("duration").GetInt32( ),
+                    Res = "",
+                    PubTime = m.GetProperty("pubdate").GetInt64( ),
+                    Cover = m.GetProperty("pic").ToString( ),
+                    Desc = m.GetProperty("desc").ToString( ),
+                    OwnerName = m.GetProperty("owner").GetProperty("name").ToString( ),
+                    OwnerMid = m.GetProperty("owner").GetProperty("mid").ToString( ),
                 };
                 if (!pagesInfo.Contains(p))
                 {

@@ -4,7 +4,6 @@ using System.Text.Json;
 using BBDown.Core.Entity;
 using BBDown.Core.PlayUrl;
 
-using static BBDown.Core.Entity.Entity;
 
 namespace BBDown.Core.Tests;
 
@@ -48,7 +47,7 @@ public class DashTrackReaderTests
         var result = new ParsedResult( );
         DashTrackReader.Collect(result, first, maxQn, tvApi: false);
 
-        var ids = result.VideoTracks.Select(v => v.id).ToList( );
+        var ids = result.VideoTracks.Select(v => v.Id).ToList( );
         Assert.Equal(2, ids.Count);
         Assert.Contains("80", ids);
         Assert.Contains("127", ids);
@@ -65,10 +64,10 @@ public class DashTrackReaderTests
         var result = new ParsedResult( );
         DashTrackReader.Collect(result, first, maxQn, tvApi: false);
 
-        Assert.Equal(["30264"], result.AudioTracks.Select(a => a.id).ToList( ));
+        Assert.Equal(["30264"], result.AudioTracks.Select(a => a.Id).ToList( ));
     }
 
-    // dash.audio 为 null 但存在 dolby 节点时，仍要收集杜比音轨（tvApi=false）
+    // dash.Audio 为 null 但存在 dolby 节点时，仍要收集杜比音轨（tvApi=false）
     [Fact]
     public void Collect_CollectsDolbyAudioWhenDashAudioMissing( )
     {
@@ -77,7 +76,7 @@ public class DashTrackReaderTests
         var result = new ParsedResult( );
         DashTrackReader.Collect(result, first, first, tvApi: false);
 
-        Assert.Contains("30250", result.AudioTracks.Select(a => a.id));
+        Assert.Contains("30250", result.AudioTracks.Select(a => a.Id));
     }
 
     // tvApi=true 时不写 res/fps，且跳过 dolby/flac 音轨
@@ -90,9 +89,9 @@ public class DashTrackReaderTests
         DashTrackReader.Collect(result, first, first, tvApi: true);
 
         var v = Assert.Single(result.VideoTracks);
-        Assert.Null(v.res);
-        Assert.Null(v.fps);
-        Assert.DoesNotContain("30250", result.AudioTracks.Select(a => a.id));
+        Assert.Null(v.Res);
+        Assert.Null(v.Fps);
+        Assert.DoesNotContain("30250", result.AudioTracks.Select(a => a.Id));
     }
 
     // support_formats 声明了智能修复、dash 却无对应轨道 => 账号权限不够
@@ -109,7 +108,7 @@ public class DashTrackReaderTests
     {
         var root = Root("""{"support_formats":[{"quality":100,"new_description":"智能修复"}]}""");
         var result = new ParsedResult( );
-        result.VideoTracks.Add(new Video { id = "100", dfn = "智能修复", baseUrl = "", codecs = "AVC" });
+        result.VideoTracks.Add(new Video { Id = "100", Dfn = "智能修复", BaseUrl = "", Codecs = "AVC" });
         Assert.False(DashTrackReader.DeclaredButMissing(root, result, "100"));
     }
 

@@ -8,7 +8,6 @@ using BBDown.Core.Entity;
 using BBDown.Core.PlayUrl;
 using BBDown.Core.Util;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.JsonUtil;
 
@@ -125,9 +124,9 @@ public static class Parser
 
         ViewPointUtil.Append(parsedResult, clipList.EnumerateArray( ).Select(clip => new ViewPoint( )
         {
-            title = clip.GetProperty("toastText").ToString( ).Replace("即将跳过", ""),
-            start = clip.GetProperty("start").GetInt32( ),
-            end = clip.GetProperty("end").GetInt32( )
+            Title = clip.GetProperty("toastText").ToString( ).Replace("即将跳过", ""),
+            Start = clip.GetProperty("start").GetInt32( ),
+            End = clip.GetProperty("end").GetInt32( )
         }));
     }
 }

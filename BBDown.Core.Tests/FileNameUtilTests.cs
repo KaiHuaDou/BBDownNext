@@ -40,7 +40,7 @@ public class FileNameUtilTests
     [InlineData("title.", "title")]
     [InlineData("title...", "title")]
     [InlineData("  title  ", "title")]
-    [InlineData(".title.", "_.title")]
+    [InlineData(".Title.", "_.Title")]
     public void GetValidFileName_TrimsTrailingDotsAndSpaces(string input, string expected)
     {
         Assert.Equal(expected, FileNameUtil.GetValidFileName(input));
@@ -82,7 +82,7 @@ public class FileNameUtilTests
     }
 
     [Theory]
-    [InlineData(".title.")]
+    [InlineData(".Title.")]
     [InlineData("CON")]
     [InlineData("a/b")]
     public void GetValidFileName_IsIdempotent(string input)

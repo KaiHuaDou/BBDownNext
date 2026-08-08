@@ -113,7 +113,7 @@ public static partial class HTTPUtil
 
         var host = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : "";
         // passport 系接口（扫码登录 generate/poll 等）同样校验 Referer，浏览器从 www.bilibili.com 发起，
-        // 不带 Referer 会被服务端在拿到 data.url 之前就挡下，导致 Web 登录拿不到 SESSDATA
+        // 不带 Referer 会被服务端在拿到 data.Url 之前就挡下，导致 Web 登录拿不到 SESSDATA
         if (host is BiliApi.MainHost or BiliApi.PassportHost or "www.bilibili.com")
         {
             request.Headers.TryAddWithoutValidation("Referer", BiliApi.Site + "/");
@@ -173,7 +173,7 @@ public static partial class HTTPUtil
     /// <summary>
     /// 登录专用：GET 指定地址（通常是 poll 成功返回的 crossDomain 端点），通过独立 <see cref="CookieContainer"/>
     /// 接收其 <c>Set-Cookie</c> 并返回容器。这是 B 站下发登录 cookie 的正规通道——浏览器正是靠「导航到该 URL」
-    /// 拿到 cookie，而 BBDown 之前从未执行这步，只从 <c>data.url</c> 的 query 解析（该通道已被移除），
+    /// 拿到 cookie，而 BBDown 之前从未执行这步，只从 <c>data.Url</c> 的 query 解析（该通道已被移除），
     /// 因此拿不到 cookie。AllowAutoRedirect 确保重定向链上的 Set-Cookie 也一并进入容器。
     /// </summary>
     public static async Task<CookieContainer> GetCookieJarAsync(string url, AppConfig cfg, CancellationToken ct = default)

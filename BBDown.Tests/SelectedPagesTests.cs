@@ -18,16 +18,16 @@ public class SelectedPagesTests
             Pic = "p",
             PubTime = 0,
             Index = index,
-            PagesInfo = [.. Enumerable.Range(1, pageCount).Select(i => new Entity.Page
+            PagesInfo = [.. Enumerable.Range(1, pageCount).Select(i => new Page
         {
-            index = i,
-            aid = "1",
-            cid = i.ToString(),
-            epid = "",
-            title = $"P{i}",
-            dur = 0,
-            res = "",
-            pubTime = 0
+            Index = i,
+            Aid = "1",
+            Cid = i.ToString(),
+            EpId = "",
+            Title = $"P{i}",
+            Dur = 0,
+            Res = "",
+            PubTime = 0
         })]
         };
     }

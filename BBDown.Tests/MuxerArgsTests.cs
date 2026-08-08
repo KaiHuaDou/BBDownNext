@@ -2,19 +2,19 @@ using System.Collections.Generic;
 using System.Linq;
 
 using BBDown.Core;
-using static BBDown.Core.Entity.Entity;
+using BBDown.Core.Entity;
 
 namespace BBDown.Tests;
 
 public class MuxerArgsTests
 {
-    // 普通的 BV 号（与生产中 p.bvid 一致）。Build* 会把它拼成完整视频页 URL 写入 comment 元数据，
+    // 普通的 BV 号（与生产中 p.Bvid 一致）。Build* 会把它拼成完整视频页 URL 写入 comment 元数据，
     // 故断言也按拼装后的形态校验，而不是传入的完整 URL 原样回声。
     private const string Bvid = "BV1hY411J7cA";
 
     private static Subtitle Sub(string lan, string path)
     {
-        return new( ) { lan = lan, url = "", path = path };
+        return new( ) { Lan = lan, Url = "", Path = path };
     }
 
     // 用窄 MuxRequest 组装混流入参；
@@ -111,7 +111,7 @@ public class MuxerArgsTests
     [Fact]
     public void BuildFFmpegArgs_NumbersInputsAndChaptersConsistently( )
     {
-        List<AudioMaterial> material = [new( ) { title = "配音", personName = "甲", path = "/tmp/m1.m4a" }];
+        List<AudioMaterial> material = [new( ) { Title = "配音", PersonName = "甲", Path = "/tmp/m1.m4a" }];
 
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", audioMaterial: material, outPath: "/out/x.mp4",
             pic: "/tmp/c.jpg", subs: [Sub("zh-Hans", "/tmp/s0.srt"), Sub("en-US", "/tmp/s1.srt")]);

@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 using BBDown.Download;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Util.Utils;
+using BBDown.Core.Entity;
 
 namespace BBDown.Mux;
 
@@ -61,7 +61,7 @@ internal static class MuxFinish
         Log($"开始混流{streams}{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
         var req = new MuxRequest(
             UseMp4box: inputs.UseMp4box,
-            Bvid: p.bvid,
+            Bvid: p.Bvid,
             VideoPath: inputs.VideoPath,
             AudioPath: inputs.AudioPath,
             AudioMaterial: inputs.AudioMaterial,
@@ -69,14 +69,14 @@ internal static class MuxFinish
             Tools: ctx.Run.Tools,
             Desc: pageCtx.Desc,
             Title: pageCtx.Title,
-            Author: p.ownerName ?? "",
+            Author: p.OwnerName ?? "",
             EpisodeId: pageCtx.EpisodeTitle,
             Pic: File.Exists(pageCtx.CoverPath) ? pageCtx.CoverPath : "",
             Lang: ctx.Run.Lang,
             Subs: subtitleInfo,
             Content: myOption.Content,
-            Points: p.points,
-            PubTime: p.pubTime,
+            Points: p.Points,
+            PubTime: p.PubTime,
             IsHevc: inputs.IsHevc);
         var code = await Muxer.MuxAV(req, ct);
         if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
@@ -112,15 +112,15 @@ internal static class MuxFinish
         PartFile.Discard(videoPath);
         PartFile.Discard(audioPath);
         var trackPath = string.IsNullOrEmpty(videoPath) ? audioPath : videoPath;
-        if (pageCtx.Page.points.Count != 0 && !string.IsNullOrEmpty(trackPath))
+        if (pageCtx.Page.Points.Count != 0 && !string.IsNullOrEmpty(trackPath))
         {
             SafeDelete(Path.Combine(Path.GetDirectoryName(trackPath) ?? "", "chapters"));
         }
 
         foreach (var a in audioMaterial)
         {
-            SafeDelete(a.path);
-            PartFile.Discard(a.path);
+            SafeDelete(a.Path);
+            PartFile.Discard(a.Path);
         }
 
         if (pageCtx.DeleteCoverAfterMux)

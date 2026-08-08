@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using BBDown.Core.Entity;
 using BBDown.Mux;
 
-using static BBDown.Core.Entity.Entity;
 
 namespace BBDown.Drm;
 

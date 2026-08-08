@@ -75,7 +75,7 @@ public static partial class IntlBangumiInfoFetcher
         }
 
         var pagesInfo = BangumiInfoFetcher.BuildEpisodePages(pages);
-        var index = pagesInfo.Find(p => p.epid == id)?.index.ToString( ) ?? "";
+        var index = pagesInfo.Find(p => p.EpId == id)?.Index.ToString( ) ?? "";
 
         var info = new VInfo
         {

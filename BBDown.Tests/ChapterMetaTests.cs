@@ -34,10 +34,10 @@ public class ChapterMetaTests
     [Fact]
     public void GetFFmpegMetaString_EmitsFfmetadataWithChapters( )
     {
-        var points = new List<Entity.ViewPoint>
+        var points = new List<ViewPoint>
         {
-            new( ) { title = "Intro", start = 0, end = 10 },
-            new( ) { title = "Chapter 2", start = 10, end = 20 },
+            new( ) { Title = "Intro", Start = 0, End = 10 },
+            new( ) { Title = "Chapter 2", Start = 10, End = 20 },
         };
 
         var meta = ChapterMeta.GetFFmpegMetaString(points);
@@ -51,11 +51,11 @@ public class ChapterMetaTests
     [Fact]
     public void GetMp4boxMetaString_EmitsTimestampedTitles( )
     {
-        var points = new List<Entity.ViewPoint>
+        var points = new List<ViewPoint>
         {
-            new( ) { title = "Intro", start = 0, end = 10 },
-            new( ) { title = "Chapter 2", start = 10, end = 20 },
-            new( ) { title = "Deep", start = 3661, end = 3700 },
+            new( ) { Title = "Intro", Start = 0, End = 10 },
+            new( ) { Title = "Chapter 2", Start = 10, End = 20 },
+            new( ) { Title = "Deep", Start = 3661, End = 3700 },
         };
 
         var meta = ChapterMeta.GetMp4boxMetaString(points);
@@ -76,9 +76,9 @@ public class ChapterMetaTests
         var info = ChapterMeta.ParsePlayerV2(Json);
 
         Assert.Equal(2, info.Points.Count);
-        Assert.Equal("正片", info.Points[1].title);
-        Assert.Equal(10, info.Points[1].start);
-        Assert.Equal(20, info.Points[1].end);
+        Assert.Equal("正片", info.Points[1].Title);
+        Assert.Equal(10, info.Points[1].Start);
+        Assert.Equal(20, info.Points[1].End);
     }
 
     [Fact]

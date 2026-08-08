@@ -2,7 +2,6 @@ using System.Collections.Generic;
 
 using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 
 namespace BBDown.Core.Util;
 
@@ -17,7 +16,7 @@ internal static class ViewPointUtil
     public static void Append(ParsedResult parsedResult, IEnumerable<ViewPoint> points)
     {
         parsedResult.ExtraPoints.AddRange(points);
-        parsedResult.ExtraPoints.Sort((p1, p2) => p1.start.CompareTo(p2.start));
+        parsedResult.ExtraPoints.Sort((p1, p2) => p1.Start.CompareTo(p2.Start));
         parsedResult.ExtraPoints = FillGapsWithMainContent(parsedResult.ExtraPoints);
     }
 
@@ -28,13 +27,13 @@ internal static class ViewPointUtil
         var lastEnd = 0;
         foreach (var point in points)
         {
-            if (lastEnd < point.start)
+            if (lastEnd < point.Start)
             {
-                result.Add(new ViewPoint( ) { title = "正片", start = lastEnd, end = point.start });
+                result.Add(new ViewPoint( ) { Title = "正片", Start = lastEnd, End = point.Start });
             }
 
             result.Add(point);
-            lastEnd = point.end;
+            lastEnd = point.End;
         }
 
         return result;

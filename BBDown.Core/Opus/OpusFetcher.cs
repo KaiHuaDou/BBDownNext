@@ -16,7 +16,7 @@ namespace BBDown.Core.Opus;
 /// </summary>
 public static partial class OpusFetcher
 {
-    // htmlNewStyle 会让 opus/detail 直出专栏正文与 rid_str；不带该 feature 时只回退 fallback.id
+    // htmlNewStyle 会让 opus/detail 直出专栏正文与 rid_str；不带该 feature 时只回退 fallback.Id
     private const string OpusFeatures =
         "itemOpusStyle,opusBigCover,onlyfansVote,decorationCard,forwardListHidden,ugcDelete,onlyfansQaCard,htmlNewStyle";
 
@@ -56,7 +56,7 @@ public static partial class OpusFetcher
     }
 
     /// <summary>
-    /// 从 opus/detail 的返回里取出 cv id：优先 <c>data.fallback.id</c>（type==2 为专栏）；
+    /// 从 opus/detail 的返回里取出 cv id：优先 <c>data.fallback.Id</c>（type==2 为专栏）；
     /// 其次仅当 <c>data.item.type</c> 为 1（专栏动态）时，<c>data.item.basic.rid_str</c> 才是 cv 号。
     /// 纯动态（type==0）的 rid_str 不是 cv，返回 null 走图文动态导出。
     /// </summary>

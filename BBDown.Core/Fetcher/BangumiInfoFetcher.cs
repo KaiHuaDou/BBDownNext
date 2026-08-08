@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
 
@@ -68,7 +67,7 @@ public static class BangumiInfoFetcher
             throw new InvalidOperationException("该番剧没有可下载的正片分集。");
         }
 
-        var index = isSeason ? "" : pagesInfo.Find(p => p.epid == raw)?.index.ToString( ) ?? "";
+        var index = isSeason ? "" : pagesInfo.Find(p => p.EpId == raw)?.Index.ToString( ) ?? "";
 
         var info = new VInfo
         {
@@ -103,14 +102,14 @@ public static class BangumiInfoFetcher
 
             pagesInfo.Add(new Page
             {
-                index = i++,
-                aid = page.GetProperty("aid").ToString( ),
-                cid = page.GetProperty("cid").ToString( ),
-                epid = page.GetProperty("id").ToString( ),
-                title = (page.GetProperty("title") + " " + page.GetProperty("long_title")).Trim( ),
-                dur = ReadDurationSeconds(page),
-                res = ReadDimension(page),
-                pubTime = page.TryGetProperty("pub_time", out var pubTime) ? pubTime.GetInt64( ) : 0,
+                Index = i++,
+                Aid = page.GetProperty("aid").ToString( ),
+                Cid = page.GetProperty("cid").ToString( ),
+                EpId = page.GetProperty("id").ToString( ),
+                Title = (page.GetProperty("title") + " " + page.GetProperty("long_title")).Trim( ),
+                Dur = ReadDurationSeconds(page),
+                Res = ReadDimension(page),
+                PubTime = page.TryGetProperty("pub_time", out var pubTime) ? pubTime.GetInt64( ) : 0,
             });
         }
 

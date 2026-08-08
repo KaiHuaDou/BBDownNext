@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using BBDown.Media;
 using BBDown.Util;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
+using BBDown.Core.Entity;
 
 namespace BBDown.Pipeline;
 
@@ -40,7 +40,7 @@ internal static class PageQueue
         //过滤不需要的分 P
         if (selectedPages != null)
         {
-            pagesInfo = [.. pagesInfo.Where(p => selectedPages.Contains(p.index.ToString( )))];
+            pagesInfo = [.. pagesInfo.Where(p => selectedPages.Contains(p.Index.ToString( )))];
             if (pagesInfo.Count == 0)
             {
                 LogWarn("未匹配到任何分 P（收藏夹可能为空或指定的分 P 不存在），跳过下载。");
@@ -59,12 +59,12 @@ internal static class PageQueue
         var isFirstPage = true;
         var errors = await RunPagesAsync(pagesInfo, myOption.StopOnError, async (p, token) =>
         {
-            Log($"开始解析 P{p.index}：{p.aid}...（{pagesInfo.IndexOf(p) + 1} / {pagesInfo.Count}）");
+            Log($"开始解析 P{p.Index}：{p.Aid}...（{pagesInfo.IndexOf(p) + 1} / {pagesInfo.Count}）");
 
             // 评论区关闭也能立刻反馈，视频下载失败也不丢评论；放在视频下载之前。--info-only 仅解析不产出评论。
             // o/O 只是开关，评论数量走 --comments-count：两者都满足才真正抓取
             if (ctx.Run.Content.HasAny(DownloadContent.Comments | DownloadContent.FullComments)
-                && ctx.Run.CommentCount > 0 && !myOption.OnlyShowInfo && commentedAids.Add(p.aid))
+                && ctx.Run.CommentCount > 0 && !myOption.OnlyShowInfo && commentedAids.Add(p.Aid))
             {
                 await CommentDownload.RunAsync(ctx, PageDownload.BuildPageContext(p, ctx, pagesInfo), sink, token);
             }
@@ -78,9 +78,9 @@ internal static class PageQueue
 
             isFirstPage = false;
 
-            if (myOption.SaveArchivesToFile && ArchiveLog.CheckArchive(p.aid, p.cid))
+            if (myOption.SaveArchivesToFile && ArchiveLog.CheckArchive(p.Aid, p.Cid))
             {
-                Log($"已下载过（aid：{p.aid} / cid：{p.cid}），跳过下载...");
+                Log($"已下载过（aid：{p.Aid} / cid：{p.Cid}），跳过下载...");
                 return;
             }
 
@@ -90,7 +90,7 @@ internal static class PageQueue
             // 试看片段同样不记，否则用户日后拿到充电权限重跑会被 CheckArchive 静默跳过
             if (myOption.SaveArchivesToFile && !outcome.Aborted && !outcome.Preview && !string.IsNullOrWhiteSpace(outcome.SavePath))
             {
-                ArchiveLog.SaveArchive(p.aid, p.cid, outcome.SavePath);
+                ArchiveLog.SaveArchive(p.Aid, p.Cid, outcome.SavePath);
             }
         }, ct);
 
@@ -116,7 +116,7 @@ internal static class PageQueue
 
     private static string FormatPages(List<(Page Page, Exception Error)> items)
     {
-        return string.Join(", ", items.Select(e => $"P{e.Page.index}（{e.Page.aid}）"));
+        return string.Join(", ", items.Select(e => $"P{e.Page.Index}（{e.Page.Aid}）"));
     }
 
     /// <summary>

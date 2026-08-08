@@ -2,13 +2,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 
+using BBDown.Core.Entity;
 using BBDown.Core.Util;
 
 namespace BBDown.Core.Tests;
 
 public class SubUtilTests
 {
-    private static List<Entity.Entity.Subtitle> Read(string json, string lanKey, string urlKey, string prefix, bool intl)
+    private static List<Subtitle> Read(string json, string lanKey, string urlKey, string prefix, bool intl)
     {
         using var doc = JsonDocument.Parse(json);
         return SubUtil.ReadSubtitles(doc.RootElement, lanKey, urlKey, prefix, intl);
@@ -21,9 +22,9 @@ public class SubUtilTests
             "lan", "subtitle_url", "114/114.514", false);
 
         var sub = Assert.Single(subs);
-        Assert.Equal("zh-CN", sub.lan);
-        Assert.Equal("//i0.hdslb.com/a.json", sub.url);
-        Assert.Equal("114/114.514.zh-CN.srt", sub.path);
+        Assert.Equal("zh-CN", sub.Lan);
+        Assert.Equal("//i0.hdslb.com/a.json", sub.Url);
+        Assert.Equal("114/114.514.zh-CN.srt", sub.Path);
     }
 
     // 非国际版一律按 srt 落盘，即使 url 看着像 ass
@@ -31,7 +32,7 @@ public class SubUtilTests
     public void ReadSubtitles_NonIntlAlwaysUsesSrtExtension( )
     {
         var subs = Read("""[{"lan":"en","subtitle_url":"https://x/a.ass"}]""", "lan", "subtitle_url", "1/1.2", false);
-        Assert.Equal("1/1.2.en.srt", subs[0].path);
+        Assert.Equal("1/1.2.en.srt", subs[0].Path);
     }
 
     [Theory]
@@ -40,7 +41,7 @@ public class SubUtilTests
     public void ReadSubtitles_IntlPicksExtensionByUrl(string url, string expectedPath)
     {
         var subs = Read($$"""[{"lang_key":"en","url":"{{url}}"}]""", "lang_key", "url", "1/1.2", true);
-        Assert.Equal(expectedPath, subs[0].path);
+        Assert.Equal(expectedPath, subs[0].Path);
     }
 
     // 国际版 app 接口返回的是转义过的斜杠
@@ -48,7 +49,7 @@ public class SubUtilTests
     public void ReadSubtitles_UnescapesBackslashSlash( )
     {
         var subs = Read("""[{"key":"en","url":"https:\\\\/\\\\/x\\\\/a.ass"}]""", "key", "url", "1/1.2", true);
-        Assert.Equal("https://x/a.ass", subs[0].url);
+        Assert.Equal("https://x/a.ass", subs[0].Url);
     }
 
     [Fact]
@@ -57,9 +58,9 @@ public class SubUtilTests
         Assert.Empty(Read("[]", "lan", "subtitle_url", "1/1.2", false));
     }
 
-    private static List<Entity.Entity.Subtitle> Subs(params string[] urls)
+    private static List<Subtitle> Subs(params string[] urls)
     {
-        return urls.Select((url, i) => new Entity.Entity.Subtitle { lan = $"l{i}", url = url, path = $"p{i}" }).ToList( );
+        return urls.Select((url, i) => new Subtitle { Lan = $"l{i}", Url = url, Path = $"p{i}" }).ToList( );
     }
 
     // view 接口的 AI 字幕 url 恒为空，应被过滤而不影响有效条目
@@ -67,7 +68,7 @@ public class SubUtilTests
     public void FilterUsable_DropsEmptyUrlsKeepsValidOnes( )
     {
         var filtered = SubUtil.FilterUsable(Subs("", "https://x/a.json", "//y/b.json"));
-        Assert.Equal(["https://x/a.json", "//y/b.json"], filtered!.ConvertAll(s => s.url));
+        Assert.Equal(["https://x/a.json", "//y/b.json"], filtered!.ConvertAll(s => s.Url));
     }
 
     [Fact]
@@ -87,7 +88,7 @@ public class SubUtilTests
     {
         var subs = Read("""[{"lan":"a","subtitle_url":"1"},{"lan":"b","subtitle_url":"2"},{"lan":"c","subtitle_url":"3"}]""",
             "lan", "subtitle_url", "p", false);
-        Assert.Equal(["a", "b", "c"], subs.ConvertAll(s => s.lan));
+        Assert.Equal(["a", "b", "c"], subs.ConvertAll(s => s.Lan));
     }
 
     // 字段缺失直接抛，由 GetSubtitlesAsync 的候选循环判定该接口不可用

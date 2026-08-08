@@ -128,7 +128,7 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 从多个来源合并出登录 cookie：优先 data.url 的 query（旧通道 / 兜底），其次 poll 响应自身的
+    /// 从多个来源合并出登录 cookie：优先 data.Url 的 query（旧通道 / 兜底），其次 poll 响应自身的
     /// Set-Cookie 头，再次 crossDomain 端点 GET 后的 CookieContainer（B 站当前正规通道）。任一来源补齐即采用，
     /// 全部缺失才抛错。英文逗号会被部分下游当作 cookie 分隔符，需转义。
     /// </summary>
@@ -136,7 +136,7 @@ public static partial class Login
     {
         var values = new Dictionary<string, string>( );
 
-        // 1) data.url query（旧通道 / 兜底）
+        // 1) data.Url query（旧通道 / 兜底）
         if (!string.IsNullOrEmpty(url) && url.Contains('?'))
         {
             foreach (var pair in url[(url.IndexOf('?') + 1)..].Split('&', StringSplitOptions.RemoveEmptyEntries))

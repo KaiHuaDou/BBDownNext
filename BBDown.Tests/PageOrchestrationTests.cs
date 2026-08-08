@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 
 namespace BBDown.Tests;
 
@@ -14,14 +14,14 @@ public class PageOrchestrationTests
     {
         return new Page
         {
-            index = index,
-            aid = "aid" + index,
-            cid = "cid" + index,
-            epid = "",
-            title = "t" + index,
-            dur = 1,
-            res = "",
-            pubTime = 0,
+            Index = index,
+            Aid = "aid" + index,
+            Cid = "cid" + index,
+            EpId = "",
+            Title = "t" + index,
+            Dur = 1,
+            Res = "",
+            PubTime = 0,
         };
     }
 
@@ -35,8 +35,8 @@ public class PageOrchestrationTests
 
         Task run(Page p, CancellationToken _)
         {
-            ran.Add(p.index);
-            if (p.index == failAt)
+            ran.Add(p.Index);
+            if (p.Index == failAt)
             {
                 throw new InvalidOperationException("boom");
             }
@@ -48,7 +48,7 @@ public class PageOrchestrationTests
 
         Assert.Equal([0, 1, 2], ran); // 失败页之后仍在跑
         Assert.Single(errors);
-        Assert.Equal(1, errors[0].Page.index);
+        Assert.Equal(1, errors[0].Page.Index);
         Assert.Equal("boom", errors[0].Error.Message);
     }
 
@@ -62,8 +62,8 @@ public class PageOrchestrationTests
 
         Task run(Page p, CancellationToken _)
         {
-            ran.Add(p.index);
-            if (p.index == failAt)
+            ran.Add(p.Index);
+            if (p.Index == failAt)
             {
                 throw new InvalidOperationException("boom");
             }
@@ -75,7 +75,7 @@ public class PageOrchestrationTests
 
         Assert.Equal([0, 1], ran); // 第 2 个分P 没有跑
         Assert.Single(errors);
-        Assert.Equal(1, errors[0].Page.index);
+        Assert.Equal(1, errors[0].Page.Index);
     }
 
     // Ctrl+C 的取消信号必须立刻上抛，不能被吞进 AggregateException
@@ -89,7 +89,7 @@ public class PageOrchestrationTests
 
         Task run(Page p, CancellationToken _)
         {
-            ran.Add(p.index);
+            ran.Add(p.Index);
             throw new OperationCanceledException( );
         }
 
@@ -109,7 +109,7 @@ public class PageOrchestrationTests
 
         Task run(Page p, CancellationToken _)
         {
-            ran.Add(p.index);
+            ran.Add(p.Index);
             throw new OperationCanceledException( );
         }
 

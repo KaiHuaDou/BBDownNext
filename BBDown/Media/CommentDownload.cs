@@ -29,12 +29,12 @@ internal static class CommentDownload
 
     public static async Task RunAsync(WorkContext ctx, PageContext pageCtx, PipelineSink sink = default, CancellationToken ct = default)
     {
-        if (ctx.Run.CommentCount <= 0 || pageCtx.Page.aid.Length == 0)
+        if (ctx.Run.CommentCount <= 0 || pageCtx.Page.Aid.Length == 0)
         {
             return;
         }
 
-        if (!long.TryParse(pageCtx.Page.aid, out var oid) || oid <= 0)
+        if (!long.TryParse(pageCtx.Page.Aid, out var oid) || oid <= 0)
         {
             // 番剧 / 课程分集的 aid 可能为空或非数字，评论接口需要有效的 oid
             LogWarn("当前分 P 无有效 aid，跳过评论下载");
@@ -50,7 +50,7 @@ internal static class CommentDownload
             ct);
 
         document.Title = pageCtx.Title;
-        document.Bvid = pageCtx.Page.bvid;
+        document.Bvid = pageCtx.Page.Bvid;
 
         var basePath = SavePath.Build(ctx, pageCtx, null, null);
         // 内容集无 v（仅音频）时产物为 .m4a，评论文件须与之一致

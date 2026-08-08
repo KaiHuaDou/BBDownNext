@@ -10,7 +10,6 @@ using BBDown.Download;
 using BBDown.Mux;
 using BBDown.Util;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Parser;
 using static BBDown.Download.DownloadUtil;
@@ -59,11 +58,11 @@ internal static class FlvDownload
                 else
                 {
                     parsedResult.VideoTracks.Clear( );
-                    parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.aid, p.cid, p.epid,
+                    parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.Aid, p.Cid, p.EpId,
                         myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, dfn, ct);
-                    if (p.points.Count == 0)
+                    if (p.Points.Count == 0)
                     {
-                        p.points = parsedResult.ExtraPoints;
+                        p.Points = parsedResult.ExtraPoints;
                     }
 
                     reParsed = true;
@@ -89,7 +88,7 @@ internal static class FlvDownload
             var selectedVideo = parsedResult.VideoTracks.ElementAtOrDefault(0);
             if (IsCodecUnsupported(selectedVideo))
             {
-                LogError($"分段(FLV)源无法承载 {selectedVideo!.codecs} 编码，请改用 -e avc 重新下载");
+                LogError($"分段(FLV)源无法承载 {selectedVideo!.Codecs} 编码，请改用 -e avc 重新下载");
                 return PageOutcome.Abort(selection);
             }
 
@@ -101,7 +100,7 @@ internal static class FlvDownload
 
             var clipPaths = await DownloadClipsAsync(clips, pageCtx, downloadConfig, ct);
 
-            Log($"下载 P{p.index} 完毕");
+            Log($"下载 P{p.Index} 完毕");
             Log("开始合并分片...");
             var videoPath = pageCtx.VideoPath;
             try
@@ -125,7 +124,7 @@ internal static class FlvDownload
 
     internal static bool IsCodecUnsupported(Video? video)
     {
-        return video is { codecs: "HEVC" or "AV1" };
+        return video is { Codecs: "HEVC" or "AV1" };
     }
 
     private static async Task<List<string>> DownloadClipsAsync(List<string> clips, PageContext pageCtx, DownloadConfig downloadConfig, CancellationToken ct = default)
@@ -135,9 +134,9 @@ internal static class FlvDownload
         var clipPaths = new List<string>(clips.Count);
         for (var i = 0; i < clips.Count; i++)
         {
-            var clipPath = Path.Combine(pageCtx.TempDir, $"{p.aid}.P{p.index}.{p.cid}.{i.ToString(pad)}.mp4");
+            var clipPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.P{p.Index}.{p.Cid}.{i.ToString(pad)}.mp4");
             clipPaths.Add(clipPath);
-            Log($"开始下载 P{p.index} 视频，片段（{(i + 1).ToString(pad)} / {clips.Count}）...");
+            Log($"开始下载 P{p.Index} 视频，片段（{(i + 1).ToString(pad)} / {clips.Count}）...");
             await DownloadAsync(clips[i], clipPath, downloadConfig, ct: ct);
         }
 

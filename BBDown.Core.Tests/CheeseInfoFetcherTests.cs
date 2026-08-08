@@ -23,12 +23,12 @@ public class CheeseInfoFetcherTests
 
         // status=2 的「锁定」分集被跳过，仅保留可观看分集，且 index 沿用接口值而非自增。
         Assert.Equal(2, pages.Count);
-        Assert.Equal("101", pages[0].epid);
-        Assert.Equal("103", pages[1].epid);
-        Assert.Equal(1, pages[0].index);
-        Assert.Equal(3, pages[1].index);
-        Assert.Equal("up", pages[0].ownerName);
-        Assert.Equal("666", pages[0].ownerMid);
+        Assert.Equal("101", pages[0].EpId);
+        Assert.Equal("103", pages[1].EpId);
+        Assert.Equal(1, pages[0].Index);
+        Assert.Equal(3, pages[1].Index);
+        Assert.Equal("up", pages[0].OwnerName);
+        Assert.Equal("666", pages[0].OwnerMid);
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public class CheeseInfoFetcherTests
         var pages = CheeseInfoFetcher.BuildPages(doc.RootElement.GetProperty("episodes"), "up", "666");
 
         Assert.Single(pages);
-        Assert.Equal("101", pages[0].epid);
+        Assert.Equal("101", pages[0].EpId);
     }
 
     [Fact]

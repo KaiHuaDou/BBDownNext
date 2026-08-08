@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
@@ -39,8 +38,8 @@ public static class CheeseInfoFetcher
             throw new InvalidOperationException("该课程没有可下载的分集（可能尚未购买，或分集均为试看锁定）。");
         }
 
-        var index = raw.StartsWith("ss") ? "" : pagesInfo.Find(p => p.epid == raw)?.index.ToString( ) ?? "";
-        var pubTime = pagesInfo.Count != 0 ? pagesInfo[0].pubTime : 0;
+        var index = raw.StartsWith("ss") ? "" : pagesInfo.Find(p => p.EpId == raw)?.Index.ToString( ) ?? "";
+        var pubTime = pagesInfo.Count != 0 ? pagesInfo[0].PubTime : 0;
 
         var info = new VInfo
         {
@@ -73,18 +72,18 @@ public static class CheeseInfoFetcher
 
             pagesInfo.Add(new Page
             {
-                index = page.GetProperty("index").GetInt32( ),
-                aid = page.GetProperty("aid").ToString( ),
-                cid = page.GetProperty("cid").ToString( ),
-                epid = page.GetProperty("id").ToString( ),
-                title = page.GetProperty("title").ToString( ).Trim( ),
-                dur = page.GetProperty("duration").GetInt32( ),
-                res = "",
-                pubTime = page.GetProperty("release_date").GetInt64( ),
-                cover = "",
-                desc = "",
-                ownerName = ownerName,
-                ownerMid = ownerMid,
+                Index = page.GetProperty("index").GetInt32( ),
+                Aid = page.GetProperty("aid").ToString( ),
+                Cid = page.GetProperty("cid").ToString( ),
+                EpId = page.GetProperty("id").ToString( ),
+                Title = page.GetProperty("title").ToString( ).Trim( ),
+                Dur = page.GetProperty("duration").GetInt32( ),
+                Res = "",
+                PubTime = page.GetProperty("release_date").GetInt64( ),
+                Cover = "",
+                Desc = "",
+                OwnerName = ownerName,
+                OwnerMid = ownerMid,
             });
         }
 

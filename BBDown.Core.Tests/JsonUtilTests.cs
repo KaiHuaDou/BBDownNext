@@ -58,7 +58,7 @@ public class JsonUtilTests
         Assert.Equal(["80", "64"], found!.Select(node => node.GetProperty("id").ToString( )));
     }
 
-    // null 与空数组必须可区分：dash.audio 缺失要回退到 dolby/flac，存在但为空则不回退
+    // null 与空数组必须可区分：dash.Audio 缺失要回退到 dolby/flac，存在但为空则不回退
     [Theory]
     [InlineData("""{"dash":{"audio":[]}}""", 0)]
     [InlineData("""{"dash":{"audio":null}}""", -1)]
@@ -111,7 +111,7 @@ public class JsonUtilTests
         Assert.Equal(expected, JsonUtil.ReadDimension(Parse(json)));
     }
 
-    // 番剧接口给的是毫秒（实测 ep327325 为 2826000），Page.dur 按秒存放
+    // 番剧接口给的是毫秒（实测 ep327325 为 2826000），Page.Dur 按秒存放
     [Theory]
     [InlineData("""{"duration":2826000}""", 2826)]
     [InlineData("""{"duration":1500}""", 2)]

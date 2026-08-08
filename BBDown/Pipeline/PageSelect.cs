@@ -50,9 +50,9 @@ internal static class PageSelect
             return [];
         }
 
-        var lastIndex = pagesInfo[^1].index;        // 列表末项，即最后一集（兼容非连续 index）
-        var firstIndex = pagesInfo[0].index;
-        var secondLastIndex = pagesInfo.Count >= 2 ? pagesInfo[^2].index : -1;
+        var lastIndex = pagesInfo[^1].Index;        // 列表末项，即最后一集（兼容非连续 index）
+        var firstIndex = pagesInfo[0].Index;
+        var secondLastIndex = pagesInfo.Count >= 2 ? pagesInfo[^2].Index : -1;
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var anyValid = false;
@@ -123,16 +123,16 @@ internal static class PageSelect
         for (var i = 0; i < vInfo.PagesInfo.Count; i++)
         {
             var p = vInfo.PagesInfo[i];
-            Log($"[{p.index}] {p.title}（{FormatTime(p.dur)}）是否下载？[y/n/a/q]", false);
+            Log($"[{p.Index}] {p.Title}（{FormatTime(p.Dur)}）是否下载？[y/n/a/q]", false);
             var input = Console.ReadLine( );
             var choice = string.IsNullOrWhiteSpace(input) ? "n" : input.Trim( ).ToLowerInvariant( );
             if (choice is "y" or "yes")
             {
-                selected.Add(p.index.ToString( ));
+                selected.Add(p.Index.ToString( ));
             }
             else if (choice is "a" or "all")
             {
-                selected.AddRange(vInfo.PagesInfo[i..].Select(rest => rest.index.ToString( )));
+                selected.AddRange(vInfo.PagesInfo[i..].Select(rest => rest.Index.ToString( )));
                 break;
             }
             else if (choice is "q" or "quit")

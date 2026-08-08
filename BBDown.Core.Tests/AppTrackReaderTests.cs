@@ -37,19 +37,19 @@ public class AppTrackReaderTests
         Assert.Equal(2, result.VideoTracks.Count);
 
         var hevc = result.VideoTracks[0];
-        Assert.Equal("120", hevc.id);
-        Assert.Equal("4K 超清", hevc.dfn);
-        Assert.Equal("HEVC", hevc.codecs);
-        Assert.Equal(754, hevc.dur);
-        Assert.Equal("https://upos-sz-mirror08c.bilivideo.com/v120.m4s", hevc.baseUrl);
+        Assert.Equal("120", hevc.Id);
+        Assert.Equal("4K 超清", hevc.Dfn);
+        Assert.Equal("HEVC", hevc.Codecs);
+        Assert.Equal(754, hevc.Dur);
+        Assert.Equal("https://upos-sz-mirror08c.bilivideo.com/v120.m4s", hevc.BaseUrl);
         // App 端不下发 res / fps
-        Assert.Null(hevc.res);
-        Assert.Null(hevc.fps);
+        Assert.Null(hevc.Res);
+        Assert.Null(hevc.Fps);
 
         var avc = result.VideoTracks[1];
-        Assert.Equal("80", avc.id);
-        Assert.Equal("AVC", avc.codecs);
-        Assert.Equal("https://upos-sz-mirror08c.bilivideo.com/v80.m4s", avc.baseUrl);
+        Assert.Equal("80", avc.Id);
+        Assert.Equal("AVC", avc.Codecs);
+        Assert.Equal("https://upos-sz-mirror08c.bilivideo.com/v80.m4s", avc.BaseUrl);
     }
 
     [Fact]
@@ -57,8 +57,8 @@ public class AppTrackReaderTests
     {
         var result = Build(PlayViewReplyFixtures.Ugc( ), false);
 
-        Assert.Equal([8000, 4000], result.VideoTracks.Select(v => v.bandwidth));
-        Assert.Equal([754_000_000d, 377_000_000d], result.VideoTracks.Select(v => v.size));
+        Assert.Equal([8000, 4000], result.VideoTracks.Select(v => v.Bandwidth));
+        Assert.Equal([754_000_000d, 377_000_000d], result.VideoTracks.Select(v => v.Size));
     }
 
     [Fact]
@@ -66,16 +66,16 @@ public class AppTrackReaderTests
     {
         var result = Build(PlayViewReplyFixtures.Ugc( ), false);
 
-        Assert.Equal(["30280", "30216", "30251", "30250"], result.AudioTracks.Select(a => a.id));
-        Assert.Equal(["M4A", "M4A", "FLAC", "E-AC-3"], result.AudioTracks.Select(a => a.codecs));
-        Assert.Equal([320, 64, 1000, 448], result.AudioTracks.Select(a => a.bandwidth));
-        Assert.All(result.AudioTracks, a => Assert.Equal(754, a.dur));
+        Assert.Equal(["30280", "30216", "30251", "30250"], result.AudioTracks.Select(a => a.Id));
+        Assert.Equal(["M4A", "M4A", "FLAC", "E-AC-3"], result.AudioTracks.Select(a => a.Codecs));
+        Assert.Equal([320, 64, 1000, 448], result.AudioTracks.Select(a => a.Bandwidth));
+        Assert.All(result.AudioTracks, a => Assert.Equal(754, a.Dur));
         Assert.Equal([
             "https://upos-sz-mirror08c.bilivideo.com/a30280.m4s",
             "https://upos-sz-mirror08c.bilivideo.com/a30216.m4s",
             "https://upos-sz-mirror08c.bilivideo.com/a30251.m4s",
             "https://upos-sz-mirror08c.bilivideo.com/a30250.m4s"
-        ], result.AudioTracks.Select(a => a.baseUrl));
+        ], result.AudioTracks.Select(a => a.BaseUrl));
     }
 
     [Fact]
@@ -83,8 +83,8 @@ public class AppTrackReaderTests
     {
         var result = Build(PlayViewReplyFixtures.Ugc( ), false);
 
-        Assert.DoesNotContain(":8082", result.VideoTracks[0].baseUrl);
-        Assert.DoesNotContain(":4483", result.AudioTracks[0].baseUrl);
+        Assert.DoesNotContain(":8082", result.VideoTracks[0].BaseUrl);
+        Assert.DoesNotContain(":4483", result.AudioTracks[0].BaseUrl);
     }
 
     [Fact]
@@ -103,9 +103,9 @@ public class AppTrackReaderTests
     {
         var result = Build(PlayViewReplyFixtures.Bangumi( ), true);
 
-        Assert.Equal(["片头", "正片", "片尾"], result.ExtraPoints.Select(p => p.title));
-        Assert.Equal([0, 90, 1350], result.ExtraPoints.Select(p => p.start));
-        Assert.Equal([90, 1350, 1420], result.ExtraPoints.Select(p => p.end));
+        Assert.Equal(["片头", "正片", "片尾"], result.ExtraPoints.Select(p => p.Title));
+        Assert.Equal([0, 90, 1350], result.ExtraPoints.Select(p => p.Start));
+        Assert.Equal([90, 1350, 1420], result.ExtraPoints.Select(p => p.End));
     }
 
     [Fact]
@@ -114,11 +114,11 @@ public class AppTrackReaderTests
         var result = Build(PlayViewReplyFixtures.Bangumi( ), true);
 
         var bg = Assert.Single(result.BackgroundAudioTracks);
-        Assert.Equal("30280", bg.id);
-        Assert.Equal("M4A", bg.codecs);
-        Assert.Equal(320, bg.bandwidth);
-        Assert.Equal(1420, bg.dur);
-        Assert.Equal("https://upos-sz-mirror08c.bilivideo.com/bg.m4s", bg.baseUrl);
+        Assert.Equal("30280", bg.Id);
+        Assert.Equal("M4A", bg.Codecs);
+        Assert.Equal(320, bg.Bandwidth);
+        Assert.Equal(1420, bg.Dur);
+        Assert.Equal("https://upos-sz-mirror08c.bilivideo.com/bg.m4s", bg.BaseUrl);
     }
 
     [Fact]
@@ -129,17 +129,17 @@ public class AppTrackReaderTests
         Assert.Equal(2, result.RoleAudioList.Count);
 
         var cn = result.RoleAudioList[0];
-        Assert.Equal("中文配音", cn.title);
-        Assert.Equal("张三", cn.personName);
-        Assert.Equal("114514/114514.1919810.1001.m4a", cn.path);
-        Assert.Equal("https://upos-sz-mirror08c.bilivideo.com/cn.m4s", Assert.Single(cn.audio).baseUrl);
+        Assert.Equal("中文配音", cn.Title);
+        Assert.Equal("张三", cn.PersonName);
+        Assert.Equal("114514/114514.1919810.1001.m4a", cn.Path);
+        Assert.Equal("https://upos-sz-mirror08c.bilivideo.com/cn.m4s", Assert.Single(cn.Audio).BaseUrl);
 
         // proto2 未设置的 optional string 读出 "" 而非 null, 回退必须判长度
         var jp = result.RoleAudioList[1];
-        Assert.Equal("1002", jp.title);
-        Assert.Equal("日语原声", jp.personName);
-        Assert.Equal("114514/114514.1919810.1002.m4a", jp.path);
-        Assert.Equal("https://upos-sz-mirror08c.bilivideo.com/jp.m4s", Assert.Single(jp.audio).baseUrl);
+        Assert.Equal("1002", jp.Title);
+        Assert.Equal("日语原声", jp.PersonName);
+        Assert.Equal("114514/114514.1919810.1002.m4a", jp.Path);
+        Assert.Equal("https://upos-sz-mirror08c.bilivideo.com/jp.m4s", Assert.Single(jp.Audio).BaseUrl);
     }
 
     [Fact]

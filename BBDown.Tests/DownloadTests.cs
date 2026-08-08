@@ -4,8 +4,8 @@ using System.IO;
 using System.Threading;
 
 using BBDown.Core;
+using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 
 namespace BBDown.Tests;
 
@@ -15,25 +15,25 @@ public class DownloadTests
     {
         return new Page
         {
-            index = index,
-            aid = aid,
-            cid = cid,
-            epid = "",
-            title = title,
-            dur = 100,
-            res = "1920x1080",
-            pubTime = pubTime,
+            Index = index,
+            Aid = aid,
+            Cid = cid,
+            EpId = "",
+            Title = title,
+            Dur = 100,
+            Res = "1920x1080",
+            PubTime = pubTime,
         };
     }
 
     private static Video MakeVideo(string id, string dfn, string codecs, long bandwidth)
     {
-        return new Video { id = id, dfn = dfn, baseUrl = "", codecs = codecs, bandwidth = bandwidth };
+        return new Video { Id = id, Dfn = dfn, BaseUrl = "", Codecs = codecs, Bandwidth = bandwidth };
     }
 
     private static Audio MakeAudio(string id, string codecs, long bandwidth)
     {
-        return new Audio { id = id, dfn = "", baseUrl = "", codecs = codecs, bandwidth = bandwidth, dur = 100 };
+        return new Audio { Id = id, Dfn = "", BaseUrl = "", Codecs = codecs, Bandwidth = bandwidth, Dur = 100 };
     }
 
     // 服务器不支持 Range 时不应该再退避重试，Parallel.ForEachAsync 会把分片异常裹一层
@@ -283,7 +283,7 @@ public class DownloadTests
 
     private static Video MakeVideo(string codecs)
     {
-        return new Video { id = "80", dfn = "1080P", baseUrl = "", codecs = codecs };
+        return new Video { Id = "80", Dfn = "1080P", BaseUrl = "", Codecs = codecs };
     }
 
     [Fact]
@@ -417,7 +417,7 @@ public class DownloadTests
         var dfnPriority = new Dictionary<string, int> { ["1080P 高清"] = 0, ["4K 超清"] = 1 };
         var sorted = TrackSelect.SortTracks(tracks, dfnPriority, [], videoAscending: false, encodingFirst: false);
 
-        Assert.Equal("1080P 高清", sorted[0].dfn);
+        Assert.Equal("1080P 高清", sorted[0].Dfn);
         Assert.Equal(3, sorted.Count);
     }
 
@@ -432,9 +432,9 @@ public class DownloadTests
         ];
         var sorted = TrackSelect.SortTracks(tracks, [], [], videoAscending: false, encodingFirst: false);
 
-        Assert.Equal("120", sorted[0].id);
-        Assert.Equal(2000, sorted[0].bandwidth);
-        Assert.Equal("80", sorted[2].id);
+        Assert.Equal("120", sorted[0].Id);
+        Assert.Equal(2000, sorted[0].Bandwidth);
+        Assert.Equal("80", sorted[2].Id);
     }
 
     [Fact]
@@ -446,7 +446,7 @@ public class DownloadTests
             MakeVideo("120", "4K 超清", "AVC", 1000),
         ];
         var sorted = TrackSelect.SortTracks(tracks, [], [], videoAscending: true, encodingFirst: false);
-        Assert.Equal(1000, sorted[0].bandwidth);
+        Assert.Equal(1000, sorted[0].Bandwidth);
     }
 
     [Fact]
@@ -459,7 +459,7 @@ public class DownloadTests
         ];
         var encodingPriority = new Dictionary<string, byte> { ["EAC3"] = 0 };
         var sorted = TrackSelect.SortTracks(tracks, encodingPriority, audioAscending: false);
-        Assert.Equal("30250", sorted[0].id);
+        Assert.Equal("30250", sorted[0].Id);
     }
 
     [Fact]
@@ -471,7 +471,7 @@ public class DownloadTests
             MakeAudio("30280", "mp4a.40.2", 320),
         ];
         var sorted = TrackSelect.SortTracks(tracks, [], audioAscending: false);
-        Assert.Equal(320, sorted[0].bandwidth);
+        Assert.Equal(320, sorted[0].Bandwidth);
     }
 
     [Fact]
@@ -483,7 +483,7 @@ public class DownloadTests
             MakeAudio("30216", "mp4a.40.2", 64),
         ];
         var sorted = TrackSelect.SortTracks(tracks, [], audioAscending: true);
-        Assert.Equal(64, sorted[0].bandwidth);
+        Assert.Equal(64, sorted[0].Bandwidth);
     }
 
     [Fact]
@@ -500,7 +500,7 @@ public class DownloadTests
         //编码优先时, 先按编码(HEVC 在前), 再按清晰度
         var sorted = TrackSelect.SortTracks(tracks, dfnPriority, encodingPriority, videoAscending: false, encodingFirst: true);
 
-        Assert.Equal("HEVC", sorted[0].codecs);
+        Assert.Equal("HEVC", sorted[0].Codecs);
         Assert.Equal(3, sorted.Count);
     }
 }

@@ -109,7 +109,7 @@ public static class JsonUtil
         throw new InvalidOperationException($"获取{label}失败(code={code})：{message}");
     }
 
-    // 番剧接口用 episodes[].id 标识分集。原实现把整棵子树 ToString 后找 "/ep{id}"，
+    // 番剧接口用 episodes[].Id 标识分集。原实现把整棵子树 ToString 后找 "/ep{id}"，
     // ep123 会被 ep1234 的链接误命中
     public static bool ContainsEpisode(JsonElement episodes, string epId)
     {

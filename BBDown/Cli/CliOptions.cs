@@ -243,5 +243,5 @@ internal static class CliOptions
         // 设了默认值会让该回退成为死分支，实际按进程 cwd 查找
         Description = "读取指定的 BBDown 本地配置文件"
     };
-    internal static readonly Option<bool> Debug = new("--debug", []) { Description = "输出调试日志" };
+    internal static readonly Option<bool> Debug = new("--debug", ["-D"]) { Description = "输出调试日志" };
 }

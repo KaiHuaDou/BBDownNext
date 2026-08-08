@@ -249,7 +249,7 @@ internal static partial class InputResolver
     // md（番剧详情页 id）本质是 media_id，需经 pgc/review/user 映射出 season_id。
     // 返回 "ss{seasonId}" 形态，交由 BangumiInfoFetcher 按 season_id 拉取整季正片，
     // 与 cheese 的 ss 形态编码保持一致，从而无需新增内部 id 前缀、playurl 判定零改动。
-    // 旧实现取 new_ep.id（最新一集）改为整季，用户可用 -p 选定具体集。
+    // 旧实现取 new_ep.Id（最新一集）改为整季，用户可用 -p 选定具体集。
     private static async Task<string> GetSeasonIdByMDAsync(string mdId, Core.AppConfig cfg)
     {
         var api = $"{BiliApi.ReviewUser}?media_id={mdId}";

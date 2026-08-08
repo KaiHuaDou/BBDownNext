@@ -8,7 +8,6 @@ using BBDown.Core.Entity;
 using BBDown.Core.Protobuf;
 using BBDown.Core.Util;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 
 namespace BBDown.Core.PlayUrl;
@@ -49,9 +48,9 @@ internal static class AppTrackReader
         {
             ViewPointUtil.Append(result, resp.Business.ClipInfo.Select(clip => new ViewPoint( )
             {
-                title = clip.ToastText.Replace("即将跳过", ""),
-                start = clip.Start,
-                end = clip.End
+                Title = clip.ToastText.Replace("即将跳过", ""),
+                Start = clip.Start,
+                End = clip.End
             }));
         }
 
@@ -71,14 +70,14 @@ internal static class AppTrackReader
             var quality = (stream.StreamInfo?.Quality ?? 0).ToString( );
             Video v = new( )
             {
-                dur = pDur,
-                id = quality,
-                dfn = Config.GetQualityName(quality),
+                Dur = pDur,
+                Id = quality,
+                Dfn = Config.GetQualityName(quality),
                 // App 端不下发 bandwidth, 由体积和时长反推
-                bandwidth = pDur == 0 ? 0 : (long) (stream.DashVideo.Size * 8 / (ulong) pDur / 1000),
-                baseUrl = PickBaseUrl(stream.DashVideo.BaseUrl, stream.DashVideo.BackupUrl),
-                codecs = TrackFactory.VideoCodec(stream.DashVideo.Codecid.ToString( )),
-                size = stream.DashVideo.Size
+                Bandwidth = pDur == 0 ? 0 : (long) (stream.DashVideo.Size * 8 / (ulong) pDur / 1000),
+                BaseUrl = PickBaseUrl(stream.DashVideo.BaseUrl, stream.DashVideo.BackupUrl),
+                Codecs = TrackFactory.VideoCodec(stream.DashVideo.Codecid.ToString( )),
+                Size = stream.DashVideo.Size
             };
             if (!result.VideoTracks.Contains(v))
             {
@@ -119,10 +118,10 @@ internal static class AppTrackReader
             .Select(role => new AudioMaterialInfo( )
             {
                 // proto2 未设置的 optional string 读出的是 "" 而非 null, 不能用 ?? 兜底
-                title = role.Title.Length != 0 ? role.Title : role.AudioId,
-                personName = role.PersonName.Length != 0 ? role.PersonName : role.Edition,
-                path = $"{aid}/{aid}.{cid}.{role.AudioId}.m4a",
-                audio = [.. role.Audio.Select(item => BuildAudio(item, pDur, "M4A"))]
+                Title = role.Title.Length != 0 ? role.Title : role.AudioId,
+                PersonName = role.PersonName.Length != 0 ? role.PersonName : role.Edition,
+                Path = $"{aid}/{aid}.{cid}.{role.AudioId}.m4a",
+                Audio = [.. role.Audio.Select(item => BuildAudio(item, pDur, "M4A"))]
             }));
     }
 
@@ -131,12 +130,12 @@ internal static class AppTrackReader
         var id = item.Id.ToString( );
         return new Audio( )
         {
-            id = id,
-            dfn = id,
-            dur = pDur,
-            bandwidth = item.Bandwidth / 1000,
-            baseUrl = PickBaseUrl(item.BaseUrl, item.BackupUrl),
-            codecs = codecs
+            Id = id,
+            Dfn = id,
+            Dur = pDur,
+            Bandwidth = item.Bandwidth / 1000,
+            BaseUrl = PickBaseUrl(item.BaseUrl, item.BackupUrl),
+            Codecs = codecs
         };
     }
 

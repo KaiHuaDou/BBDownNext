@@ -26,7 +26,7 @@ internal static class DashTrackReader
         CollectVideoTracks(result, maxQnRoot, pDur, tvApi);
 
         // 二次请求偶尔返回降级响应(限流/无 dash 节点)，此时沿用首次结果的音轨而不是丢弃。
-        // 回退判据从"dash.audio 是否存在"改为"能否收集到任何音轨（含 dolby/flac）"，避免杜比/Hi-Res-only 片源被丢（§2.7）
+        // 回退判据从"dash.Audio 是否存在"改为"能否收集到任何音轨（含 dolby/flac）"，避免杜比/Hi-Res-only 片源被丢（§2.7）
         var audioRoot = HasAnyAudio(maxQnRoot) ? maxQnRoot : firstRoot;
         CollectAudioTracks(result, audioRoot, pDur, tvApi);
     }
@@ -56,7 +56,7 @@ internal static class DashTrackReader
     // 纯判定，不做任何 IO；打印交给编排层（Parser）
     internal static bool DeclaredButMissing(JsonElement root, ParsedResult result, string qn)
     {
-        if (result.VideoTracks.Any(v => v.id == qn))
+        if (result.VideoTracks.Any(v => v.Id == qn))
         {
             return false;
         }
@@ -78,8 +78,8 @@ internal static class DashTrackReader
             var v = BuildVideo(node, pDur);
             if (!tvApi)
             {
-                v.res = node.GetProperty("width").ToString( ) + "x" + node.GetProperty("height").ToString( );
-                v.fps = node.GetProperty("frame_rate").ToString( );
+                v.Res = node.GetProperty("width").ToString( ) + "x" + node.GetProperty("height").ToString( );
+                v.Fps = node.GetProperty("frame_rate").ToString( );
             }
 
             if (!result.VideoTracks.Contains(v))
@@ -89,7 +89,7 @@ internal static class DashTrackReader
         }
     }
 
-    // 判断某份 playurl 响应里是否存在任何可收集的音轨（dash.audio 数组，或 dolby/flac 节点），
+    // 判断某份 playurl 响应里是否存在任何可收集的音轨（dash.Audio 数组，或 dolby/flac 节点），
     // 用于"二次请求降级时回退到首次响应"的判据（§2.7）
     private static bool HasAnyAudio(JsonElement root)
     {
@@ -121,7 +121,7 @@ internal static class DashTrackReader
 
     private static void CollectAudioTracks(ParsedResult result, JsonElement root, int pDur, bool tvApi)
     {
-        // 即使 dash.audio 为 null（杜比/Hi-Res-only 片源），也要从 root 收集 dolby/flac 音轨（§2.7）；
+        // 即使 dash.Audio 为 null（杜比/Hi-Res-only 片源），也要从 root 收集 dolby/flac 音轨（§2.7）；
         // 旧实现在此提前 return，会连带丢掉杜比/FLAC
         var audio = ArrayAtPath(root, "dash", "audio") ?? [];
         AppendDolbyAndHiRes(audio, root, tvApi);

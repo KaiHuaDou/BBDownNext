@@ -168,7 +168,7 @@ internal static class VideoInfo
             Log("发布时间：" + Utils.FormatTimeStamp(pubTime, "yyyy-MM-dd HH:mm:ss zzz"));
         }
 
-        var bvid = vInfo.PagesInfo.FirstOrDefault( )?.bvid;
+        var bvid = vInfo.PagesInfo.FirstOrDefault( )?.Bvid;
         if (!string.IsNullOrEmpty(bvid) && myOption.Api != ApiType.Intl)
         {
             Log($"视频 URL：{BiliApi.VideoPage}/{bvid}/");
@@ -177,8 +177,8 @@ internal static class VideoInfo
         // 列表型输入（稍后再看 / 收藏夹等）可能混合多个 UP，此时展示首个 ownerMid 会误导；
         // 仅当全部视频归属同一 UP 时才显示 UP 主页。
         var ownerMids = vInfo.PagesInfo
-            .Where(p => !string.IsNullOrEmpty(p.ownerMid))
-            .Select(p => p.ownerMid)
+            .Where(p => !string.IsNullOrEmpty(p.OwnerMid))
+            .Select(p => p.OwnerMid)
             .Distinct( )
             .ToList( );
         if (ownerMids.Count == 1)
@@ -196,12 +196,12 @@ internal static class VideoInfo
         {
             if (!myOption.ShowAll)
             {
-                if (more && p.index != pagesInfo.Count)
+                if (more && p.Index != pagesInfo.Count)
                 {
                     continue;
                 }
 
-                if (!more && p.index > 5)
+                if (!more && p.Index > 5)
                 {
                     Log("...");
                     more = true;
@@ -209,7 +209,7 @@ internal static class VideoInfo
                 }
             }
 
-            Log($"P{p.index}: [{p.cid}] [{p.title}] [{FormatTime(p.dur)}]");
+            Log($"P{p.Index}: [{p.Cid}] [{p.Title}] [{FormatTime(p.Dur)}]");
         }
     }
 }

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 
-using static BBDown.Core.Entity.Entity;
 
 namespace BBDown.Core.Entity;
 

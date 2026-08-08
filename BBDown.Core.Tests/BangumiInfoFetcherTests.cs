@@ -75,7 +75,7 @@ public class BangumiInfoFetcherTests
         Assert.Equal("魔法少女小圆", info.Title);
         Assert.Equal(3, info.PagesInfo.Count);          // 仅正片，不含 section 里的 OP
         Assert.Equal("", info.Index);                    // Index 留空 → 全量下载
-        Assert.Equal("63470", info.PagesInfo[0].epid);   // 首集即 ep63470
+        Assert.Equal("63470", info.PagesInfo[0].EpId);   // 首集即 ep63470
         Assert.True(info.IsBangumi);
     }
 
@@ -87,7 +87,7 @@ public class BangumiInfoFetcherTests
 
         Assert.Equal(3, info.PagesInfo.Count);
         Assert.Equal("2", info.Index);                   // 第 2 集的 index
-        Assert.Equal("63471", info.PagesInfo.Find(p => p.epid == "63471")!.epid);
+        Assert.Equal("63471", info.PagesInfo.Find(p => p.EpId == "63471")!.EpId);
     }
 
     [Fact]

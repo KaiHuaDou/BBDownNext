@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
 
@@ -61,18 +60,18 @@ public static class MediaListFetcher
                 {
                     Page p = new( )
                     {
-                        index = index++,
-                        aid = m.GetProperty("id").ToString( ),
-                        cid = page.GetProperty("id").ToString( ),
-                        epid = "",
-                        title = pageCount == 1 ? m.GetProperty("title").ToString( ) : $"{m.GetProperty("title")}_P{page.GetProperty("page")}_{page.GetProperty("title")}", //单P使用外层标题 多P则拼接内层子标题
-                        dur = page.GetProperty("duration").GetInt32( ),
-                        res = ReadDimension(page),
-                        pubTime = m.GetProperty("pubtime").GetInt64( ),
-                        cover = m.GetProperty("cover").ToString( ),
-                        desc = desc,
-                        ownerName = ownerName,
-                        ownerMid = ownerMid,
+                        Index = index++,
+                        Aid = m.GetProperty("id").ToString( ),
+                        Cid = page.GetProperty("id").ToString( ),
+                        EpId = "",
+                        Title = pageCount == 1 ? m.GetProperty("title").ToString( ) : $"{m.GetProperty("title")}_P{page.GetProperty("page")}_{page.GetProperty("title")}", //单P使用外层标题 多P则拼接内层子标题
+                        Dur = page.GetProperty("duration").GetInt32( ),
+                        Res = ReadDimension(page),
+                        PubTime = m.GetProperty("pubtime").GetInt64( ),
+                        Cover = m.GetProperty("cover").ToString( ),
+                        Desc = desc,
+                        OwnerName = ownerName,
+                        OwnerMid = ownerMid,
                     };
                     if (!pagesInfo.Contains(p))
                     {

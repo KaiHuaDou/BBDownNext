@@ -88,6 +88,7 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 - 偏好 `lock(<System.Threading.Lock gate>)`
 - 偏好 `is null`/`is not null`
 - 偏好 `await using`
+- `record class` 可简写为 `record`
 - 偏好自动属性
 - 正则表达式、路径偏好 `@""`
 - 字符串拼接偏好 `StringBuilder` 和 `$""`，避免使用 `+` 拼接

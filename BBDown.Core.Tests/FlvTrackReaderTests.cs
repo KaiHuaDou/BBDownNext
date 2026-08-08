@@ -48,10 +48,10 @@ public class FlvTrackReaderTests
         Assert.Equal(10, result.Duration);
 
         var v = Assert.Single(result.VideoTracks);
-        Assert.Equal("127", v.id);
-        Assert.Equal("8K 超高清", v.dfn);
-        Assert.Equal("AVC", v.codecs);
-        Assert.Equal(10, v.dur);
-        Assert.Equal(3000, v.size);
+        Assert.Equal("127", v.Id);
+        Assert.Equal("8K 超高清", v.Dfn);
+        Assert.Equal("AVC", v.Codecs);
+        Assert.Equal(10, v.Dur);
+        Assert.Equal(3000, v.Size);
     }
 }

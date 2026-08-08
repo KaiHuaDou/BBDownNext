@@ -10,9 +10,9 @@ using BBDown.Core.Util;
 using BBDown.Mux;
 using BBDown.Util;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Download.DownloadUtil;
+using BBDown.Core.Entity;
 
 namespace BBDown.Media;
 
@@ -37,26 +37,26 @@ internal static class PageAssets
         }
 
         LogDebug("获取字幕...");
-        var subtitleInfo = await SubUtil.GetSubtitlesAsync(p.aid, p.cid, p.epid, p.index, myOption.Api == ApiType.Intl, ctx.Fetch.Cfg, ct);
+        var subtitleInfo = await SubUtil.GetSubtitlesAsync(p.Aid, p.Cid, p.EpId, p.Index, myOption.Api == ApiType.Intl, ctx.Fetch.Cfg, ct);
         if (!myOption.Content.Has(DownloadContent.AiSubtitle) && subtitleInfo.Count != 0)
         {
             Log("跳过下载 AI 字幕");
-            subtitleInfo = [.. subtitleInfo.Where(s => !s.lan.StartsWith("ai-"))];
+            subtitleInfo = [.. subtitleInfo.Where(s => !s.Lan.StartsWith("ai-"))];
         }
 
         foreach (var s in subtitleInfo)
         {
-            s.path = Path.Combine(pageCtx.TempDir, Path.GetFileName(s.path));
-            Log($"下载字幕 {s.lan} => {SubUtil.GetSubtitleCode(s.lan).Name}...");
-            LogDebug("下载：{0}", s.url);
-            await SubUtil.SaveSubtitleAsync(s.url, s.path, ctx.Fetch.Cfg, ct);
-            if (File.Exists(s.path) && File.ReadAllText(s.path).Length != 0)
+            s.Path = Path.Combine(pageCtx.TempDir, Path.GetFileName(s.Path));
+            Log($"下载字幕 {s.Lan} => {SubUtil.GetSubtitleCode(s.Lan).Name}...");
+            LogDebug("下载：{0}", s.Url);
+            await SubUtil.SaveSubtitleAsync(s.Url, s.Path, ctx.Fetch.Cfg, ct);
+            if (File.Exists(s.Path) && File.ReadAllText(s.Path).Length != 0)
             {
                 MoveSubtitleToOutput(s, ctx, pageCtx, !myOption.Content.Has(DownloadContent.Video));
             }
-            else if (File.Exists(s.path))
+            else if (File.Exists(s.Path))
             {
-                File.Delete(s.path);
+                File.Delete(s.Path);
             }
         }
 
@@ -78,10 +78,10 @@ internal static class PageAssets
             Directory.CreateDirectory(outDir);
         }
 
-        outSubPath = Path.ChangeExtension(outSubPath, $".{s.lan}.srt");
-        File.Move(s.path, outSubPath, true);
+        outSubPath = Path.ChangeExtension(outSubPath, $".{s.Lan}.srt");
+        File.Move(s.Path, outSubPath, true);
         // 移动后临时路径失效，回写输出路径供混流内嵌与收尾逻辑使用
-        s.path = outSubPath;
+        s.Path = outSubPath;
     }
 
     internal static async Task<bool> DownloadDanmakuAsync(DownloadSession session, string savePath, CancellationToken ct = default)
@@ -91,7 +91,7 @@ internal static class PageAssets
         var danmakuXmlPath = Path.ChangeExtension(savePath, ".xml");
         var danmakuAssPath = Path.ChangeExtension(savePath, ".ass");
         Log("正在下载 XML 弹幕文件...");
-        await DownloadFileAsync($"{BiliApi.DanmakuXml}/{p.cid}.xml", danmakuXmlPath, downloadConfig, ct);
+        await DownloadFileAsync($"{BiliApi.DanmakuXml}/{p.Cid}.xml", danmakuXmlPath, downloadConfig, ct);
         var danmakus = DanmakuUtil.ParseXml(danmakuXmlPath);
         if (danmakus == null)
         {

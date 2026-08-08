@@ -47,13 +47,13 @@ public class TrackFactoryTests
     {
         var v = TrackFactory.BuildVideo(Parse("""{"id":80,"bandwidth":2048000,"codecid":7,"size":12345,"base_url":"http://v"}"""), 120);
 
-        Assert.Equal("80", v.id);
-        Assert.Equal("1080P 高清", v.dfn);
-        Assert.Equal(2048, v.bandwidth);
-        Assert.Equal("AVC", v.codecs);
-        Assert.Equal(12345, v.size);
-        Assert.Equal(120, v.dur);
-        Assert.Equal("http://v", v.baseUrl);
+        Assert.Equal("80", v.Id);
+        Assert.Equal("1080P 高清", v.Dfn);
+        Assert.Equal(2048, v.Bandwidth);
+        Assert.Equal("AVC", v.Codecs);
+        Assert.Equal(12345, v.Size);
+        Assert.Equal(120, v.Dur);
+        Assert.Equal("http://v", v.BaseUrl);
     }
 
     // intl 接口的清晰度不在 dash_video 节点上，必须由调用方传入
@@ -62,9 +62,9 @@ public class TrackFactoryTests
     {
         var v = TrackFactory.BuildVideo(Parse("""{"id":16,"bandwidth":1000,"codecid":13,"base_url":"http://v"}"""), 0, "127");
 
-        Assert.Equal("127", v.id);
-        Assert.Equal("AV1", v.codecs);
-        Assert.Equal(0, v.size);
+        Assert.Equal("127", v.Id);
+        Assert.Equal("AV1", v.Codecs);
+        Assert.Equal(0, v.Size);
     }
 
     [Fact]
@@ -72,13 +72,13 @@ public class TrackFactoryTests
     {
         const string Json = """{"id":30280,"bandwidth":128000,"codecs":"mp4a.40.2","base_url":"http://a"}""";
 
-        Assert.Equal("mp4a.40.2", TrackFactory.BuildAudio(Parse(Json), 120).codecs);
-        Assert.Equal("M4A", TrackFactory.BuildAudio(Parse(Json), 120, "M4A").codecs);
+        Assert.Equal("mp4a.40.2", TrackFactory.BuildAudio(Parse(Json), 120).Codecs);
+        Assert.Equal("M4A", TrackFactory.BuildAudio(Parse(Json), 120, "M4A").Codecs);
 
         var a = TrackFactory.BuildAudio(Parse(Json), 120);
-        Assert.Equal("30280", a.id);
-        Assert.Equal("30280", a.dfn);
-        Assert.Equal(128, a.bandwidth);
+        Assert.Equal("30280", a.Id);
+        Assert.Equal("30280", a.Dfn);
+        Assert.Equal(128, a.Bandwidth);
     }
 
     [Theory]

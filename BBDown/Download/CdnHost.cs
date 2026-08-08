@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 
 using BBDown.Core;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
+using BBDown.Core.Entity;
 
 namespace BBDown.Download;
 
@@ -24,12 +24,12 @@ internal static partial class CdnHost
     {
         if (selectedVideo != null)
         {
-            selectedVideo.baseUrl = ApplyCdnHostPolicy(selectedVideo.baseUrl, myOption, cfg, "视频流");
+            selectedVideo.BaseUrl = ApplyCdnHostPolicy(selectedVideo.BaseUrl, myOption, cfg, "视频流");
         }
 
         if (selectedAudio != null)
         {
-            selectedAudio.baseUrl = ApplyCdnHostPolicy(selectedAudio.baseUrl, myOption, cfg, "音频流");
+            selectedAudio.BaseUrl = ApplyCdnHostPolicy(selectedAudio.BaseUrl, myOption, cfg, "音频流");
         }
     }
 

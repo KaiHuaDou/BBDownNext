@@ -10,10 +10,10 @@ using System.Threading.Tasks;
 
 using BBDown.Core;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.SubUtil;
 using static BBDown.Util.Utils;
+using BBDown.Core.Entity;
 
 namespace BBDown.Mux;
 
@@ -109,8 +109,8 @@ internal static class Muxer
         foreach (var sub in subs)
         {
             trackId++;
-            var (code, name) = GetSubtitleCode(sub.lan);
-            args.AddRange(["-add", $"{sub.path}#trackID=1:name=:hdlr=sbtl:lang={code}"]);
+            var (code, name) = GetSubtitleCode(sub.Lan);
+            args.AddRange(["-add", $"{sub.Path}#trackID=1:name=:hdlr=sbtl:lang={code}"]);
             args.AddRange(["-udta", $"{trackId}:type=name:str={name}"]);
         }
 
@@ -165,15 +165,15 @@ internal static class Muxer
             {
                 inputCount++;
                 audioIndex++;
-                args.AddRange(["-i", audio.path]);
-                if (!string.IsNullOrWhiteSpace(audio.title))
+                args.AddRange(["-i", audio.Path]);
+                if (!string.IsNullOrWhiteSpace(audio.Title))
                 {
-                    meta.AddRange([$"-metadata:s:a:{audioIndex}", $"title={audio.title}"]);
+                    meta.AddRange([$"-metadata:s:a:{audioIndex}", $"title={audio.Title}"]);
                 }
 
-                if (!string.IsNullOrWhiteSpace(audio.personName))
+                if (!string.IsNullOrWhiteSpace(audio.PersonName))
                 {
-                    meta.AddRange([$"-metadata:s:a:{audioIndex}", $"artist={audio.personName}"]);
+                    meta.AddRange([$"-metadata:s:a:{audioIndex}", $"artist={audio.PersonName}"]);
                 }
             }
         }
@@ -187,8 +187,8 @@ internal static class Muxer
         for (var i = 0; i < subs.Count; i++)
         {
             inputCount++;
-            var (code, name) = GetSubtitleCode(subs[i].lan);
-            args.AddRange(["-i", subs[i].path]);
+            var (code, name) = GetSubtitleCode(subs[i].Lan);
+            args.AddRange(["-i", subs[i].Path]);
             meta.AddRange([$"-metadata:s:s:{i}", $"title={name}", $"-metadata:s:s:{i}", $"language={code}"]);
         }
 
@@ -274,7 +274,7 @@ internal static class Muxer
         }
 
         // 音视频独占修正与有效字幕回写进副本，下游 Build* 只读 req 上的路径
-        var validSubs = req.Subs?.Where(s => File.Exists(s.path) && File.ReadAllText(s.path).Length != 0).ToList( ) ?? [];
+        var validSubs = req.Subs?.Where(s => File.Exists(s.Path) && File.ReadAllText(s.Path).Length != 0).ToList( ) ?? [];
         req = req with { VideoPath = videoPath, AudioPath = audioPath, Subs = validSubs };
 
         var outDir = Path.GetDirectoryName(req.OutPath);

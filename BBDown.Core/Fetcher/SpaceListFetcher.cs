@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using BBDown.Core.Entity;
 using BBDown.Core.Util;
 
-using static BBDown.Core.Entity.Entity;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
@@ -92,9 +91,9 @@ public static class SpaceListFetcher
             foreach (var page in tmp.PagesInfo)
             {
                 var p = page.CopyWith(index);
-                p.title = multi ? $"{item.Title}_P{page.index}_{page.title}" : item.Title;
-                p.cover = item.Pic;
-                p.desc = item.Desc;
+                p.Title = multi ? $"{item.Title}_P{page.Index}_{page.Title}" : item.Title;
+                p.Cover = item.Pic;
+                p.Desc = item.Desc;
                 // ownerName / ownerMid 由 CopyWith 保留 NormalInfoFetcher 从 view.owner 解析的真实作者
                 if (seen.Add(p))
                 {
@@ -113,7 +112,7 @@ public static class SpaceListFetcher
         {
             Title = upName.Trim( ),
             Desc = "",
-            Pic = "",                       // 必须为空串，逐分 P 才会用各自的 Page.cover
+            Pic = "",                       // 必须为空串，逐分 P 才会用各自的 Page.Cover
             PubTime = items[0].Created,     // pubdate 倒序 → 首条即最新稿件
             PagesInfo = pagesInfo,
             IsBangumi = false

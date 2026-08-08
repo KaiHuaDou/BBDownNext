@@ -24,7 +24,7 @@ internal static partial class PlayUrlClient
 
     internal static async Task<string> FetchAsync(PlayUrlRequest req, string qn = "0", CancellationToken ct = default)
     {
-        LogDebug("aid={0},cid={1},epId={2},api={3},qn={4}", req.Aid, req.Cid, req.EpId, req.Api, qn);
+        LogDebug("aid={0},Cid={1},epId={2},api={3},qn={4}", req.Aid, req.Cid, req.EpId, req.Api, qn);
 
         if (req.Api == ApiType.Intl)
         {

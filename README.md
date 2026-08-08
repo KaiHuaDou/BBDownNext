@@ -1,7 +1,7 @@
-# BBDown
+<h1 align="center">BBDown vNEXT</h1>
 
 <p align="center">
-  BBDown 是一个哔哩哔哩视频下载 / 解析命令行工具。
+    BBDown 是一个哔哩哔哩视频下载 / 解析命令行工具，并提供图形界面 BBDown.GUI。
 </p>
 
 <p align="center">
@@ -18,6 +18,7 @@
   <a href="#快速开始">快速开始</a> ·
   <a href="#参数说明">参数说明</a> ·
   <a href="#子命令">子命令</a> ·
+  <a href="#GUI">GUI</a> ·
   <a href="#服务器模式">服务器模式</a> ·
   <a href="#数据文件格式">数据文件格式</a> ·
   <a href="#常见问题">常见问题</a> ·
@@ -98,7 +99,7 @@ dotnet build -c Release
 
 构建产物位于各项目的 `bin/Release/net9.0/` 目录下
 
-AOT 单文件发布使用：
+### AOT 单文件
 
 ```bash
 dotnet publish BBDown -r <RID> -c Release -o <DEST>
@@ -106,7 +107,7 @@ dotnet publish BBDown -r <RID> -c Release -o <DEST>
 
 构建产物位于 `<DEST>` 中
 
-Windows 7 兼容构建（`win-x64`，启用 YY-Thunks 与 VC-LTL）：
+### Windows 7 兼容
 
 ```bash
 dotnet publish BBDown -r win-x64 -c Release -o <DEST> -p:WindowsWin7Compat=true
@@ -114,13 +115,17 @@ dotnet publish BBDown -r win-x64 -c Release -o <DEST> -p:WindowsWin7Compat=true
 
 特定平台细节可参考 [ci.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/ci.yml)
 
-图形界面（BBDown.GUI，仅 Windows，目标框架 `net9.0-windows`）：
+### 图形界面
+
+BBDown.GUI 是 Windows 图形界面（GUI）客户端（WPF），目标框架 `net9.0-windows`：
 
 ```bash
 dotnet build BBDown.GUI -c Release
 ```
 
-产物位于 `BBDown.GUI/bin/Release/net9.0-windows/` 下。运行 `BBDown.GUI.exe` 时，其同目录或系统 `PATH` 中需存在 `BBDown.exe`（启动时自动检测，也可在界面中手动选择）。图形界面由独立 CI（[gui.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/gui.yml)）在 `win-x64` / `win-arm64` 上构建单文件产物并上传，可手动触发追加到最新 Release；主 CI（`ci.yml`）不构建图形界面。
+产物位于 `BBDown.GUI/bin/Release/net9.0-windows/` 下。运行 `BBDown.GUI.exe` 时，其同目录或系统 `PATH` 中需存在 `BBDown.exe`（启动时自动检测，也可在界面中手动选择）。
+
+图形界面由独立 CI（[gui.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/gui.yml)）在 `win-x64` / `win-arm64` 上构建单文件产物并上传，可手动触发追加到最新 Release；
 
 ## 依赖
 
@@ -142,19 +147,18 @@ BBDown "https://www.bilibili.com/video/BV16h4y137YS"
 BBDown "BV16h4y137YS" -i
 
 # 仅下载音频
-BBDown "BV16h4y137YS" -g a
+BBDown "BV16h4y137YS" -W v
 
 # 指定清晰度与编码优先级
 BBDown "BV16h4y137YS" -q "1080P 高码率" -e "avc,flac"
 
-# 下载番剧 / 课程（需要会员凭据）
-BBDown "ep68540" --api tv --access-token "你的token"
+# 下载番剧 / 课程
+BBDown "ep68540" --api tv
 
 # 只看下一个 UP 的投稿列表，不下载
 BBDown "space402787936" --info-only
 
-# 下载一篇专栏并导出为 Markdown（默认下载图片到 images/ 子目录）
-BBDown "https://www.bilibili.com/opus/1230485246732926996"
+# 下载一篇专栏并导出为 Markdown
 BBDown cv51908655
 BBDown opus1230485246732926996
 
@@ -201,8 +205,8 @@ BBDown "live12345" -lq 400
 | ----------------------- | ------ | -------------------------------------------------------- |
 | `--encoding-priority`   | `-e`   | 视频及音频编码选择优先级（详见脚注 [^encodingpriority]） |
 | `--dfn-priority`        | `-q`   | 画质优先级（详见脚注 [^dfnpriority]）                    |
-| `--video-ascending`     |        | 视频升序（最小体积优先）                                 |
-| `--audio-ascending`     |        | 音频升序（最小体积优先）                                 |
+| `--video-ascending`     | `-va`  | 视频升序（最小体积优先）                                 |
+| `--audio-ascending`     | `-aa`  | 音频升序（最小体积优先）                                 |
 | `--interactive-quality` | `-iaq` | 交互式选择清晰度                                         |
 | `--hide-streams`        | `-hs`  | 不显示所有可用音视频流                                   |
 | `--info-only`           | `-i`   | 仅解析而不进行下载                                       |
@@ -228,7 +232,7 @@ BBDown "live12345" -lq 400
 | `--comments-formats` | `-cf`  | 指定评论导出格式（详见脚注 [^commentformats]）             |
 | `--skip-mux`         |        | 跳过混流步骤                                               |
 | `--drm-key`          |        | 提供 DRM 解密密钥（详见脚注 [^drmkey]）                    |
-| `--allow-preview`    |        | 允许下载充电专属视频的试看片段（详见脚注 [^allowpreview]） |
+| `--allow-preview`    | `-p`   | 允许下载充电专属视频的试看片段（详见脚注 [^allowpreview]） |
 | `--lang`             |        | 设置混流音频语言代码，如 `chi`、`jpn` 等                   |
 
 内容字符对照表：
@@ -313,7 +317,7 @@ BBDown "live12345" -lq 400
 | `--save-records`       |        | 将下载过的视频记录到本地文件，用于后续跳过同一视频                              |
 | `--stop-on-error`      |        | 遇到分 P 下载失败时立即停止（详见脚注 [^stoponerror]）                          |
 | `--config`             |        | 读取指定的 BBDown 本地配置文件（默认为程序目录下的 `BBDown.config`）            |
-| `--debug`              |        | 输出调试日志                                                                    |
+| `--debug`              | `-D`   | 输出调试日志                                                                    |
 
 #### 文件名内置变量
 
@@ -385,16 +389,16 @@ BBDown cv51908655 -W i -W M
 
 ### `serve` 参数
 
-| 参数               | 简写 | 说明                                                                                                                                 |
-| ------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `--listen`         | `-l` | 监听地址，默认 `http://127.0.0.1:23333`。回环地址免令牌；绑定非回环地址（如 `0.0.0.0`）时**强制令牌鉴权**                            |
-| `--serve-token`    |      | serve 鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 `X-BBDown-Token` 头或 `?token=` 查询参数                        |
-| `--work-dir`       |      | 所有任务的工作目录，请求中的同名字段会被忽略                                                                                         |
-| `--host`           |      | API 请求 Host，所有任务统一使用此值；请求体不再能指定 host（防止凭据被导向外部服务器）                                               |
-| `--ep-host`        |      | 番剧 / 影视 API 请求 Host，所有任务统一使用此值                                                                                      |
-| `--tv-host`        |      | TV 端 API 请求 Host，所有任务统一使用此值                                                                                            |
-| `--cors-origin`    |      | 仅允许该单一来源跨域调用 serve（CORS）；不指定则完全关闭 CORS，从根本上阻止恶意网页发起请求                                          |
-| `--max-concurrent` |      | 同时下载的任务数上限，默认 0（不限制）。大于 0 时最多 N 个任务同时下载，多余任务排队，单个任务内部的下载并行度由多线程下载器自行决定 |
+| 参数               | 简写 | 说明                                                                                                          |
+| ------------------ | ---- | ------------------------------------------------------------------------------------------------------------- |
+| `--listen`         | `-l` | 监听地址，默认 `http://127.0.0.1:23333`                                                                       |
+| `--serve-token`    |      | serve 鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 `X-BBDown-Token` 头或 `?token=` 查询参数 |
+| `--work-dir`       |      | 所有任务的工作目录，请求中的同名字段会被忽略                                                                  |
+| `--host`           |      | API 请求 Host，所有任务统一使用此值；请求体不再能指定 host（防止凭据被导向外部服务器）                        |
+| `--ep-host`        |      | 番剧 / 影视 API 请求 Host，所有任务统一使用此值                                                               |
+| `--tv-host`        |      | TV 端 API 请求 Host，所有任务统一使用此值                                                                     |
+| `--cors-origin`    |      | 仅允许该单一来源跨域调用 serve（CORS）                                                                        |
+| `--max-concurrent` |      | 同时下载的任务数上限，默认 0（不限制）。                                                                      |
 
 ```bash
 # 以默认地址启动服务器（本地回环，免令牌）
