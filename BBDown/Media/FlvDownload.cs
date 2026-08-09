@@ -116,8 +116,8 @@ internal static class FlvDownload
                 }
             }
 
-            // 非 AVC 已在上游拒绝，混流标记恒为 false
-            var inputs = new MuxFinish.MuxInputs(savePath, videoPath, "", audioMaterial, UseMp4box: false, IsHevc: false);
+            // 非 AVC 已在上游拒绝，无 HEVC 标记
+            var inputs = new MuxFinish.MuxInputs(savePath, videoPath, "", audioMaterial, myOption.Mux, IsHevc: false);
             return await MuxFinish.RunAsync(session, inputs, selection, ct);
         }
     }

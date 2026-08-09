@@ -39,3 +39,20 @@ internal sealed class DownloadContentJsonConverter : JsonConverter<DownloadConte
         writer.WriteNumberValue((int)value);
     }
 }
+
+/// <summary>
+/// serve 请求体用字符串表达混流方式（如 "mp4box"，忽略大小写），与 CLI 输入一致；
+/// 序列化时输出数字，保证 <see cref="DownloadRequest"/> 的枚举字段经 STJ 往返能正常还原。
+/// </summary>
+internal sealed class MuxModeJsonConverter : JsonConverter<MuxMode>
+{
+    public override MuxMode Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        return MuxModeUtil.TryParse(reader.TokenType == JsonTokenType.String ? reader.GetString( ) : null) ?? MuxMode.Mpeg4;
+    }
+
+    public override void Write(Utf8JsonWriter writer, MuxMode value, JsonSerializerOptions options)
+    {
+        writer.WriteNumberValue((int)value);
+    }
+}

@@ -217,12 +217,12 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                                    <CheckBox x:Name="SkipMuxCheckBox" Margin="0,3" Content="跳过混流" />
+                                    <TextBlock Text="混流方式" Margin="0,3" />
+                                    <ComboBox x:Name="MuxBox" Margin="0,3" />
                                     <CheckBox x:Name="UseAria2cCheckBox" Margin="0,3" Content="使用 aria2c" />
                                     <CheckBox x:Name="SingleThreadCheckBox" Margin="0,3" Content="单线程下载" />
                                     <CheckBox x:Name="InfoOnlyCheckBox" Margin="0,3" Content="仅解析不下载" />
                                     <CheckBox x:Name="ShowAllCheckBox" Margin="0,3" Content="展示全部分 P 标题" />
-                                    <CheckBox x:Name="UseMP4boxCheckBox" Margin="0,3" Content="使用 MP4Box" />
                                     <CheckBox x:Name="AllowPreviewCheckBox" Margin="0,3" Content="允许下载试看片段" />
                                     <CheckBox x:Name="SaveRecordsCheckBox" Margin="0,3" Content="下载记录去重" />
                                     <CheckBox x:Name="StopOnErrorCheckBox" Margin="0,3" Content="失败即停止" />

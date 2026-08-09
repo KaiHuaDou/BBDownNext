@@ -130,12 +130,12 @@ dotnet build BBDown.GUI -c Release
 ## 依赖
 
 - **FFmpeg**：用于音视频下载与混流（推荐）。BBDown 会在 `PATH` 与程序所在目录中自动查找；也可用 `--ffmpeg-path` 显式指定。
-- **MP4Box**：可选，用于杜比视界等特殊封装的混流。可用 `--mp4box` 切换为 MP4Box 混流，或用 `--mp4box-path` 指定路径。
+- **MP4Box**：可选，用于杜比视界等特殊封装的混流。可用 `--mux mp4box` 切换为 MP4Box 混流，或用 `--mp4box-path` 指定路径。
 - **aria2c**：可选，用于多线程加速下载。可用 `--aria2c` 启用，或用 `--aria2c-path` 指定路径。
 
 > 放在 BBDown 同目录或系统 `PATH` 中即可被自动识别。专栏导出不经过混流，无需 FFmpeg。
 >
-> **容器部署**：`linux-musl-x64` / `linux-musl-arm64` 产物为静态链接，无动态依赖，可直接 `COPY` 进 `scratch` / `distroless` 等镜像运行，无需 Dockerfile 构建；需要混流时在镜像中自带 FFmpeg（或使用 `--skip-mux` 跳过混流）。
+> **容器部署**：`linux-musl-x64` / `linux-musl-arm64` 产物为静态链接，无动态依赖，可直接 `COPY` 进 `scratch` / `distroless` 等镜像运行，无需 Dockerfile 构建；需要混流时在镜像中自带 FFmpeg（或使用 `--mux none` 跳过混流）。
 
 ## 快速开始
 
@@ -230,7 +230,7 @@ BBDown "live12345" -lq 400
 | `--comments-count`   | `-cn`  | 下载评论区前 N 条评论（默认 `0`，即不下载）                |
 | `--comments-sort`    | `-cs`  | 评论排序：`hot`（热度，默认）或 `time`（最新）             |
 | `--comments-formats` | `-cf`  | 指定评论导出格式（详见脚注 [^commentformats]）             |
-| `--skip-mux`         |        | 跳过混流步骤                                               |
+| `--mux`              | `-m`   | 混流方式：`none` / `mpeg4`（默认）/ `mp4box` / `mkv`（暂未实现） |
 | `--drm-key`          |        | 提供 DRM 解密密钥（详见脚注 [^drmkey]）                    |
 | `--allow-preview`    | `-p`   | 允许下载充电专属视频的试看片段（详见脚注 [^allowpreview]） |
 | `--lang`             |        | 设置混流音频语言代码，如 `chi`、`jpn` 等                   |
@@ -311,7 +311,6 @@ BBDown "live12345" -lq 400
 | `--interactive-pages`  | `-iap` | 逐集确认是否下载：[y] 要，[n] 不要，[a] 剩余全部要，[q] 剩余全部不要，回车=不要 |
 | `--work-dir`           |        | 设置程序工作目录                                                                |
 | `--ffmpeg-path`        |        | 指定 FFmpeg 路径                                                                |
-| `--mp4box`             |        | 使用 MP4Box 来混流                                                              |
 | `--mp4box-path`        |        | 指定 MP4Box 路径                                                                |
 | `--aria2c-path`        |        | 指定 aria2c 路径                                                                |
 | `--save-records`       |        | 将下载过的视频记录到本地文件，用于后续跳过同一视频                              |

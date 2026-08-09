@@ -18,7 +18,7 @@ internal static class MuxFinish
         string VideoPath,
         string AudioPath,
         List<AudioMaterial> AudioMaterial,
-        bool UseMp4box,
+        MuxMode Mux,
         bool IsHevc);
 
     /// <summary>
@@ -45,12 +45,12 @@ internal static class MuxFinish
     }
 
     /// <summary>
-    /// 混流并清理临时文件，DASH 与 FLV 共用。--skip-mux 时直接中止，保留已下载的裸轨。
+    /// 混流并清理临时文件，DASH 与 FLV 共用。--mux none 时直接中止，保留已下载的裸轨。
     /// </summary>
     internal static async Task<PageOutcome> RunAsync(DownloadSession session, MuxInputs inputs, TrackSelection selection, CancellationToken ct = default)
     {
         var (myOption, ctx, pageCtx, subtitleInfo, _, _) = session;
-        if (myOption.SkipMux)
+        if (myOption.Mux == MuxMode.None)
         {
             return PageOutcome.Abort(selection);
         }
@@ -60,7 +60,7 @@ internal static class MuxFinish
         var streams = string.IsNullOrEmpty(inputs.AudioPath) ? "视频" : "音视频";
         Log($"开始混流{streams}{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
         var req = new MuxRequest(
-            UseMp4box: inputs.UseMp4box,
+            Mux: inputs.Mux,
             Bvid: p.Bvid,
             VideoPath: inputs.VideoPath,
             AudioPath: inputs.AudioPath,

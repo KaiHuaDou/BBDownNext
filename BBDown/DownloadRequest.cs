@@ -20,7 +20,8 @@ internal sealed record DownloadRequest
     public ApiType Api { get; init; } = ApiType.Web;
     /// <summary>下载内容标志集（--get ∪ --with − --without），消费点用 <see cref="ContentSelector.Has"/> 查询。</summary>
     public DownloadContent Content { get; init; } = ContentSelector.DefaultFlags;
-    public bool UseMP4box { get; init; }
+    /// <summary>混流方式（--mux / -m），默认 FFmpeg 混流为 MP4。</summary>
+    public MuxMode Mux { get; init; } = MuxMode.Mpeg4;
     public string? EncodingPriority { get; init; }
     public string? DfnPriority { get; init; }
     /// <summary>命令行上 --encoding-priority 写在 --dfn-priority 之前时为 true；serve 模式无书写顺序，恒为 false。</summary>
@@ -33,7 +34,6 @@ internal sealed record DownloadRequest
     public bool HideStreams { get; init; }
     public bool SingleThread { get; init; }
     public bool Debug { get; init; }
-    public bool SkipMux { get; init; }
     /// <summary>DRM 解密密钥（--drm-key 可多次）：kid:key 或纯 key。serve 下不可用：key 属凭据，不进 serve 契约。</summary>
     public string[] DrmKeys { get; init; } = [];
     public bool NoForceHttp { get; init; }

@@ -7,6 +7,13 @@ namespace BBDown.GUI;
 /// <summary>面板控件与 TaskParams 之间的映射，按 §3 控件组拆分为 partial，控制 MainWindow.xaml.cs 行数。</summary>
 public partial class MainWindow
 {
+    private static readonly (string Value, string Label)[] MuxChoices =
+    [
+        ("mpeg4", "FFmpeg 混流为 MP4（默认）"),
+        ("mp4box", "MP4Box 混流"),
+        ("none", "不混流（保留裸轨）"),
+    ];
+
     private static readonly (string Value, string Label)[] LiveQualityChoices =
     [
         ("10000", "10000 原画"),
@@ -21,12 +28,10 @@ public partial class MainWindow
         return new TaskParams
         {
             Content = ReadContent( ),
-            SkipMux = SkipMuxCheckBox.IsChecked == true,
             UseAria2c = UseAria2cCheckBox.IsChecked == true,
             SingleThread = SingleThreadCheckBox.IsChecked == true,
             InfoOnly = InfoOnlyCheckBox.IsChecked == true,
             ShowAll = ShowAllCheckBox.IsChecked == true,
-            UseMP4box = UseMP4boxCheckBox.IsChecked == true,
             AllowPreview = AllowPreviewCheckBox.IsChecked == true,
             SaveRecords = SaveRecordsCheckBox.IsChecked == true,
             StopOnError = StopOnErrorCheckBox.IsChecked == true,
@@ -36,6 +41,7 @@ public partial class MainWindow
             AllowPcdn = AllowPcdnCheckBox.IsChecked == true,
             NoForceHost = NoForceHostCheckBox.IsChecked == true,
             NoForceHttp = NoForceHttpCheckBox.IsChecked == true,
+            Mux = ReadMux( ),
             EncodingPriority = EncodingPriorityBox.Text.Trim( ),
             DfnPriority = DfnPriorityBox.Text.Trim( ),
             Pages = PagesBox.Text.Trim( ),
@@ -101,6 +107,11 @@ public partial class MainWindow
     private string ReadCommentsSort( )
     {
         return SortTimeRadioButton.IsChecked == true ? "time" : "hot";
+    }
+
+    private string ReadMux( )
+    {
+        return (MuxBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "mpeg4";
     }
 
     private string ReadLiveQuality( )
@@ -177,12 +188,10 @@ public partial class MainWindow
     private void ApplyOptions(TaskParams options)
     {
         ApplyContent(options.Content);
-        SkipMuxCheckBox.IsChecked = options.SkipMux;
         UseAria2cCheckBox.IsChecked = options.UseAria2c;
         SingleThreadCheckBox.IsChecked = options.SingleThread;
         InfoOnlyCheckBox.IsChecked = options.InfoOnly;
         ShowAllCheckBox.IsChecked = options.ShowAll;
-        UseMP4boxCheckBox.IsChecked = options.UseMP4box;
         AllowPreviewCheckBox.IsChecked = options.AllowPreview;
         SaveRecordsCheckBox.IsChecked = options.SaveRecords;
         StopOnErrorCheckBox.IsChecked = options.StopOnError;
@@ -192,6 +201,7 @@ public partial class MainWindow
         AllowPcdnCheckBox.IsChecked = options.AllowPcdn;
         NoForceHostCheckBox.IsChecked = options.NoForceHost;
         NoForceHttpCheckBox.IsChecked = options.NoForceHttp;
+        ApplyMux(options.Mux);
         EncodingPriorityBox.Text = options.EncodingPriority;
         DfnPriorityBox.Text = options.DfnPriority;
         PagesBox.Text = options.Pages;
@@ -237,6 +247,20 @@ public partial class MainWindow
     {
         SortHotRadioButton.IsChecked = sort == "hot";
         SortTimeRadioButton.IsChecked = sort == "time";
+    }
+
+    private void ApplyMux(string mux)
+    {
+        foreach (ComboBoxItem item in MuxBox.Items)
+        {
+            if ((item.Tag as string) == mux)
+            {
+                MuxBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        MuxBox.SelectedIndex = 0;
     }
 
     private void ApplyLiveQuality(string quality)

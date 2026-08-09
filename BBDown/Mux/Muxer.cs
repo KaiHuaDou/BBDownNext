@@ -22,7 +22,7 @@ namespace BBDown.Mux;
 /// 调用方按名填字段，下游 <c>Build*</c> 直接读 <c>req</c> 上的路径与元数据，不再数位置。
 /// </summary>
 internal sealed record MuxRequest(
-    bool UseMp4box,
+    MuxMode Mux,
     string Bvid,
     string VideoPath,
     string AudioPath,
@@ -228,7 +228,7 @@ internal static class Muxer
 
             if (!string.IsNullOrWhiteSpace(req.Desc))
             {
-                args.AddRange(["-metadata", $"description={req.Desc}"]);
+                args.AddRange(["-metadata", $"synopsis={req.Desc}"]);
             }
 
             if (req.Author.Length != 0)
@@ -301,10 +301,11 @@ internal static class Muxer
         if (req.Points is { Count: > 0 } points)
         {
             chapterFile = Path.Combine(Path.GetDirectoryName(videoPath.Length == 0 ? audioPath : videoPath)!, "chapters");
-            File.WriteAllText(chapterFile, req.UseMp4box ? ChapterMeta.GetMp4boxMetaString(points) : ChapterMeta.GetFFmpegMetaString(points));
+            File.WriteAllText(chapterFile, req.Mux == MuxMode.Mp4box ? ChapterMeta.GetMp4boxMetaString(points) : ChapterMeta.GetFFmpegMetaString(points));
         }
 
-        return req.UseMp4box
+        // MuxMode.None 由 MuxFinish 提前中止，不会走到这里；Mkv 已在 WorkSetup 回退为 Mpeg4
+        return req.Mux == MuxMode.Mp4box
             ? await RunExe(req.Tools.Mp4box, BuildMp4boxArgs(req, chapterFile, Config.DebugLog), ct)
             : await RunExe(req.Tools.Ffmpeg, BuildFFmpegArgs(req, chapterFile, Config.DebugLog), ct);
     }

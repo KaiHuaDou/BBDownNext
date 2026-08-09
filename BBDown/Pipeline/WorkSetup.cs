@@ -39,6 +39,13 @@ internal static class WorkSetup
 {
     public static RunConfig Build(DownloadRequest myOption)
     {
+        // mkv 暂未实现：任务启动时统一回退为 mpeg4，避免各消费点各自处理
+        if (myOption.Mux == MuxMode.Mkv)
+        {
+            LogWarn("mkv 混流暂未实现，已回退为 mpeg4");
+            myOption = myOption with { Mux = MuxMode.Mpeg4 };
+        }
+
         // 解析外部工具路径（不可变快照，作为 ToolPaths 向下透传，不写进程级静态）
         var tools = ResolveToolPaths(myOption);
 
@@ -184,7 +191,7 @@ internal static class WorkSetup
             : FindExecutable("mp4box", "MP4Box", "MP4box") ?? "mp4box";
 
         // 不混流时不强制要求 ffmpeg 存在
-        if (!myOption.SkipMux && (string.IsNullOrEmpty(ffmpeg) || !File.Exists(ffmpeg)))
+        if (myOption.Mux != MuxMode.None && (string.IsNullOrEmpty(ffmpeg) || !File.Exists(ffmpeg)))
         {
             throw new InvalidOperationException("找不到可执行的 ffmpeg 文件");
         }

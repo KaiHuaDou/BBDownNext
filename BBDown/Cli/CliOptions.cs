@@ -128,7 +128,24 @@ internal static class CliOptions
         Description = "指定需导出的评论格式，逗号分隔",
         DefaultValueFactory = _ => "json,txt"
     };
-    internal static readonly Option<bool> SkipMux = new("--skip-mux", []) { Description = "跳过混流步骤" };
+    // 单值枚举：非法值进 parseResult.Errors 报错退出（serve 侧为 JSON 契约，非法值回落 web，见 ServeRequestOptions）
+    internal static readonly Option<MuxMode> MuxOption = new("--mux", ["-m"])
+    {
+        Description = "混流方式：none 不混流 / mpeg4 使用 FFmpeg 混流为 MP4（默认）/ mp4box 使用 MP4Box 混流 / mkv 暂未实现，忽略大小写",
+        DefaultValueFactory = _ => MuxMode.Mpeg4,
+        CustomParser = result =>
+        {
+            var tokens = result.Tokens;
+            var mux = MuxModeUtil.TryParse(tokens.Count == 0 ? null : tokens[^1].Value);
+            if (mux is null)
+            {
+                result.AddError("无效的 --mux 值（可选 none / mpeg4 / mp4box / mkv，忽略大小写）");
+                return MuxMode.Mpeg4;
+            }
+
+            return mux.Value;
+        }
+    };
     internal static readonly Option<string[]> DrmKey = new("--drm-key", [])
     {
         Description = """
@@ -226,7 +243,6 @@ internal static class CliOptions
     internal static readonly Option<bool> InteractivePages = new("--interactive-pages", ["-iap"]) { Description = "逐集确认是否下载：[y] 要，[n] 不要，[a] 剩余全部要，[q] 剩余全部不要，回车=不要" };
     internal static readonly Option<string> WorkDir = new("--work-dir", ["-cwd"]) { Description = "设置程序的工作目录" };
     internal static readonly Option<string> FFmpegPath = new("--ffmpeg-path", []) { Description = "设置 FFmpeg 的路径" };
-    internal static readonly Option<bool> UseMP4box = new("--mp4box", []) { Description = "使用 MP4Box 来混流" };
     internal static readonly Option<string> Mp4boxPath = new("--mp4box-path", []) { Description = "设置 MP4Box 的路径" };
     internal static readonly Option<string> Aria2cPath = new("--aria2c-path", []) { Description = "设置 aria2c 的路径" };
     internal static readonly Option<bool> SaveRecords = new("--save-records", []) { Description = "将下载过的视频记录到本地文件中，用于后续跳过下载同个视频" };

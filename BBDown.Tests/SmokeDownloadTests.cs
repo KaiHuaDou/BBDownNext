@@ -10,7 +10,7 @@ namespace BBDown.Tests;
 // 断言临时目录里产出了非空媒体文件。
 //
 // 默认跳过：设环境变量 BBDOWN_RUN_SMOKE=1 才真正执行，避免在正常 CI / 无网络环境误跑，
-// 也避免频繁拉取真实视频占用带宽。需要可访问 bilibili 的网络；用 --skip-mux 跳过混流，
+// 也避免频繁拉取真实视频占用带宽。需要可访问 bilibili 的网络；用 --mux none 跳过混流，
 // 因此不依赖 ffmpeg/mp4box，下载产物直接落在临时目录便于断言。
 public class SmokeDownloadTests
 {
@@ -30,7 +30,7 @@ public class SmokeDownloadTests
         {
             Url = url,
             WorkDir = workDir,
-            SkipMux = true,
+            Mux = MuxMode.None,
             Content = DownloadContent.Audio | DownloadContent.Video,
             SingleThread = false,
             NoForceHttp = false,

@@ -10,12 +10,10 @@ public sealed record TaskParams
     public string Content { get; init; } = CliArgsBuilder.DefaultContent;
 
     // 常用布尔选项
-    public bool SkipMux { get; init; }
     public bool UseAria2c { get; init; }
     public bool SingleThread { get; init; }
     public bool InfoOnly { get; init; }
     public bool ShowAll { get; init; }
-    public bool UseMP4box { get; init; }
     public bool AllowPreview { get; init; }
     public bool SaveRecords { get; init; }
     public bool StopOnError { get; init; }
@@ -24,6 +22,7 @@ public sealed record TaskParams
     public bool AudioAscending { get; init; }
 
     // 常用输入选项，空串表示未设置（走 CLI 内置默认）
+    public string Mux { get; init; } = "mpeg4";
     public string EncodingPriority { get; init; } = "";
     public string DfnPriority { get; init; } = "";
     public string Pages { get; init; } = "";
@@ -84,12 +83,10 @@ public static class CliArgsBuilder
 
     private static void AddBooleanOptions(List<string> args, TaskParams options)
     {
-        AddFlag(args, "--skip-mux", options.SkipMux);
         AddFlag(args, "--aria2c", options.UseAria2c);
         AddFlag(args, "--single-thread", options.SingleThread);
         AddFlag(args, "--info-only", options.InfoOnly);
         AddFlag(args, "--all", options.ShowAll);
-        AddFlag(args, "--mp4box", options.UseMP4box);
         AddFlag(args, "--allow-preview", options.AllowPreview);
         AddFlag(args, "--save-records", options.SaveRecords);
         AddFlag(args, "--stop-on-error", options.StopOnError);
@@ -103,6 +100,7 @@ public static class CliArgsBuilder
 
     private static void AddInputOptions(List<string> args, TaskParams options)
     {
+        AddOption(args, "--mux", options.Mux, "mpeg4");
         AddOption(args, "--encoding-priority", options.EncodingPriority, "");
         AddOption(args, "--dfn-priority", options.DfnPriority, "");
         AddOption(args, "--pages", options.Pages, "");

@@ -27,7 +27,7 @@ public class MuxerArgsTests
         List<Subtitle>? subs = null, DownloadContent content = DownloadContent.Audio | DownloadContent.Video | DownloadContent.MuxMetadata,
         long pubTime = 0, int trackNumber = 0, int totalTracks = 0)
         => new(
-            UseMp4box: false,
+            Mux: MuxMode.Mpeg4,
             Bvid: bvid,
             VideoPath: videoPath,
             AudioPath: audioPath,
@@ -120,7 +120,7 @@ public class MuxerArgsTests
 
         Assert.Contains("title=第1话", args);
         Assert.Contains("album=标题", args);
-        Assert.Contains("description=简介", args);
+        Assert.Contains("synopsis=简介", args);
         Assert.Contains("language=zh", args);
         Assert.Contains("creation_time=2020-09-13T12:26:40.000000Z", args);
     }

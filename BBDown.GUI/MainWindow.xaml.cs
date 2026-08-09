@@ -34,6 +34,13 @@ public partial class MainWindow : Window
             LiveQualityBox.Items.Add(new ComboBoxItem { Content = label, Tag = value });
         }
 
+        foreach ((var value, var label) in MuxChoices)
+        {
+            MuxBox.Items.Add(new ComboBoxItem { Content = label, Tag = value });
+        }
+
+        MuxBox.SelectedIndex = 0;
+
         queue = new QueueRunner(Dispatch);
         queue.Changed += OnQueueChanged;
         queue.Executor = ExecuteTaskAsync;

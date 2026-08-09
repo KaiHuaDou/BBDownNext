@@ -17,6 +17,8 @@
 ### 变更
 
 - 图形界面单文件发布启用压缩与原生库自解压，发布工作流补充 checkout 步骤。
+- FFmpeg 混流时视频简介元数据键由 `description` 改为 `synopsis`（MP4 容器映射为 `ldes`）。
+- 混流选项改为 `--mux` / `-m` 单值枚举：`none`（不混流）/ `mpeg4`（FFmpeg 混流为 MP4，默认）/ `mp4box`（MP4Box 混流）/ `mkv`（暂未实现，选择时警告并回退 `mpeg4`），取代 `--skip-mux` 与 `--mp4box` 两个布尔开关；图形界面同步改为「混流方式」下拉框。
 
 ## [v2.0.0-beta.1]
 

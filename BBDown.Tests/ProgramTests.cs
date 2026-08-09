@@ -195,15 +195,15 @@ public class ProgramTests
     }
 
     [Fact]
-    public void ResolveToolPaths_MissingFFmpegThrowsUnlessSkipMux( )
+    public void ResolveToolPaths_MissingFFmpegThrowsUnlessMuxNone( )
     {
         var o = new DownloadRequest { FFmpegPath = Path.Combine(Path.GetTempPath( ), "bbdown-not-here-" + Guid.NewGuid( ).ToString("N")) };
 
         // 不混流时不需要 ffmpeg；需要混流却找不到必须立刻炸，而不是下载完才失败
-        o = o with { SkipMux = true };
+        o = o with { Mux = MuxMode.None };
         WorkSetup.ResolveToolPaths(o);
 
-        o = o with { SkipMux = false };
+        o = o with { Mux = MuxMode.Mpeg4 };
         if (Utils.FindExecutable("ffmpeg") == null)
         {
             Assert.Throws<InvalidOperationException>(( ) => WorkSetup.ResolveToolPaths(o));

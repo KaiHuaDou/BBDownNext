@@ -24,7 +24,9 @@ internal sealed class ServeRequestOptions
     /// <summary>下载内容字符集（如 "avmsCiM"），非法字符忽略，缺省回落默认内容集。</summary>
     [JsonConverter(typeof(DownloadContentJsonConverter))]
     public DownloadContent Content { get; set; } = ContentSelector.DefaultFlags;
-    public bool UseMP4box { get; set; }
+    /// <summary>混流方式（none / mpeg4 / mp4box / mkv），缺省回落 mpeg4。</summary>
+    [JsonConverter(typeof(MuxModeJsonConverter))]
+    public MuxMode Mux { get; set; } = MuxMode.Mpeg4;
     public string? EncodingPriority { get; set; }
     public string? DfnPriority { get; set; }
     public bool EncodingFirst { get; set; }
@@ -33,7 +35,6 @@ internal sealed class ServeRequestOptions
     public bool UseAria2c { get; set; }
     public bool HideStreams { get; set; }
     public bool SingleThread { get; set; }
-    public bool SkipMux { get; set; }
     public bool NoForceHttp { get; set; }
     public string? DownloadDanmakuFormats { get; set; }
     public int CommentCount { get; set; }

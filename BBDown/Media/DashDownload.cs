@@ -116,15 +116,15 @@ internal static class DashDownload
         var videoPath = pageCtx.VideoPath;
         var audioPath = pageCtx.AudioPath;
         List<AudioMaterial> audioMaterial = [];
-        var useMp4box = myOption.UseMP4box;
+        var mux = myOption.Mux;
         var backgroundPath = "";
         if (selectedVideo != null)
         {
             // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
-            if (selectedVideo.Id == Config.DolbyVisionQn && !useMp4box && !ChapterMeta.CheckFFmpegDOVI(ctx.Run.Tools))
+            if (selectedVideo.Id == Config.DolbyVisionQn && mux == MuxMode.Mpeg4 && !ChapterMeta.CheckFFmpegDOVI(ctx.Run.Tools))
             {
                 LogWarn("您的 FFmpeg 版本小于 5.0，杜比视界将使用 MP4Box 混流...");
-                useMp4box = true;
+                mux = MuxMode.Mp4box;
             }
 
             Log($"开始下载 P{p.Index} 视频...");
@@ -205,7 +205,7 @@ internal static class DashDownload
             audioPath = "";
         }
 
-        var inputs = new MuxFinish.MuxInputs(savePath, videoPath, audioPath, audioMaterial, useMp4box, selectedVideo?.Codecs == "HEVC");
+        var inputs = new MuxFinish.MuxInputs(savePath, videoPath, audioPath, audioMaterial, mux, selectedVideo?.Codecs == "HEVC");
         return await MuxFinish.RunAsync(session, inputs, selection, ct);
     }
 
