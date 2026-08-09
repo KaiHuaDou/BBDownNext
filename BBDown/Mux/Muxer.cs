@@ -39,7 +39,10 @@ internal sealed record MuxRequest(
     DownloadContent Content,
     List<ViewPoint>? Points,
     long PubTime,
-    bool IsHevc);
+    bool IsHevc,
+    // 多P（总集数大于 1）时填当前分P序号与该视频总集数，写入 track / track_total 元数据
+    int TrackNumber,
+    int TotalTracks);
 
 internal static class Muxer
 {
@@ -132,6 +135,11 @@ internal static class Muxer
         tags.Append($":sdesc={req.Desc}");
         tags.Append($":comment={BiliApi.VideoPage}/{req.Bvid}/");
         tags.Append($":artist={req.Author}");
+        if (req.TotalTracks > 1)
+        {
+            tags.Append($":tracknum={req.TrackNumber}/{req.TotalTracks}");
+        }
+
         args.AddRange(["-itags", tags.ToString( )]);
 
         args.AddRange(["-new", "--", req.OutPath]);
@@ -231,6 +239,12 @@ internal static class Muxer
             if (req.EpisodeId.Length != 0)
             {
                 args.AddRange(["-metadata", $"album={req.Title}"]);
+            }
+
+            if (req.TotalTracks > 1)
+            {
+                args.AddRange(["-metadata", $"track={req.TrackNumber}"]);
+                args.AddRange(["-metadata", $"track_total={req.TotalTracks}"]);
             }
 
             if (req.PubTime != 0)

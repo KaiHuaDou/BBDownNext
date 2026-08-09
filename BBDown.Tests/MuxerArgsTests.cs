@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -24,7 +25,7 @@ public class MuxerArgsTests
         List<AudioMaterial>? audioMaterial = null, string outPath = "", string desc = "", string title = "",
         string author = "", string episodeId = "", string pic = "", string lang = "",
         List<Subtitle>? subs = null, DownloadContent content = DownloadContent.Audio | DownloadContent.Video | DownloadContent.MuxMetadata,
-        long pubTime = 0)
+        long pubTime = 0, int trackNumber = 0, int totalTracks = 0)
         => new(
             UseMp4box: false,
             Bvid: bvid,
@@ -43,12 +44,28 @@ public class MuxerArgsTests
             Content: content,
             Points: null,
             PubTime: pubTime,
-            IsHevc: false);
+            IsHevc: false,
+            TrackNumber: trackNumber,
+            TotalTracks: totalTracks);
 
     private static string? ValueAfter(List<string> args, string flag)
     {
         var i = args.IndexOf(flag);
         return i >= 0 && i + 1 < args.Count ? args[i + 1] : null;
+    }
+
+    // 在 -metadata <key=val> 序列里按 key 前缀取 val：避免 -metadata 与值分作两元素导致直接 IndexOf 命中不到
+    private static string? MetaValue(List<string> args, string keyPrefix)
+    {
+        for (var i = 0; i + 1 < args.Count; i++)
+        {
+            if (args[i] == "-metadata" && args[i + 1].StartsWith(keyPrefix, StringComparison.Ordinal))
+            {
+                return args[i + 1][(keyPrefix.Length + 1)..];
+            }
+        }
+
+        return null;
     }
 
     [Fact]
@@ -229,5 +246,45 @@ public class MuxerArgsTests
 
         Assert.Equal(1, args.Count(a => a == "-new"));
         Assert.DoesNotContain("/etc/passwd", args);
+    }
+
+    [Fact]
+    public void BuildFFmpegArgs_WritesTrackNumberAndTotalWhenMultiPart( )
+    {
+        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", title: "标题", trackNumber: 3, totalTracks: 10);
+        var args = Muxer.BuildFFmpegArgs(req, null, false);
+
+        Assert.Equal("3", MetaValue(args, "track"));
+        Assert.Equal("10", MetaValue(args, "track_total"));
+    }
+
+    [Fact]
+    public void BuildFFmpegArgs_SkipsTrackNumberWhenSinglePart( )
+    {
+        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", title: "标题", trackNumber: 1, totalTracks: 1);
+        var args = Muxer.BuildFFmpegArgs(req, null, false);
+
+        Assert.DoesNotContain("track=", args);
+        Assert.DoesNotContain("track_total=", args);
+    }
+
+    [Fact]
+    public void BuildMp4boxArgs_WritesTrackNumberAndTotalWhenMultiPart( )
+    {
+        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", desc: "简介", title: "标题", author: "UP主", trackNumber: 3, totalTracks: 10);
+        var args = Muxer.BuildMp4boxArgs(req, null, false);
+
+        Assert.Equal($"tool=:title=标题:sdesc=简介:comment={BiliApi.VideoPage}/{Bvid}/:artist=UP主:tracknum=3/10",
+            ValueAfter(args, "-itags"));
+    }
+
+    [Fact]
+    public void BuildMp4boxArgs_SkipsTrackNumberWhenSinglePart( )
+    {
+        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", desc: "简介", title: "标题", author: "UP主", trackNumber: 1, totalTracks: 1);
+        var args = Muxer.BuildMp4boxArgs(req, null, false);
+
+        Assert.Equal($"tool=:title=标题:sdesc=简介:comment={BiliApi.VideoPage}/{Bvid}/:artist=UP主",
+            ValueAfter(args, "-itags"));
     }
 }

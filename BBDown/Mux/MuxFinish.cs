@@ -77,7 +77,9 @@ internal static class MuxFinish
             Content: myOption.Content,
             Points: p.Points,
             PubTime: p.PubTime,
-            IsHevc: inputs.IsHevc);
+            IsHevc: inputs.IsHevc,
+            TrackNumber: p.Index,
+            TotalTracks: pageCtx.PagesCount);
         var code = await Muxer.MuxAV(req, ct);
         if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
         {

@@ -6,6 +6,18 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
+## [v2.0.0-beta.2]
+
+### 新增
+
+- 多 P（总集数大于 1）且开启元数据混流（`-m`）时写入分 P 序号与总集数：FFmpeg 容器写 `track` / `track_total` 元数据，MP4Box 容器写 `tracknum` 元数据（`x/N`）。
+
+### 修复
+
+### 变更
+
+- 图形界面单文件发布启用压缩与原生库自解压，发布工作流补充 checkout 步骤。
+
 ## [v2.0.0-beta.1]
 
 ### 新增
@@ -188,3 +200,4 @@
 [v2.0.0-alpha.2]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.1...v2.0.0-alpha.2>
 [v2.0.0-alpha.3]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.2...v2.0.0-alpha.3>
 [v2.0.0-beta.1]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.3...v2.0.0-beta.1>
+[v2.0.0-beta.2]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-beta.1...v2.0.0-beta.2>

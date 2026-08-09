@@ -10,6 +10,8 @@
         <StartupObject>BBDown.GUI.App.Program</StartupObject>
         <AnalysisLevel>latest-all</AnalysisLevel>
         <PublishSingleFile>true</PublishSingleFile>
+        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
         <PublishReadyToRun>true</PublishReadyToRun>
         <WarningLevel>8</WarningLevel>
     </PropertyGroup>
