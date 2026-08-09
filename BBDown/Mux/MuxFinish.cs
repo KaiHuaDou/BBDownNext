@@ -23,14 +23,12 @@ internal static class MuxFinish
 
     /// <summary>
     /// 目标文件已存在且非空时登记路径、清掉临时产物并返回中止结果；需要下载则返回 null。
-    /// 内容集无 v（仅音频）时产物为 .m4a，跳过检测须用同一扩展名，否则重跑会重复下载。
+    /// 产物扩展名随混流方式修正（mkv 视频 .mkv / 纯音频 .mka，其余 .mp4 / .m4a），
+    /// 跳过检测须用同一扩展名，否则重跑会重复下载。
     /// </summary>
     internal static PageOutcome? TrySkipExisting(DownloadSession session, string savePath, TrackSelection selection)
     {
-        if (!session.Options.Content.Has(DownloadContent.Video))
-        {
-            savePath = ToAudioOnlyPath(savePath);
-        }
+        savePath = ToOutputPath(savePath, session.Options.Mux, session.Options.Content.Has(DownloadContent.Video));
 
         if (!File.Exists(savePath) || new FileInfo(savePath).Length == 0)
         {
@@ -56,7 +54,7 @@ internal static class MuxFinish
         }
 
         var p = pageCtx.Page;
-        var savePath = !myOption.Content.Has(DownloadContent.Video) ? ToAudioOnlyPath(inputs.SavePath) : inputs.SavePath;
+        var savePath = ToOutputPath(inputs.SavePath, inputs.Mux, myOption.Content.Has(DownloadContent.Video));
         var streams = string.IsNullOrEmpty(inputs.AudioPath) ? "视频" : "音视频";
         Log($"开始混流{streams}{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
         var req = new MuxRequest(
@@ -91,9 +89,14 @@ internal static class MuxFinish
         return PageOutcome.Done(savePath, selection);
     }
 
-    internal static string ToAudioOnlyPath(string savePath)
+    /// <summary>
+    /// 按混流方式修正产物扩展名：mkv 模式视频 .mkv / 纯音频 .mka，其余 .mp4 / .m4a。
+    /// SavePath.Format 恒产出 .mp4 基底，纯音频与 mkv 容器在此统一换后缀。
+    /// </summary>
+    internal static string ToOutputPath(string savePath, MuxMode mux, bool hasVideo)
     {
-        return Path.ChangeExtension(savePath, ".m4a");
+        var ext = mux == MuxMode.Mkv ? (hasVideo ? ".mkv" : ".mka") : (hasVideo ? ".mp4" : ".m4a");
+        return Path.ChangeExtension(savePath, ext);
     }
 
     internal static void TryDeleteEmptyDir(string path)

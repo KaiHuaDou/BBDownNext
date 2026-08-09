@@ -10,7 +10,8 @@
         <StartupObject>BBDown.GUI.App.Program</StartupObject>
         <AnalysisLevel>latest-all</AnalysisLevel>
         <PublishSingleFile>true</PublishSingleFile>
-        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+        <!-- SDK 只允许自包含单文件开启压缩（NETSDK1176），框架依赖发布会自动跳过 -->
+        <EnableCompressionInSingleFile Condition="'$(SelfContained)' == 'true'">true</EnableCompressionInSingleFile>
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
         <PublishReadyToRun>true</PublishReadyToRun>
         <WarningLevel>8</WarningLevel>

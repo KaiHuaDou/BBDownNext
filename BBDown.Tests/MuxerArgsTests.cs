@@ -25,9 +25,9 @@ public class MuxerArgsTests
         List<AudioMaterial>? audioMaterial = null, string outPath = "", string desc = "", string title = "",
         string author = "", string episodeId = "", string pic = "", string lang = "",
         List<Subtitle>? subs = null, DownloadContent content = DownloadContent.Audio | DownloadContent.Video | DownloadContent.MuxMetadata,
-        long pubTime = 0, int trackNumber = 0, int totalTracks = 0)
+        long pubTime = 0, int trackNumber = 0, int totalTracks = 0, MuxMode mux = MuxMode.Mpeg4)
         => new(
-            Mux: MuxMode.Mpeg4,
+            Mux: mux,
             Bvid: bvid,
             VideoPath: videoPath,
             AudioPath: audioPath,
@@ -188,6 +188,41 @@ public class MuxerArgsTests
         var args = Muxer.BuildFFmpegArgs(req, null, debugLog);
 
         Assert.Equal(expected, ValueAfter(args, "-loglevel"));
+    }
+
+    [Fact]
+    public void BuildFFmpegArgs_MkvUsesMatroskaContainer( )
+    {
+        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mkv", title: "标题", mux: MuxMode.Mkv);
+        var args = Muxer.BuildFFmpegArgs(req, null, false);
+
+        Assert.Equal("matroska", ValueAfter(args, "-f"));
+        Assert.DoesNotContain("-movflags", args);
+        Assert.Contains("/out/x.mkv", args);
+    }
+
+    [Fact]
+    public void BuildFFmpegArgs_MkvCopiesSubtitleStream( )
+    {
+        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mkv", title: "t",
+            subs: [Sub("zh-Hans", "/tmp/s0.srt")], mux: MuxMode.Mkv);
+        var args = Muxer.BuildFFmpegArgs(req, null, false);
+
+        // matroska 原生支持 srt/ass 文本字幕，直接复制，无需像 mp4 那样转 mov_text
+        Assert.Equal("copy", ValueAfter(args, "-c:s"));
+        Assert.DoesNotContain("mov_text", args);
+    }
+
+    [Fact]
+    public void BuildFFmpegArgs_Mp4StillUsesMovTextAndFaststart( )
+    {
+        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", title: "t",
+            subs: [Sub("zh-Hans", "/tmp/s0.srt")]);
+        var args = Muxer.BuildFFmpegArgs(req, null, false);
+
+        Assert.Equal("mp4", ValueAfter(args, "-f"));
+        Assert.Equal("mov_text", ValueAfter(args, "-c:s"));
+        Assert.Contains("-movflags", args);
     }
 
     [Fact]

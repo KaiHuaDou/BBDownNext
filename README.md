@@ -230,7 +230,7 @@ BBDown "live12345" -lq 400
 | `--comments-count`   | `-cn`  | 下载评论区前 N 条评论（默认 `0`，即不下载）                |
 | `--comments-sort`    | `-cs`  | 评论排序：`hot`（热度，默认）或 `time`（最新）             |
 | `--comments-formats` | `-cf`  | 指定评论导出格式（详见脚注 [^commentformats]）             |
-| `--mux`              | `-m`   | 混流方式：`none` / `mpeg4`（默认）/ `mp4box` / `mkv`（暂未实现） |
+| `--mux`              | `-m`   | 混流方式：`none` / `mpeg4`（默认）/ `mp4box` / `mkv`（视频 `.mkv` / 纯音频 `.mka`） |
 | `--drm-key`          |        | 提供 DRM 解密密钥（详见脚注 [^drmkey]）                    |
 | `--allow-preview`    | `-p`   | 允许下载充电专属视频的试看片段（详见脚注 [^allowpreview]） |
 | `--lang`             |        | 设置混流音频语言代码，如 `chi`、`jpn` 等                   |

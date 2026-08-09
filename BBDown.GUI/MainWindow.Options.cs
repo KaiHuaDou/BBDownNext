@@ -11,6 +11,7 @@ public partial class MainWindow
     [
         ("mpeg4", "FFmpeg 混流为 MP4（默认）"),
         ("mp4box", "MP4Box 混流"),
+        ("mkv", "FFmpeg 混流为 Matroska"),
         ("none", "不混流（保留裸轨）"),
     ];
 

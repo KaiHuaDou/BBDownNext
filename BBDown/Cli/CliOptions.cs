@@ -131,7 +131,14 @@ internal static class CliOptions
     // 单值枚举：非法值进 parseResult.Errors 报错退出（serve 侧为 JSON 契约，非法值回落 web，见 ServeRequestOptions）
     internal static readonly Option<MuxMode> MuxOption = new("--mux", ["-m"])
     {
-        Description = "混流方式：none 不混流 / mpeg4 使用 FFmpeg 混流为 MP4（默认）/ mp4box 使用 MP4Box 混流 / mkv 暂未实现，忽略大小写",
+        Description = """
+        none 不混流
+        mpeg4 使用 FFmpeg 混流为 MP4
+        mp4box 使用 MP4Box 混流
+        mkv 使用 FFmpeg 混流为 Matrosk
+        （视频扩展名 .mp4/.mkv / 纯音频扩展名 .m4a/.mka）
+        忽略大小写
+        """,
         DefaultValueFactory = _ => MuxMode.Mpeg4,
         CustomParser = result =>
         {

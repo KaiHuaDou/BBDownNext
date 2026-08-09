@@ -53,11 +53,8 @@ internal static class CommentDownload
         document.Bvid = pageCtx.Page.Bvid;
 
         var basePath = SavePath.Build(ctx, pageCtx, null, null);
-        // 内容集无 v（仅音频）时产物为 .m4a，评论文件须与之一致
-        if (!ctx.Run.Content.Has(DownloadContent.Video))
-        {
-            basePath = MuxFinish.ToAudioOnlyPath(basePath);
-        }
+        // 产物扩展名随混流方式/内容集修正，评论文件须与混流产物基底一致
+        basePath = MuxFinish.ToOutputPath(basePath, ctx.Run.Mux, ctx.Run.Content.Has(DownloadContent.Video));
 
         Directory.CreateDirectory(Path.GetDirectoryName(basePath)!);
 

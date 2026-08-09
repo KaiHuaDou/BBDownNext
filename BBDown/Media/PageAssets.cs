@@ -66,11 +66,8 @@ internal static class PageAssets
     private static void MoveSubtitleToOutput(Subtitle s, WorkContext ctx, PageContext pageCtx, bool audioOnly)
     {
         var outSubPath = SavePath.Build(ctx, pageCtx, null, null);
-        // 内容集无 v（仅音频）时产物为 .m4a，字幕文件须与之一致，否则音视频之外的文件仍挂在 .mp4 基底
-        if (audioOnly)
-        {
-            outSubPath = MuxFinish.ToAudioOnlyPath(outSubPath);
-        }
+        // 产物扩展名随混流方式/内容集：纯音频与 mkv 容器须与混流产物一致，否则字幕挂在 .mp4 基底
+        outSubPath = MuxFinish.ToOutputPath(outSubPath, ctx.Run.Mux, !audioOnly);
 
         var outDir = Path.GetDirectoryName(outSubPath);
         if (!string.IsNullOrEmpty(outDir))

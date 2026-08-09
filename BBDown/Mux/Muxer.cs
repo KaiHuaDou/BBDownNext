@@ -149,7 +149,9 @@ internal static class Muxer
     internal static List<string> BuildFFmpegArgs(MuxRequest req, string? chapterFile, bool debugLog)
     {
         var subs = req.Subs ?? [];
-        var tagHvc1 = req.IsHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+        var mkv = req.Mux == MuxMode.Mkv;
+        // hvc1 是 mp4 的 codec tag，matroska 用 codec id 表达，只有 mp4 容器需要
+        var tagHvc1 = req.IsHevc && RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && !mkv;
         List<string> args = ["-loglevel", debugLog ? "verbose" : "warning", "-y"];
         List<string> meta = [];
         var inputCount = 0;
@@ -261,15 +263,18 @@ internal static class Muxer
 
         if (subs.Count != 0)
         {
-            args.AddRange(["-c:s", "mov_text"]);
+            // mp4 无原生文本字幕流需转 mov_text；matroska 原生支持 srt/ass 文本字幕，直接复制
+            args.AddRange(["-c:s", mkv ? "copy" : "mov_text"]);
         }
         // fix macOS hev1, see https://discussions.apple.com/thread/253081863?sortBy=rank
         if (tagHvc1)
         {
             args.AddRange(["-tag:v:0", "hvc1"]);
         }
-        // -strict -2：允许实验性编码器/封装（如 mp4 容器内 hev1/hvc1 之外的实验性流）
-        args.AddRange(["-movflags", "faststart", "-strict", "-2", "-f", "mp4", "--", req.OutPath]);
+        // -movflags faststart / -strict -2 是 mp4 专属；mkv 模式用 matroska 封装
+        args.AddRange(mkv
+            ? ["-f", "matroska", "--", req.OutPath]
+            : ["-movflags", "faststart", "-strict", "-2", "-f", "mp4", "--", req.OutPath]);
         return args;
     }
 
@@ -304,7 +309,7 @@ internal static class Muxer
             File.WriteAllText(chapterFile, req.Mux == MuxMode.Mp4box ? ChapterMeta.GetMp4boxMetaString(points) : ChapterMeta.GetFFmpegMetaString(points));
         }
 
-        // MuxMode.None 由 MuxFinish 提前中止，不会走到这里；Mkv 已在 WorkSetup 回退为 Mpeg4
+        // MuxMode.None 由 MuxFinish 提前中止，不会走到这里；Mkv 走 FFmpeg（matroska 容器）
         return req.Mux == MuxMode.Mp4box
             ? await RunExe(req.Tools.Mp4box, BuildMp4boxArgs(req, chapterFile, Config.DebugLog), ct)
             : await RunExe(req.Tools.Ffmpeg, BuildFFmpegArgs(req, chapterFile, Config.DebugLog), ct);

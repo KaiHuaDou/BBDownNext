@@ -23,6 +23,7 @@ internal sealed record RunConfig(
     string FirstEncoding,
     bool EncodingFirst,
     DownloadContent Content,
+    MuxMode Mux,
     DanmakuFormat[] DownloadDanmakuFormats,
     int CommentCount,
     bool CommentSortHot,
@@ -39,13 +40,6 @@ internal static class WorkSetup
 {
     public static RunConfig Build(DownloadRequest myOption)
     {
-        // mkv 暂未实现：任务启动时统一回退为 mpeg4，避免各消费点各自处理
-        if (myOption.Mux == MuxMode.Mkv)
-        {
-            LogWarn("mkv 混流暂未实现，已回退为 mpeg4");
-            myOption = myOption with { Mux = MuxMode.Mpeg4 };
-        }
-
         // 解析外部工具路径（不可变快照，作为 ToolPaths 向下透传，不写进程级静态）
         var tools = ResolveToolPaths(myOption);
 
@@ -73,6 +67,7 @@ internal static class WorkSetup
             FirstEncoding: firstEncoding,
             EncodingFirst: myOption.EncodingFirst,
             Content: myOption.Content,
+            Mux: myOption.Mux,
             DownloadDanmakuFormats: downloadDanmakuFormats,
             CommentCount: commentCount,
             CommentSortHot: commentSortHot,

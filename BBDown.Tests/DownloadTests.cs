@@ -172,17 +172,25 @@ public class DownloadTests
     }
 
     [Fact]
-    public void ToAudioOnlyPath_ReplacesExtension( )
+    public void ToOutputPath_ReplacesExtension( )
     {
-        Assert.Equal("out/video.m4a", MuxFinish.ToAudioOnlyPath("out/video.mp4"));
+        Assert.Equal("out/video.m4a", MuxFinish.ToOutputPath("out/video.mp4", MuxMode.Mpeg4, hasVideo: false));
+        Assert.Equal("out/video.mp4", MuxFinish.ToOutputPath("out/video.mp4", MuxMode.Mpeg4, hasVideo: true));
     }
 
     [Fact]
-    public void ToAudioOnlyPath_DoesNotAssumeFourCharExtension( )
+    public void ToOutputPath_DoesNotAssumeFourCharExtension( )
     {
-        Assert.Equal("out/video.m4a", MuxFinish.ToAudioOnlyPath("out/video.MP4"));
-        Assert.Equal("out/video.m4a", MuxFinish.ToAudioOnlyPath("out/video.mkv"));
-        Assert.Equal("out/v.1.0.m4a", MuxFinish.ToAudioOnlyPath("out/v.1.0.mp4"));
+        Assert.Equal("out/video.m4a", MuxFinish.ToOutputPath("out/video.MP4", MuxMode.Mp4box, hasVideo: false));
+        Assert.Equal("out/v.1.0.m4a", MuxFinish.ToOutputPath("out/v.1.0.mp4", MuxMode.Mpeg4, hasVideo: false));
+    }
+
+    [Fact]
+    public void ToOutputPath_MkvModeUsesMatroskaExtension( )
+    {
+        Assert.Equal("out/video.mkv", MuxFinish.ToOutputPath("out/video.mp4", MuxMode.Mkv, hasVideo: true));
+        Assert.Equal("out/video.mka", MuxFinish.ToOutputPath("out/video.mp4", MuxMode.Mkv, hasVideo: false));
+        Assert.Equal("out/video.mka", MuxFinish.ToOutputPath("out/video.mkv", MuxMode.Mkv, hasVideo: false));
     }
 
     private static DownloadSession MakeSkipSession(DownloadContent content, string tempDir)
