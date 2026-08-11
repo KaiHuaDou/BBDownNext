@@ -1,99 +1,169 @@
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Text.Json.Serialization;
+
 namespace BBDown.Core;
 
 /// <summary>
 /// 各类资源 id 的统一类型，替代字符串形态的内部 id（如 "ep:ss2539"、favId:123:456）。
-/// 值相等性天然支持去重键；每个子类型自行 override ToString 保持旧字符串格式，兼容日志输出与 serve 契约字段。
-/// 注意：record 的合成 ToString 会遮蔽基类 override，故契约格式必须写在各子类型上。
+/// 值相等性天然支持去重键；子类型即形态，消费点按类型分发而非解析字符串。
+/// serve API 边界经 <see cref="ResourceIdJsonConverter"/> 序列化为规范字符串
+/// （如 "season2539"，与 <see cref="TryParse"/> 的路径参数编码一致），内部仍保持类型。
 /// </summary>
+[JsonConverter(typeof(ResourceIdJsonConverter))]
 public abstract record ResourceId
 {
     /// <summary>普通视频 av 号</summary>
-    public sealed record Av(long Aid) : ResourceId
-    {
-        public override string ToString( )
-        {
-            return Aid.ToString( );
-        }
-    }
+    public sealed record Av(long Aid) : ResourceId;
 
     /// <summary>单集番剧 ep_id</summary>
-    public sealed record Ep(long EpId) : ResourceId
-    {
-        public override string ToString( )
-        {
-            return $"ep:{EpId}";
-        }
-    }
+    public sealed record Ep(long EpId) : ResourceId;
 
     /// <summary>整季番剧 season_id（原 "ep:ss{id}" 打标形态）</summary>
-    public sealed record Season(long SeasonId) : ResourceId
-    {
-        public override string ToString( )
-        {
-            return $"ep:ss{SeasonId}";
-        }
-    }
+    public sealed record Season(long SeasonId) : ResourceId;
 
     /// <summary>课程单集 ep_id</summary>
-    public sealed record CheeseEp(long EpId) : ResourceId
-    {
-        public override string ToString( )
-        {
-            return $"cheese:{EpId}";
-        }
-    }
+    public sealed record CheeseEp(long EpId) : ResourceId;
 
     /// <summary>整季课程 season_id（原 "cheese:ss{id}" 打标形态）</summary>
-    public sealed record CheeseSeason(long SeasonId) : ResourceId
-    {
-        public override string ToString( )
-        {
-            return $"cheese:ss{SeasonId}";
-        }
-    }
+    public sealed record CheeseSeason(long SeasonId) : ResourceId;
 
     /// <summary>收藏夹（Fid 为 0 表示取默认收藏夹）</summary>
-    public sealed record Fav(long Fid, long Mid) : ResourceId
-    {
-        public override string ToString( )
-        {
-            return $"favId:{Fid}:{Mid}";
-        }
-    }
+    public sealed record Fav(long Fid, long Mid) : ResourceId;
 
     /// <summary>合集 biz_id</summary>
-    public sealed record MediaList(long BizId) : ResourceId
-    {
-        public override string ToString( )
-        {
-            return $"listBizId:{BizId}";
-        }
-    }
+    public sealed record MediaList(long BizId) : ResourceId;
 
     /// <summary>系列 biz_id</summary>
-    public sealed record Series(long BizId) : ResourceId
-    {
-        public override string ToString( )
-        {
-            return $"seriesBizId:{BizId}";
-        }
-    }
+    public sealed record Series(long BizId) : ResourceId;
 
     /// <summary>UP 主空间 mid</summary>
-    public sealed record Space(long Mid) : ResourceId
-    {
-        public override string ToString( )
-        {
-            return $"spaceMid:{Mid}";
-        }
-    }
+    public sealed record Space(long Mid) : ResourceId;
 
     /// <summary>稍后再看列表</summary>
-    public sealed record WatchLater : ResourceId
+    public sealed record WatchLater : ResourceId;
+
+    /// <summary>
+    /// 解析 serve API 路径参数的规范 id（"&lt;type&gt;&lt;值&gt;" 无冒号形态，如 "season2539"；
+    /// fav 双值为 "fav&lt;fid&gt;_&lt;mid&gt;"，watchLater 无值）。仅接受规范形态，不接受用户输入简写。
+    /// </summary>
+    public static bool TryParse(string input, [NotNullWhen(true)] out ResourceId? id)
     {
-        public override string ToString( )
+        id = null;
+        if (string.IsNullOrEmpty(input))
         {
-            return "watchLater:";
+            return false;
         }
+
+        if (input == "watchLater")
+        {
+            id = new WatchLater( );
+            return true;
+        }
+
+        // 前缀按长度降序匹配，长前缀（cheeseSeason/cheeseEp）不被短前缀误吞
+        foreach (var prefix in TypePrefixes)
+        {
+            if (input.StartsWith(prefix, StringComparison.Ordinal) && TryBuild(prefix, input[prefix.Length..], out id))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryBuild(string prefix, string rest, [NotNullWhen(true)] out ResourceId? id)
+    {
+        id = null;
+        switch (prefix)
+        {
+            case "av":
+                if (TryLong(rest, out var aid))
+                {
+                    id = new Av(aid);
+                    return true;
+                }
+
+                break;
+            case "ep":
+                if (TryLong(rest, out var epId))
+                {
+                    id = new Ep(epId);
+                    return true;
+                }
+
+                break;
+            case "season":
+                if (TryLong(rest, out var seasonId))
+                {
+                    id = new Season(seasonId);
+                    return true;
+                }
+
+                break;
+            case "cheeseEp":
+                if (TryLong(rest, out var cheeseEpId))
+                {
+                    id = new CheeseEp(cheeseEpId);
+                    return true;
+                }
+
+                break;
+            case "cheeseSeason":
+                if (TryLong(rest, out var cheeseSeasonId))
+                {
+                    id = new CheeseSeason(cheeseSeasonId);
+                    return true;
+                }
+
+                break;
+            case "mediaList":
+                if (TryLong(rest, out var listBizId))
+                {
+                    id = new MediaList(listBizId);
+                    return true;
+                }
+
+                break;
+            case "series":
+                if (TryLong(rest, out var seriesBizId))
+                {
+                    id = new Series(seriesBizId);
+                    return true;
+                }
+
+                break;
+            case "space":
+                if (TryLong(rest, out var mid))
+                {
+                    id = new Space(mid);
+                    return true;
+                }
+
+                break;
+            case "fav":
+                var sep = rest.IndexOf('_');
+                if (sep > 0 && TryLong(rest[..sep], out var fid) && TryLong(rest[(sep + 1)..], out var favMid))
+                {
+                    id = new Fav(fid, favMid);
+                    return true;
+                }
+
+                break;
+        }
+
+        return false;
+    }
+
+    // 前缀按长度降序（cheeseSeason 11 > mediaList 9 > cheeseEp 8 > season 6 > series/space 5 > fav 3 > ep/av 2），
+    // 未来若出现包含关系（如新增 "cheese" 前缀），长前缀仍优先匹配
+    private static readonly string[] TypePrefixes = ["cheeseSeason", "mediaList", "cheeseEp", "season", "series", "space", "fav", "ep", "av"];
+
+    // 仅接受纯数字（无符号/空白/千分位），保证规范形态与非法输入严格区分
+    private static bool TryLong(string value, out long result)
+    {
+        return long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out result);
     }
 }

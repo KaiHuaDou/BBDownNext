@@ -211,7 +211,7 @@ public class BBDownApiServerTests
         try
         {
             using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-            using var resp = await client.PostAsync("/remove-finished/BV1xx411c7XD", null, TestContext.Current.CancellationToken);
+            using var resp = await client.PostAsync("/remove-finished/av123", null, TestContext.Current.CancellationToken);
             Assert.True(resp.IsSuccessStatusCode);
         }
         finally
@@ -256,6 +256,156 @@ public class BBDownApiServerTests
             await server.StopForTestAsync( );
         }
     }
+
+    #region 令牌认证矩阵（启用 --serve-token 后所有端点拒绝未认证请求）
+
+    [Theory]
+    [InlineData("GET", "/get-tasks")]
+    [InlineData("GET", "/get-tasks/running")]
+    [InlineData("GET", "/get-tasks/finished")]
+    [InlineData("GET", "/get-tasks/av12345678")]
+    [InlineData("POST", "/add-task")]
+    [InlineData("POST", "/remove-finished")]
+    [InlineData("POST", "/remove-finished/failed")]
+    [InlineData("POST", "/stop-task/av12345678")]
+    public async Task Serve_WithTokenEnabled_AllEndpointsRejectUnauthenticated(string method, string path)
+    {
+        var server = new BBDownApiServer( );
+        var baseUrl = await server.StartForTestAsync(serveToken: "test-token");
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
+            using var request = new HttpRequestMessage(new HttpMethod(method), path);
+            using var resp = await client.SendAsync(request, TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+        }
+        finally
+        {
+            await server.StopForTestAsync( );
+        }
+    }
+
+    [Fact]
+    public async Task Serve_WithTokenEnabled_WrongTokenRejected( )
+    {
+        var server = new BBDownApiServer( );
+        var baseUrl = await server.StartForTestAsync(serveToken: "test-token");
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/get-tasks");
+            request.Headers.TryAddWithoutValidation("X-BBDown-Token", "wrong-token");
+            using var resp = await client.SendAsync(request, TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+        }
+        finally
+        {
+            await server.StopForTestAsync( );
+        }
+    }
+
+    [Fact]
+    public async Task Serve_WithTokenEnabled_HeaderTokenAccepted( )
+    {
+        var server = new BBDownApiServer( );
+        var baseUrl = await server.StartForTestAsync(serveToken: "test-token");
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/get-tasks");
+            request.Headers.TryAddWithoutValidation("X-BBDown-Token", "test-token");
+            using var resp = await client.SendAsync(request, TestContext.Current.CancellationToken);
+            Assert.True(resp.IsSuccessStatusCode);
+        }
+        finally
+        {
+            await server.StopForTestAsync( );
+        }
+    }
+
+    [Fact]
+    public async Task Serve_WithTokenEnabled_QueryTokenAccepted( )
+    {
+        var server = new BBDownApiServer( );
+        var baseUrl = await server.StartForTestAsync(serveToken: "test-token");
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
+            using var resp = await client.GetAsync("/get-tasks?token=test-token", TestContext.Current.CancellationToken);
+            Assert.True(resp.IsSuccessStatusCode);
+        }
+        finally
+        {
+            await server.StopForTestAsync( );
+        }
+    }
+
+    #endregion
+
+    #region ResourceId 规范 id 与 JSON 契约（ResourceId 重构后 serve 契约）
+
+    [Theory]
+    [InlineData("av114514", typeof(ResourceId.Av), 114514L)]
+    [InlineData("ep2539", typeof(ResourceId.Ep), 2539L)]
+    [InlineData("season2539", typeof(ResourceId.Season), 2539L)]
+    [InlineData("cheeseEp123", typeof(ResourceId.CheeseEp), 123L)]
+    [InlineData("cheeseSeason123", typeof(ResourceId.CheeseSeason), 123L)]
+    [InlineData("mediaList789", typeof(ResourceId.MediaList), 789L)]
+    [InlineData("series789", typeof(ResourceId.Series), 789L)]
+    [InlineData("space402787936", typeof(ResourceId.Space), 402787936L)]
+    public void ResourceId_TryParse_AcceptsCanonicalForms(string input, Type type, long value)
+    {
+        Assert.True(ResourceId.TryParse(input, out var id));
+        Assert.Equal(type, id!.GetType( ));
+        Assert.Equal(value, id switch
+        {
+            ResourceId.Av a => a.Aid,
+            ResourceId.Ep e => e.EpId,
+            ResourceId.Season s => s.SeasonId,
+            ResourceId.CheeseEp e => e.EpId,
+            ResourceId.CheeseSeason s => s.SeasonId,
+            ResourceId.MediaList m => m.BizId,
+            ResourceId.Series s => s.BizId,
+            ResourceId.Space s => s.Mid,
+            _ => 0
+        });
+    }
+
+    [Fact]
+    public void ResourceId_TryParse_FavAndWatchLater( )
+    {
+        Assert.True(ResourceId.TryParse("fav100_200", out var fav));
+        Assert.Equal(new ResourceId.Fav(100, 200), fav);
+
+        Assert.True(ResourceId.TryParse("watchLater", out var watch));
+        Assert.Equal(new ResourceId.WatchLater( ), watch);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("114514")]              // 裸数字（旧 AID 契约，已废弃）
+    [InlineData("av")]                  // 缺值
+    [InlineData("avabc")]               // 非数字
+    [InlineData("av:1:2")]              // 旧冒号形态，已废弃
+    [InlineData("BV1xx411c7XD")]        // 输入简写，非规范 id
+    [InlineData("ep:ss2539")]           // 旧打标形态
+    [InlineData("fav100")]              // fav 缺 mid
+    [InlineData("watchLater:")]         // watchLater 无值形态不带冒号
+    public void ResourceId_TryParse_RejectsNonCanonical(string input)
+    {
+        Assert.False(ResourceId.TryParse(input, out _));
+    }
+
+    [Fact]
+    public void DownloadTask_Json_SerializesIdAsCanonicalString( )
+    {
+        var task = new DownloadTask(new ResourceId.Season(2539), "ss2539", 0);
+        var json = JsonSerializer.Serialize(task, AppJsonSerializerContext.Default.DownloadTask);
+
+        Assert.Contains("\"Id\":\"season2539\"", json);
+    }
+
+    #endregion
 
     [Fact]
     public async Task Serve_WorkDir_FallsBackToServerConfig( )
@@ -333,6 +483,8 @@ public class BBDownApiServerTests
     [InlineData("172.16.0.1")]               // RFC1918
     [InlineData("192.168.1.1")]              // RFC1918
     [InlineData("169.254.169.254")]          // 链路本地/云元数据
+    [InlineData("::ffff:169.254.169.254")]   // IPv4-mapped 云元数据（绕过修复）
+    [InlineData("::ffff:10.0.0.1")]          // IPv4-mapped RFC1918
     [InlineData("0.0.0.0")]                  // 未指定
     [InlineData("::1")]                      // IPv6 回环
     [InlineData("fd00::1")]                  // IPv6 ULA
@@ -366,7 +518,7 @@ public class BBDownApiServerTests
     [Fact]
     public void SinkFor_RoutesCallbacksIntoTask( )
     {
-        var task = new DownloadTask("114514", "BV1xx411c7XD", 0);
+        var task = new DownloadTask(new ResourceId.Av(114514), "BV1xx411c7XD", 0);
         var sink = BBDownApiServer.SinkFor(task);
 
         sink.Meta!(new VInfo { Title = "标题", Desc = "", Pic = "https://i0.hdslb.com/x.jpg", PubTime = 1700000000, PagesInfo = [] });
@@ -402,7 +554,7 @@ public class BBDownApiServerTests
     {
         var server = new BBDownApiServer( );
         server.SetUpServer( );
-        var task = server.CreateTask("114514", "BV1xx411c7XD");
+        var task = server.CreateTask(new ResourceId.Av(114514), "BV1xx411c7XD");
 
         Assert.Equal(DownloadStatus.Running, task.Status);
     }
@@ -412,7 +564,7 @@ public class BBDownApiServerTests
     {
         var server = new BBDownApiServer( );
         server.SetUpServer(maxConcurrent: 2);
-        var task = server.CreateTask("114514", "BV1xx411c7XD");
+        var task = server.CreateTask(new ResourceId.Av(114514), "BV1xx411c7XD");
 
         Assert.Equal(DownloadStatus.Queued, task.Status);
     }
@@ -424,7 +576,7 @@ public class BBDownApiServerTests
     {
         var server = new BBDownApiServer( );
         server.SetUpServer(maxConcurrent: n);
-        Assert.Equal(DownloadStatus.Running, server.CreateTask("1", "u").Status);
+        Assert.Equal(DownloadStatus.Running, server.CreateTask(new ResourceId.Av(1), "u").Status);
     }
 
     [Fact]
@@ -438,7 +590,7 @@ public class BBDownApiServerTests
         var running = 0;
         var peak = 0;
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var tasks = Enumerable.Range(0, total).Select(i => server.CreateTask(i.ToString( ), "u")).ToList( );
+        var tasks = Enumerable.Range(0, total).Select(i => server.CreateTask(new ResourceId.Av(i), "u")).ToList( );
         var runs = tasks.Select(t => server.RunGatedAsync(t, async ( ) =>
         {
             var now = Interlocked.Increment(ref running);
@@ -474,7 +626,7 @@ public class BBDownApiServerTests
         server.SetUpServer( );
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var running = 0;
-        var runs = Enumerable.Range(0, 4).Select(i => server.RunGatedAsync(server.CreateTask(i.ToString( ), "u"),
+        var runs = Enumerable.Range(0, 4).Select(i => server.RunGatedAsync(server.CreateTask(new ResourceId.Av(i), "u"),
             async ( ) => { Interlocked.Increment(ref running); await release.Task; },
             TestContext.Current.CancellationToken)).ToList( );
 
@@ -496,9 +648,9 @@ public class BBDownApiServerTests
         server.SetUpServer(maxConcurrent: 1);
         using var cts = new CancellationTokenSource( );
         var block = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var holder = server.RunGatedAsync(server.CreateTask("1", "u"), ( ) => block.Task, CancellationToken.None);
+        var holder = server.RunGatedAsync(server.CreateTask(new ResourceId.Av(1), "u"), ( ) => block.Task, CancellationToken.None);
 
-        var queued = server.CreateTask("2", "u");
+        var queued = server.CreateTask(new ResourceId.Av(2), "u");
         var second = server.RunGatedAsync(queued, ( ) => Task.FromException(new InvalidOperationException("不应执行")), cts.Token);
         await cts.CancelAsync( );
 

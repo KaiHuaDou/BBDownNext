@@ -31,7 +31,7 @@ internal static class PageDownload
             try
             {
                 LogDebug("获取播放器信息...");
-                var playerInfo = await ChapterMeta.FetchPlayerV2Async(p.Cid, p.Aid, ctx.Fetch.Cfg);
+                var playerInfo = await ChapterMeta.FetchPlayerV2Async(p.Cid, p.Aid, ctx.Fetch.Cfg, ct);
                 p.Points = playerInfo.Points;
 
                 //调用解析

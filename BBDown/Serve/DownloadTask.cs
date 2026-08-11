@@ -3,6 +3,8 @@ using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
 using System.Threading;
 
+using BBDown.Core;
+
 namespace BBDown.Serve;
 
 [JsonConverter(typeof(JsonStringEnumConverter<DownloadStatus>))]
@@ -13,7 +15,7 @@ public enum DownloadStatus
     Finished, // 已结束，成败见 IsSuccessful
 }
 
-public record DownloadTask(string Aid, string Url, long TaskCreateTime)
+public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
 {
     public string? Title { get; set; }
     public string? Pic { get; set; }

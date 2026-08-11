@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core;
@@ -33,12 +34,12 @@ internal static partial class ChapterMeta
     /// <summary>
     /// 获取播放器信息（章节点 + 充电专属标记）
     /// </summary>
-    public static async Task<PlayerV2Info> FetchPlayerV2Async(string cid, string aid, Core.AppConfig cfg)
+    public static async Task<PlayerV2Info> FetchPlayerV2Async(string cid, string aid, Core.AppConfig cfg, CancellationToken ct = default)
     {
         try
         {
             var api = $"{BiliApi.PlayerWbiV2}?{SignUtil.WbiSignNow($"aid={aid}&cid={cid}", cfg)}";
-            return ParsePlayerV2(await GetWebSourceAsync(api, cfg));
+            return ParsePlayerV2(await GetWebSourceAsync(api, cfg, ct: ct));
         }
         catch (Exception ex)
         {

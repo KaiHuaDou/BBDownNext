@@ -3,7 +3,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Auth;
 using BBDown.Core;
 using BBDown.Core.Live;
 using BBDown.Live;
@@ -24,8 +23,7 @@ internal static class LiveDownload
         var tools = WorkSetup.ResolveToolPaths(myOption);
         var workDir = WorkSetup.ResolveWorkDir(myOption);
 
-        var (cookie, _) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, ApiType.Web);
-        var cfg = new AppConfig(cookie, "", myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
+        var cfg = WorkSetup.ResolveConfig(myOption, ApiType.Web);
 
         Log("获取直播间信息...");
         var room = await LiveFetcher.FetchRoomAsync(target, cfg, ct);
@@ -70,7 +68,7 @@ internal static class LiveDownload
         {
             var recorder = new LiveRecorder(
                 (qn, token) => LiveFetcher.FetchPlayInfoAsync(room.RoomId, qn, cfg, token),
-                (candidate, partPath, token) => LiveSegmentWriter.WriteAsync(candidate.Url, partPath, cookie, progress.Add, token),
+                (candidate, partPath, token) => LiveSegmentWriter.WriteAsync(candidate.Url, partPath, cfg.Cookie, progress.Add, token),
                 onSegmentStart: progress.StartSegment);
 
             result = await recorder.RunAsync(destPathWithoutExtension, myOption.LiveQuality, recordCts.Token, ct);

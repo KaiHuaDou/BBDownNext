@@ -9,7 +9,7 @@ internal enum MuxMode
     Mpeg4 = 1,
     /// <summary>MP4Box 混流。</summary>
     Mp4box = 2,
-    /// <summary>MKV 混流（暂未实现，选择时由 WorkSetup 回退为 Mpeg4 并警告）。</summary>
+    /// <summary>FFmpeg 混流为 Matroska</summary>
     Mkv = 3,
 }
 

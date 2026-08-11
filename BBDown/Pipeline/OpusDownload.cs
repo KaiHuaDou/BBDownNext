@@ -7,7 +7,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Auth;
 using BBDown.Core;
 using BBDown.Core.Opus;
 using BBDown.Core.Util;
@@ -26,12 +25,6 @@ internal static class OpusDownload
 {
     internal static async Task RunAsync(DownloadRequest myOption, CancellationToken ct = default)
     {
-        Config.SetDebugLog(myOption.Debug);
-        if (!string.IsNullOrEmpty(myOption.UserAgent))
-        {
-            HTTPUtil.SetUserAgent(myOption.UserAgent);
-        }
-
         var workDir = WorkSetup.ResolveWorkDir(myOption);
 
         var input = myOption.Url;
@@ -53,9 +46,7 @@ internal static class OpusDownload
             throw new ArgumentException($"无法识别的专栏地址：{myOption.Url}");
         }
 
-        // 专栏只需要 cookie，不需要 token / wbi；凭据加载与 VideoInfo.FetchAsync 保持一致
-        var (cookie, _) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, ApiType.Web);
-        var cfg = new AppConfig(cookie, "", myOption.Host, myOption.EpHost, myOption.TvHost, myOption.Area, "");
+        var cfg = WorkSetup.ResolveConfig(myOption, ApiType.Web);
 
         // opus/detail 要求 Cookie 中带非空 buvid3；平时这一步在 VideoInfo.FetchAsync 完成，旁路后必须自己补
         await Buvid.InitAsync(ct);

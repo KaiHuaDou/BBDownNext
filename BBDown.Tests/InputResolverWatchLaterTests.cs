@@ -49,7 +49,7 @@ public class InputResolverWatchLaterTests
     [InlineData("wAtChLaTeR")]
     public async Task ResolveIdAsync_WatchLaterKeyword_ResolvesToListPrefix(string input)
     {
-        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty);
+        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty, TestContext.Current.CancellationToken);
         Assert.Equal(new ResourceId.WatchLater( ), result);
     }
 
@@ -61,7 +61,7 @@ public class InputResolverWatchLaterTests
     [InlineData("https://www.bilibili.com/list/watchlater")]
     public async Task ResolveIdAsync_WatchLaterUrl_ResolvesToListPrefix(string input)
     {
-        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty);
+        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty, TestContext.Current.CancellationToken);
         Assert.Equal(new ResourceId.WatchLater( ), result);
     }
 

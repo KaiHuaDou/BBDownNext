@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core;
@@ -18,19 +19,19 @@ namespace BBDown.Pipeline;
 /// </summary>
 internal static partial class InputResolver
 {
-    public static async Task<ResourceId> ResolveIdAsync(string input, Core.AppConfig cfg)
+    public static async Task<ResourceId> ResolveIdAsync(string input, Core.AppConfig cfg, CancellationToken ct = default)
     {
         var id = input.StartsWith("http")
-            ? await ResolveUrlAsync(input, cfg)
-            : await ResolveShorthandAsync(input, cfg);
-        return await FixAvidAsync(id);
+            ? await ResolveUrlAsync(input, cfg, ct)
+            : await ResolveShorthandAsync(input, cfg, ct);
+        return await FixAvidAsync(id, ct);
     }
 
-    private static async Task<ResourceId> ResolveUrlAsync(string input, Core.AppConfig cfg)
+    private static async Task<ResourceId> ResolveUrlAsync(string input, Core.AppConfig cfg, CancellationToken ct = default)
     {
         if (input.Contains("b23.tv"))
         {
-            var tmp = await GetWebLocationAsync(input);
+            var tmp = await GetWebLocationAsync(input, ct);
             if (tmp == input)
             {
                 throw new InvalidOperationException("无限重定向");
@@ -75,7 +76,7 @@ internal static partial class InputResolver
 
         if (input.Contains("/ss"))
         {
-            return new Season(await GetSeasonIdBySSAsync(SsRegex( ).Match(input).Groups[1].Value, cfg));
+            return new Season(await GetSeasonIdBySSAsync(SsRegex( ).Match(input).Groups[1].Value, cfg, ct));
         }
 
         if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_collection")) // 列表类型是合集
@@ -128,13 +129,13 @@ internal static partial class InputResolver
 
         if (BangumiMdRegex( ).Match(input) is { Success: true } md)
         {
-            return new Season(await GetSeasonIdByMDAsync(md.Groups[1].Value, cfg));
+            return new Season(await GetSeasonIdByMDAsync(md.Groups[1].Value, cfg, ct));
         }
 
-        return new Ep(await ScrapeFirstEpIdAsync(input, cfg));
+        return new Ep(await ScrapeFirstEpIdAsync(input, cfg, ct));
     }
 
-    private static async Task<ResourceId> ResolveShorthandAsync(string input, Core.AppConfig cfg)
+    private static async Task<ResourceId> ResolveShorthandAsync(string input, Core.AppConfig cfg, CancellationToken ct = default)
     {
         if (input.Equals("watchlater", StringComparison.OrdinalIgnoreCase))
         {
@@ -163,12 +164,12 @@ internal static partial class InputResolver
 
         if (input.StartsWith(IdPrefix.Ss))
         {
-            return new Season(await GetSeasonIdBySSAsync(input[IdPrefix.Ss.Length..], cfg));
+            return new Season(await GetSeasonIdBySSAsync(input[IdPrefix.Ss.Length..], cfg, ct));
         }
 
         if (input.StartsWith(IdPrefix.Md))
         {
-            return new Season(await GetSeasonIdByMDAsync(MdRegex( ).Match(input).Groups[1].Value, cfg));
+            return new Season(await GetSeasonIdByMDAsync(MdRegex( ).Match(input).Groups[1].Value, cfg, ct));
         }
 
         // space402787936：显式空间简写（先判 space 再判裸数字，避免裸数字分支误吞）
@@ -219,16 +220,16 @@ internal static partial class InputResolver
             : new MediaList(long.Parse(sid));
     }
 
-    private static async Task<long> ScrapeFirstEpIdAsync(string input, Core.AppConfig cfg)
+    private static async Task<long> ScrapeFirstEpIdAsync(string input, Core.AppConfig cfg, CancellationToken ct = default)
     {
-        var web = await GetWebSourceAsync(input, cfg);
+        var web = await GetWebSourceAsync(input, cfg, ct: ct);
         var json = StateRegex( ).Match(web).Groups[1].Value;
         using var jDoc = JsonDocument.Parse(json);
         return jDoc.RootElement.GetProperty("epList").EnumerateArray( ).First( ).GetProperty("id").GetInt64( );
     }
 
     // 纯数字 av 号可能实际指向番剧（稿件被重定向到番剧播放页），HEAD 探测后转 Ep，否则保持 Av
-    private static async Task<ResourceId> FixAvidAsync(ResourceId id)
+    private static async Task<ResourceId> FixAvidAsync(ResourceId id, CancellationToken ct = default)
     {
         if (id is not Av av)
         {
@@ -236,15 +237,15 @@ internal static partial class InputResolver
         }
 
         var api = $"{BiliApi.VideoPage}/av{av.Aid}/";
-        var location = await GetWebLocationAsync(api);
+        var location = await GetWebLocationAsync(api, ct);
         return location.Contains("/ep") ? new Ep(long.Parse(EpRegex( ).Match(location).Groups[1].Value)) : id;
     }
 
     // ss（番剧季号）直接解析为 season_id，与 md 路径完全对称：同样交由 BangumiInfoFetcher 按 season_id 拉取整季正片。
-    private static async Task<long> GetSeasonIdBySSAsync(string ssId, Core.AppConfig cfg)
+    private static async Task<long> GetSeasonIdBySSAsync(string ssId, Core.AppConfig cfg, CancellationToken ct = default)
     {
         var api = $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?season_id={ssId}";
-        var json = await GetWebSourceAsync(api, cfg);
+        var json = await GetWebSourceAsync(api, cfg, ct: ct);
         using var jDoc = JsonDocument.Parse(json);
         var result = BBDown.Core.Util.JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result");
         return result.GetProperty("season_id").GetInt64( );
@@ -252,10 +253,10 @@ internal static partial class InputResolver
 
     // md（番剧详情页 id）本质是 media_id，需经 pgc/review/user 映射出 season_id，
     // 交由 BangumiInfoFetcher 按 season_id 拉取整季正片。旧实现取 new_ep.Id（最新一集）改为整季，用户可用 -p 选定具体集。
-    private static async Task<long> GetSeasonIdByMDAsync(string mdId, Core.AppConfig cfg)
+    private static async Task<long> GetSeasonIdByMDAsync(string mdId, Core.AppConfig cfg, CancellationToken ct = default)
     {
         var api = $"{BiliApi.ReviewUser}?media_id={mdId}";
-        var json = await GetWebSourceAsync(api, cfg);
+        var json = await GetWebSourceAsync(api, cfg, ct: ct);
         using var jDoc = JsonDocument.Parse(json);
         var media = BBDown.Core.Util.JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result").GetProperty("media");
         return media.GetProperty("season_id").GetInt64( );

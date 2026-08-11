@@ -100,7 +100,7 @@
 
 ### 2.6 UP 主空间投稿列表
 
-- **解析入口**（`BBDown/Pipeline/InputResolver.cs`）：`space.bilibili.com/{mid}` 及其子路径（`/upload/video`、`/video?tid=0`、合集 `/lists/`、系列 /系列 `?type=series`）统一解析为 `spaceMid:{mid}`；另支持 `space{mid}` 简写。根命令裸数字解析为 `ep:{input}`（av 号须带 `av` 前缀，无回归）。
+- **解析入口**（`BBDown/Pipeline/InputResolver.cs`）：`space.bilibili.com/{mid}` 及其子路径（`/upload/video`、`/video?tid=0`、合集 `/lists/`、系列 /系列 `?type=series`）统一解析为 `ResourceId.Space(mid)`；另支持 `space{mid}` 简写。根命令裸数字解析为 `Ep(ep_id)`（av 号须带 `av` 前缀，无回归）。
 - **抓取**（`BBDown.Core/Fetcher/SpaceListFetcher.cs`：`FetchAsync`）：
     - 分页调用 `x/space/wbi/arc/search`（带 WBI 签名，`ps=30`），内置风控守卫（`is_risk` / `gaia_res_type` 抛「被风控拦截」）、越界页兜底、`MaxPages=1000` 防死循环。
     - 接口只返回 `aid`，对每条稿件并发回填（并发度 8，`SemaphoreSlim`）一次 `wbi/view` 取 `cid` 并展开多 P，摊平为 `VInfo.PagesInfo`；用 `HashSet<Page>` 去重。
@@ -174,7 +174,7 @@
 
 ### 2.16 稍后再看列表
 
-- **解析入口**（`BBDown/Pipeline/InputResolver.cs`）：`https://www.bilibili.com/watchlater/`、`/watchlater/#/list`、`/list/watchlater` 等形态统一解析为 `watchLater:`（`BBDown.Core/IdPrefix.cs`）；分享链接带 `bvid` / `oid` 参数时只下载该单个视频（`bvid` 优先，本地解码）。
+- **解析入口**（`BBDown/Pipeline/InputResolver.cs`）：`https://www.bilibili.com/watchlater/`、`/watchlater/#/list`、`/list/watchlater` 等形态统一解析为 `ResourceId.WatchLater`；分享链接带 `bvid` / `oid` 参数时只下载该单个视频（`bvid` 优先，本地解码）。
 - **抓取**（`BBDown.Core/Fetcher/WatchLaterFetcher.cs`）：走私有接口 `toview`，未登录（`-101`）时给出「通过 --cookie 或配置文件提供 SESSDATA」的可操作提示；多 P 视频并发（限流 8）回填 `wbi/view` 展开分 P，按添加顺序摊平为 `VInfo.PagesInfo`（`HashSet<Page>` 去重），支持 `-p` / `-iap`。列表为空时明确报错。
 
 ### 2.17 图形界面 BBDown.GUI

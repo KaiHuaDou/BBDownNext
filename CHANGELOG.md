@@ -15,11 +15,15 @@
 
 ### 修复
 
+- serve 模式解析与播放信息获取接入取消令牌：`InputResolver.ResolveIdAsync` / `ChapterMeta.FetchPlayerV2Async` 补 `CancellationToken` 并沿调用链贯通，服务器关停（Ctrl+C）可中断排队中的任务解析与播放信息请求，不再悬挂。
+- SSRF 防护补漏：回调地址校验对 IPv4-mapped IPv6（如 `::ffff:169.254.169.254`）先归一化为 IPv4 再判定私网，云元数据 / 内网地址不再绕过过滤。
+
 ### 变更
 
 - 图形界面单文件发布启用压缩与原生库自解压，发布工作流补充 checkout 步骤。
 - FFmpeg 混流时视频简介元数据键由 `description` 改为 `synopsis`（MP4 容器映射为 `ldes`）。
 - 混流选项改为 `--mux` / `-m` 单值枚举：`none`（不混流）/ `mpeg4`（FFmpeg 混流为 MP4，默认）/ `mp4box`（MP4Box 混流）/ `mkv`（FFmpeg 混流为 Matroska，视频 `.mkv` / 纯音频 `.mka`），取代 `--skip-mux` 与 `--mp4box` 两个布尔开关；图形界面同步改为「混流方式」下拉框。
+- serve 任务标识改为 `ResourceId` 规范字符串：`DownloadTask` 的 `Aid`（字符串）字段更名为 `Id`，JSON 序列化为规范编码（如 `season2539`、`av170001`、`fav100_200`）；`/get-tasks/{id}`、`/remove-finished/{id}`、`/stop-task/{id}` 路径参数使用同一编码。旧版「裸 AID 数字」路径与 `Aid` 字段废弃。
 
 ## [v2.0.0-beta.1]
 

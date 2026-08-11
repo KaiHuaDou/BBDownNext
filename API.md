@@ -26,25 +26,25 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 服务器启动后会一直运行，直到进程被终止（可用 `Ctrl+C` 优雅取消正在进行的下载）。
 
-> **鉴权：** 绑定回环地址（默认 `127.0.0.1`）时所有接口免令牌；绑定非回环地址时，所有 `POST` 接口（`add-task` 与 `remove-finished*`）均需携带鉴权令牌——请求头 `X-BBDown-Token: <token>` 或查询参数 `?token=<token>`。令牌由 `--serve-token` 显式指定，或绑非回环时自动生成并打印到控制台。
+> **鉴权：** 默认绑定回环地址（`127.0.0.1`）且未指定 `--serve-token` 时所有接口免令牌；一旦显式指定 `--serve-token` 或绑定非回环地址，**所有接口**（含 `GET /get-tasks*`）均需携带鉴权令牌——请求头 `X-BBDown-Token: <token>` 或查询参数 `?token=<token>`，未携带或错误一律返回 `401`。令牌由 `--serve-token` 显式指定，或绑非回环时自动生成并打印到控制台。
 
 ---
 
 ## 接口一览
 
-所有响应均为 JSON。任务标识（`{id}`）使用视频的 **AID**（字符串）。
+所有响应均为 JSON。任务标识（`{id}`）为 **ResourceId**（见 [任务标识](#任务标识)）：在 `DownloadTask` 的 JSON 中序列化为规范字符串（如 `season2539`），路径参数使用同一编码。
 
 | 方法 | 路径                      | 说明                                                  |
 | ---- | ------------------------- | ----------------------------------------------------- |
 | GET  | `/get-tasks/`             | 获取运行中与已完成任务的整体快照                      |
 | GET  | `/get-tasks/running`      | 获取正在运行的任务列表                                |
 | GET  | `/get-tasks/finished`     | 获取已完成的任务列表                                  |
-| GET  | `/get-tasks/{id}`         | 获取指定 AID 的任务详情                               |
+| GET  | `/get-tasks/{id}`         | 获取指定任务详情                                      |
 | POST | `/add-task`               | 新增下载任务                                          |
 | POST | `/remove-finished`        | 移除所有已完成任务                                    |
 | POST | `/remove-finished/failed` | 移除所有已失败（`IsSuccessful == false`）的已完成任务 |
-| POST | `/remove-finished/{id}`   | 移除指定 AID 的已完成任务                             |
-| POST | `/stop-task/{id}`         | 取消指定 AID 的运行中 / 排队中任务（不影响其他任务）   |
+| POST | `/remove-finished/{id}`   | 移除指定已完成任务                                    |
+| POST | `/stop-task/{id}`         | 取消指定运行中 / 排队中任务（不影响其他任务）          |
 
 ---
 
@@ -73,9 +73,9 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 - **Endpoint：** `/get-tasks/{id}`
 - **Method：** GET
-- **Description：** 按视频 AID 获取任务详情（运行中的或已完成的均可）。
+- **Description：** 按任务 id 获取任务详情（运行中的或已完成的均可）。
 - **Parameters：**
-    - `{id}`（路径参数）：视频的 AID。
+    - `{id}`（路径参数）：任务的规范 id（如 `av170001`、`season2539`），见 [任务标识](#任务标识)。
 - **Response：**
     - 找到匹配任务：返回 JSON 格式的 `DownloadTask`。
     - 未找到：返回 `404 Not Found`。
@@ -116,9 +116,9 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 - **Endpoint：** `/remove-finished/{id}`
 - **Method：** POST
 - **Auth：** 非回环绑定下需携带鉴权令牌（见上文鉴权说明）。
-- **Description：** 按视频 AID 移除对应的已完成任务。
+- **Description：** 按任务 id 移除对应的已完成任务。
 - **Parameters：**
-    - `{id}`（路径参数）：视频的 AID。
+    - `{id}`（路径参数）：任务的规范 id（如 `av170001`、`season2539`），见 [任务标识](#任务标识)。
 - **Response：** 无论是否找到对应任务，均返回 `200 OK`。
 
 ### 取消单个任务
@@ -126,12 +126,35 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 - **Endpoint：** `/stop-task/{id}`
 - **Method：** POST
 - **Auth：** 非回环绑定下需携带鉴权令牌（见上文鉴权说明）。
-- **Description：** 取消指定 AID 的运行中或排队中任务，不影响其他任务。每个任务持有与进程级关停令牌 `Link` 的 `CancellationTokenSource`，调用该接口即触发其 `Cancel()`，只终止目标任务；`Ctrl+C`（全局令牌）仍会取消所有进行中的任务。
+- **Description：** 取消指定 id 的运行中或排队中任务，不影响其他任务。每个任务持有与进程级关停令牌 `Link` 的 `CancellationTokenSource`，调用该接口即触发其 `Cancel()`，只终止目标任务；`Ctrl+C`（全局令牌）仍会取消所有进行中的任务。
 - **Parameters：**
-    - `{id}`（路径参数）：视频的 AID。
+    - `{id}`（路径参数）：任务的规范 id（如 `av170001`、`season2539`），见 [任务标识](#任务标识)。
 - **Response：**
     - 找到匹配的运行中 / 排队中任务：取消该任务，返回 `200 OK`。
     - 未找到：返回 `404 Not Found`。
+
+---
+
+## 任务标识
+
+任务唯一标识为 `ResourceId`（`BBDown.Core.ResourceId`，判别联合），取代旧版的字符串 AID。同一资源在运行中与已完成列表内各自唯一，重复提交同一资源会直接返回已有的运行中任务；不同资源形态（番剧整季 / 空间 / 稍后再看等）与普通视频平权，不再是「AID 字符串」能表达的单一形态。
+
+在 `DownloadTask` 的 JSON 中，`Id` 序列化为**规范字符串**（如 `"season2539"`），`/get-tasks/{id}`、`/remove-finished/{id}`、`/stop-task/{id}` 的路径参数使用**同一编码**，客户端拿到 `Id` 即可直接回显到路径：
+
+| 类型 | `Id`（JSON 字段与路径参数同一串） |
+| ---- | --------------------------------- |
+| `av`（普通视频） | `av170001` |
+| `ep`（番剧单集） | `ep2539` |
+| `season`（番剧整季） | `season2539` |
+| `cheeseEp`（课程单集） | `cheeseEp123` |
+| `cheeseSeason`（课程整季） | `cheeseSeason123` |
+| `fav`（收藏夹） | `fav100_200` |
+| `mediaList`（合集） | `mediaList789` |
+| `series`（系列） | `series789` |
+| `space`（UP 主空间） | `space402787936` |
+| `watchLater`（稍后再看） | `watchLater` |
+
+> 注意：旧版 `Aid` 字段（字符串）与「裸 AID 数字」路径参数已废弃。规范编码只接受上表形态，`/add-task` 的 `Url` 仍使用命令行输入写法（`av|bv|BV|ep|ss` 等），两者互不通用。
 
 ---
 
@@ -143,7 +166,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 | 属性                   | 类型                 | 说明                                                                                                                                               |
 | ---------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Aid`                  | `string`             | 视频解析出的 AID，作为任务唯一标识。同一 AID 在运行中与已完成列表内各自唯一，重复提交同一 AID 会直接返回已有的运行中任务                           |
+| `Id`                   | `string`             | 资源 id 的规范字符串（见 [任务标识](#任务标识)），作为任务唯一标识。同一 id 在运行中与已完成列表内各自唯一，重复提交同一 id 会直接返回已有的运行中任务 |
 | `Url`                  | `string`             | 任务请求时的 URL。不要求完整 URL，命令行支持的 `av\|bv\|BV\|ep\|ss` 均可                                                                           |
 | `TaskCreateTime`       | `long`               | 任务创建时间，Unix 时间戳，**精确到毫秒**，本机时区                                                                                                |
 | `Title`                | `string?`            | 视频标题                                                                                                                                           |
@@ -179,7 +202,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 - **进度偏差：** 受 BBDown 下载进度回报频率所限，`TotalDownloadedBytes` 会比实际下载文件偏小，大约少等效于 1 秒下载速度的体积；文件本身极小时偏差比例会更明显。
 - **单任务取消：** `POST /stop-task/{id}` 可取消单个运行中 / 排队中的任务（不影响其他任务），详见 [接口详情](#取消单个任务)。终止整个服务器（`Ctrl+C`）仍会经全局令牌取消所有进行中的任务。
-- **并发控制：** 默认**不限制**同时执行的下载任务数，短时间内频繁 `add-task` 会同时拉起大量下载，可能耗尽带宽 / 系统资源。启动时加 `--max-concurrent N`（`N > 0`）即可限流：最多 `N` 个任务同时下载，多余任务按提交顺序排队（`/get-tasks` 中 `Status` 为 `Queued`，排队期间即可查询到该任务）；每个任务内部的下载并行度（分片并发）由多线程下载器自行决定，不受此上限约束。注意：排队队列本身没有长度上限（同一 AID 重复提交仍会被去重）；`/add-task` 返回 `200` 只代表任务已受理，不代表已开始下载；若请求中开启了 `UseAria2c`，实际连接由 aria2c 自行管理，不受此上限约束。
+- **并发控制：** 默认**不限制**同时执行的下载任务数，短时间内频繁 `add-task` 会同时拉起大量下载，可能耗尽带宽 / 系统资源。启动时加 `--max-concurrent N`（`N > 0`）即可限流：最多 `N` 个任务同时下载，多余任务按提交顺序排队（`/get-tasks` 中 `Status` 为 `Queued`，排队期间即可查询到该任务）；每个任务内部的下载并行度（分片并发）由多线程下载器自行决定，不受此上限约束。注意：排队队列本身没有长度上限（同一资源重复提交仍会被去重）；`/add-task` 返回 `200` 只代表任务已受理，不代表已开始下载；若请求中开启了 `UseAria2c`，实际连接由 aria2c 自行管理，不受此上限约束。
 - **断点续传：** 每条流下载时先写入 `<目标路径>.bbdown.part`，并维护一份 `<目标路径>.bbdown.json` 清单（记录 URL 指纹 / 各分片已完成字节 / 服务器校验器）。**重跑同一条命令即可从断点继续**——既能在单条流粒度续传，也能在合集 / 多 P 粒度续传：某分 P 的视频轨下完但音频轨失败，重跑时视频轨会被直接跳过、只补下音频轨。下载失败或被 `Ctrl+C` 中断时，临时文件会保留，重跑即可续上；所有分片（连同边下边混流的临时文件）都成功后才清理这些临时文件。
 - **`--save-records`：** 归档以 `(aid, cid)` 为键（同一 `aid` 的不同分 P 互不干扰，旧版仅按 `aid` 记录会导致多 P 从第 2 P 起被误跳过），并且**只有整段（含混流）成功后才写入**；记录的文件被删除 / 移动后会重新下载。旧版 `aid|` 拼接格式已失效，启动时遇到会被忽略并提示一次。
 - **`--stop-on-error`：** 默认关闭，即某个分 P 下载失败时会继续下载其余分 P，最后汇总失败清单并以非零状态码退出；开启后遇到第一个失败的分 P 立即停止。
@@ -248,8 +271,8 @@ curl http://localhost:23333/get-tasks/running
 # 仅已完成
 curl http://localhost:23333/get-tasks/finished
 
-# 指定 AID 详情
-curl http://localhost:23333/get-tasks/12345678
+# 指定任务详情
+curl http://localhost:23333/get-tasks/av12345678
 ```
 
 ### 清理已完成任务
@@ -261,6 +284,6 @@ curl -X POST http://localhost:23333/remove-finished
 # 仅清理由失败的任务
 curl -X POST http://localhost:23333/remove-finished/failed
 
-# 按 AID 删除某个已完成任务
-curl -X POST http://localhost:23333/remove-finished/12345678
+# 按 id 删除某个已完成任务
+curl -X POST http://localhost:23333/remove-finished/av12345678
 ```

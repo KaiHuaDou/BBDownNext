@@ -22,7 +22,7 @@ public class InputResolverCheeseTests
     [MemberData(nameof(CheeseCases))]
     public async Task ResolveIdAsync_CheeseInput_ResolvesToCheesePrefix(string input, ResourceId expected)
     {
-        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty);
+        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty, TestContext.Current.CancellationToken);
         Assert.Equal(expected, result);
     }
 
@@ -30,7 +30,7 @@ public class InputResolverCheeseTests
     public async Task ResolveIdAsync_CheeseSs_KeepsSeasonMarkerForFetcher( )
     {
         // ss 形态必须保留为 CheeseSeason，CheeseInfoFetcher 才能按 season_id 直接拉取整季、避免二次请求。
-        var result = await InputResolver.ResolveIdAsync("https://www.bilibili.com/cheese/play/ss61", AppConfig.Empty);
+        var result = await InputResolver.ResolveIdAsync("https://www.bilibili.com/cheese/play/ss61", AppConfig.Empty, TestContext.Current.CancellationToken);
         Assert.IsType<ResourceId.CheeseSeason>(result);
     }
 }

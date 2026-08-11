@@ -16,7 +16,7 @@ namespace BBDown.Serve;
 
 public partial class BBDownApiServer
 {
-    private static List<DownloadTask> Snapshot(ConcurrentDictionary<string, DownloadTask> tasks)
+    private static List<DownloadTask> Snapshot(ConcurrentDictionary<ResourceId, DownloadTask> tasks)
     {
         return [.. tasks.Values];
     }
@@ -64,11 +64,12 @@ public partial class BBDownApiServer
         option = ApplyServeWorkDir(option);
         option = ApplyServeHost(option);
 
-        var (cookie, token) = CredentialStore.LoadAll(option.Cookie, option.AccessToken, option.Api);
-        var id = await InputResolver.ResolveIdAsync(option.Url, new AppConfig(cookie, token, option.Host, option.EpHost, option.TvHost, option.Area, ""));
-        var key = id.ToString( );   // 任务去重键沿用旧字符串格式，保证 serve API 的 Aid 字段不变
-        var task = CreateTask(key, option.Url);
-        var claimed = runningTasks.GetOrAdd(key, task);
+        var cfg = WorkSetup.ResolveConfig(option, option.Api);
+        // 解析阶段尚无任务级令牌（任务在解析成功后创建），用进程级令牌：服务器关停即可中断排队中的解析
+        var id = await InputResolver.ResolveIdAsync(option.Url, cfg, AppEnv.CancellationToken);
+        // 任务去重键：ResourceId 值相等，同资源必命中同键，无需字符串形态
+        var task = CreateTask(id, option.Url);
+        var claimed = runningTasks.GetOrAdd(id, task);
         if (!ReferenceEquals(claimed, task))
         {
             return claimed;
@@ -108,8 +109,8 @@ public partial class BBDownApiServer
             task.DownloadSpeed = elapsedMs > 0 ? task.TotalDownloadedBytes * 1000 / elapsedMs : 0;
         }
 
-        runningTasks.TryRemove(key, out _);
-        finishedTasks[key] = task;
+        runningTasks.TryRemove(id, out _);
+        finishedTasks[id] = task;
         TrimFinishedTasks( );
         // 任务已结束，释放与进程级令牌的链接注册（不取消任何下载，仅释放资源）
         task.Cts.Dispose( );
@@ -131,9 +132,9 @@ public partial class BBDownApiServer
     }
 
     // 任务的初始状态（是否排队）由服务端限流闸门决定，抽成方法便于单测观测
-    internal DownloadTask CreateTask(string aid, string url)
+    internal DownloadTask CreateTask(ResourceId id, string url)
     {
-        return new(aid, url, DateTimeOffset.Now.ToUnixTimeMilliseconds( ))
+        return new(id, url, DateTimeOffset.Now.ToUnixTimeMilliseconds( ))
         {
             // 未限流时不存在排队阶段，直接标 Running，避免 /get-tasks 出现假 Queued
             Status = taskGate is null ? DownloadStatus.Running : DownloadStatus.Queued,
@@ -198,9 +199,9 @@ public partial class BBDownApiServer
         }
 
         // 一次排序淘汰最旧的一批，避免循环内反复 OrderBy 造成 O(n²)
-        foreach (var oldest in finishedTasks.Values.OrderBy(t => t.TaskFinishTime).Take(finishedTasks.Count - MaxFinishedTasks))
+        foreach (var (id, oldest) in finishedTasks.OrderBy(kv => kv.Value.TaskFinishTime).Take(finishedTasks.Count - MaxFinishedTasks))
         {
-            finishedTasks.TryRemove(oldest.Aid, out _);
+            finishedTasks.TryRemove(id, out _);
         }
     }
 }

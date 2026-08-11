@@ -110,7 +110,7 @@ public class BangumiMdTests
     [InlineData("ss2539")]                                            // 简写
     public async Task ResolveIdAsync_BangumiSs_ResolvesToEpSs(string input)
     {
-        // ss 与 md 必须产出完全一致的内部 id：整季形态 ep:ss{season_id}，
+        // ss 与 md 必须产出完全一致的内部 id：整季形态 Season(season_id)，
         // 从而两者走同一条 Fetcher 整季路径，无特判。
         using var handler = new StubHandler(ReviewUserJson, SeasonJson);
         var result = await WithStubClient(handler, ( ) => InputResolver.ResolveIdAsync(input, AppConfig.Empty));

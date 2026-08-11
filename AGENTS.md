@@ -35,10 +35,6 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 - 单个 `.cs` 文件不得超过 384 行（测试除外）、单个方法不得超过 128 行（测试除外）。
     - 如因清理历史遗留问题暂时超过，必须在在后续改动中尽快拆分。
     - 使用 `just tokei` 来分析行数
-    - 当前超行文件
-        - .\BBDown.Core\Opus\OpusFetcher.cs
-        - .\BBDown\Download\DownloadUtil.cs
-        - .\BBDown.Core\Util\HTTPUtil.cs
 
 #### 注释
 
@@ -220,7 +216,11 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 ## 其他内容
 
-AGENT 对此文档的修改只能添加在本节。其他节不许动。我会定期从中选取移动到上面。
+AGENT 对此文档的修改只能添加在本节，在本节添加内容无需经过批准。
+
+其他节不许动。我会定期从中选取移动到上面。
+
+此处应做为添加**约定**的最高优先级。超越 `MEMORY.md` 和工作日志。
 
 ### 判别联合特例
 

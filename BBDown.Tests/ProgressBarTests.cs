@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BBDown.Core;
+
 namespace BBDown.Tests;
 
 public class ProgressBarTests
@@ -57,7 +59,7 @@ public class ProgressBarTests
     [Fact]
     public void ApplySample_KeepsLastSpeedWhenNothingArrived( )
     {
-        var task = new DownloadTask("BV1xx", "https://example.com", 0);
+        var task = new DownloadTask(new ResourceId.Av(1), "https://example.com", 0);
 
         task.ApplySample(0.3, 2048);
         task.ApplySample(0.5, 0);
@@ -70,7 +72,7 @@ public class ProgressBarTests
     [Fact]
     public void ApplySample_AccumulatesTotalBytes( )
     {
-        var task = new DownloadTask("BV1xx", "https://example.com", 0);
+        var task = new DownloadTask(new ResourceId.Av(1), "https://example.com", 0);
 
         task.ApplySample(0.3, 2048);
         task.ApplySample(0.6, 1024);

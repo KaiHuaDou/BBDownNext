@@ -14,7 +14,7 @@ namespace BBDown.Core.Tests;
 [Collection<HttpStubCollectionDefinition>]
 public class BangumiInfoFetcherTests
 {
-    // 整季（md 输入被解析为 ep:ss{season_id} 后进入此形态）：按 season_id 拉取整季正片，
+    // 整季（md/ss 输入统一解析为 Season(season_id) 后进入此形态）：按 season_id 拉取整季正片，
     // Index 留空 → 全量下载；section（OP/ED/PV）不计入正片。
     private const string SeasonJson = """
     {

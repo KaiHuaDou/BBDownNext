@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 
+using BBDown.Auth;
+using BBDown.Core;
 using BBDown.Drm;
 
 using static BBDown.Core.Logger;
@@ -167,6 +169,23 @@ internal static class WorkSetup
         }
 
         return dfnPriority;
+    }
+
+    /// <summary>
+    /// 从 DownloadRequest 构造本次运行的 AppConfig：加载凭据，host 三兄弟为空串/空白时回落官方默认
+    /// （避免拼出 https:///... 抛不可读的 UriFormatException）。CLI 三条链路（视频 / 专栏 / 直播）与 serve 共用。
+    /// </summary>
+    internal static AppConfig ResolveConfig(DownloadRequest myOption, ApiType api)
+    {
+        var (cookie, token) = CredentialStore.LoadAll(myOption.Cookie, myOption.AccessToken, api);
+        return new AppConfig(
+            cookie,
+            token,
+            string.IsNullOrWhiteSpace(myOption.Host) ? BiliApi.MainHost : myOption.Host.Trim( ),
+            string.IsNullOrWhiteSpace(myOption.EpHost) ? BiliApi.MainHost : myOption.EpHost.Trim( ),
+            string.IsNullOrWhiteSpace(myOption.TvHost) ? BiliApi.TvHost : myOption.TvHost.Trim( ),
+            myOption.Area,
+            "");
     }
 
     /// <summary>

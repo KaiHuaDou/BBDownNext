@@ -68,6 +68,13 @@ internal static class SsrfGuard
     // 内部可见：供单测覆盖新增的私网段（§2.4）
     internal static bool IsPrivateAddress(IPAddress ip)
     {
+        // IPv4-mapped IPv6（::ffff:a.b.c.d）须按其 IPv4 等价地址判定，
+        // 否则 ::ffff:169.254.169.254 这类云元数据地址会绕过私网过滤（§2.4）
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4( );
+        }
+
         if (IPAddress.IsLoopback(ip))
         {
             return true;

@@ -6,6 +6,7 @@ using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BBDown.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -16,8 +17,9 @@ namespace BBDown.Serve;
 public partial class BBDownApiServer
 {
     private WebApplication? app;
-    private readonly ConcurrentDictionary<string, DownloadTask> runningTasks = new( );
-    private readonly ConcurrentDictionary<string, DownloadTask> finishedTasks = new( );
+    // 任务表以 ResourceId 为键：值相等性天然去重，同资源重复提交直接命中已有任务，无需字符串形态
+    private readonly ConcurrentDictionary<ResourceId, DownloadTask> runningTasks = new( );
+    private readonly ConcurrentDictionary<ResourceId, DownloadTask> finishedTasks = new( );
     private string? serveToken;
     private bool authRequired;
     private bool authFinalized;
@@ -165,9 +167,9 @@ public partial class BBDownApiServer
     /// 仅供集成测试：在随机端口启动服务并返回可访问的 base URL。
     /// 与阻塞的 <see cref="Run(Uri)"/> 不同，这里用 StartAsync 以便在测试结束时 <see cref="StopForTestAsync"/>。
     /// </summary>
-    internal async Task<string> StartForTestAsync(string listenUrl = "http://127.0.0.1:0")
+    internal async Task<string> StartForTestAsync(string listenUrl = "http://127.0.0.1:0", string? serveToken = null)
     {
-        SetUpServer(null, listenUrl);
+        SetUpServer(null, listenUrl, serveToken);
         if (app is null)
         {
             throw new InvalidOperationException("WebApplication 未创建");

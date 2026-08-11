@@ -22,7 +22,7 @@ public class InputResolverSpaceTests
     [MemberData(nameof(SpaceCases))]
     public async Task ResolveIdAsync_SpaceInput_ResolvesCorrectly(string input, ResourceId expected)
     {
-        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty);
+        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty, TestContext.Current.CancellationToken);
         Assert.Equal(expected, result);
     }
 
@@ -38,7 +38,7 @@ public class InputResolverSpaceTests
     [MemberData(nameof(SpaceSubPageCases))]
     public async Task ResolveIdAsync_SpaceSubPages_StillRouteToOwnFetchers(string input, ResourceId expected)
     {
-        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty);
+        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty, TestContext.Current.CancellationToken);
         Assert.Equal(expected, result);
     }
 }
