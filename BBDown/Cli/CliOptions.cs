@@ -87,7 +87,7 @@ internal static class CliOptions
           a：音频
           v：视频
           c：独立封面文件
-          C：封面混流
+          C：封面嵌入
           d：弹幕
           i：专栏图片
           m：混流元数据

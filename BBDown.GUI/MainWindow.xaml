@@ -70,7 +70,7 @@
                 <CheckBox x:Name="CoverMuxCheckBox"
                           Grid.Row="1" Grid.Column="0"
                           Margin="0,3"
-                          Content="封面混流 (_C)" />
+                          Content="封面嵌入 (_C)" />
                 <CheckBox x:Name="DanmakuCheckBox"
                           Grid.Row="1" Grid.Column="1"
                           Margin="0,3"

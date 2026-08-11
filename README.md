@@ -1,7 +1,7 @@
 <h1 align="center">BBDown vNEXT</h1>
 
 <p align="center">
-开源 · 免费的哔哩哔哩（B 站）视频下载 / 解析命令行工具：视频 / 番剧 / 课程 / 直播 / 专栏 / 稍后再看，支持 8K、HDR、杜比视界、DASH / FLV、多线程与断点续传，并提供图形界面 BBDown.GUI 与带鉴权令牌的 HTTP API 服务器。
+开源 · 免费的哔哩哔哩（B 站）视频下载 / 解析工具，以命令行（CLI，跨平台）与图形界面（BBDown.GUI，仅 Windows）双形态提供：视频 / 番剧 / 课程 / 直播 / 专栏 / 稍后再看，支持 8K、HDR、杜比视界、DASH / FLV、多线程与断点续传，并提供带鉴权令牌的 HTTP API 服务器。
 </p>
 
 <p align="center">
@@ -48,6 +48,7 @@
     - **DRM 解密** · playurl 默认解析 DRM 信息，提供匹配 `--drm-key` 时自动解密后混流（bili_drm 通道），未提供 key 或 Widevine 通道时保留加密原件
     - **编码与画质优先级** `-e` / `-q`，弹幕（XML/ASS）、字幕、封面、AI 字幕
     - **混流增强**：写入元数据与章节，支持 FFmpeg / MP4Box
+    - **封面嵌入** · `C` 将封面嵌入视频文件（attached_pic），播放器可直接显示缩略图；`c` 则单独保存封面文件
 
 - 直播录制
     - **直播间直录** · 传入直播间地址（`live:` / `live.bilibili.com`）即可录制，短号自动换算真实房间号
@@ -63,10 +64,12 @@
     - **自定义文件名/日期** `-F` / `-M`，配置文件 `BBDown.config`
     - **CDN / PCDN 控制** `--upos-host` / `--allow-pcdn`
 
+- 双形态
+    - **命令行 CLI** · 跨平台（Win / Linux / macOS）· .NET 9 · AOT 单文件发布
+    - **图形界面 BBDown.GUI**（仅 Windows）· 单窗口 WPF 封装命令行下载：任务队列与并发控制、日志实时显示、选项随 exe 便携保存；BBDown.exe 自动检测（同目录 / PATH，或手动选择）；独立 CI 发布单文件产物
+
 - 扩展与集成
-    - **图形界面**（BBDown.GUI，仅 Windows）· 单窗口 WPF 封装命令行下载：任务队列与并发控制、日志实时显示、选项随 exe 便携保存；BBDown.exe 自动检测（同目录 / PATH，或手动选择）；独立 CI 发布单文件产物
     - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./API.md)
-    - **纯命令行** · 跨平台（Win / Linux / macOS）· .NET 9 · AOT 单文件发布
     - **Windows 7 兼容** · `win-x64` 产物内置 YY-Thunks 与 VC-LTL，在 Windows 7 上可直接运行（无需安装 .NET 运行时）
     - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行（无需 Dockerfile）
 
@@ -93,6 +96,7 @@
 | 直播录制        | 无                              | 根命令直录，断流自动重连，分段合并                  |
 | 图形界面        | 无                              | BBDown.GUI（WPF，仅 Windows）                       |
 | 充电专属试看    | 无专门处理                      | 下载前识别，退出码 2 表示全部为试看                 |
+| 封面处理        | 独立封面下载                    | 独立封面 `c` + 嵌入 `C`（attached_pic）             |
 | DRM 解密        | 无                              | playurl 解析 DRM 信息，提供 key 时自动解密后混流    |
 | 断点续传        | 基础续传                        | SHA256 指纹清单，支持单流与分 P 粒度                |
 | 单元测试        | 较少                            | 950+，覆盖解析、混流、serve 安全、DRM 等核心路径    |
@@ -160,6 +164,8 @@ dotnet build BBDown.GUI -c Release
 
 ## 快速开始
 
+以下为命令行（CLI）用法；Windows 用户也可直接使用图形界面 BBDown.GUI，下载能力与 CLI 一致，无需命令行操作。
+
 ```bash
 # 下载一个视频（默认下载最高清晰度）
 BBDown "https://www.bilibili.com/video/BV16h4y137YS"
@@ -172,6 +178,9 @@ BBDown "BV16h4y137YS" -W v
 
 # 指定清晰度与编码优先级
 BBDown "BV16h4y137YS" -q "1080P 高码率" -e "avc,flac"
+
+# 下载并另存独立封面（-w c），自动内嵌封面
+BBDown "BV16h4y137YS" -w c
 
 # 下载番剧 / 课程
 BBDown "ep68540" --api tv
@@ -263,7 +272,7 @@ BBDown "live12345" -lq 400
 | `a`  | 音频         | `m`  | 混流元数据（标题 / 描述等）  |
 | `v`  | 视频         | `M`  | 专栏 YAML front matter       |
 | `c`  | 独立封面文件 | `o`  | 评论                         |
-| `C`  | 封面混流     | `O`  | 全部评论（含楼中楼全部回复） |
+| `C`  | 封面嵌入     | `O`  | 全部评论（含楼中楼全部回复） |
 | `d`  | 弹幕         | `S`  | AI 字幕                      |
 | `i`  | 专栏图片     | `s`  | 字幕                         |
 
