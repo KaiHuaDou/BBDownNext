@@ -81,7 +81,7 @@ public class WatchLaterFetcherTests
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json")
             };
-        }, ( ) => WatchLaterFetcher.FetchAsync(IdPrefix.WatchLater, AppConfig.Empty));
+        }, ( ) => WatchLaterFetcher.FetchAsync(AppConfig.Empty));
 
         Assert.Equal("稍后再看", info.Title);
         Assert.Equal(3, info.PagesInfo.Count);
@@ -111,7 +111,7 @@ public class WatchLaterFetcherTests
         { "code": 0, "message": "0", "data": { "count": 0, "list": [] } }
         """;
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) =>
-            HttpStub.WithJsonResponse(json, ( ) => WatchLaterFetcher.FetchAsync(IdPrefix.WatchLater, AppConfig.Empty)));
+            HttpStub.WithJsonResponse(json, ( ) => WatchLaterFetcher.FetchAsync(AppConfig.Empty)));
         Assert.Contains("为空", ex.Message);
     }
 
@@ -122,7 +122,7 @@ public class WatchLaterFetcherTests
         { "code": -101, "message": "账号未登录" }
         """;
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) =>
-            HttpStub.WithJsonResponse(json, ( ) => WatchLaterFetcher.FetchAsync(IdPrefix.WatchLater, AppConfig.Empty)));
+            HttpStub.WithJsonResponse(json, ( ) => WatchLaterFetcher.FetchAsync(AppConfig.Empty)));
         Assert.Contains("SESSDATA", ex.Message);
     }
 }

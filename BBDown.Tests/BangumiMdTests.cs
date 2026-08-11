@@ -13,7 +13,7 @@ namespace BBDown.Tests;
 // md / ss 解析为番剧季号（整季入口），属于触网路径；与 ResumeDownloadTests 共用串行集合，
 // 因为两者都会替换进程级静态 AppHttpClient，并行会互相踩踏。
 // md 经 pgc/review/user 映射 media_id→season_id；ss 经 pgc/view/web/season 直接取 season_id。
-// 两者都产出内部 id "ep:ss{season_id}"，与 BangumiInfoFetcher 的整季形态一致。
+// 两者都产出内部 id Season(season_id)，与 BangumiInfoFetcher 的整季形态一致。
 [Collection("DownloadHttpStub")]
 public class BangumiMdTests
 {
@@ -95,12 +95,12 @@ public class BangumiMdTests
     [InlineData("https://www.bilibili.com/bangumi/media/md2539/")]            // 尾斜杠
     [InlineData("https://www.bilibili.com/bangumi/media/md2539?from=search")] // 带查询串
     [InlineData("md2539")]                                                    // 简写
-    public async Task GetAvIdAsync_BangumiMd_ResolvesToEpSs(string input)
+    public async Task ResolveIdAsync_BangumiMd_ResolvesToEpSs(string input)
     {
         using var handler = new StubHandler(ReviewUserJson);
-        var result = await WithStubClient(handler, ( ) => InputResolver.GetAvIdAsync(input, AppConfig.Empty));
+        var result = await WithStubClient(handler, ( ) => InputResolver.ResolveIdAsync(input, AppConfig.Empty));
 
-        Assert.Equal("ep:ss2539", result);
+        Assert.Equal(new ResourceId.Season(2539), result);
         Assert.Equal(1, handler.ReviewUserCalls); // 只应请求一次 review/user
     }
 
@@ -108,26 +108,26 @@ public class BangumiMdTests
     [InlineData("https://www.bilibili.com/bangumi/play/ss2539")]
     [InlineData("https://www.bilibili.com/bangumi/play/ss2539/")]      // 尾斜杠
     [InlineData("ss2539")]                                            // 简写
-    public async Task GetAvIdAsync_BangumiSs_ResolvesToEpSs(string input)
+    public async Task ResolveIdAsync_BangumiSs_ResolvesToEpSs(string input)
     {
         // ss 与 md 必须产出完全一致的内部 id：整季形态 ep:ss{season_id}，
         // 从而两者走同一条 Fetcher 整季路径，无特判。
         using var handler = new StubHandler(ReviewUserJson, SeasonJson);
-        var result = await WithStubClient(handler, ( ) => InputResolver.GetAvIdAsync(input, AppConfig.Empty));
+        var result = await WithStubClient(handler, ( ) => InputResolver.ResolveIdAsync(input, AppConfig.Empty));
 
-        Assert.Equal("ep:ss2539", result);
+        Assert.Equal(new ResourceId.Season(2539), result);
         Assert.Equal(1, handler.SeasonCalls);   // 只应请求一次 season
         Assert.Equal(0, handler.ReviewUserCalls);
     }
 
     [Fact]
-    public async Task GetAvIdAsync_BangumiMd_ApiError_ThrowsReadableMessage( )
+    public async Task ResolveIdAsync_BangumiMd_ApiError_ThrowsReadableMessage( )
     {
         // 旧实现会把 "md2539" 直接拼进 media_id 导致 -400，再因缺 result 抛 KeyNotFoundException。
         // 现在应抛带 code/message 的可读异常，而非 KeyNotFoundException。
         using var handler = new StubHandler("{\"code\":-400,\"message\":\"请求错误\"}");
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) =>
-            WithStubClient(handler, ( ) => InputResolver.GetAvIdAsync("md2539", AppConfig.Empty)));
+            WithStubClient(handler, ( ) => InputResolver.ResolveIdAsync("md2539", AppConfig.Empty)));
 
         Assert.Contains("-400", ex.Message);
         Assert.Contains("请求错误", ex.Message);

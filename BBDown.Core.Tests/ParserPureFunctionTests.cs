@@ -119,15 +119,15 @@ public class ParserPureFunctionTests
     [Fact]
     public void BuildWebQuery_BangumiRequestsFnvalPgc( )
     {
-        // IsEpisode 认的是带冒号的 "ep:" 内部前缀, 写成 "ep123" 会悄悄落到 UGC 分支
-        var req = new PlayUrlRequest("ep:123", "1", "2", "123", Api: ApiType.Web, Encoding: "", AppConfig.Empty);
+        // IsEpisode 只认 Ep/Season 类型，传 Av 会悄悄落到 UGC 分支
+        var req = new PlayUrlRequest(new ResourceId.Ep(123), "1", "2", "123", Api: ApiType.Web, Encoding: "", AppConfig.Empty);
         Assert.Contains("fnval=12240", PlayUrlClient.BuildWebQuery(req, "0"));
     }
 
     [Fact]
     public void BuildWebQuery_UgcKeepsFnval4048( )
     {
-        var req = new PlayUrlRequest("BV1xx", "1", "2", "", Api: ApiType.Web, Encoding: "", AppConfig.Empty);
+        var req = new PlayUrlRequest(new ResourceId.Av(1), "1", "2", "", Api: ApiType.Web, Encoding: "", AppConfig.Empty);
         Assert.Contains("fnval=4048", PlayUrlClient.BuildWebQuery(req, "0"));
     }
 
@@ -135,7 +135,7 @@ public class ParserPureFunctionTests
     [Fact]
     public void BuildTvQuery_AlwaysFnval4048( )
     {
-        var req = new PlayUrlRequest("ep:123", "1", "2", "123", Api: ApiType.Tv, Encoding: "", AppConfig.Empty);
+        var req = new PlayUrlRequest(new ResourceId.Ep(123), "1", "2", "123", Api: ApiType.Tv, Encoding: "", AppConfig.Empty);
         Assert.Contains("fnval=4048", PlayUrlClient.BuildTvQuery(req, "0"));
     }
 }

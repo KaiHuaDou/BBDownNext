@@ -1,7 +1,7 @@
 <h1 align="center">BBDown vNEXT</h1>
 
 <p align="center">
-    BBDown 是一个哔哩哔哩视频下载 / 解析命令行工具，并提供图形界面 BBDown.GUI。
+开源 · 免费的哔哩哔哩（B 站）视频下载 / 解析命令行工具：视频 / 番剧 / 课程 / 直播 / 专栏 / 稍后再看，支持 8K、HDR、杜比视界、DASH / FLV、多线程与断点续传，并提供图形界面 BBDown.GUI 与带鉴权令牌的 HTTP API 服务器。
 </p>
 
 <p align="center">
@@ -73,10 +73,31 @@
 - 工程品质
     - **950+ 单元测试**，覆盖全部核心路径
     - **深度重构** · 按职责分层（`Cli` / `Pipeline` / `Media` / `Mux` / `Serve` / `Download` / `Auth` / `Drm` / `Util`），依赖单向成树（`check-deps` 守护），不可变契约 record 贯穿全链路，纯函数与 AOT 安全源生成器，可维护性高
+    - **结构化资源 id** · 输入统一解析为 `ResourceId` 判别联合（视频 / 番剧 / 课程 / 收藏夹 / 合集 / 系列 / 空间 / 稍后再看），按类型分发、缺分支编译报错，取代字符串前缀打标（如 `ep:ss2539`）；`serve` 任务 id 字段保持原字符串格式不变
 
 ## 与原版 BBDown 的差异
 
-参见 [与原版 BBDown 的差异对照](./docs/compared-to-upstream.md)。
+本仓库是 [nilaoda/BBDown](https://github.com/nilaoda/BBDown) 的增强分支。与原版相比：
+
+| 能力            | 原版 nilaoda/BBDown             | 本分支                                              |
+| --------------- | ------------------------------- | --------------------------------------------------- |
+| WBI 签名降风控  | 无                              | playurl / view / 字幕 / 空间列表均做标准 WBI 签名   |
+| 扫码登录        | `login` / `logintv`，APP 需抓包 | 统一 `login`，`--tv` / `--app` 扫码，凭据自动保存   |
+| Cookie 主动续期 | 未实现                          | 保存 `refresh_token`，下载前 RSA-OAEP 主动续期      |
+| 凭据存储        | 分离文件 + 抓包                 | 单一 `BBDown.data`（WEB / TV / APP 同文件互不覆盖） |
+| AOT 原生发布    | 无                              | 默认 AOT，单文件原生二进制，8 个 RID                |
+| serve 安全      | 基础令牌                        | SSRF 防护、CORS 默认关闭、host 与工作目录服务端固定 |
+| 专栏 / 图文导出 | 无                              | 根命令自动识别并导出 Markdown + 图片目录            |
+| 稍后再看列表    | 无                              | 根命令识别整个列表，多 P 自动展开                   |
+| UP 主空间投稿   | 无                              | 空间 URL 直接下载全部投稿                           |
+| 直播录制        | 无                              | 根命令直录，断流自动重连，分段合并                  |
+| 图形界面        | 无                              | BBDown.GUI（WPF，仅 Windows）                       |
+| 充电专属试看    | 无专门处理                      | 下载前识别，退出码 2 表示全部为试看                 |
+| DRM 解密        | 无                              | playurl 解析 DRM 信息，提供 key 时自动解密后混流    |
+| 断点续传        | 基础续传                        | SHA256 指纹清单，支持单流与分 P 粒度                |
+| 单元测试        | 较少                            | 950+，覆盖解析、混流、serve 安全、DRM 等核心路径    |
+
+逐项对照与源码位置见 [docs/compared-to-upstream.md](./docs/compared-to-upstream.md)。
 
 ## 安装
 
@@ -230,7 +251,7 @@ BBDown "live12345" -lq 400
 | `--comments-count`   | `-cn`  | 下载评论区前 N 条评论（默认 `0`，即不下载）                |
 | `--comments-sort`    | `-cs`  | 评论排序：`hot`（热度，默认）或 `time`（最新）             |
 | `--comments-formats` | `-cf`  | 指定评论导出格式（详见脚注 [^commentformats]）             |
-| `--mux`              | `-m`   | 混流方式：`none` / `mpeg4`（默认）/ `mp4box` / `mkv`（视频 `.mkv` / 纯音频 `.mka`） |
+| `--mux`              | `-m`   | 混流方式：`none` / `mpeg4`（默认）/ `mp4box` / `mkv`       |
 | `--drm-key`          |        | 提供 DRM 解密密钥（详见脚注 [^drmkey]）                    |
 | `--allow-preview`    | `-p`   | 允许下载充电专属视频的试看片段（详见脚注 [^allowpreview]） |
 | `--lang`             |        | 设置混流音频语言代码，如 `chi`、`jpn` 等                   |
@@ -517,6 +538,18 @@ FLV 封装固定以最高清晰度（qn=127）请求播放地址，用户的清�
 **Q：配置文件和命令行的优先级？**
 
 命令行未显式给出的选项，才会由配置文件补齐；命令行已给出的以命令行为准。
+
+**Q：和原版 BBDown 有什么区别？**
+
+本分支在解析、安全与易用性上做了系统性增强，对照表见 [与原版 BBDown 的差异](#与原版-bbdown-的差异)：WBI 签名降低风控概率、serve 模式带 SSRF 防护与令牌鉴权、新增直播录制 / 专栏导出 / 空间投稿 / 稍后再看、图形界面与 AOT 单文件发布等。
+
+**Q：WBI 签名解决什么问题？**
+
+B 站 web 接口要求 WBI 签名，未签名的请求更容易触发风控。BBDown 对 playurl、view、字幕、空间列表均做标准 WBI 签名；未探测到账号时自动退化为不签名。
+
+**Q：serve 模式的安全如何保证？**
+
+回环地址免令牌、非回环地址强制令牌（`X-BBDown-Token` 头或 `?token=` 查询参数）；回调地址有 SSRF 防护（拒绝内网 / 回环，连接前二次校验）；CORS 默认关闭；host 与工作目录由服务端启动参数固定，请求体无法覆盖。
 
 ## 致谢
 

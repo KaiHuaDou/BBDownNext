@@ -20,7 +20,7 @@ namespace BBDown.Core.Fetcher;
 /// </summary>
 public static class WatchLaterFetcher
 {
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
+    public static async Task<VInfo> FetchAsync(AppConfig cfg, CancellationToken ct = default)
     {
         var json = await GetWebSourceAsync(BiliApi.ToviewList, cfg, null, ct);
         using var jDoc = JsonDocument.Parse(json);
@@ -51,7 +51,7 @@ public static class WatchLaterFetcher
                 await throttler.WaitAsync(ct);
                 try
                 {
-                    fetched[aid] = await NormalInfoFetcher.FetchAsync(aid, cfg, ct);
+                    fetched[aid] = await NormalInfoFetcher.FetchAsync(long.Parse(aid), cfg, ct);
                 }
                 catch (OperationCanceledException)
                 {

@@ -17,9 +17,9 @@ namespace BBDown.Core.Fetcher;
 
 public static partial class NormalInfoFetcher
 {
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
+    public static async Task<VInfo> FetchAsync(long aid, AppConfig cfg, CancellationToken ct = default)
     {
-        var api = $"{BiliApi.ViewWbi}?{SignUtil.WbiSignNow($"aid={id}", cfg)}";
+        var api = $"{BiliApi.ViewWbi}?{SignUtil.WbiSignNow($"aid={aid}", cfg)}";
         var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
         var data = GetApiData(infoJson.RootElement, "视频信息");
@@ -38,6 +38,7 @@ public static partial class NormalInfoFetcher
         var isSteinGate = data.GetProperty("rights").GetProperty("is_stein_gate").GetInt16( );
 
         // 分p信息
+        var aidStr = aid.ToString( );
         List<Page> pagesInfo = [];
         var pages = data.GetProperty("pages").EnumerateArray( ).ToList( );
         foreach (var page in pages)
@@ -45,7 +46,7 @@ public static partial class NormalInfoFetcher
             Page p = new( )
             {
                 Index = page.GetProperty("page").GetInt32( ),
-                Aid = id,
+                Aid = aidStr,
                 Cid = page.GetProperty("cid").ToString( ),
                 EpId = "",
                 Title = page.GetProperty("part").ToString( ).Trim( ),
@@ -87,7 +88,7 @@ public static partial class NormalInfoFetcher
                         Page p = new( )
                         {
                             Index = index++,
-                            Aid = id,
+                            Aid = aidStr,
                             Cid = page.GetProperty("cid").ToString( ),
                             EpId = "",
                             Title = page.GetProperty("option").ToString( ).Trim( ),

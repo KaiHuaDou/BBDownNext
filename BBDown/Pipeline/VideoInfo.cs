@@ -21,7 +21,7 @@ namespace BBDown.Pipeline;
 internal sealed record FetchResult(
     VInfo VInfo,
     AppConfig Cfg,
-    string FetchedAid,
+    ResourceId FetchedId,
     ApiType ApiType);
 
 internal static class VideoInfo
@@ -77,21 +77,16 @@ internal static class VideoInfo
         }
 
         Log("获取 aid...");
-        var aid = await InputResolver.GetAvIdAsync(runConfig.Input, cfg);
-        Log($"aid: {aid}");
+        var id = await InputResolver.ResolveIdAsync(runConfig.Input, cfg);
+        Log($"id: {id}");
 
-        if (string.IsNullOrEmpty(aid))
-        {
-            throw new ArgumentException("aid 无效");
-        }
-
-        (aid, var vInfo) = await FetchVideoInfoAsync(aid, cfg, myOption.Api == ApiType.Intl, ct);
+        (id, var vInfo) = await FetchVideoInfoAsync(id, cfg, myOption.Api == ApiType.Intl, ct);
         myOption = NormalizeOptionsAfterFetch(myOption, vInfo);
         PrintVideoSummary(vInfo, myOption);
         var apiType = myOption.Api;
         PrintPagesInfo(vInfo, myOption);
 
-        return (myOption, new FetchResult(vInfo, cfg, aid, apiType));
+        return (myOption, new FetchResult(vInfo, cfg, id, apiType));
     }
 
     // nav 探测（wbi 密钥）进程内仅执行一次；后续调用复用同一 Task，避免批量下载时每个 URL 重复打 nav 接口。
@@ -151,11 +146,11 @@ internal static class VideoInfo
         return myOption;
     }
 
-    private static async Task<(string aid, VInfo vInfo)> FetchVideoInfoAsync(string aid, AppConfig cfg, bool useIntlApi, CancellationToken ct = default)
+    private static async Task<(ResourceId id, VInfo vInfo)> FetchVideoInfoAsync(ResourceId id, AppConfig cfg, bool useIntlApi, CancellationToken ct = default)
     {
         // EP/SS 优先按番剧查找，找不到时由 FetcherRegistry 内部回退到课程 (cheese) 查找
-        var vInfo = await FetcherRegistry.FetchAsync(aid, cfg, useIntlApi, ct);
-        return (aid, vInfo);
+        var vInfo = await FetcherRegistry.FetchAsync(id, cfg, useIntlApi, ct);
+        return (id, vInfo);
     }
 
     private static void PrintVideoSummary(VInfo vInfo, DownloadRequest myOption)

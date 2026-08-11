@@ -55,7 +55,7 @@ public class HttpStubFetcherTests
     public async Task FavList_SinglePage_ParsesMediasWithoutNetwork( )
     {
         var info = await HttpStub.WithJsonResponse(FavJson,
-            ( ) => FavListFetcher.FetchAsync("https://space.bilibili.com/3/favlist?fid=12345:678", AppConfig.Empty));
+            ( ) => FavListFetcher.FetchAsync(new ResourceId.Fav(12345, 678), AppConfig.Empty));
 
         Assert.Equal("我的收藏夹", info.Title);
         Assert.Equal(2, info.PagesInfo.Count);
@@ -79,6 +79,6 @@ public class HttpStubFetcherTests
         // 负向对照：桩返回 404 必须穿透为异常，证明请求确实走了桩而非真实网络
         await Assert.ThrowsAsync<HttpRequestException>(( ) =>
             HttpStub.WithResponder(_ => new HttpResponseMessage(HttpStatusCode.NotFound),
-                ( ) => FavListFetcher.FetchAsync("https://space.bilibili.com/3/favlist?fid=12345:678", AppConfig.Empty)));
+                ( ) => FavListFetcher.FetchAsync(new ResourceId.Fav(12345, 678), AppConfig.Empty)));
     }
 }

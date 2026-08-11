@@ -126,7 +126,7 @@ BBDown/
 │   ├── AppHelper.cs        # APP gRPC 手写帧 (PackMessage/ReadMessage)
 │   ├── IdPrefix.cs         # 输入编号前缀常量 (ep:/ss:/lists:/series:/fav:/cheese:/spaceMid:/watchLater: 等)
 │   ├── Opus/               # 专栏导出：OpusInputResolver(输入解析) / OpusFetcher(partial：OpusFetcher.cs 网络编排与判定、OpusFetcher.Parse.cs 文档级解析、OpusFetcher.Paragraph.cs 段落与节点) / OpusHtmlToMarkdown(HTML→MD) / OpusMarkdownRenderer(渲染) / OpusImageUtil(图片) / OpusDocument(域模型)
-│   ├── Fetcher/            # 11 个 Fetcher（含 WatchLaterFetcher 稍后再看）+ FetcherRegistry (按 IdPrefix 分发)
+│   ├── Fetcher/            # 11 个 Fetcher（含 WatchLaterFetcher 稍后再看）+ FetcherRegistry (按 ResourceId 子类型 switch 分发)
 │   ├── Util/               # BV 转换、FileNameUtil(200 字节截断)、HTTPUtil、SignUtil(WBI)、SubUtil、ViewPointUtil、JsonUtil 等
 │   ├── Entity/             # VInfo / Page / Video / Audio / ParsedResult 等（Video/Audio 含 DRM 字段）
 │   ├── APP/                # APP gRPC 协议 (proto 生成代码)
@@ -164,12 +164,12 @@ BBDown/
   │
   ▼
 InputResolver.ResolveAsync      URL/av/BV/ep/ss/md/合集/系列/收藏夹/空间/稍后再看/b23.tv → 内部 avid
-  │  md{数字} 详情页 → pgc/review/user 映射出 season_id → 编码为 ep:ss{季_id}（整季形态）
-  │  ss{数字} 季号 → pgc/view/web/season 取 season_id → 同样编码为 ep:ss{季_id}（整季形态，与 md 对称）
+  │  md{数字} 详情页 → pgc/review/user 映射出 season_id → 解析为 Season(season_id)（整季形态，ToString 仍为 ep:ss{季_id}）
+  │  ss{数字} 季号 → pgc/view/web/season 取 season_id → 同样解析为 Season(season_id)（整季形态，与 md 对称）
   │  /watchlater/ 系列地址 → watchLater:{oid}（分享链接带 bvid/oid 时只取单个视频）
   │
   ▼
-FetcherRegistry.FetchAsync     按 IdPrefix 分发给对应 Fetcher → VInfo(分P列表/标题/封面…)
+FetcherRegistry.FetchAsync     按 ResourceId 子类型 switch 分发给对应 Fetcher → VInfo(分P列表/标题/封面…)
   │  (ep: 先番剧后回退 cheese；番剧可按 --api intl 走 IntlBangumiInfoFetcher；watchLater: 走 WatchLaterFetcher)
   ▼
 Parser.ExtractTracksAsync (编排，按 API 模式委派到 PlayUrl/*) → ParsedResult(视频轨/音频轨/FLV 分段/字幕/弹幕入口)

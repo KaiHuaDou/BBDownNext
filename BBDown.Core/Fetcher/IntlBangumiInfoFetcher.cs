@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
+using static BBDown.Core.ResourceId;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
 
@@ -13,14 +14,9 @@ namespace BBDown.Core.Fetcher;
 
 public static partial class IntlBangumiInfoFetcher
 {
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
+    public static async Task<VInfo> FetchAsync(Ep ep, AppConfig cfg, CancellationToken ct = default)
     {
-        id = id[IdPrefix.EpColon.Length..];
-        if (id.StartsWith("ss"))
-        {
-            throw new NotSupportedException("国际版番剧接口(--intl-api)不支持 md/整季输入，请改用具体 ep 号，或去掉 --intl-api。");
-        }
-
+        var id = ep.EpId.ToString( );
         var host = cfg.Host == BiliApi.MainHost ? BiliApi.IntlAppHost : cfg.Host;
         var accessKey = cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "";
         var api = $"https://{host}{BiliApi.IntlSeasonAppPath}?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a{accessKey}";

@@ -221,3 +221,7 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 ## 其他内容
 
 AGENT 对此文档的修改只能添加在本节。其他节不许动。我会定期从中选取移动到上面。
+
+### 判别联合特例
+
+`BBDown.Core/ResourceId.cs` 采用嵌套 `record`（`abstract record ResourceId` 内含 `Av` / `Ep` / `Season` / `CheeseEp` / `CheeseSeason` / `Fav` / `MediaList` / `Series` / `Space` / `WatchLater` 等 `sealed record` 子类型）实现判别联合，属「禁止嵌套类」规则的已确认例外：它以类型安全替代字符串前缀打标，且 `FetcherRegistry` 的 `switch` 据此分发、缺分支编译报错。其余场景仍遵守「禁止嵌套类」。注意直播录制走独立链路（`LiveInputResolver` → `LiveDownload`），不经 `ResourceId`，故无对应子类型。

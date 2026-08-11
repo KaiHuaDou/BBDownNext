@@ -11,6 +11,7 @@
 ### 新增
 
 - 多 P（总集数大于 1）且开启元数据混流（`-m`）时写入分 P 序号与总集数：FFmpeg 容器写 `track` / `track_total` 元数据，MP4Box 容器写 `tracknum` 元数据（`x/N`）。
+- 稍后再看列表新增纯 `watchlater` 字符串入口：直接输入 `watchlater`（忽略大小写）即按整个列表下载（此前仅支持 `/watchlater/` 等 URL 形态）。
 
 ### 修复
 

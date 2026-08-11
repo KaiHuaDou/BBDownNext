@@ -65,9 +65,10 @@ public partial class BBDownApiServer
         option = ApplyServeHost(option);
 
         var (cookie, token) = CredentialStore.LoadAll(option.Cookie, option.AccessToken, option.Api);
-        var aid = await InputResolver.GetAvIdAsync(option.Url, new AppConfig(cookie, token, option.Host, option.EpHost, option.TvHost, option.Area, ""));
-        var task = CreateTask(aid, option.Url);
-        var claimed = runningTasks.GetOrAdd(aid, task);
+        var id = await InputResolver.ResolveIdAsync(option.Url, new AppConfig(cookie, token, option.Host, option.EpHost, option.TvHost, option.Area, ""));
+        var key = id.ToString( );   // 任务去重键沿用旧字符串格式，保证 serve API 的 Aid 字段不变
+        var task = CreateTask(key, option.Url);
+        var claimed = runningTasks.GetOrAdd(key, task);
         if (!ReferenceEquals(claimed, task))
         {
             return claimed;
@@ -84,18 +85,18 @@ public partial class BBDownApiServer
             // 排队中的任务会在闸门处被取消，属正常退出路径，不该刷成"下载失败"
             if (AppEnv.CancellationToken.IsCancellationRequested)
             {
-                Logger.LogWarn($"{aid} 已取消（服务器正在退出）");
+                Logger.LogWarn($"{id} 已取消（服务器正在退出）");
             }
             else
             {
-                Logger.LogWarn($"{aid} 已取消（任务被单独停止）");
+                Logger.LogWarn($"{id} 已取消（任务被单独停止）");
             }
         }
         catch (Exception e)
         {
             // 走 Logger 才有全局锁，serve 模式并发任务直接写 Console 会互相插字（P1-17）
             var msg = Config.DebugLog ? e.ToString( ) : e.Message;
-            Logger.LogError($"{aid} 下载失败：{msg}");
+            Logger.LogError($"{id} 下载失败：{msg}");
         }
 
         task.Status = DownloadStatus.Finished;
@@ -107,8 +108,8 @@ public partial class BBDownApiServer
             task.DownloadSpeed = elapsedMs > 0 ? task.TotalDownloadedBytes * 1000 / elapsedMs : 0;
         }
 
-        runningTasks.TryRemove(aid, out _);
-        finishedTasks[aid] = task;
+        runningTasks.TryRemove(key, out _);
+        finishedTasks[key] = task;
         TrimFinishedTasks( );
         // 任务已结束，释放与进程级令牌的链接注册（不取消任何下载，仅释放资源）
         task.Cts.Dispose( );

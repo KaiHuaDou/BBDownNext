@@ -41,16 +41,28 @@ public class InputResolverWatchLaterTests
         }
     }
 
+    // 纯 "watchlater" 关键字（忽略大小写）→ 整个列表（纯字符串解析，不触网）
+    [Theory]
+    [InlineData("watchlater")]
+    [InlineData("WATCHLATER")]
+    [InlineData("WatchLater")]
+    [InlineData("wAtChLaTeR")]
+    public async Task ResolveIdAsync_WatchLaterKeyword_ResolvesToListPrefix(string input)
+    {
+        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty);
+        Assert.Equal(new ResourceId.WatchLater( ), result);
+    }
+
     // 不带 bvid/oid 的稍后再看地址 → 整个列表（纯字符串解析，不触网）
     [Theory]
     [InlineData("https://www.bilibili.com/watchlater/")]
     [InlineData("https://www.bilibili.com/watchlater")]
     [InlineData("https://www.bilibili.com/watchlater/#/list")]
     [InlineData("https://www.bilibili.com/list/watchlater")]
-    public async Task GetAvIdAsync_WatchLaterUrl_ResolvesToListPrefix(string input)
+    public async Task ResolveIdAsync_WatchLaterUrl_ResolvesToListPrefix(string input)
     {
-        var result = await InputResolver.GetAvIdAsync(input, AppConfig.Empty);
-        Assert.Equal(IdPrefix.WatchLater, result);
+        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty);
+        Assert.Equal(new ResourceId.WatchLater( ), result);
     }
 
     // 分享链接带 bvid/oid → 单个视频的 aid（数字）；bvid 本地解码，oid 直接作 aid，两者同指
@@ -59,18 +71,18 @@ public class InputResolverWatchLaterTests
     [InlineData("https://www.bilibili.com/list/watchlater?bvid=BV1cijQ6tEbM")]
     [InlineData("https://www.bilibili.com/list/watchlater?oid=116802390592375")]
     [InlineData("https://www.bilibili.com/list/watchlater?watchlater_cfg=%7B%22viewed%22%3A0%7D&oid=116802390592375")]
-    public async Task GetAvIdAsync_WatchLaterUrlWithVideoParams_ResolvesToSingleVideo(string input)
+    public async Task ResolveIdAsync_WatchLaterUrlWithVideoParams_ResolvesToSingleVideo(string input)
     {
-        var result = await WithStubClient(( ) => InputResolver.GetAvIdAsync(input, AppConfig.Empty));
-        Assert.Equal("116802390592375", result);
+        var result = await WithStubClient(( ) => InputResolver.ResolveIdAsync(input, AppConfig.Empty));
+        Assert.Equal(new ResourceId.Av(116802390592375), result);
     }
 
     // 带 bvid 与 oid 冲突时以 bvid 为准（本地解码，与 video/bv 分支一致）
     [Fact]
-    public async Task GetAvIdAsync_WatchLaterUrl_BvidTakesPrecedenceOverOid( )
+    public async Task ResolveIdAsync_WatchLaterUrl_BvidTakesPrecedenceOverOid( )
     {
-        var result = await WithStubClient(( ) => InputResolver.GetAvIdAsync(
+        var result = await WithStubClient(( ) => InputResolver.ResolveIdAsync(
             "https://www.bilibili.com/list/watchlater?oid=111&bvid=BV1cijQ6tEbM", AppConfig.Empty));
-        Assert.Equal("116802390592375", result);
+        Assert.Equal(new ResourceId.Av(116802390592375), result);
     }
 }

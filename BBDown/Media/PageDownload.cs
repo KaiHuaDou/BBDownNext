@@ -35,7 +35,7 @@ internal static class PageDownload
                 p.Points = playerInfo.Points;
 
                 //调用解析
-                var parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.Aid, p.Cid, p.EpId,
+                var parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedId, p.Aid, p.Cid, p.EpId,
                     myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, ct: ct);
                 if (p.Points.Count == 0)
                 {

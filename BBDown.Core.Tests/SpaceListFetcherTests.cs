@@ -144,7 +144,7 @@ public class SpaceListFetcherTests
             return new HttpResponseMessage(HttpStatusCode.NotFound);
         }
 
-        var info = await WithRoutedStub(responder, ( ) => SpaceListFetcher.FetchAsync("spaceMid:402787936", AppConfig.Empty));
+        var info = await WithRoutedStub(responder, ( ) => SpaceListFetcher.FetchAsync(402787936, AppConfig.Empty));
 
         // 课堂(1003)被预剔除，不发起 view 请求；失败(1004)被跳过但不抛异常
         Assert.DoesNotContain("1003", requestedViewAids);
@@ -184,7 +184,7 @@ public class SpaceListFetcherTests
     {
         var riskJson = """{"code":0,"data":{"is_risk":true,"gaia_res_type":1,"gaia_data":{}}}""";
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) =>
-            WithRoutedStub(_ => Ok(riskJson), ( ) => SpaceListFetcher.FetchAsync("spaceMid:402787936", AppConfig.Empty)));
+            WithRoutedStub(_ => Ok(riskJson), ( ) => SpaceListFetcher.FetchAsync(402787936, AppConfig.Empty)));
         Assert.Contains("风控", ex.Message);
     }
 }

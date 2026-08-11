@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
+using static BBDown.Core.ResourceId;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
 
@@ -17,13 +18,13 @@ namespace BBDown.Core.Fetcher;
 /// </summary>
 public static class MediaListFetcher
 {
-    public static Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
+    public static Task<VInfo> FetchAsync(MediaList list, AppConfig cfg, CancellationToken ct = default)
     {
-        return FetchListAsync(id[IdPrefix.ListBizId.Length..], 8, false, "合集", cfg, ct);
+        return FetchListAsync(list.BizId, 8, false, "合集", cfg, ct);
     }
 
     // 合集(type=8)与系列(type=5)共用同一套 medialist 接口, 仅 type 与排序方向不同
-    internal static async Task<VInfo> FetchListAsync(string bizId, int type, bool descOrder, string label, AppConfig cfg, CancellationToken ct = default)
+    internal static async Task<VInfo> FetchListAsync(long bizId, int type, bool descOrder, string label, AppConfig cfg, CancellationToken ct = default)
     {
         var api = $"{BiliApi.MediaListInfo}?type={type}&biz_id={bizId}&tid=0";
         using var infoJson = JsonDocument.Parse(await GetWebSourceAsync(api, cfg, null, ct));

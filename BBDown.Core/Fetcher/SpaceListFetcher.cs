@@ -17,7 +17,7 @@ namespace BBDown.Core.Fetcher;
 
 /// <summary>
 /// UP 主空间全部投稿解析。
-/// 输入经 InputResolver 统一转为 spaceMid:{mid} 前缀后在此处理，支持三种入口：
+/// 输入经 InputResolver 统一转为 <see cref="BBDown.Core.Space"/> 后传入 mid，支持三种入口：
 /// 空间 URL（https://space.bilibili.com/{mid} 及 /upload/video、/video?tid=0 等子路径）、裸 mid、space{mid}。
 /// 接口 x/space/wbi/arc/search 只返回 aid，不含 cid 与分 P，故对每条稿件并发回填一次 wbi/view 取 cid 并展开多 P，
 /// 摊平为 VInfo.PagesInfo；下游下载链路（PageQueue / PageSelect / SavePath / ArchiveLog）自动按「列表」处理。
@@ -33,26 +33,21 @@ public static class SpaceListFetcher
         string Aid, string Title, string Desc, string Pic, long Created,
         string Author, string Mid, bool IsLesson, bool IsLivePlayback, bool IsCharging);
 
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
+    public static async Task<VInfo> FetchAsync(long mid, AppConfig cfg, CancellationToken ct = default)
     {
-        var mid = id[IdPrefix.SpaceMid.Length..];
-        if (mid.Length == 0 || !mid.All(char.IsDigit))
-        {
-            throw new ArgumentException($"无效的 UP 主 mid: {id}", nameof(id));
-        }
-
-        var items = await CollectItemsAsync(mid, cfg, ct);
+        var midStr = mid.ToString( );
+        var items = await CollectItemsAsync(midStr, cfg, ct);
         if (items.Count == 0)
         {
-            throw new InvalidOperationException($"UP 主 {mid} 没有可下载的公开投稿视频");
+            throw new InvalidOperationException($"UP 主 {midStr} 没有可下载的公开投稿视频");
         }
 
         // UP 名：优先取 mid 与目标一致的条目（排除合作视频里的他人署名），否则退回首条作者
-        var firstMatch = items.FirstOrDefault(i => i.Mid == mid);
+        var firstMatch = items.FirstOrDefault(i => i.Mid == midStr);
         var upName = !string.IsNullOrWhiteSpace(firstMatch.Author) ? firstMatch.Author : items[0].Author;
         if (string.IsNullOrWhiteSpace(upName))
         {
-            upName = $"UP主{mid}";
+            upName = $"UP主{midStr}";
         }
 
         // 课堂视频（cheese）预剔除：wbi/view 必失败，省掉注定失败的请求
@@ -176,7 +171,7 @@ public static class SpaceListFetcher
             await throttler.WaitAsync(ct);
             try
             {
-                fetched[item.Aid] = await NormalInfoFetcher.FetchAsync(item.Aid, cfg, ct);
+                fetched[item.Aid] = await NormalInfoFetcher.FetchAsync(long.Parse(item.Aid), cfg, ct);
             }
             catch (OperationCanceledException)
             {

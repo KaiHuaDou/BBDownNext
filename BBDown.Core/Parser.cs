@@ -15,7 +15,7 @@ namespace BBDown.Core;
 
 public static class Parser
 {
-    public static async Task<ParsedResult> ExtractTracksAsync(string aidOri, string aid, string cid, string epId, ApiType api, string encoding, AppConfig cfg, string qn = "0", CancellationToken ct = default)
+    public static async Task<ParsedResult> ExtractTracksAsync(ResourceId aidOri, string aid, string cid, string epId, ApiType api, string encoding, AppConfig cfg, string qn = "0", CancellationToken ct = default)
     {
         PlayUrlRequest req = new(aidOri, aid, cid, epId, api, encoding, cfg);
 

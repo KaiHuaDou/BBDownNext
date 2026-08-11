@@ -58,7 +58,7 @@ internal static class FlvDownload
                 else
                 {
                     parsedResult.VideoTracks.Clear( );
-                    parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedAid, p.Aid, p.Cid, p.EpId,
+                    parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedId, p.Aid, p.Cid, p.EpId,
                         myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, dfn, ct);
                     if (p.Points.Count == 0)
                     {

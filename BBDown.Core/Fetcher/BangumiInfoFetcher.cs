@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
+using static BBDown.Core.ResourceId;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
 
@@ -13,25 +14,28 @@ namespace BBDown.Core.Fetcher;
 
 public static class BangumiInfoFetcher
 {
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
+    // ep 形态按 ep_id 拉单集并定位「当前选择第几集」；season 形态（md/ss/整季输入）按 season_id 拉整季正片
+    public static Task<VInfo> FetchAsync(Ep ep, AppConfig cfg, CancellationToken ct = default)
     {
-        // 内部 id 去掉 "ep:" 后有两种形态：
-        //   - 纯数字 ep_id（如 "63470"）：按 ep_id 拉单集，并定位「当前选择第几集」；
-        //   - 带 "ss" 前缀的 season_id（如 "ss2539"，来自 md/整季输入）：按 season_id 拉整季正片。
-        var raw = id[IdPrefix.EpColon.Length..];
-        var isSeason = raw.StartsWith("ss", StringComparison.Ordinal);
-        var api = isSeason
-            ? $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?season_id={raw[IdPrefix.Ss.Length..]}"
-            : $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?ep_id={raw}";
+        return FetchCoreAsync($"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?ep_id={ep.EpId}", ep.EpId.ToString( ), locate: true, cfg, ct);
+    }
+
+    public static Task<VInfo> FetchAsync(Season season, AppConfig cfg, CancellationToken ct = default)
+    {
+        return FetchCoreAsync($"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?season_id={season.SeasonId}", "", locate: false, cfg, ct);
+    }
+
+    // locate=true 为单集形态：目标 ep 可能不在主 episodes 而在 section（番外/花絮），需扫描定位；
+    // 单集形态缺 result 抛 BangumiNotFoundException 以触发课程回退；整季形态不回退，避免误命中 id 空间稠密、毫不相关的课程。
+    private static async Task<VInfo> FetchCoreAsync(string api, string locateEpId, bool locate, AppConfig cfg, CancellationToken ct)
+    {
         var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
         if (!infoJson.RootElement.TryGetProperty("result", out var result))
         {
-            // 番剧接口无 result：ep 形态保留 BangumiNotFoundException 以触发课程回退；
-            // ss 形态（md/整季）不回退，避免误命中 id 空间稠密、毫不相关的课程。
-            if (!isSeason)
+            if (locate)
             {
-                throw new BangumiNotFoundException($"未找到 EP/SS 对应的番剧信息：ep_id={raw}");
+                throw new BangumiNotFoundException($"未找到 EP/SS 对应的番剧信息：ep_id={locateEpId}");
             }
 
             var (code, message) = ReadApiError(infoJson.RootElement);
@@ -46,13 +50,12 @@ public static class BangumiInfoFetcher
         var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", null).ToUnixTimeSeconds( );
         TryGetArray(result, "episodes", out var pages);
 
-        // 单集形态：目标 ep 可能不在主 episodes 而在 section（番外/花絮），需扫描定位；
-        // 整季形态无需定位，跳过 section 扫描。
-        if (!isSeason && !ContainsEpisode(pages, raw) && TryGetArray(result, "section", out var sections))
+        // 整季形态无需定位，跳过 section 扫描
+        if (locate && !ContainsEpisode(pages, locateEpId) && TryGetArray(result, "section", out var sections))
         {
             foreach (var section in sections.EnumerateArray( ))
             {
-                if (TryGetArray(section, "episodes", out var sectionEpisodes) && ContainsEpisode(sectionEpisodes, raw))
+                if (TryGetArray(section, "episodes", out var sectionEpisodes) && ContainsEpisode(sectionEpisodes, locateEpId))
                 {
                     title += "[" + section.GetProperty("title").ToString( ) + "]";
                     pages = sectionEpisodes;
@@ -67,7 +70,7 @@ public static class BangumiInfoFetcher
             throw new InvalidOperationException("该番剧没有可下载的正片分集。");
         }
 
-        var index = isSeason ? "" : pagesInfo.Find(p => p.EpId == raw)?.Index.ToString( ) ?? "";
+        var index = locate ? pagesInfo.Find(p => p.EpId == locateEpId)?.Index.ToString( ) ?? "" : "";
 
         var info = new VInfo
         {

@@ -70,7 +70,7 @@ public class BangumiInfoFetcherTests
     [Fact]
     public async Task FetchAsync_SsForm_PullsWholeSeasonWithEmptyIndex( )
     {
-        var info = await WithStubClient(SeasonJson, ( ) => BangumiInfoFetcher.FetchAsync("ep:ss2539", AppConfig.Empty));
+        var info = await WithStubClient(SeasonJson, ( ) => BangumiInfoFetcher.FetchAsync(new ResourceId.Season(2539), AppConfig.Empty));
 
         Assert.Equal("魔法少女小圆", info.Title);
         Assert.Equal(3, info.PagesInfo.Count);          // 仅正片，不含 section 里的 OP
@@ -83,7 +83,7 @@ public class BangumiInfoFetcherTests
     public async Task FetchAsync_EpForm_LocatesSingleEpisodeAndSetsIndex( )
     {
         // ep 形态回归：按 ep_id 拉整季、定位到目标集的 Index，且 section 扫描仍生效
-        var info = await WithStubClient(SeasonJson, ( ) => BangumiInfoFetcher.FetchAsync("ep:63471", AppConfig.Empty));
+        var info = await WithStubClient(SeasonJson, ( ) => BangumiInfoFetcher.FetchAsync(new ResourceId.Ep(63471), AppConfig.Empty));
 
         Assert.Equal(3, info.PagesInfo.Count);
         Assert.Equal("2", info.Index);                   // 第 2 集的 index
@@ -97,6 +97,6 @@ public class BangumiInfoFetcherTests
         // 否则会触发 FetcherRegistry 的课程误回退。
         var body = "{\"code\":-404,\"message\":\"番剧不存在\"}";
         await Assert.ThrowsAsync<InvalidOperationException>(( ) =>
-            WithStubClient(body, ( ) => BangumiInfoFetcher.FetchAsync("ep:ss2539", AppConfig.Empty)));
+            WithStubClient(body, ( ) => BangumiInfoFetcher.FetchAsync(new ResourceId.Season(2539), AppConfig.Empty)));
     }
 }

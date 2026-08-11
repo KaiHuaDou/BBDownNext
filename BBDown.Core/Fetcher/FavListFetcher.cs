@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
+using static BBDown.Core.ResourceId;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
@@ -21,17 +22,16 @@ namespace BBDown.Core.Fetcher;
 /// </summary>
 public static class FavListFetcher
 {
-    public static async Task<VInfo> FetchAsync(string id, AppConfig cfg, CancellationToken ct = default)
+    public static async Task<VInfo> FetchAsync(Fav fav, AppConfig cfg, CancellationToken ct = default)
     {
-        var parts = id[IdPrefix.FavId.Length..].Split(':');
-        var favId = parts[0];
-        var mid = parts.Length > 1 ? parts[1] : "";
+        var favId = fav.Fid.ToString( );
+        var mid = fav.Mid.ToString( );
         //查找默认收藏夹
-        if (favId.Length == 0)
+        if (fav.Fid == 0)
         {
             if (mid.Length == 0)
             {
-                throw new ArgumentException($"收藏夹链接缺少 fid 与用户 id: {id}", nameof(id));
+                throw new ArgumentException($"收藏夹链接缺少 fid 与用户 id: {fav}", nameof(fav));
             }
 
             var favListApi = $"{BiliApi.FavFolderList}?up_mid={mid}";
@@ -88,7 +88,7 @@ public static class FavListFetcher
                 await throttler.WaitAsync(ct);
                 try
                 {
-                    fetched[id] = await NormalInfoFetcher.FetchAsync(id, cfg, ct);
+                    fetched[id] = await NormalInfoFetcher.FetchAsync(long.Parse(id), cfg, ct);
                 }
                 catch (OperationCanceledException)
                 {

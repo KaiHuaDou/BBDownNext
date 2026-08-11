@@ -44,7 +44,7 @@
 - **`login`**：统一入口，无标志登录 WEB，加 `--tv` 登录 TV，加 `--app` 登录 APP（`BBDown/Program.cs`：`loginCommand` 的 `SetAction` → `Login.Web/TV/App`）。原版 `logintv` 已合并进 `login --tv`。
 - **专栏导出无子命令**：主命令在 `RunApp` 顶部用 `OpusInputResolver.TryParse` 识别专栏地址并分流（`BBDown/Program.cs`：`RunApp` 的 `OpusInputResolver.TryParse(...)` 分支），不注册子命令。
 - **`serve`**：服务器模式，选项含 `--listen` / `--serve-token` / `--work-dir` / `--host` / `--ep-host` / `--tv-host` / `--cors-origin` / `--max-concurrent`（`BBDown/Program.cs`：`BuildServeCommand`）。
-- 主命令解析范围：`av` / `BV` / `ep` / `ss` / `md`、合集（`listBizId`）/ 系列（`seriesBizId`）、收藏夹（`favId`）、空间（`spaceMid`）、稍后再看（`watchLater:`）、cheese（`cheese:`）（`BBDown/Pipeline/InputResolver.cs`：`GetAvIdAsync`）。
+- 主命令解析范围：`av` / `BV` / `ep` / `ss` / `md`、合集（`MediaList`）/ 系列（`Series`）、收藏夹（`Fav`）、空间（`Space`）、稍后再看（`WatchLater`）、cheese（`CheeseEp` / `CheeseSeason`），统一解析为 `ResourceId` 判别联合后由 `FetcherRegistry` 按子类型分发（`BBDown/Pipeline/InputResolver.cs`：`ResolveIdAsync`）。
 
 ### 2.2 登录与凭据管理
 
