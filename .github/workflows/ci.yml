@@ -1,0 +1,112 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+  BUILD_CONFIG: Release
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      # 插件 ProjectReference 按 `..\..\..\BBDown.Core` 相对路径解析，
+      # 主仓库必须位于工作区根、本仓库位于 Plugins/BBDown.DRM 才能编译。
+      - uses: actions/checkout@v7
+        with:
+          repository: KaiHuaDou/BBDown
+          path: main
+
+      - uses: actions/checkout@v7
+        with:
+          path: main/Plugins/BBDown.DRM
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 9.0.x
+          cache: true
+          cache-dependency-path: "**/Directory.Packages.props"
+
+      - name: Run tests
+        run: dotnet test main/Plugins/BBDown.DRM/BBDown.DRM.slnx -c ${{ env.BUILD_CONFIG }} --verbosity minimal
+
+  publish:
+    name: Publish (${{ matrix.rid }})
+    needs: [test]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+          - rid: linux-x64
+            os: ubuntu-latest
+          - rid: osx-x64
+            os: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: KaiHuaDou/BBDown
+          path: main
+
+      - uses: actions/checkout@v7
+        with:
+          path: main/Plugins/BBDown.DRM
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 9.0.x
+          cache: true
+          cache-dependency-path: "**/Directory.Packages.props"
+
+      - name: Publish
+        run: dotnet publish main/Plugins/BBDown.DRM/BBDown.DRM -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} --self-contained true -o artifact
+
+      # 单文件自包含产物按平台命名，device.wvd 由 csproj 一并复制到产物目录
+      - name: Stage artifact
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            mv artifact/BBDown.DRM.exe artifact/BBDown.DRM-${{ matrix.rid }}.exe
+          else
+            mv artifact/BBDown.DRM artifact/BBDown.DRM-${{ matrix.rid }}
+          fi
+          ls -la artifact
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: BBDown.DRM_${{ matrix.rid }}
+          path: artifact
+          retention-days: 7

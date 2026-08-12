@@ -15,19 +15,17 @@ using Google.Protobuf;
 
 namespace BBDown.DRM;
 
-// Widevine CDM：持 device.wvd 与 B 站 license 服务器完成取钥。
-// 流程：解析 PSSH 取 KID → 构建 LicenseRequest 并用设备私钥签名 → 请求 bvc-drm →
-// 解密响应中的会话密钥，派生 enc/mac 密钥，校验签名后解出内容密钥。
+// 一次完整 Widevine 取钥：加载设备 → 解析 PSSH 取 KID → 构建 LicenseRequest 并签名 →
+// 请求 bvc-drm → 解密响应会话密钥、派生 enc/mac 密钥、校验签名后解出内容密钥。
 // B 站不使用 service certificate / privacy mode，无证书环节。
-internal static class WidevineCdm
+internal static class WidevineLicense
 {
     private const string LicenseUrl = "https://bvc-drm.bilivideo.com/bili_widevine";
-    private static readonly byte[] WidevineSystemId = [0xed, 0xef, 0x8b, 0xa9, 0x79, 0xd6, 0x4a, 0xce, 0xa3, 0xc8, 0x27, 0xdc, 0xd5, 0x1d, 0x21, 0xed];
 
-    public static async Task<(string Kid, string Key)[]?> GetKeysAsync(string psshBase64, string wvdPath, CancellationToken ct = default)
+    public static async Task<(string Kid, string Key)[]?> FetchAsync(string psshBase64, string wvdPath, CancellationToken ct)
     {
         using var device = WvdDevice.Load(wvdPath);
-        var (payload, keyIds) = ParsePsshBox(psshBase64);
+        var (payload, keyIds) = PsshBox.Parse(psshBase64);
         if (keyIds.Count == 0)
         {
             return null;
@@ -36,86 +34,6 @@ internal static class WidevineCdm
         var (challenge, plaintext) = BuildChallenge(device, payload);
         var response = await SendRequestAsync(challenge, ct);
         return ParseResponse(response, plaintext, device);
-    }
-
-    // 标准 PSSH box：size/type 头 + version+flags + system_id + （v1 起 KID 列表）+ data 载荷
-    private static (byte[] Payload, List<byte[]> KeyIds) ParsePsshBox(string psshBase64)
-    {
-        var keyIds = new List<byte[]>( );
-        byte[] payload = [];
-        byte[] raw;
-        try
-        {
-            raw = Convert.FromBase64String(psshBase64);
-        }
-        catch (FormatException)
-        {
-            return (payload, keyIds);
-        }
-
-        if (raw.Length < 32)
-        {
-            return (payload, keyIds);
-        }
-
-        var pos = 12; // 跳过 size + type + version/flags
-        var version = raw[8];
-        if (!raw.AsSpan(pos, 16).SequenceEqual(WidevineSystemId))
-        {
-            return (payload, keyIds);
-        }
-
-        pos += 16;
-        if (version >= 1)
-        {
-            if (pos + 4 > raw.Length)
-            {
-                return (payload, keyIds);
-            }
-
-            var count = (int)ReadU32Be(raw, pos);
-            pos += 4;
-            for (var i = 0; i < count && pos + 16 <= raw.Length; i++)
-            {
-                var kid = new byte[16];
-                Buffer.BlockCopy(raw, pos, kid, 0, 16);
-                keyIds.Add(kid);
-                pos += 16;
-            }
-        }
-
-        if (pos + 4 > raw.Length)
-        {
-            return (payload, keyIds);
-        }
-
-        var dataSize = (int)ReadU32Be(raw, pos);
-        pos += 4;
-        if (dataSize <= 0 || dataSize > 4096 || pos + dataSize > raw.Length)
-        {
-            return (payload, keyIds);
-        }
-
-        payload = new byte[dataSize];
-        Buffer.BlockCopy(raw, pos, payload, 0, dataSize);
-        if (keyIds.Count == 0)
-        {
-            // v0 box 不含 KID 列表，从载荷内的 WidevineCencHeader 补取
-            try
-            {
-                var header = WidevineCencHeader.Parser.ParseFrom(payload);
-                foreach (var kid in header.KeyIds)
-                {
-                    keyIds.Add(kid.ToByteArray( ));
-                }
-            }
-            catch (InvalidProtocolBufferException)
-            {
-                // 载荷不可解析时保持无 KID，由调用方判定取钥失败
-            }
-        }
-
-        return (payload, keyIds);
     }
 
     private static (byte[] Challenge, byte[] Plaintext) BuildChallenge(WvdDevice device, byte[] payload)
@@ -260,10 +178,5 @@ internal static class WidevineCdm
         var result = new byte[16];
         Buffer.BlockCopy(iv, 0, result, 0, Math.Min(iv.Length, 16));
         return result;
-    }
-
-    private static uint ReadU32Be(byte[] buffer, int offset)
-    {
-        return ((uint)buffer[offset] << 24) | ((uint)buffer[offset + 1] << 16) | ((uint)buffer[offset + 2] << 8) | buffer[offset + 3];
     }
 }

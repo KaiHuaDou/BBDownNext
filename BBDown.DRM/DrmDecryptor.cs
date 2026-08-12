@@ -9,35 +9,21 @@ using BBDown.Core.Util;
 namespace BBDown.DRM;
 
 /// <summary>
-/// DRM 通道判定与 cbcs 解密执行。两条通道密文同为 CENC cbcs，拿到 key 后 ffmpeg 一行可解，
-/// 区别只在 key 从哪来：bili_drm 靠本插件自管的密钥表，widevine 经 CDM 向 license 服务器取钥。
+/// cbcs 解密执行。两条通道密文同为 CENC cbcs，拿到 key 后 ffmpeg 一行可解；
+/// key 的获取（密钥表 / Widevine CDM）由 <see cref="DrmKeys"/> 收敛，本类不感知通道差异。
 /// 解密产物为独立文件，源文件不覆盖，失败时调用方保留加密原件。
 /// </summary>
 internal static class DrmDecryptor
 {
-    /// <summary>bili_drm 的 KID 取自 bilidrm_uri 最后一个 // 之后（32 位 hex）。</summary>
-    public static string? KidFromUri(string? uri)
-    {
-        if (uri == null)
-        {
-            return null;
-        }
-
-        var i = uri.LastIndexOf("//", StringComparison.Ordinal);
-        return i >= 0 ? uri[(i + 2)..] : uri;
-    }
-
     public static async Task<DrmResult> DecryptAsync(string drmType, string? biliDrmUri, string? psshBase64, string sourcePath, string destPath, DrmKeySource keys, string ffmpeg, string? wvdPath, CancellationToken ct = default)
     {
-        var key = drmType == "widevine"
-            ? await GetWidevineKeyAsync(psshBase64, wvdPath, ct)
-            : keys.TryGetKey(KidFromUri(biliDrmUri));
-        if (key == null)
+        var (key, failure) = await DrmKeys.ResolveAsync(drmType, biliDrmUri, psshBase64, keys, wvdPath, ct);
+        if (failure is not null)
         {
-            return drmType == "widevine" ? DrmResult.Unsupported : DrmResult.KeyMissing;
+            return failure.Value;
         }
 
-        var code = await Utils.RunExe(ffmpeg, BuildArgs(key, sourcePath, destPath), ct);
+        var code = await Utils.RunExe(ffmpeg, BuildArgs(key!, sourcePath, destPath), ct);
         return code == 0 && File.Exists(destPath) && new FileInfo(destPath).Length > 0
             ? DrmResult.Decrypted
             : DrmResult.Failed;
@@ -47,25 +33,5 @@ internal static class DrmDecryptor
     public static List<string> BuildArgs(string key, string sourcePath, string destPath)
     {
         return ["-loglevel", "warning", "-y", "-decryption_key", key, "-i", sourcePath, "-c", "copy", "-f", "mp4", "--", destPath];
-    }
-
-    // widevine 取钥失败归入 Unsupported：可能是缺 wvd 也可能是 CDM 交互失败，调用方都保留加密原件
-    private static async Task<string?> GetWidevineKeyAsync(string? psshBase64, string? wvdPath, CancellationToken ct)
-    {
-        if (psshBase64 is null || wvdPath is null)
-        {
-            return null;
-        }
-
-        try
-        {
-            var keys = await WidevineCdm.GetKeysAsync(psshBase64, wvdPath, ct);
-            return keys is { Length: > 0 } ? keys[0].Key : null;
-        }
-        catch (Exception)
-        {
-            // wvd 缺失/损坏、license 服务器拒绝等均视为通道不可用，保留加密原件
-            return null;
-        }
     }
 }

@@ -10,7 +10,7 @@ BBDown 主程序的外部后处理插件：为下载到的加密轨道执行解�
 dotnet publish BBDown.DRM -c Release -r win-x64 --self-contained true
 ```
 
-产物为单文件 `BBDown.DRM.exe`。
+产物为单文件 `BBDown.DRM.exe`，并附带仓库根目录的 `device.wvd`（widevine 通道直接命中 exe 同目录）。
 
 ## 配置密钥
 

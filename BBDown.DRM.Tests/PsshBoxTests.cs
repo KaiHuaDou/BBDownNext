@@ -7,7 +7,7 @@ using Google.Protobuf;
 
 namespace BBDown.DRM.Tests;
 
-public class WidevineCdmTests
+public class PsshBoxTests
 {
     private static readonly byte[] WidevineSystemId =
     [
@@ -22,7 +22,7 @@ public class WidevineCdmTests
         {
             ProtectionScheme = 0x63626373 // cbcs
         };
-        header.KeyIds.Add(Google.Protobuf.ByteString.CopyFrom(kid));
+        header.KeyIds.Add(ByteString.CopyFrom(kid));
         var data = payload ?? header.ToByteArray( );
 
         // box: size(4) + "pssh"(4) + version/flags(4) + system_id(16) + kid_count(4) + kid + data_size(4) + data
@@ -48,9 +48,8 @@ public class WidevineCdmTests
         return Convert.ToBase64String(box);
     }
 
-    // 经 ParsePsshBox 公开路径验证：走 GetKeysAsync 会先加载 wvd，故直接测 box 结构对 pssh 解析的影响
     [Fact]
-    public void ParsePsshBox_V1WithKidList_ExtractsKidAndPayload( )
+    public void Parse_V1WithKidList_ExtractsKidAndPayload( )
     {
         var kid = new byte[16];
         for (var i = 0; i < 16; i++)
@@ -58,10 +57,7 @@ public class WidevineCdmTests
             kid[i] = (byte)i;
         }
 
-        var pssh = BuildPssh(kid);
-
-        // 通过反射调用内部方法验证 KID 提取，避免依赖网络
-        var (payload, keyIds) = InvokeParsePsshBox(pssh);
+        var (payload, keyIds) = PsshBox.Parse(BuildPssh(kid));
 
         Assert.Single(keyIds);
         Assert.Equal(kid, keyIds[0]);
@@ -69,7 +65,7 @@ public class WidevineCdmTests
     }
 
     [Fact]
-    public void ParsePsshBox_NonWidevineSystemId_ReturnsEmpty( )
+    public void Parse_NonWidevineSystemId_ReturnsEmpty( )
     {
         var other = new byte[16];
         other[0] = 0x01;
@@ -90,17 +86,19 @@ public class WidevineCdmTests
         box[7] = (byte)'h';
         body.CopyTo(box, 8);
 
-        var (payload, keyIds) = InvokeParsePsshBox(Convert.ToBase64String(box));
+        var (payload, keyIds) = PsshBox.Parse(Convert.ToBase64String(box));
 
         Assert.Empty(keyIds);
         Assert.Empty(payload);
     }
 
-    private static (byte[] Payload, List<byte[]> KeyIds) InvokeParsePsshBox(string psshBase64)
+    [Fact]
+    public void Parse_InvalidBase64_ReturnsEmpty( )
     {
-        var method = typeof(WidevineCdm).GetMethod("ParsePsshBox", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        var result = ((byte[] Payload, List<byte[]> KeyIds))method.Invoke(null, [psshBase64])!;
-        return result;
+        var (payload, keyIds) = PsshBox.Parse("!!!not-base64!!!");
+
+        Assert.Empty(keyIds);
+        Assert.Empty(payload);
     }
 
     private static byte[] ToU32Be(int value)

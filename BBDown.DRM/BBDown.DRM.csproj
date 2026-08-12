@@ -24,12 +24,17 @@
     </ItemGroup>
 
     <ItemGroup>
+        <!-- 发布时附带根目录 device.wvd，与 exe 同目录便于 KeyConfig.FindWvdPath 直接命中 -->
+        <None Include="..\device.wvd" Link="device.wvd" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+    <ItemGroup>
         <!-- Widevine 许可证协议编解码（版本走中央包管理） -->
         <PackageReference Include="Grpc.Tools">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <Protobuf Include="DRM\Proto\*.proto" GrpcServices="None" />
+        <Protobuf Include="..\Proto\*.proto" GrpcServices="None" />
     </ItemGroup>
     <ItemGroup>
         <InternalsVisibleTo Include="BBDown.DRM.Tests" />

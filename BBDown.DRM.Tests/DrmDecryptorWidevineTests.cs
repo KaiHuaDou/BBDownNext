@@ -4,26 +4,26 @@ namespace BBDown.DRM.Tests;
 
 public class DrmDecryptorWidevineTests
 {
-    // widevine 通道取钥失败（无 wvd）→ Unsupported
+    // widevine 通道缺 wvd → DeviceMissing
     [Fact]
-    public async Task DecryptAsync_WidevineNoWvd_Unsupported( )
+    public async Task DecryptAsync_WidevineNoWvd_DeviceMissing( )
     {
         var keys = new DrmKeySource([]);
 
         var result = await DrmDecryptor.DecryptAsync("widevine", null, "AAAA", "a.m4s", "a.dec.mp4", keys, "ffmpeg", null, TestContext.Current.CancellationToken);
 
-        Assert.Equal(DrmResult.Unsupported, result);
+        Assert.Equal(DrmResult.DeviceMissing, result);
     }
 
-    // widevine 通道无 pssh → Unsupported
+    // widevine 通道缺 pssh → DeviceMissing
     [Fact]
-    public async Task DecryptAsync_WidevineNoPssh_Unsupported( )
+    public async Task DecryptAsync_WidevineNoPssh_DeviceMissing( )
     {
         var keys = new DrmKeySource([]);
 
         var result = await DrmDecryptor.DecryptAsync("widevine", null, null, "a.m4s", "a.dec.mp4", keys, "ffmpeg", "device.wvd", TestContext.Current.CancellationToken);
 
-        Assert.Equal(DrmResult.Unsupported, result);
+        Assert.Equal(DrmResult.DeviceMissing, result);
     }
 
     // bili_drm 通道无 key → KeyMissing
