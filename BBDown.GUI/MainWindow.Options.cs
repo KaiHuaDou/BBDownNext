@@ -1,6 +1,9 @@
 using System;
 using System.Text;
+using System.Windows;
 using System.Windows.Controls;
+
+using Ookii.Dialogs.Wpf;
 
 namespace BBDown.GUI;
 
@@ -9,7 +12,7 @@ public partial class MainWindow
 {
     private static readonly (string Value, string Label)[] MuxChoices =
     [
-        ("mpeg4", "FFmpeg 混流为 MP4（默认）"),
+        ("mpeg4", "FFmpeg 混流为 MPEG4"),
         ("mp4box", "MP4Box 混流"),
         ("mkv", "FFmpeg 混流为 Matroska"),
         ("none", "不混流（保留裸轨）"),
@@ -292,5 +295,64 @@ public partial class MainWindow
         AllCommentCheckBox.IsChecked = content.Contains('O');
         AiSubtitleCheckBox.IsChecked = content.Contains('S');
         SubtitleCheckBox.IsChecked = content.Contains('s');
+    }
+
+    /// <summary>仅解析不下载时禁用下载内容相关复选框（含弹幕/评论格式），避免无效选项误导。</summary>
+    private void InfoOnlyCheckBoxChanged(object o, RoutedEventArgs e)
+    {
+        var enabled = InfoOnlyCheckBox.IsChecked != true;
+        ContentGrid.IsEnabled = enabled;
+        DanmakuFormatPanel.IsEnabled = enabled;
+        CommentFormatPanel.IsEnabled = enabled;
+    }
+
+    private void DebugCheckBoxChecked(object o, RoutedEventArgs e)
+    {
+        LogExpander.IsExpanded = true;
+    }
+
+    private void BrowseDirButtonClicked(object o, RoutedEventArgs e)
+    {
+        VistaFolderBrowserDialog dialog = new( )
+        {
+            Description = "选择工作目录",
+            SelectedPath = WorkDirBox.Text.Trim( ),
+            UseDescriptionForTitle = true,
+        };
+        if (dialog.ShowDialog( ) == true)
+        {
+            WorkDirBox.Text = dialog.SelectedPath;
+        }
+    }
+
+    /// <summary>ffmpeg / mp4box / aria2c 路径选择，按按钮 Tag 区分目标框。</summary>
+    private void BrowseFileButtonClicked(object o, RoutedEventArgs e)
+    {
+        if (o is not Button { Tag: string target })
+        {
+            return;
+        }
+
+        TextBox? box = target switch
+        {
+            "ffmpeg" => FFmpegPathBox,
+            "mp4box" => Mp4boxPathBox,
+            "aria2c" => Aria2cPathBox,
+            _ => null,
+        };
+        if (box is null)
+        {
+            return;
+        }
+
+        VistaOpenFileDialog dialog = new( )
+        {
+            Filter = "可执行文件 (*.exe)|*.exe|所有文件 (*.*)|*.*",
+            FileName = box.Text.Trim( ),
+        };
+        if (dialog.ShowDialog( ) == true)
+        {
+            box.Text = dialog.FileName;
+        }
     }
 }

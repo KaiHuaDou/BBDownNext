@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Windows;
 
+using Ookii.Dialogs.Wpf;
+
 namespace BBDown.GUI;
 
 public partial class App : Application
@@ -18,8 +20,15 @@ public partial class App : Application
             {
                 File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "BBDown.GUI.error.log"),
                     $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {e.Exception}\n");
-                MessageBox.Show($"发生未处理的异常，程序即将退出：\n{e.Exception.Message}",
-                    "BBDown.GUI 错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                TaskDialog dialog = new( )
+                {
+                    WindowTitle = "BBDown.GUI 错误",
+                    MainInstruction = "发生未处理的异常，程序即将退出",
+                    Content = e.Exception.Message,
+                    MainIcon = TaskDialogIcon.Error,
+                    Buttons = { new TaskDialogButton(ButtonType.Ok) },
+                };
+                dialog.ShowDialog( );
                 e.Handled = true;
                 app.Shutdown( );
             };

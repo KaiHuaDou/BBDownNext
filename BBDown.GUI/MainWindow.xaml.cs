@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,15 +9,14 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
-using Microsoft.Win32;
+using System.Runtime.InteropServices;
+
+using Ookii.Dialogs.Wpf;
 
 namespace BBDown.GUI;
 
 public partial class MainWindow : Window
 {
-    private const int MaxLogLines = 5000;
-
-    private readonly List<string> logLines = [];
     private readonly ObservableCollection<TaskState> tasks = [];
     private readonly QueueRunner queue;
     private readonly Brush okBrush = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
@@ -28,6 +27,8 @@ public partial class MainWindow : Window
     public MainWindow( )
     {
         InitializeComponent( );
+        // RichTextBox 初始 Document 自带一个空段落，清掉避免日志顶部出现空行
+        LogBox.Document.Blocks.Clear( );
         ApiBox.ItemsSource = new[] { "web", "tv", "app", "intl" };
         foreach ((var value, var label) in LiveQualityChoices)
         {
@@ -56,11 +57,16 @@ public partial class MainWindow : Window
         queue.CancelRunning( );
         try
         {
+            Rect bounds = WindowState == WindowState.Minimized ? RestoreBounds : new Rect(Left, Top, Width, Height);
             ConfigData config = new( )
             {
                 Options = ReadOptions( ),
                 ExePath = ExePathBox.Text.Trim( ),
                 Concurrency = int.TryParse(ConcurrencyBox.Text, out var value) ? value : 3,
+                WindowLeft = bounds.Left,
+                WindowTop = bounds.Top,
+                WindowWidth = bounds.Width,
+                WindowHeight = bounds.Height,
             };
             ConfigStore.Save(config);
         }
@@ -72,7 +78,7 @@ public partial class MainWindow : Window
 
     private void ExeSelectButtonClicked(object o, RoutedEventArgs e)
     {
-        OpenFileDialog dialog = new( ) { Filter = "可执行文件 (*.exe)|*.exe" };
+        VistaOpenFileDialog dialog = new( ) { Filter = "可执行文件 (*.exe)|*.exe", FileName = ExePathBox.Text.Trim( ) };
         if (dialog.ShowDialog( ) == true)
         {
             ExePathBox.Text = dialog.FileName;
@@ -138,47 +144,57 @@ public partial class MainWindow : Window
         AppendLog("选项已重置");
     }
 
-    private void StartQueueButtonClicked(object o, RoutedEventArgs e)
+    private void OpenDirButtonClicked(object o, RoutedEventArgs e)
     {
-        if (!queue.HasWaiting)
+        var dir = WorkDirBox.Text.Trim( );
+        if (dir.Length > 0 && Directory.Exists(dir))
         {
-            AppendLog("队列中没有等待的任务");
+            _ = Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true });
             return;
         }
 
-        queue.StartSchedule( );
-        AppendLog("队列调度已启动");
+        var fallback = Path.GetDirectoryName(Environment.ProcessPath) ?? "";
+        if (Directory.Exists(fallback))
+        {
+            _ = Process.Start(new ProcessStartInfo(fallback) { UseShellExecute = true });
+        }
+        else
+        {
+            AppendLog("输出目录不存在，请先在“工作目录”填写有效路径");
+        }
     }
 
-    private void RemoveButtonClicked(object o, RoutedEventArgs e)
+    /// <summary>非负整数字段失焦校验，无效回退上次有效值（存于 Tag）。</summary>
+    private void IntegerBoxLostKeyboardFocus(object o, KeyboardFocusChangedEventArgs e)
     {
-        if (TaskList.SelectedItem is not TaskState state)
+        if (o is not TextBox box)
         {
             return;
         }
 
-        if (!queue.RemoveWaiting(state))
+        var fallback = box.Tag as string ?? "0";
+        if (int.TryParse(box.Text, out var value) && value >= 0)
         {
-            AppendLog("仅可移除等待中的任务");
-        }
-    }
-
-    private void ClearButtonClicked(object o, RoutedEventArgs e)
-    {
-        queue.ClearFinished( );
-    }
-
-    private void ConcurrencyBoxLostKeyboardFocus(object o, KeyboardFocusChangedEventArgs e)
-    {
-        if (int.TryParse(ConcurrencyBox.Text, out var value) && value is >= 1 and <= 8)
-        {
-            lastConcurrency = value.ToString( );
-            queue.Concurrency = value;
+            box.Tag = value.ToString( );
             return;
         }
 
-        ConcurrencyBox.Text = lastConcurrency;
-        AppendLog($"并发数无效，已回退为 {lastConcurrency}");
+        box.Text = fallback;
+        AppendLog($"{box.Name} 需为非负整数，已回退为 {fallback}");
+    }
+
+    private void WindowDragOver(object o, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(DataFormats.Text) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void WindowDrop(object o, DragEventArgs e)
+    {
+        if (e.Data.GetData(DataFormats.Text) is string text)
+        {
+            TargetBox.Text = text.Trim( );
+        }
     }
 
     private void LoadConfig( )
@@ -194,6 +210,7 @@ public partial class MainWindow : Window
                 AppendLog($"自动检测到 BBDown.exe：{found}");
             }
 
+            UpdateExeHint( );
             return;
         }
 
@@ -201,21 +218,44 @@ public partial class MainWindow : Window
         ExePathBox.Text = config.ExePath;
         ConcurrencyBox.Text = config.Concurrency.ToString( );
         lastConcurrency = ConcurrencyBox.Text;
+        ApplyWindowBounds(config);
+        UpdateExeHint( );
     }
 
-    private void OnQueueChanged(object? o, EventArgs e)
+    private void ApplyWindowBounds(ConfigData config)
     {
-        RefreshTaskList( );
-    }
-
-    private void RefreshTaskList( )
-    {
-        tasks.Clear( );
-        foreach (var state in queue.All)
+        if (config.WindowLeft is not { } left || config.WindowTop is not { } top ||
+            config.WindowWidth is not { } width || config.WindowHeight is not { } height ||
+            !IsOnScreen(left, top, width, height))
         {
-            tasks.Add(state);
+            return;
         }
+
+        Left = left;
+        Top = top;
+        Width = width;
+        Height = height;
     }
+
+    private static bool IsOnScreen(double left, double top, double width, double height)
+    {
+        // 虚拟屏幕覆盖多显示器；窗口至少留 100px 可见才算在屏内
+        var screenLeft = GetSystemMetrics(SM_XVIRTUALSCREEN);
+        var screenTop = GetSystemMetrics(SM_YVIRTUALSCREEN);
+        var screenWidth = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        var screenHeight = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        return left + width > screenLeft && left < screenLeft + screenWidth - 100 &&
+               top + height > screenTop && top < screenTop + screenHeight - 100;
+    }
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll")]
+    private static extern int GetSystemMetrics(int index);
+
+    private const int SM_XVIRTUALSCREEN = 76;
+    private const int SM_YVIRTUALSCREEN = 77;
+    private const int SM_CXVIRTUALSCREEN = 78;
+    private const int SM_CYVIRTUALSCREEN = 79;
 
     private void Dispatch(Action action)
     {
@@ -237,43 +277,6 @@ public partial class MainWindow : Window
             AppendProcessLog(index, "已取消", false);
             throw;
         }
-    }
-
-    private void LogTaskError(TaskState state, string message)
-    {
-        AppendLog($"[任务{state.Index}] {message}");
-    }
-
-    private void AppendProcessLog(int index, string line, bool isError)
-    {
-        var prefix = isError ? "[错误] " : "";
-        AppendLog($"[任务{index}] {prefix}{line}");
-    }
-
-    private void AppendLog(string line)
-    {
-        if (!Dispatcher.CheckAccess( ))
-        {
-            if (!Dispatcher.HasShutdownStarted)
-            {
-                Dispatcher.BeginInvoke(( ) => AppendLog(line));
-            }
-
-            return;
-        }
-
-        logLines.Add(line);
-        if (logLines.Count > MaxLogLines)
-        {
-            logLines.RemoveRange(0, logLines.Count - MaxLogLines);
-            LogBox.Text = string.Join(Environment.NewLine, logLines);
-        }
-        else
-        {
-            LogBox.AppendText(line + Environment.NewLine);
-        }
-
-        LogBox.ScrollToEnd( );
     }
 
     private bool TryGetTarget(out string url)

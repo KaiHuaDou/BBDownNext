@@ -25,4 +25,7 @@
     <ItemGroup>
         <Folder Include="Properties\" />
     </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Ookii.Dialogs.Wpf" />
+    </ItemGroup>
 </Project>

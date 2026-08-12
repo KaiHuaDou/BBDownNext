@@ -24,18 +24,19 @@ public sealed class TaskState
     public TaskStatus Status { get; set; }
     public CancellationTokenSource? TokenSource { get; set; }
 
+    public string StatusText => Status switch
+    {
+        TaskStatus.Waiting => "等待中",
+        TaskStatus.Running => "运行中",
+        TaskStatus.Success => "成功",
+        TaskStatus.Failed => "失败",
+        TaskStatus.Cancelled => "已取消",
+        _ => "未知",
+    };
+
     public override string ToString( )
     {
-        var statusText = Status switch
-        {
-            TaskStatus.Waiting => "等待中",
-            TaskStatus.Running => "运行中",
-            TaskStatus.Success => "成功",
-            TaskStatus.Failed => "失败",
-            TaskStatus.Cancelled => "已取消",
-            _ => "未知",
-        };
-        return $"{statusText} | {Url}";
+        return $"{StatusText} | {Url}";
     }
 }
 
@@ -132,6 +133,12 @@ public sealed class QueueRunner(Action<Action> dispatch)
         {
             state.TokenSource?.Cancel( );
         }
+    }
+
+    /// <summary>取消指定运行中的任务；非运行态不生效。</summary>
+    public static void CancelTask(TaskState state)
+    {
+        state.TokenSource?.Cancel( );
     }
 
     private TaskState CreateState(TaskParams options, string url)

@@ -196,7 +196,7 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 - 外部使用
     - 永远不要 `using System.Windows.Forms`
     - 永远不要为 WPF 程序创建任何测试
-    - 选择文件夹请使用 `ookii-dialogs-wpf` 中的 `VistaOpenFileDialog`
+    - 选择文件夹请使用 `ookii-dialogs-wpf` 中的 `VistaFolderBrowserDialog`
     - `MessageBox` 请使用 `ookii-dialogs-wpf` 中的 `TaskDialog`
     - `ookii-dialogs-wpf` 最新版本是 `v5.0.1`
 - 杂项
