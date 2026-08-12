@@ -24,8 +24,8 @@ if (request is null)
 var keys = KeyConfig.Load( );
 if (!keys.HasKeys && KeyConfig.FindWvdPath( ) is null)
 {
-    Console.WriteLine("未配置密钥：设置环境变量 BBDOWN_DRM_KEYS 或 exe 同目录 BBDown.DRM.json；widevine 需 BBDOWN_WVD_PATH 或同目录 device.wvd");
-    return 2;
+    // bili_drm（clearkey）通道零配置自动取钥，无需密钥表或 wvd；仅当两者皆缺时提示
+    Console.WriteLine("未配置密钥：bili_drm 通道可零配置自动取钥；widevine 需 BBDOWN_WVD_PATH 或同目录 device.wvd，密钥表可选 BBDOWN_DRM_KEYS 或 BBDown.DRM.json");
 }
 
 try

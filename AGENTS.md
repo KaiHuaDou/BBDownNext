@@ -21,6 +21,7 @@ BBDown.DRM 是 BBDown 主程序的外部后处理插件（独立 git 仓库）�
 - 通道差异收敛在 `DrmKeys`（取钥统一入口），`DrmDecryptor` 只做「取钥 → ffmpeg 解密」，不感知通道类型。
 - 取钥失败语义：`KeyMissing`（bili_drm 无 key）/ `DeviceMissing`（缺 wvd / pssh）/ `FetchFailed`（CDM 交互失败），失败时调用方保留加密原件。
 - 禁止在解密执行层做通道特判（`drmType == "widevine"` 三元），新通道的取钥实现接入 `DrmKeys` 即可。
+- bili_drm 通道的 SPC/CKC 结构、固定 salt/header 与 padding（OAEP-SHA1）为实测逆向结果，改动会使服务器拒绝请求（`get assetId failed` / `Not Found the Key ID`）。
 
 ## 其他内容
 

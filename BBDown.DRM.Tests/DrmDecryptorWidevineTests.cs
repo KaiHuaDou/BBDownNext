@@ -26,13 +26,13 @@ public class DrmDecryptorWidevineTests
         Assert.Equal(DrmResult.DeviceMissing, result);
     }
 
-    // bili_drm 通道无 key → KeyMissing
+    // bili_drm 通道：KID 非 32 位 hex 时 clearkey 不可用，且密钥表为空 → KeyMissing
     [Fact]
-    public async Task DecryptAsync_BiliDrmNoKey_KeyMissing( )
+    public async Task DecryptAsync_BiliDrmBadKidNoKey_KeyMissing( )
     {
         var keys = new DrmKeySource([]);
 
-        var result = await DrmDecryptor.DecryptAsync("bili_drm", "uri:bili://d8f66b93db284984b4e7fc50d71278ff", null, "a.m4s", "a.dec.mp4", keys, "ffmpeg", null, TestContext.Current.CancellationToken);
+        var result = await DrmDecryptor.DecryptAsync("bili_drm", "uri:bili://short", null, "a.m4s", "a.dec.mp4", keys, "ffmpeg", null, TestContext.Current.CancellationToken);
 
         Assert.Equal(DrmResult.KeyMissing, result);
     }

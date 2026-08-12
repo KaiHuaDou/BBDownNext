@@ -14,7 +14,7 @@ AOT 原生单文件发布，产物为 `BBDown.DRM.exe`，并附带仓库根目�
 
 ## 配置密钥
 
-主程序不感知密钥，由本插件自管，二选一：
+bili_drm 通道默认走 clearkey 自动取钥（公开 RSA 公钥即可换 key，零配置）。密钥表作为自动取钥失败时的回退，二选一：
 
 - 环境变量 `BBDOWN_DRM_KEYS`：分号或逗号分隔的 `kid:key` 条目
 - exe 同目录 `BBDown.DRM.json`：`{ "keys": ["kid:key", ...] }`
