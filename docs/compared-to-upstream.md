@@ -167,10 +167,9 @@
 
 ### 2.15 加密轨道与外部后处理
 
-- **识别**（`BBDown.Core/PlayUrl/TrackFactory.cs`：`ReadEncrypted`）：playurl 逐流下发 `widevine_pssh` / `bilidrm_uri`，任一存在即视为受保护（协议字段）。加密标记挂到 `Video` / `Audio` 轨道（`BBDown.Core/Entity/Entity.cs` 的 `IsEncrypted`），不参与轨道相等比较。
-- **主程序不内置解密**：密钥、通道与加密信息均由外部进程自行获取管理，主程序不感知其语义。
-- **调起外部进程**（`BBDown.Core/Download/PostProcessClient.cs`：`Configure` / `TryProcessAsync`）：`--post-process <exe>` 由 `CommandLineInvoker` 注册；对带加密标记的轨写请求 JSON（`PostProcessRequest`：`Aid` / `Cid` / `Kind` / `TrackPath` / `DestPath` / `Ffmpeg`），以请求文件路径为唯一参数调起进程，20 秒超时。请求只携带轨道定位与本地路径，**不携带任何加密特征与凭据**。
-- **接入点与降级**（`BBDown.Core/Media/DashDownload.cs`：`TryPostProcessAsync`）：DASH 轨下载完成后统一处理视频轨 / 音频轨 / 背景音 / 配音轨——进程退出码为 0 且产物非空时产物覆盖原轨参与混流；未配置 / 进程不可用 / 超时 / 失败一律静默保留原文件，加密流照常参与混流。FLV 分支与直播录制不经此路径（直播对带加密标记的流直接跳过）。
+- **主程序不判断加密**：是否加密由外部进程自行判断，主程序不解析任何加密特征（`widevine_pssh` / `bilidrm_uri`），也不感知其语义。
+- **调起外部进程**（`BBDown.Core/Download/PostProcessClient.cs`：`Configure` / `TryProcessAsync`）：`--post-process <exe>` 由 `CommandLineInvoker` 注册；对每条轨写请求 JSON（`PostProcessRequest`：`Aid` / `Cid` / `Kind` / `TrackPath` / `DestPath` / `Ffmpeg`），以请求文件路径为唯一参数调起进程，20 秒超时。请求只携带轨道定位与本地路径，**不携带任何加密特征与凭据**。
+- **接入点与降级**（`BBDown.Core/Media/DashDownload.cs`：`TryPostProcessAsync`）：DASH 轨下载完成后统一处理视频轨 / 音频轨 / 背景音 / 配音轨——进程退出码为 0 且产物非空时产物覆盖原轨参与混流；退出码 0 且无产物视为无需处理；未配置 / 进程不可用 / 超时 / 失败一律静默保留原文件，加密流照常参与混流。FLV 分支与直播录制不经此路径（直播对带加密标记的流直接跳过）。
 
 ### 2.16 稍后再看列表
 
@@ -194,7 +193,7 @@
 - **Opus 导出**：`BBDown.Core/Opus/`（`OpusFetcher` partial：`OpusFetcher.cs` / `OpusFetcher.Parse.cs` / `OpusFetcher.Paragraph.cs`；`OpusInputResolver` / `OpusHtmlToMarkdown` / `OpusMarkdownRenderer` / `OpusImageUtil` / `OpusRegexes` / `OpusDocument`）与 `BBDown.Core/Pipeline/OpusDownload.cs`。
 - **空间列表**：`BBDown.Core/Fetcher/SpaceListFetcher.cs`、`BBDown.Core/Pipeline/InputResolver.cs`、`BBDown.Core/Fetcher/FetcherRegistry.cs`。
 - **稍后再看**：`BBDown.Core/Fetcher/WatchLaterFetcher.cs`、`BBDown.Core/Pipeline/InputResolver.cs`、`BBDown.Core/IdPrefix.cs`（`WatchLater`）。
-- **加密轨道后处理**：`BBDown.Core/PlayUrl/TrackFactory.cs`（`ReadEncrypted`）、`BBDown.Core/Entity/Entity.cs`（`IsEncrypted`）、`BBDown.Core/Download/PostProcessClient.cs`（`Configure` / `TryProcessAsync` / `PostProcessRequest`）、`BBDown.Core/Media/DashDownload.cs`（`TryPostProcessAsync`）。
+- **加密轨道后处理**：`BBDown.Core/Download/PostProcessClient.cs`（`Configure` / `TryProcessAsync` / `PostProcessRequest`）、`BBDown.Core/Media/DashDownload.cs`（`TryPostProcessAsync`）。
 - **图形界面**：`BBDown.GUI/`（`MainWindow` / `QueueRunner` / `TaskParams` / `ConfigStore` / `UrlDetector`）、`.github/workflows/gui.yml`。
 - **充电试看**：`BBDown.Core/Download/ChargedPreviewException.cs`、`BBDown.Core/Media/PageDownload.cs`（`IsTruncatedPreview` / `ShouldRetry`）、`BBDown/Program.cs`（`IsChargedPreviewOnly` / `ApplyPreviewPrefix` 经 `SavePath.cs`）。
 - **断点续传**：`BBDown.Core/Download/PartFile.cs`（`PartFile` / `PartManifest` / `Fingerprint`）。

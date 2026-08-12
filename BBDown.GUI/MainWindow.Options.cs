@@ -60,6 +60,7 @@ public partial class MainWindow
             FFmpegPath = FFmpegPathBox.Text.Trim( ),
             Mp4boxPath = Mp4boxPathBox.Text.Trim( ),
             Aria2cPath = Aria2cPathBox.Text.Trim( ),
+            PostProcessPath = PostProcessPathBox.Text.Trim( ),
             Aria2cArgs = Aria2cArgsBox.Text.Trim( ),
             DelayPerPage = DelayPerPageBox.Text.Trim( ),
             LiveQuality = ReadLiveQuality( ),
@@ -169,6 +170,7 @@ public partial class MainWindow
         FFmpegPathBox.Text = options.FFmpegPath;
         Mp4boxPathBox.Text = options.Mp4boxPath;
         Aria2cPathBox.Text = options.Aria2cPath;
+        PostProcessPathBox.Text = options.PostProcessPath;
         Aria2cArgsBox.Text = options.Aria2cArgs;
         DelayPerPageBox.Text = options.DelayPerPage;
         ApplyLiveQuality(options.LiveQuality);
@@ -280,6 +282,7 @@ public partial class MainWindow
             "ffmpeg" => FFmpegPathBox,
             "mp4box" => Mp4boxPathBox,
             "aria2c" => Aria2cPathBox,
+            "postprocess" => PostProcessPathBox,
             _ => null,
         };
         if (box is null)

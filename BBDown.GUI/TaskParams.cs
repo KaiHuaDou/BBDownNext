@@ -40,6 +40,7 @@ public sealed record TaskParams
     public string FFmpegPath { get; init; } = "";
     public string Mp4boxPath { get; init; } = "";
     public string Aria2cPath { get; init; } = "";
+    public string PostProcessPath { get; init; } = "";
     public string Aria2cArgs { get; init; } = "";
     public string DelayPerPage { get; init; } = "0";
     public string LiveQuality { get; init; } = "10000";

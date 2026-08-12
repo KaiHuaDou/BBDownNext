@@ -10,6 +10,8 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 另有新版文档：`./bilibili-API-collect/0-BACNext-Main-2MB.md` 和 `./bilibili-API-collect/0-BACNext-Passport-57KB.md`
 
+`Plugins` 文件夹中有插件，每个插件文件夹都单独成一个 git 仓库。
+
 ## 强制要求
 
 ### 设计

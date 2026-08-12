@@ -161,21 +161,21 @@ public static class DashDownload
         }
 
         Log($"P{p.Index} 下载完成");
-        // 外部后处理（可选）：对带加密标记的轨调用已配置的处理进程，成功产物覆盖原轨；
-        // 未配置 / 失败 / 超时一律静默保留原文件，加密流照常参与混流
+        // 外部后处理（可选）：配置了 --post-process 时对每条轨调用已配置的处理进程，
+        // 加密与否由处理方自行判断；成功产物覆盖原轨，未配置 / 失败 / 超时一律静默保留原文件
         if (selectedVideo != null)
         {
-            await TryPostProcessAsync(session, videoPath, selectedVideo.IsEncrypted, "video", p.Aid, p.Cid, ct);
+            await TryPostProcessAsync(session, videoPath, "video", p.Aid, p.Cid, ct);
         }
 
         if (selectedAudio != null)
         {
-            await TryPostProcessAsync(session, audioPath, selectedAudio.IsEncrypted, "audio", p.Aid, p.Cid, ct);
+            await TryPostProcessAsync(session, audioPath, "audio", p.Aid, p.Cid, ct);
         }
 
         if (selectedBackgroundAudio != null)
         {
-            await TryPostProcessAsync(session, backgroundPath, selectedBackgroundAudio.IsEncrypted, "background", p.Aid, p.Cid, ct);
+            await TryPostProcessAsync(session, backgroundPath, "background", p.Aid, p.Cid, ct);
         }
 
         foreach (var role in parsedResult.RoleAudioList)
@@ -183,7 +183,7 @@ public static class DashDownload
             var roleAudio = role.Audio.ElementAtOrDefault(aIndex);
             if (roleAudio != null)
             {
-                await TryPostProcessAsync(session, role.Path, roleAudio.IsEncrypted, "role", p.Aid, p.Cid, ct);
+                await TryPostProcessAsync(session, role.Path, "role", p.Aid, p.Cid, ct);
             }
         }
 
@@ -201,10 +201,10 @@ public static class DashDownload
         return await MuxFinish.RunAsync(session, inputs, selection, ct);
     }
 
-    // 对带加密标记的轨发起外部后处理；产物校验通过后覆盖原轨，其余情况静默
-    private static async Task TryPostProcessAsync(DownloadSession session, string path, bool isEncrypted, string kind, string aid, string cid, CancellationToken ct)
+    // 对每条轨发起外部后处理（加密与否由处理方判断）；产物校验通过后覆盖原轨，其余情况静默
+    private static async Task TryPostProcessAsync(DownloadSession session, string path, string kind, string aid, string cid, CancellationToken ct)
     {
-        if (!isEncrypted || !PostProcessClient.Enabled)
+        if (!PostProcessClient.Enabled)
         {
             return;
         }

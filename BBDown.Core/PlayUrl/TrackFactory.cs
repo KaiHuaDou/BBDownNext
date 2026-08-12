@@ -28,8 +28,7 @@ internal static partial class TrackFactory
             Bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
             BaseUrl = PickBaseUrl(BuildUrlList(node)),
             Codecs = VideoCodec(node.GetProperty("codecid").ToString( )),
-            Size = node.TryGetProperty("size", out var size) ? Convert.ToDouble(size.ToString( )) : 0,
-            IsEncrypted = ReadEncrypted(node)
+            Size = node.TryGetProperty("size", out var size) ? Convert.ToDouble(size.ToString( )) : 0
         };
     }
 
@@ -43,20 +42,8 @@ internal static partial class TrackFactory
             Dur = dur,
             Bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
             BaseUrl = PickBaseUrl(BuildUrlList(node)),
-            Codecs = codecs ?? node.GetProperty("codecs").ToString( ),
-            IsEncrypted = ReadEncrypted(node)
+            Codecs = codecs ?? node.GetProperty("codecs").ToString( )
         };
-    }
-
-    // 加密标记逐流下发：widevine_pssh / bilidrm_uri 任一存在即视为受保护（协议字段）
-    private static bool ReadEncrypted(JsonElement node)
-    {
-        return ReadString(node, "widevine_pssh") != null || ReadString(node, "bilidrm_uri") != null;
-    }
-
-    private static string? ReadString(JsonElement node, string name)
-    {
-        return node.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.ToString( ) : null;
     }
 
     internal static List<string> BuildUrlList(JsonElement node)

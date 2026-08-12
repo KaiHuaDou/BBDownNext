@@ -238,6 +238,8 @@ public partial class MainWindow : Window
     private async Task<int> ExecuteTaskAsync(TaskState state, CancellationToken token)
     {
         // 调度循环在后台线程执行；日志经 Logger.Output 转发，AsyncLocal 为其标注任务序号
+        // 后处理进程按任务快照全局配置（与 CLI 的 --post-process 同源），留空即不启用
+        PostProcessClient.Configure(state.Params.PostProcessPath.Length == 0 ? null : state.Params.PostProcessPath);
         var req = state.Params.ToDownloadRequest(state.Url);
         currentTask.Value = state.Index;
         try
