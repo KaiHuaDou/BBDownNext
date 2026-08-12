@@ -14,7 +14,6 @@ flowchart TD
         Media["Media"]
         Live["Live"]
         Auth["Auth"]
-        Drm["Drm"]
         Mux["Mux"]
         Fetcher["Fetcher"]
         Opus["Opus"]
@@ -35,20 +34,17 @@ flowchart TD
     Pipeline --> Media
     Pipeline --> Live
     Pipeline --> Auth
-    Pipeline --> Drm
     Pipeline --> Fetcher
     Pipeline --> Opus
     Pipeline --> Download
 
     Media --> Comment
     Media --> Download
-    Media --> Drm
     Media --> Mux
 
     Live --> Download
     Live --> Mux
     Mux --> Download
-    Download --> Drm
 
     Core -. 历史互依 .-> Util
     Util -. 历史互依 .-> Core
@@ -65,7 +61,6 @@ flowchart TD
 | 能力层 | `BBDown.Core.Media` | 分 P 下载流程：DASH / FLV / 页面资源 / 选轨 / 评论下载 |
 | 能力层 | `BBDown.Core.Live` | 直播录制：录流、分段、混流、信号控制 |
 | 能力层 | `BBDown.Core.Mux` | 混流：FFmpeg / MP4Box 参数构造与执行 |
-| 能力层 | `BBDown.Core.Drm` | DRM 解密通道判定与 ffmpeg cbcs 解密 |
 | 能力层 | `BBDown.Core.Auth` | 登录与凭据存取 |
 | 能力层 | `BBDown.Core.Fetcher` / `Opus` / `Comment` | 各类信息获取与专栏、评论渲染 |
 | 下载模型与传输 | `BBDown.Core.Download` | 下载领域模型（DownloadRequest、RunConfig、WorkContext、PipelineSink 等）与传输实现（DownloadUtil、PartFile、CdnHost、BBDownAria2c） |
@@ -83,10 +78,10 @@ Core 通过以下显式注入点向宿主（CLI / GUI）开放能力，宿主无
 
 ## 依赖约束
 
-1. **依赖单向、无环**：下载域（Pipeline → Media/Live/Auth/Drm/Mux → Download → 底座）必须保持有向无环。新增代码禁止反向引用上层命名空间。
+1. **依赖单向、无环**：下载域（Pipeline → Media/Live/Auth/Mux → Download → 底座）必须保持有向无环。新增代码禁止反向引用上层命名空间。
 2. **禁止跨层引用**：能力层不得引用编排层（如 `Media` 不得 `using BBDown.Core.Pipeline`）；模型层不得引用能力层。
 3. **底座互依为例外**：`Core` / `Entity` / `Util` / `PlayUrl` 之间的互相引用为既有事实（Logger、Config、HTTPUtil 等交织），新代码应尽量只依赖 `Core` 根，不再加深底座内部的耦合。
-4. **外部程序执行统一走 `BBDown.Core.Util.Utils.RunExe`**，各能力层不得自建进程调用（原 `Muxer.RunExe` 已上提，防止 Drm → Mux 反向依赖）。
+4. **外部程序执行统一走 `BBDown.Core.Util.Utils.RunExe`**，各能力层不得自建进程调用（原 `Muxer.RunExe` 已上提）。对外部进程的文件交换协议（`Download.PostProcessClient`）同样只依赖底座，不反向引用能力层。
 5. **下载模型归位**：下载任务的入参/上下文/回调类型（DownloadRequest、RunConfig、FetchResult、WorkContext、PipelineSink、ToolPaths、LiveQuality、格式枚举）统一放在 `BBDown.Core.Download`，避免模型层反向引用能力层。
 
 ## 校验方式

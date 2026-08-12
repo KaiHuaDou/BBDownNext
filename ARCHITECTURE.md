@@ -8,9 +8,9 @@
 
 BBDown 是一个基于 **.NET 9** 的哔哩哔哩视频下载 / 解析命令行工具，定位为单文件可执行体（`dotnet publish -p:PublishAot=true` 可产出 AOT 原生二进制）。整体被拆为三块：
 
-- **`BBDown`**：入口可执行项目（SDK `Microsoft.NET.Sdk.Web`），负责命令行解析、登录、服务器模式、下载编排与混流。
-- **`BBDown.Core`**：核心类库（`IsAotCompatible=true`），负责接口调用、解析、字幕、弹幕、BV 转换、HTTP 等可复用能力。
-- **`BBDown.GUI`**：图形界面（WPF，仅 Windows，`net9.0-windows`），不参与下载链路——以子进程方式调用 `BBDown.exe` 执行下载，单文件 + ReadyToRun 发布（非 AOT）。
+- **`BBDown`**：入口可执行项目（SDK `Microsoft.NET.Sdk.Web`），负责命令行解析、serve 服务器模式与入口编排；下载能力全部在 `BBDown.Core`。
+- **`BBDown.Core`**：核心类库（`IsAotCompatible=true`），负责下载编排、媒体下载、混流、直播、登录、解析、字幕、弹幕等全部可复用能力。
+- **`BBDown.GUI`**：图形界面（WPF，仅 Windows，`net9.0-windows`），直接引用 `BBDown.Core` 下载库，以库调用方式执行下载（非子进程调用 `BBDown.exe`），单文件 + ReadyToRun 发布（非 AOT）。
 
 代码层面强制 **nullable enable**、**`TreatWarningsAsErrors=true`**、**集中式包版本管理**（`Directory.Packages.props`），并以 `System.Text.Json` **源生成器**（`JsonSerializerContext`）替代运行时反射，保证 AOT 裁剪安全。
 
@@ -20,29 +20,56 @@ BBDown 是一个基于 **.NET 9** 的哔哩哔哩视频下载 / 解析命令行�
 
 ```
 BBDown/
-├── BBDown/                 # 入口可执行项目 (Sdk.Web, PackAsTool)，命名空间 BBDown（根契约层 + 入口）
-│   ├── Program.cs          # Main、子命令装配、serve 启动、全局取消、RunApp
-│   ├── AppEnv.cs           # 进程级环境：AppDir / CancellationToken / Cancel()（切断底层对 Program 的反向依赖）
-│   ├── DownloadRequest.cs  # 不可变运行时配置 record (含 WithSecretsRedacted)
-│   ├── DownloadSession.cs  # 分 P 生命周期恒定入参 record
-│   ├── WorkContext.cs      # 工作上下文 record
-│   ├── PageContext.cs      # 分 P 上下文 record
-│   ├── PageOutcome.cs      # 分 P 落盘结果 record（Media/Mux 共用，解除循环依赖）
-│   ├── PipelineSink.cs     # 下载链路进度回吐回调（Meta / Saved / Sample，取代透传 serve 的 DownloadTask）
-│   ├── ToolPaths.cs        # 外部工具路径不可变快照（ffmpeg / mp4box / aria2c）
-│   ├── ChargedPreviewException.cs # 充电专属试看中止异常
-│   ├── ContentSelector.cs  # 下载内容标记 DownloadContent + -g/-w/-W 解析与规范化（get ∪ with − without）
-│   ├── DanmakuFormat.cs    # 弹幕格式信息
-│   ├── CommentFormat.cs    # 评论格式信息（与弹幕各自独立，解析逻辑不共用）
+├── BBDown/                 # 入口可执行项目 (Sdk.Web, PackAsTool)，命名空间 BBDown
+│   ├── Program.cs          # Main、子命令装配（login/serve）、全局取消、RunApp 入口编排（专栏/直播分流）
 │   │
 │   ├── Cli/                # 命名空间 BBDown.Cli — 命令行解析
 │   │   ├── CliOptions.cs           # 全部 CLI 选项与别名的静态定义（按 README 分组，注册顺序即 --help 顺序）
 │   │   ├── CommandLineInvoker.cs   # GetRootCommand 装配与参数 → DownloadRequest 映射
 │   │   └── ConfigParser.cs         # 配置文件解析 (仅补齐命令行未指定项)
 │   │
-│   ├── Pipeline/           # 命名空间 BBDown.Pipeline — 下载编排主干（CLI 与 serve 共用）
-│   │   ├── DownloadPipeline.cs     # RunAsync 三段下载主干（原 Program.RunDownloadAsync）
-│   │   ├── WorkSetup.cs            # 进程级初始化 → WorkContext (Build，含 --drm-key 解析为 DrmKeySource)
+│   └── Serve/              # 命名空间 BBDown.Serve — serve 模式
+│       ├── BBDownApiServer.cs      # 分部类主干：SetUpServer / 令牌鉴权 / CORS / 并发限流（Run / RunAsync / StartForTestAsync）
+│       ├── BBDownApiServer.Endpoints.cs # 分部类：Minimal API 路由（/add-task、/get-tasks/*、/stop-task/{id} 等）
+│       ├── BBDownApiServer.Tasks.cs     # 分部类：任务表维护（DownloadTask / Queued → Running → Finished）
+│       ├── DownloadTask.cs         # serve 任务状态/快照 record（DownloadStatus / DownloadTask / DownloadTaskSnapshot，Cts [JsonIgnore]）
+│       ├── ServeConfig.cs          # serve 启动参数聚合 record（取代 StartServer 散参，服务端固定不可覆盖）
+│       ├── ServeRequestOptions.cs  # serve 请求受控子集 + CallBackWebHook
+│       ├── ServeBindingResult.cs   # 请求绑定结果（含非法字段回落语义）
+│       ├── ApiTypeJsonConverter.cs # serve 契约 Api 字段字符串 ↔ ApiType 转换
+│       ├── ServeRequestOptionsJsonContext.cs # serve 请求 DTO 源生成器上下文
+│       ├── AppJsonSerializerContext.cs # serve 响应 DTO 源生成器上下文
+│       └── SsrfGuard.cs            # SSRF 防护静态类（IsSafeWebHook / IsPrivateAddress / IsLoopbackUrl / WebHookClient）
+│
+├── BBDown.Core/            # 核心类库 (library, IsAotCompatible)，命名空间 BBDown.Core
+│   ├── Download/           # 下载域模型与传输层（跨层共用，避免模型层反向引用能力层）
+│   │   ├── DownloadRequest.cs     # 不可变运行时配置 record（含 WithSecretsRedacted）
+│   │   ├── RunConfig.cs           # 进程级配置 record（WorkSetup.Build 产出）
+│   │   ├── WorkContext.cs         # 工作上下文 record
+│   │   ├── DownloadSession.cs     # 分 P 生命周期恒定入参 record
+│   │   ├── PageContext.cs         # 分 P 上下文 record
+│   │   ├── PageOutcome.cs         # 分 P 落盘结果 record（Media/Mux 共用，解除循环依赖）
+│   │   ├── PipelineSink.cs        # 下载链路进度回吐回调（Meta / Saved / Sample，取代透传 serve 的 DownloadTask）
+│   │   ├── ToolPaths.cs           # 外部工具路径不可变快照（ffmpeg / mp4box / aria2c）
+│   │   ├── FetchResult.cs         # 信息获取结果 record
+│   │   ├── ChargedPreviewException.cs # 充电专属试看中止异常
+│   │   ├── ContentSelector.cs     # 下载内容标记 DownloadContent + -g/-w/-W 解析与规范化（get ∪ with − without）
+│   │   ├── DanmakuFormat.cs       # 弹幕格式信息
+│   │   ├── CommentFormat.cs       # 评论格式信息（与弹幕各自独立，解析逻辑不共用）
+│   │   ├── MuxMode.cs             # 混流方式枚举（none / mpeg4 / mp4box / mkv）
+│   │   ├── LiveQuality.cs         # 直播清晰度档位枚举
+│   │   ├── DownloadUtil.cs        # 唯一下载入口（续传、CDN 策略）
+│   │   ├── DownloadConfig.cs      # 下载配置类（DownloadUtil 拆分出）
+│   │   ├── PartDownloader.cs      # 分片续传执行层
+│   │   ├── PartFile.cs            # 断点续传状态 (.bbdown.part/.bbdown.json)
+│   │   ├── CdnHost.cs             # CDN host 策略
+│   │   ├── BBDownAria2c.cs        # Aria2c 下载
+│   │   ├── SavePath.cs            # 文件名/路径格式化（含充电试看 [试看] 前缀）
+│   │   └── PostProcessClient.cs   # 外部后处理进程的文件交换协议（加密轨交外部处理）
+│   │
+│   ├── Pipeline/           # 命名空间 BBDown.Core.Pipeline — 下载编排主干（CLI 与 serve 共用）
+│   │   ├── DownloadPipeline.cs     # RunAsync 三段下载主干
+│   │   ├── WorkSetup.cs            # 进程级初始化 → RunConfig (Build / ResolveConfig / ResolveToolPaths)
 │   │   ├── VideoInfo.cs            # FetchAsync 解析视频信息（标题/分P/封面/账号探测）
 │   │   ├── PageQueue.cs            # 逐分 P 编排 (RunAsync；-iap 逐集交互确认走 PageSelect.ResolveInteractive)
 │   │   ├── PageSelect.cs           # 分 P 选择/范围 + 逐集交互选择
@@ -50,39 +77,31 @@ BBDown/
 │   │   ├── LiveDownload.cs         # 直播录制编排 (RunAsync)：独立链路，不走 WorkContext
 │   │   └── OpusDownload.cs         # 专栏导出入口 (RunAsync)：在 RunApp 内于 WorkSetup.Build 之前分流，不经混流
 │   │
-│   ├── Drm/                # 命名空间 BBDown.Drm — DRM 解密（bili_drm 通道）
-│   │   ├── DrmKeySource.cs         # --drm-key 条目集合（kid:key / 纯 key，hex / base64 归一为小写 hex）
-│   │   ├── DrmDecryptor.cs         # 通道判定（bili_drm / widevine）+ ffmpeg -decryption_key cbcs 解密
-│   │   └── DrmResult.cs            # 解密结果枚举（Decrypted / KeyMissing / Unsupported / Failed）
-│   │
-│   ├── Live/               # 命名空间 BBDown.Live — 直播录制（独立链路，不依赖 WorkContext）
-│   │   ├── LiveFileNaming.cs       # 分段/产物文件名（主播名-标题-时间戳）
-│   │   ├── LiveMuxer.cs            # 分段 FLV → mp4 合并（avc/hevc bitstream filter 分派、+genpts）
-│   │   ├── LiveProgress.cs         # 录制进度回吐
-│   │   ├── LiveRecorder.cs        # 录制状态机（断流退避重连 / CDN failover / 编码锁定）
-│   │   ├── LiveSegmentWriter.cs    # 单段 FLV 落盘
-│   │   └── LiveSignal.cs           # Ctrl+Break 停录合并 / Ctrl+C 中断信号
-│   │
-│   ├── Media/              # 命名空间 BBDown.Media — 单分 P 下载与封装
+│   ├── Media/              # 命名空间 BBDown.Core.Media — 单分 P 下载与封装
 │   │   ├── PageDownload.cs         # 单分 P 下载入口，分派 DASH/FLV (RunAsync / DispatchAsync)
-│   │   ├── DashDownload.cs         # DASH 轨下载 (RunAsync；下载后统一 DRM 解密，见 DecryptTrackIfNeededAsync)
+│   │   ├── DashDownload.cs         # DASH 轨下载 (RunAsync；下载后对加密轨调用外部后处理，见 TryPostProcessAsync)
 │   │   ├── FlvDownload.cs          # FLV 分段下载与合并 (RunAsync)
 │   │   ├── PageAssets.cs           # 封面/字幕准备、弹幕下载（`PrepareAsync` 现收窄接收 `DownloadSession`）
-│   │   ├── CommentDownload.cs       # 评论区导出（按 --comment-formats 落盘 json/txt，挂 PageQueue）
+│   │   ├── CommentDownload.cs      # 评论区导出（按 --comment-formats 落盘 json/txt，挂 PageQueue）
 │   │   └── TrackSelect.cs          # 轨道排序、信息打印、交互选轨
 │   │
-│   ├── Mux/                # 命名空间 BBDown.Mux — 混流与收尾
+│   ├── Mux/                # 命名空间 BBDown.Core.Mux — 混流与收尾
 │   │   ├── MuxFinish.cs            # 混流收尾、跳过已存在、清理临时文件 (DASH/FLV 共用)
 │   │   ├── Muxer.cs                # FFmpeg/MP4Box 混流、FLV 合并（混流入参统一为不可变 `MuxRequest` record）
 │   │   └── ChapterMeta.cs          # 章节元数据
 │   │
-│   ├── Download/           # 命名空间 BBDown.Download — 下载传输层
-│   │   ├── DownloadUtil.cs         # 唯一下载入口 (续传、CDN 策略)
-│   │   ├── PartFile.cs             # 断点续传状态 (.bbdown.part/.bbdown.json)
-│   │   ├── CdnHost.cs              # CDN host 策略
-│   │   └── BBDownAria2c.cs         # Aria2c 下载
+│   ├── Live/               # 命名空间 BBDown.Core.Live — 直播录制（独立链路，不依赖 WorkContext）
+│   │   ├── LiveInputResolver.cs    # 直播间地址解析（live: / live.bilibili.com/{房间号}，短号换算）
+│   │   ├── LiveFetcher.cs          # 拉流地址获取（http_stream + flv；带加密标记的流跳过）
+│   │   ├── LiveRoomInfo.cs         # 房间信息 + 清晰度档位 LiveQuality
+│   │   ├── LiveRecorder.cs         # 录制状态机（断流退避重连 / CDN failover / 编码锁定）
+│   │   ├── LiveSegmentWriter.cs    # 单段 FLV 落盘
+│   │   ├── LiveProgress.cs         # 录制进度回吐
+│   │   ├── LiveFileNaming.cs       # 分段/产物文件名（主播名-标题-时间戳）
+│   │   ├── LiveMuxer.cs            # 分段 FLV → mp4 合并（avc/hevc bitstream filter 分派、+genpts）
+│   │   └── LiveSignal.cs           # Ctrl+Break 停录合并 / Ctrl+C 中断信号
 │   │
-│   ├── Auth/               # 命名空间 BBDown.Auth — 登录与凭据
+│   ├── Auth/               # 命名空间 BBDown.Core.Auth — 登录与凭据
 │   │   ├── Login.cs                # 扫码登录公共轮询编排（QrLoginPlan / RunQrLoginAsync，接入全局取消与失败重试）
 │   │   ├── Login.Web.cs            # WEB 登录（BuildWebCookieResilient 多源合并 Cookie + 登录后账号名校验）
 │   │   ├── Login.App.cs            # TV / APP 登录（LoginWithAppKey，各自 appkey/secret）
@@ -92,66 +111,82 @@ BBDown/
 │   │   ├── AccountInfo.cs          # 账号信息
 │   │   └── CredentialStore.cs      # 单一 JSON 凭据读写 (源生成器 AOT 安全)
 │   │
-│   ├── Serve/              # 命名空间 BBDown.Serve — serve 模式
-│   │   ├── BBDownApiServer.cs      # 分部类主干：SetUpServer / 令牌鉴权 / CORS / 并发限流（Run / RunAsync / StartForTestAsync）
-│   │   ├── BBDownApiServer.Endpoints.cs # 分部类：Minimal API 路由（/add-task、/get-tasks/*、/stop-task/{id} 等）
-│   │   ├── BBDownApiServer.Tasks.cs     # 分部类：任务表维护（DownloadTask / Queued → Running → Finished）
-│   │   ├── DownloadTask.cs         # serve 任务状态/快照 record（DownloadStatus / DownloadTask / DownloadTaskSnapshot，Cts [JsonIgnore]）
-│   │   ├── ServeConfig.cs          # serve 启动参数聚合 record（取代 StartServer 散参，服务端固定不可覆盖）
-│   │   ├── ServeRequestOptions.cs  # serve 请求受控子集 + CallBackWebHook
-│   │   ├── ServeBindingResult.cs   # 请求绑定结果（含非法字段回落语义）
-│   │   ├── ApiTypeJsonConverter.cs # serve 契约 Api 字段字符串 ↔ ApiType 转换
-│   │   ├── AppJsonSerializerContext.cs # serve DTO 源生成器上下文
-│   │   └── SsrfGuard.cs            # SSRF 防护静态类（IsSafeWebHook / IsPrivateAddress / IsLoopbackUrl / WebHookClient）
+│   ├── Fetcher/            # 命名空间 BBDown.Core.Fetcher — 信息获取
+│   │   ├── NormalInfoFetcher.cs    # 普通视频信息（wbi/view）
+│   │   ├── BangumiInfoFetcher.cs   # 番剧信息（pgc/view）
+│   │   ├── IntlBangumiInfoFetcher.cs # 国际版番剧信息
+│   │   ├── CheeseInfoFetcher.cs    # 课程信息（过滤锁定分集）
+│   │   ├── FavListFetcher.cs       # 收藏夹
+│   │   ├── MediaListFetcher.cs     # 合集
+│   │   ├── SpaceListFetcher.cs     # UP 主空间投稿列表
+│   │   ├── WatchLaterFetcher.cs    # 稍后再看
+│   │   ├── FetcherRegistry.cs      # 按 ResourceId 子类型 switch 分发（缺分支编译报错）
+│   │   └── BangumiNotFoundException.cs # 番剧未找到异常
 │   │
-│   └── Util/               # 命名空间 BBDown.Util — 通用工具
-│       ├── Utils.cs               # 通用工具 (Utils)
-│       ├── ProgressBar.cs         # 进度条
-│       ├── SavePath.cs            # 文件名/路径格式化
-│       └── ArchiveLog.cs          # 归档记录
-│
-├── BBDown.Core/            # 核心类库 (library, IsAotCompatible)
-│   ├── BiliApi.cs          # 各接口 Host/Path 常量
-│   ├── Config.cs           # 清晰度档位 (Qualities/MaxQn/DolbyVisionQn)
-│   ├── Parser.cs           # 播放地址解析入口：编排 ExtractTracksAsync + 番剧分段点映射（请求构造/发送、响应导航、轨道读取已下沉到 PlayUrl/）
-│   ├── PlayUrl/            # 播放地址(playurl)解析：请求构造与发送、响应导航、四类轨道读取、跨端轨道装配
-│   │   ├── PlayUrlRequest.cs     # 顶层 internal record struct（aidOri/aid/cid/epId 与 API 模式）
-│   │   ├── PlayUrlClient.cs      # URL 构造 + 发送（WEB/TV/INTL/网页兜底）+ appkey 常量
-│   │   ├── PlayUrlResponse.cs    # 响应形状导航（data/result/video_info 节点定位、大会员判定）
-│   │   ├── DashTrackReader.cs    # 纯函数：DASH JSON → 视频/音频轨（免二压两次响应并集、杜比/Hi-Res 回退）
-│   │   ├── FlvTrackReader.cs     # 纯函数：FLV 分段 → 轨道
-│   │   ├── IntlTrackReader.cs    # 纯函数：INTL(BiliPlus) video_info → 轨道
-│   │   ├── AppTrackReader.cs     # APP(gRPC) PlayViewReply → 轨道（FetchAsync 含 gRPC 调用）
-│   │   └── TrackFactory.cs       # 跨端共享：baseUrl 选择 / codec 名 / Audio 构建 / DRM 字段读取（ReadDrm）
-│   ├── AppHelper.cs        # APP gRPC 手写帧 (PackMessage/ReadMessage)
-│   ├── IdPrefix.cs         # 输入编号前缀常量 (ep:/ss:/lists:/series:/fav:/cheese:/spaceMid:/watchLater: 等)
-│   ├── Opus/               # 专栏导出：OpusInputResolver(输入解析) / OpusFetcher(partial：OpusFetcher.cs 网络编排与判定、OpusFetcher.Parse.cs 文档级解析、OpusFetcher.Paragraph.cs 段落与节点) / OpusHtmlToMarkdown(HTML→MD) / OpusMarkdownRenderer(渲染) / OpusImageUtil(图片) / OpusDocument(域模型)
-│   ├── Fetcher/            # 11 个 Fetcher（含 WatchLaterFetcher 稍后再看）+ FetcherRegistry (按 ResourceId 子类型 switch 分发)
-│   ├── Util/               # BV 转换、FileNameUtil(200 字节截断)、HTTPUtil、SignUtil(WBI)、SubUtil、ViewPointUtil、JsonUtil 等
-│   ├── Entity/             # VInfo / Page / Video / Audio / ParsedResult 等（Video/Audio 含 DRM 字段）
+│   ├── PlayUrl/            # 命名空间 BBDown.Core.PlayUrl — 播放地址解析
+│   │   ├── PlayUrlRequest.cs       # 顶层 internal record struct（aidOri/aid/cid/epId 与 API 模式）
+│   │   ├── PlayUrlClient.cs        # URL 构造 + 发送（WEB/TV/INTL/网页兜底）+ appkey 常量
+│   │   ├── PlayUrlResponse.cs      # 响应形状导航（data/result/video_info 节点定位、大会员判定）
+│   │   ├── DashTrackReader.cs      # 纯函数：DASH JSON → 视频/音频轨（免二压两次响应并集、杜比/Hi-Res 回退）
+│   │   ├── FlvTrackReader.cs       # 纯函数：FLV 分段 → 轨道
+│   │   ├── IntlTrackReader.cs      # 纯函数：INTL(BiliPlus) video_info → 轨道
+│   │   ├── AppTrackReader.cs       # APP(gRPC) PlayViewReply → 轨道（FetchAsync 含 gRPC 调用）
+│   │   └── TrackFactory.cs         # 跨端共享：baseUrl 选择 / codec 名 / Audio 构建 / 加密标记读取（ReadEncrypted）
+│   │
+│   ├── Opus/               # 命名空间 BBDown.Core.Opus — 专栏导出
+│   │   ├── OpusInputResolver.cs    # 专栏地址解析
+│   │   ├── OpusFetcher.cs          # 网络编排与判定（partial，含 OpusFetcher.Parse.cs / OpusFetcher.Paragraph.cs）
+│   │   ├── OpusHtmlToMarkdown.cs   # HTML → Markdown 转换
+│   │   ├── OpusMarkdownRenderer.cs # Markdown 渲染（YAML front matter 等）
+│   │   ├── OpusImageUtil.cs        # 图片下载与协议归一
+│   │   ├── OpusRegexes.cs          # [GeneratedRegex] 集中声明
+│   │   └── OpusDocument.cs         # 域模型
+│   │
+│   ├── Comment/            # 命名空间 BBDown.Core.Comment — 评论区
+│   │   ├── CommentFetcher.cs       # WBI 分页抓取
+│   │   ├── CommentRenderer.cs      # JSON / TXT 渲染
+│   │   └── CommentDocument.cs      # 评论域模型
+│   │
+│   ├── Entity/             # VInfo / Page / Video / Audio / ParsedResult 等（Video/Audio 含 IsEncrypted 加密标记）
+│   ├── Util/               # BV 转换、FileNameUtil(200 字节截断)、HTTPUtil、SignUtil(WBI)、SubUtil、ArchiveLog、ProgressBar、Redactor、JsonUtil、Utils、ViewPointUtil
 │   ├── APP/                # APP gRPC 协议 (proto 生成代码)
+│   ├── Parser.cs           # 播放地址解析入口：编排 ExtractTracksAsync + 番剧分段点映射（请求构造/发送、响应导航、轨道读取已下沉到 PlayUrl/）
+│   ├── ResourceId.cs       # 判别联合（Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater）
+│   ├── ResourceIdJsonConverter.cs # ResourceId JSON 序列化
+│   ├── AppEnv.cs           # 进程级环境：AppDir / CancellationToken / Cancel()
+│   ├── AppConfig.cs        # 请求级配置（cookie / token / host 三兄弟 / UA）
+│   ├── AppHelper.cs        # APP gRPC 手写帧 (PackMessage/ReadMessage)
+│   ├── BiliApi.cs          # 各接口 Host/Path 常量
+│   ├── ApiType.cs          # API 通道枚举（web / tv / app / intl）
+│   ├── Buvid.cs            # buvid3/4 获取
+│   ├── Config.cs           # 清晰度档位 (Qualities/MaxQn/DolbyVisionQn) + 调试日志开关
 │   ├── DanmakuUtil.cs      # 弹幕获取 (xml/ass)
-│   ├── Comment/             # 评论区抓取与渲染（WBI 分页 / 楼中楼 / JSON·TXT 渲染）
-│   └── Live/                # 直播录制：LiveInputResolver(地址解析) / LiveFetcher(拉流地址) / LiveRoomInfo(房间信息 + 清晰度档位 LiveQuality)
+│   ├── IdPrefix.cs         # 输入编号前缀常量 (ep:/ss:/lists:/series:/fav:/cheese:/spaceMid:/watchLater: 等)
+│   ├── Interaction.cs      # 交互式下载回调（AskLine / AskIndex）
+│   ├── Logger.cs           # 日志（Output 可注入，GUI 等宿主替换输出目标）
+│   └── DEPENDENCIES.md     # 依赖架构说明
 │
 ├── BBDown.GUI/             # 图形界面（WPF，仅 Windows，net9.0-windows，单文件 + ReadyToRun，非 AOT）
 │   ├── App.xaml.cs         # Application 入口
 │   ├── MainWindow.xaml.cs  # 主窗口（任务列表 / 日志区 / 选项面板）
-│   ├── MainWindow.Options.cs # 选项面板与 CLI 参数的双向绑定
+│   ├── MainWindow.Options.cs # 选项面板与下载参数的双向绑定
+│   ├── MainWindow.Tasks.cs # 任务列表交互
+│   ├── MainWindow.Log.cs   # 日志区渲染（RichTextBox）
 │   ├── QueueRunner.cs      # 任务队列与并发池（1–8，运行中可调）
-│   ├── ProcessRunner.cs    # BBDown.exe 子进程启动与日志重定向（按系统代码页解码）
-│   ├── ConfigStore.cs      # 面板选项便携保存（BBDown.GUI.config.json）
-│   ├── BBDownLocator.cs    # BBDown.exe 自动检测（exe 同目录 → PATH，或手动选择）
+│   ├── TaskParams.cs       # 单任务参数模型
 │   ├── UrlDetector.cs      # 下载目标合法性判定
-│   └── TaskParams.cs       # 单任务参数模型
+│   ├── ConfigStore.cs      # 面板选项便携保存（BBDown.GUI.config.json）
+│   └── Theme.xaml          # 样式集中定义
 │
 ├── BBDown.Tests/           # 针对 BBDown 的 xUnit 测试
-└── BBDown.Core.Tests/      # 针对 BBDown.Core 的 xUnit 测试
+├── BBDown.Core.Tests/      # 针对 BBDown.Core 的 xUnit 测试
+└── Plugins/                # 外部插件（独立仓库，不进主构建）
+    └── BBDown.DRM/         # 加密轨道解密插件：经 --post-process 被主程序调起（见第 9 节）
 ```
 
-**依赖方向**：`BBDown` → `BBDown.Core`；两个测试项目分别依赖对应实现。Core 不反向依赖入口项目，保证核心逻辑可独立测试。`BBDown.GUI` 不引用任何项目源码，只以子进程调用 `BBDown.exe`，其测试由独立 CI（`gui.yml`）覆盖构建。
+**依赖方向**：`BBDown` → `BBDown.Core`；两个测试项目分别依赖对应实现。Core 不反向依赖入口项目，保证核心逻辑可独立测试。`BBDown.GUI` 只依赖 `BBDown.Core`，不引用 CLI 项目，其测试由独立 CI（`gui.yml`）覆盖构建。`Plugins/BBDown.DRM` 引用 `BBDown.Core`（协议 record 对齐），以独立进程被主程序按需调起，不在主构建链路上。
 
-**入口项目内部分层**：`BBDown` 主项目按职责细分为若干子命名空间（对应同名子文件夹），根命名空间 `BBDown` 仅保留两类类型——① 进程入口（`Program` / `AppEnv`）与全局取消；② **根契约层** record / 枚举（`DownloadRequest` / `DownloadSession` / `WorkContext` / `PageContext` / `PageOutcome` / `PipelineSink` / `ToolPaths` / `ChargedPreviewException` / `DownloadContent` / `DanmakuFormat` / `CommentFormat`），它们被各子命名空间交叉引用，故刻意留在根层避免循环依赖。子命名空间之间的引用一律显式 `using`：`Cli` / `Pipeline` 被 `Program` 引用；`Pipeline` 内部 `DownloadPipeline → WorkSetup → VideoInfo → PageQueue` 单向串联；`Media` 依赖 `Mux`（`MuxFinish`）与 `Download`（下载入口）与 `Drm`（解密）；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。所有子命名空间类型通过 C# 嵌套命名空间查找可见根层类型，反之亦然（测试项目用 csproj 全局 `<Using>` 补齐）。
+**入口项目职责**：`BBDown` 主项目只保留命令行解析（`Cli`）、serve 服务器（`Serve`）与入口编排（`Program`：login/serve 子命令装配、专栏/直播分流、异常→退出码映射）。下载链路全部在 `BBDown.Core`，`Program.RunApp` 仅做三条链路的分流后调用 Core 的 `OpusDownload` / `LiveDownload` / `DownloadPipeline`。子命名空间之间的引用一律显式 `using`；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。
 
 ---
 
@@ -174,10 +209,10 @@ FetcherRegistry.FetchAsync     按 ResourceId 子类型 switch 分发给对应 F
   ▼
 Parser.ExtractTracksAsync (编排，按 API 模式委派到 PlayUrl/*) → ParsedResult(视频轨/音频轨/FLV 分段/字幕/弹幕入口)
   │  WEB: WBI 签名(UGC)；TV: access_token；APP: gRPC + identify_v1；INTL: protobuf/json
-  │  TrackFactory.ReadDrm 逐流解析 is_drm / drm_type / widevine_pssh / bilidrm_uri
+  │  TrackFactory.ReadEncrypted 逐流解析 widevine_pssh / bilidrm_uri，任一存在即标记 IsEncrypted
   ▼
-DownloadPipeline.RunAsync (BBDown.Pipeline，三段下载主干，CLI 与 serve 共用)
-  │  ① WorkSetup.Build      → WorkContext (进程级初始化、账号探测、--drm-key → DrmKeySource)
+DownloadPipeline.RunAsync (BBDown.Core.Pipeline，三段下载主干，CLI 与 serve 共用)
+  │  ① WorkSetup.Build      → RunConfig (进程级初始化、工具路径探测、优先级解析)
   │  ② VideoInfo.FetchAsync → WorkContext (标题/分P/封面/弹幕入口)
   │  ③ PageQueue.RunAsync   → 逐分 P 编排（-iap 时先 PageSelect.ResolveInteractive 逐集交互确认；
   │                            --comments-count>0 时逐分 P 委托内先跑 CommentDownload，按 aid 去重；与视频下载互不干扰）
@@ -185,8 +220,9 @@ DownloadPipeline.RunAsync (BBDown.Pipeline，三段下载主干，CLI 与 serve 
   ▼
 PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分派 DASH/FLV)
   │  ├─ DashDownload.RunAsync   / FlvDownload.RunAsync
-  │  │    └─ 下载完成后 DrmDecryptor.DecryptAsync（bili_drm 通道且匹配 key 时 ffmpeg cbcs 解密，产物覆盖加密原件；
-  │  │       无 key / widevine / 失败 → 保留加密文件并跳过混流）
+  │  │    └─ 下载完成后对带加密标记（IsEncrypted）的轨调用外部后处理
+  │  │       (PostProcessClient.TryProcessAsync：调起 --post-process 指定进程，成功产物覆盖原轨参与混流；
+  │  │       未配置 / 失败 / 超时一律静默保留原文件，加密流照常混流)
   │  ├─ DownloadUtil.DownloadAsync (续传写入 .bbdown.part)
   │  ├─ SubUtil / DanmakuUtil (字幕/弹幕)
   │  └─ MuxFinish.RunAsync (FFmpeg/MP4Box 混流 + 嵌入元数据/章节/字幕) — 统一 DASH/FLV 收尾
@@ -203,7 +239,7 @@ PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分�
 LiveInputResolver.TryParse    live: / live.bilibili.com/{房间号} → 真实房间号（短号换算）
   │
   ▼
-LiveFetcher.FetchAsync        取 http_stream + flv 流地址、房间信息与清晰度档位
+LiveFetcher.FetchAsync        取 http_stream + flv 流地址、房间信息与清晰度档位（带加密标记的流跳过）
   │
   ▼
 LiveRecorder.RunAsync         分段落盘（断流退避重连 / CDN failover / 首段成功后编码锁定）
@@ -300,21 +336,21 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 
 ---
 
-## 9. DRM 解密
+## 9. 加密轨道与外部后处理
 
-playurl 对部分版权内容下发加密轨道。本工具不内置 SPC/CKC 协议逆向，key 仅由用户通过 `--drm-key` 提供；拿到 key 后两条通道（bili_drm / widevine）密文同为 CENC cbcs，ffmpeg 一行可解。
+playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）。主程序**不内置任何解密能力**，只负责识别加密标记，并把带标记的轨道文件交由 `--post-process` 指定的外部进程处理；密钥、通道与加密信息均由外部进程自行获取管理，主程序不感知。
 
-- **解析**（`BBDown.Core/PlayUrl/TrackFactory.cs`：`ReadDrm`）：逐流读取 `is_drm` / `drm_type` / `widevine_pssh` / `bilidrm_uri`，`drm_type` 缺失时按字段推断（有 pssh → widevine，有 uri → bili_drm）。DRM 状态挂在 `Video` / `Audio` 轨道（`BBDown.Core/Entity/Entity.cs`），不参与轨道相等比较。
-- **密钥集合**（`BBDown/Drm/DrmKeySource.cs`）：`--drm-key` 条目在 `WorkSetup.Build` 时解析一次（`DrmKeys` 挂 `RunConfig`，全任务共享）；`kid:key` 进映射表，纯 `key` 为全局默认（未命中 KID 时回落）；key / kid 接受 32 位 hex 或 base64(base64url)，统一规范化为小写 hex。
-- **解密执行**（`BBDown/Drm/DrmDecryptor.cs`）：`KidFromUri` 取 `bilidrm_uri` 最后一个 `//` 之后的 32 位 hex 为 KID；bili_drm 且命中 key 时调 ffmpeg `-decryption_key <key> -c copy`（`BuildArgs`，cbcs 常量 IV，子样本信息由 ffmpeg 自读）解密；widevine 直接返回 `Unsupported`。
-- **接入点与降级**（`BBDown/Media/DashDownload.cs`：`DecryptTrackIfNeededAsync`）：DASH 轨下载完成后统一处理视频轨 / 音频轨 / 背景音 / 配音轨——解密成功产物覆盖加密原件（后续混流与清理路径不变）；`KeyMissing`（bili_drm 无匹配 key）提示 `--drm-key <kid>:<key>` 重试、`Unsupported`（widevine）与 `Failed` 均明确告警并**保留加密文件**（原始 `.m4s` 不删除，路径打印在日志中），跳过混流。FLV 分支无 DRM。
+- **识别**（`BBDown.Core/PlayUrl/TrackFactory.cs`：`ReadEncrypted`）：逐流读取 `widevine_pssh` / `bilidrm_uri`，任一存在即视为受保护（协议字段），加密标记挂在 `Video` / `Audio` 轨道（`BBDown.Core/Entity/Entity.cs` 的 `IsEncrypted`），不参与轨道相等比较。
+- **调起**（`BBDown.Core/Download/PostProcessClient.cs`：`TryProcessAsync` / `Configure`）：`--post-process <exe>` 由 `CommandLineInvoker` 经 `PostProcessClient.Configure` 注册；对带加密标记的轨写请求 JSON（`PostProcessRequest`：`Aid` / `Cid` / `Kind` / `TrackPath` / `DestPath` / `Ffmpeg`），以请求文件路径为唯一参数调起外部进程，20 秒超时。请求只携带轨道定位与本地路径，**不携带任何加密特征与凭据**。
+- **接入点与降级**（`BBDown.Core/Media/DashDownload.cs`：`TryPostProcessAsync`）：DASH 轨下载完成后对视频轨 / 音频轨 / 背景音 / 配音轨统一处理——进程退出码为 0 且产物非空时，产物覆盖原轨参与混流；未配置 `--post-process` / 进程不可用 / 超时 / 失败，一律静默保留原文件，加密流照常参与混流。FLV 分支与直播录制不经此路径（直播对带加密标记的流直接跳过，见 `LiveFetcher`）。
+- **参考插件**：`Plugins/BBDown.DRM`（独立仓库）即外部后处理的一个实现，负责加密轨道解密（`--post-process` 用法见其 README，文件交换协议见 [PROTOCOL.md](./PROTOCOL.md)）。
 
 ---
 
 ## 10. 构建与 AOT
 
 - SDK：`Microsoft.NET.Sdk.Web`（`BBDown`）、`Microsoft.NET.Sdk`（`BBDown.Core` / 测试）、`Microsoft.NET.Sdk` + `UseWPF`（`BBDown.GUI`，`net9.0-windows`）。
-- `BBDown.Core` 标记 `IsAotCompatible=true`；序列化一律用 `JsonSerializerContext` 源生成器（`CredentialJsonContext` / `DownloadRequestJsonContext` / `PartJsonContext` / `AppJsonSerializerContext`），禁止运行时反射。
+- `BBDown.Core` 标记 `IsAotCompatible=true`；序列化一律用 `JsonSerializerContext` 源生成器（`CredentialJsonContext` / `DownloadRequestJsonContext` / `PartJsonContext` / `PostProcessJsonContext` / `AppJsonSerializerContext` / `ServeRequestOptionsJsonContext`），禁止运行时反射。
 - 全局 `TreatWarningsAsErrors=true`、`Nullable enable`、`LangVersion latest`、集中式包版本（`Directory.Packages.props`）。
 - 发布 AOT：`dotnet publish -c Release -r <RID> /p:PublishAot=true`。注意 AOT 下 `BBDown.data` 等 JSON 必须走源生成器，否则会被裁剪导致反序列化失败。
 - **图形界面发布**（`BBDown.GUI`）：`PublishSingleFile` + `PublishReadyToRun`（非 AOT），由独立 CI（`.github/workflows/gui.yml`）在 `win-x64` / `win-arm64` 上产出 framework-dependent 与自包含单文件并上传产物，可手动触发追加到最新 Release；主 CI（`ci.yml`）不构建 GUI。
@@ -339,7 +375,7 @@ playurl 对部分版权内容下发加密轨道。本工具不内置 SPC/CKC 协
 OpusInputResolver.TryParse(input)   opus URL / cv 号 / opus id / 前缀写法 → OpusTarget(OpusId|CvId)
   │  （裸数字一律拒绝，留给视频链路 av 号简写）
   ▼
-OpusDownload.RunAsync (BBDown.Pipeline)  不走 WorkSetup.Build / 不构造 WorkContext / 不探测 ffmpeg
+OpusDownload.RunAsync (BBDown.Core.Pipeline)  不走 WorkSetup.Build / 不构造 WorkContext / 不探测 ffmpeg
   │  ├─ CredentialStore.LoadAll   读取 WEB Cookie（专栏可能登录可见）
   │  ├─ Buvid.InitAsync           获取 buvid3/4（沿用既有 HTTP 栈）
   │  ├─ OpusFetcher.FetchAsync     先试 opus/detail（htmlNewStyle）→ 按 TryGetCvId 判定：

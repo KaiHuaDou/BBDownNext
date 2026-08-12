@@ -21,6 +21,7 @@
   <a href="#GUI">GUI</a> ·
   <a href="#服务器模式">服务器模式</a> ·
   <a href="#数据文件格式">数据文件格式</a> ·
+  <a href="./PROTOCOL.md">后处理协议</a> ·
   <a href="#常见问题">常见问题</a> ·
   <a href="./TODO.md">路线图</a> ·
   <a href="#与原版-bbdown-的差异">与原版差异</a>
@@ -45,7 +46,7 @@
 
 - 媒体与封装
     - **DASH / FLV** 封装 · 杜比视界、HDR、8K、高码率音视频流
-    - **外部后处理** · `--post-process` 指定外部进程，下载完成后按需处理轨道文件
+    - **外部后处理** · `--post-process` 指定外部进程，下载完成后按需处理轨道文件（协议见 [PROTOCOL.md](./PROTOCOL.md)）
     - **编码与画质优先级** `-e` / `-q`，弹幕（XML/ASS）、字幕、封面、AI 字幕
     - **混流增强**：写入元数据与章节，支持 FFmpeg / MP4Box
     - **封面嵌入** · `C` 将封面嵌入视频文件（attached_pic），播放器可直接显示缩略图；`c` 则单独保存封面文件
@@ -70,12 +71,13 @@
 
 - 扩展与集成
     - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./API.md)
+    - **后处理插件协议** · `--post-process` 调用外部进程处理加密轨道，主程序不内置解密能力，密钥与加密信息由外部进程自行获取管理 → [PROTOCOL.md](./PROTOCOL.md)
     - **Windows 7 兼容** · `win-x64` 产物内置 YY-Thunks 与 VC-LTL，在 Windows 7 上可直接运行（无需安装 .NET 运行时）
     - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行（无需 Dockerfile）
 
 - 工程品质
     - **950+ 单元测试**，覆盖全部核心路径
-    - **深度重构** · 按职责分层（`Cli` / `Pipeline` / `Media` / `Mux` / `Serve` / `Download` / `Auth` / `Util`），依赖单向成树（`check-deps` 守护），不可变契约 record 贯穿全链路，纯函数与 AOT 安全源生成器，可维护性高
+    - **深度重构** · 按职责分层：下载能力集中在 `BBDown.Core`（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`），CLI 与 serve 留在 `BBDown`（`Cli` / `Serve`）；依赖单向成树（`check-deps` 守护），不可变契约 record 贯穿全链路，纯函数与 AOT 安全源生成器，可维护性高
     - **结构化资源 id** · 输入统一解析为 `ResourceId` 判别联合（视频 / 番剧 / 课程 / 收藏夹 / 合集 / 系列 / 空间 / 稍后再看），按类型分发、缺分支编译报错，取代字符串前缀打标（如 `ep:ss2539`）
 
 ## 与原版 BBDown 的差异
@@ -613,7 +615,7 @@ B 站 web 接口要求 WBI 签名，未签名的请求更容易触发风控。BB
 
 [^allowpreview]: UP 主的充电专属稿件，在当前账号没有充电权限时接口不会报错，而是照常返回成功并只下发几分钟的试看片段。BBDown 默认会在下载前识别并跳过（退出码 `2`），避免产出被报告为「下载成功」的残片。加此选项则保留试看片段，输出文件名带 `[试看]` 前缀以便与完整视频区分。登录一个已为该 UP 主充电的账号（`BBDown login`）即可正常下载完整视频，无需此选项。
 
-[^postprocess]: 指定外部后处理进程（可执行文件路径）。下载完成后带特殊标记的轨道文件会交给该进程处理，成功产物替换原文件参与混流；进程不可用或处理失败时静默保留原文件。处理方自行获取所需信息，本程序不感知其语义。
+[^postprocess]: 指定外部后处理进程（可执行文件路径）。下载完成后带特殊标记的轨道文件会交给该进程处理，成功产物替换原文件参与混流；进程不可用或处理失败时静默保留原文件。处理方自行获取所需信息，本程序不感知其语义。完整协议见 [PROTOCOL.md](./PROTOCOL.md)。
 
 [^host]: 指定 BiliPlus host。使用 BiliPlus 需要 access_token、不需要 cookie；解析服务器能够获取你账号的大部分权限，请谨慎使用！
 

@@ -6,7 +6,7 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
-## [v2.0.0-beta.3]
+## [v2.0.0-rc.1]
 
 ### 新增
 
@@ -237,3 +237,4 @@
 [v2.0.0-alpha.3]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.2...v2.0.0-alpha.3>
 [v2.0.0-beta.1]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.3...v2.0.0-beta.1>
 [v2.0.0-beta.2]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-beta.1...v2.0.0-beta.2>
+[v2.0.0-rc.1]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-beta.2...v2.0.0-rc.1>

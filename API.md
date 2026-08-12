@@ -193,8 +193,8 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 `DownloadRequest` 是贯穿解析与下载全流程的运行时配置，其字段与命令行参数几乎一一对应，取值使用命令行中会用的值即可。字段会随版本变化，请以对应版本的源码为准：
 
-- [`BBDown/DownloadRequest.cs`](./BBDown/DownloadRequest.cs)：所有运行时配置字段定义。
-- [`BBDown/ServeRequestOptions.cs`](./BBDown/ServeRequestOptions.cs)：serve 请求契约，是 `DownloadRequest` 的受控子集，并在其基础上新增 `CallBackWebHook`。
+- [`BBDown.Core/Download/DownloadRequest.cs`](./BBDown.Core/Download/DownloadRequest.cs)：所有运行时配置字段定义。
+- [`BBDown/Serve/ServeRequestOptions.cs`](./BBDown/Serve/ServeRequestOptions.cs)：serve 请求契约，是 `DownloadRequest` 的受控子集，并在其基础上新增 `CallBackWebHook`。
 
 ---
 
