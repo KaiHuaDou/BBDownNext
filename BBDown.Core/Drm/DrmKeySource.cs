@@ -38,9 +38,16 @@ public sealed class DrmKeySource
             }
             catch (FormatException)
             {
-                Logger.LogWarn($"无效的 --drm-key 条目：{entry}，已忽略（key 为 16 字节，可传 32 位 hex 或 base64）");
+                Logger.LogWarn($"无效的 --drm-key 条目：{RedactEntry(entry)}，已忽略（key 为 16 字节，可传 32 位 hex 或 base64）");
             }
         }
+    }
+
+    // key 属凭据，告警里不落明文；kid 非秘密（DashDownload 的提示也打 KID），可以留
+    private static string RedactEntry(string entry)
+    {
+        var colon = entry.IndexOf(':');
+        return colon > 0 ? $"{entry[..colon]}:[redacted]" : "[redacted]";
     }
 
     public bool HasKeys => _keys.Count != 0 || _defaultKey != null;

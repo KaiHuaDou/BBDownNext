@@ -74,12 +74,12 @@ public sealed record DownloadRequest
     public string? ConfigFile { get; init; }
 
     /// <summary>
-    /// 返回遮蔽了 Cookie / AccessToken 的副本，用于调试日志，避免凭据明文泄露（P0-3）。
+    /// 返回遮蔽了 Cookie / AccessToken / DrmKeys 的副本，用于调试日志，避免凭据明文泄露（P0-3）。
     /// 类型为扁平值对象，<c>with</c> 即浅克隆，等价于原 JSON 深拷贝但无序列化开销。
     /// </summary>
     internal DownloadRequest WithSecretsRedacted( )
     {
-        return this with { Cookie = "", AccessToken = "" };
+        return this with { Cookie = "", AccessToken = "", DrmKeys = [] };
     }
 }
 

@@ -30,6 +30,8 @@
 - 图形界面改为直接引用 BBDown.Core 下载库：不再以子进程调用 BBDown.exe，移除 BBDown.exe 路径选择与自动检测界面（BBDown.GUI 独立运行，无需额外的 BBDown.exe）；任务日志经 Core 日志回调进入窗口日志区，仍按级别着色；下载能力与 CLI 一致。
 - 图形界面直播清晰度下拉补齐杜比 / 4K / 2K 档位（此前仅 5 档），档位列表改以 Core `LiveQuality` 为单一来源。
 - 下载内容字符 m 由「混流元数据」改称「嵌入元数据」，与「封面嵌入」（C）措辞对齐；内容字符、API 通道、弹幕/评论格式等选项列表改为由 Core 枚举/表单一来源生成（GUI 与 CLI 帮助一致），内容字符规范顺序统一为 a v c C d i m M o O S s。
+- 内部重构：`DownloadUtil` 拆分出独立的 `DownloadConfig`（配置类）与 `PartDownloader`（分片续传执行层），`HTTPUtil` 拆分出独立的 `Redactor`（日志脱敏），单文件行数回落至约定上限（384 行）以内，用户可见行为不变。
+- 安全：DRM 解密密钥（`--drm-key`）纳入日志脱敏——调试日志的运行参数快照清空 `DrmKeys`，无效条目告警打码 key 部分，自由文本脱敏规则扩展覆盖 `drm_key` / `drm-key` 键值对。
 
 ## [v2.0.0-beta.2]
 

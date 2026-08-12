@@ -162,7 +162,7 @@ public class ResumeDownloadTests
 
             using var handler = new ServingHandler { Data = data, FullBody = data, ETag = Etag };
             await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
-                url, dest, new DownloadUtil.DownloadConfig { SingleThread = false, ChunkSize = chunkSize }, ct: CancellationToken.None));
+                url, dest, new DownloadConfig { SingleThread = false, ChunkSize = chunkSize }, ct: CancellationToken.None));
 
             // 只有第 1 片（缺 60..99）发了请求，首片与末片都被跳过
             Assert.Single(handler.Requests);
@@ -200,7 +200,7 @@ public class ResumeDownloadTests
 
             using var handler = new ServingHandler { Data = data, FullBody = data, ETag = Etag };
             await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
-                url, dest, new DownloadUtil.DownloadConfig { SingleThread = false, ChunkSize = 50 }, ct: CancellationToken.None));
+                url, dest, new DownloadConfig { SingleThread = false, ChunkSize = 50 }, ct: CancellationToken.None));
 
             Assert.True(File.ReadAllBytes(dest).SequenceEqual(data));
         }
@@ -231,7 +231,7 @@ public class ResumeDownloadTests
                 RangeReturns206 = false,      // Range 被忽略，回 200 整段
             };
             await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
-                url, dest, new DownloadUtil.DownloadConfig { SingleThread = true }, ct: CancellationToken.None));
+                url, dest, new DownloadConfig { SingleThread = true }, ct: CancellationToken.None));
 
             var got = File.ReadAllBytes(dest);
             Assert.True(got.SequenceEqual(data));
@@ -262,7 +262,7 @@ public class ResumeDownloadTests
             };
             await Assert.ThrowsAsync<IOException>(( ) =>
                 WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
-                    url, dest, new DownloadUtil.DownloadConfig { SingleThread = true }, ct: CancellationToken.None)));
+                    url, dest, new DownloadConfig { SingleThread = true }, ct: CancellationToken.None)));
         }
         finally
         {
@@ -300,7 +300,7 @@ public class ResumeDownloadTests
 
             using var handler = new ServingHandler { Data = data, FullBody = data, ETag = Etag };
             await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
-                url, dest, new DownloadUtil.DownloadConfig { SingleThread = false, ChunkSize = chunkSize }, ct: CancellationToken.None));
+                url, dest, new DownloadConfig { SingleThread = false, ChunkSize = chunkSize }, ct: CancellationToken.None));
 
             // 末片/首片跳过，只发了第 1 片的请求，且带上的 If-Range 就是服务器给的 ETag 原文
             Assert.Single(handler.Requests);
@@ -347,7 +347,7 @@ public class ResumeDownloadTests
             };
             // 不抛异常：磁盘已有 50 字节 >= from+completed，信任本地、跳过
             await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
-                url, dest, new DownloadUtil.DownloadConfig { SingleThread = true }, ct: CancellationToken.None));
+                url, dest, new DownloadConfig { SingleThread = true }, ct: CancellationToken.None));
 
             var got = File.ReadAllBytes(dest);
             Assert.Equal(have, got.Length);
@@ -393,7 +393,7 @@ public class ResumeDownloadTests
             };
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) =>
                 WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
-                    Url, dest, new DownloadUtil.DownloadConfig { SingleThread = true }, ct: CancellationToken.None)));
+                    Url, dest, new DownloadConfig { SingleThread = true }, ct: CancellationToken.None)));
             Assert.IsType<IOException>(ex.InnerException);
             Assert.Contains("416", ex.InnerException!.Message);
         }
