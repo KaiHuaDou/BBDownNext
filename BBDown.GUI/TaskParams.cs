@@ -51,7 +51,6 @@ public sealed record TaskParams
     public bool AllowPcdn { get; init; }
     public bool NoForceHost { get; init; }
     public bool NoForceHttp { get; init; }
-    public string DrmKey { get; init; } = "";   // 多个密钥以空白分隔
     public string Host { get; init; } = "";
     public string EpHost { get; init; } = "";
     public string TvHost { get; init; } = "";
@@ -79,7 +78,6 @@ public static class TaskParamsMapper
             HideStreams = false,
             SingleThread = options.SingleThread,
             Debug = options.Debug,
-            DrmKeys = SplitKeys(options.DrmKey),
             NoForceHttp = options.NoForceHttp,
             DownloadDanmakuFormats = options.DanmakuFormats,
             CommentCount = int.TryParse(options.CommentsCount, out var count) ? count : 0,
@@ -117,10 +115,5 @@ public static class TaskParamsMapper
     private static string? NullIfEmpty(string value)
     {
         return value.Length == 0 ? null : value;
-    }
-
-    private static string[] SplitKeys(string drmKey)
-    {
-        return drmKey.Split((char[]?) null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 }

@@ -6,7 +6,6 @@ using System.Text.Json;
 
 using BBDown.Core.Auth;
 using BBDown.Core;
-using BBDown.Core.Drm;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.Utils;
@@ -54,7 +53,6 @@ public static class WorkSetup
             Lang: lang,
             Delay: delay,
             Tools: tools,
-            DrmKeys: new DrmKeySource(myOption.DrmKeys),
             WorkDir: workDir);
     }
 

@@ -45,7 +45,7 @@ internal static class CommandLineInvoker
             CommentsSort,
             CommentsFormats,
             MuxOption,
-            DrmKey,
+            PostProcess,
             AllowPreview,
             Lang,
             // 直播录制
@@ -94,6 +94,9 @@ internal static class CommandLineInvoker
                 LogWarn(warning);
             }
 
+            // 外部后处理进程：进程级配置，未指定时整个后处理路径不启用
+            PostProcessClient.Configure(parseResult.GetValue(PostProcess));
+
             var option = new DownloadRequest
             {
                 Api = parseResult.GetValue(ApiOption),
@@ -110,7 +113,6 @@ internal static class CommandLineInvoker
                 SingleThread = parseResult.GetValue(SingleThread)!,
                 Debug = parseResult.GetValue(Debug)!,
                 Mux = parseResult.GetValue(MuxOption)!,
-                DrmKeys = parseResult.GetValue(DrmKey) ?? [],
                 NoForceHttp = parseResult.GetValue(NoForceHttp)!,
                 DownloadDanmakuFormats = parseResult.GetValue(DownloadDanmakuFormats) ?? "",
                 CommentCount = parseResult.GetValue(CommentsCount),

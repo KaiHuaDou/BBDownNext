@@ -29,10 +29,7 @@ internal static partial class TrackFactory
             BaseUrl = PickBaseUrl(BuildUrlList(node)),
             Codecs = VideoCodec(node.GetProperty("codecid").ToString( )),
             Size = node.TryGetProperty("size", out var size) ? Convert.ToDouble(size.ToString( )) : 0,
-            IsDrm = ReadDrm(node, out var drmType, out var pssh, out var uri),
-            DrmType = drmType,
-            WidevinePssh = pssh,
-            BiliDrmUri = uri
+            IsEncrypted = ReadEncrypted(node)
         };
     }
 
@@ -47,20 +44,14 @@ internal static partial class TrackFactory
             Bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
             BaseUrl = PickBaseUrl(BuildUrlList(node)),
             Codecs = codecs ?? node.GetProperty("codecs").ToString( ),
-            IsDrm = ReadDrm(node, out var drmType, out var pssh, out var uri),
-            DrmType = drmType,
-            WidevinePssh = pssh,
-            BiliDrmUri = uri
+            IsEncrypted = ReadEncrypted(node)
         };
     }
 
-    // DRM 字段逐流下发：widevine_pssh / bilidrm_uri 二选一（同轨不会并存），drm_type 缺失时按字段推断
-    private static bool ReadDrm(JsonElement node, out string drmType, out string? pssh, out string? uri)
+    // 加密标记逐流下发：widevine_pssh / bilidrm_uri 任一存在即视为受保护（协议字段）
+    private static bool ReadEncrypted(JsonElement node)
     {
-        pssh = ReadString(node, "widevine_pssh");
-        uri = ReadString(node, "bilidrm_uri");
-        drmType = ReadString(node, "drm_type") ?? (pssh != null ? "widevine" : uri != null ? "bili_drm" : "");
-        return pssh != null || uri != null;
+        return ReadString(node, "widevine_pssh") != null || ReadString(node, "bilidrm_uri") != null;
     }
 
     private static string? ReadString(JsonElement node, string name)

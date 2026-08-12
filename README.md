@@ -45,7 +45,7 @@
 
 - 媒体与封装
     - **DASH / FLV** 封装 · 杜比视界、HDR、8K、高码率音视频流
-    - **DRM 解密** · playurl 默认解析 DRM 信息，提供匹配 `--drm-key` 时自动解密后混流（bili_drm 通道），未提供 key 或 Widevine 通道时保留加密原件
+    - **外部后处理** · `--post-process` 指定外部进程，下载完成后按需处理轨道文件
     - **编码与画质优先级** `-e` / `-q`，弹幕（XML/ASS）、字幕、封面、AI 字幕
     - **混流增强**：写入元数据与章节，支持 FFmpeg / MP4Box
     - **封面嵌入** · `C` 将封面嵌入视频文件（attached_pic），播放器可直接显示缩略图；`c` 则单独保存封面文件
@@ -75,7 +75,7 @@
 
 - 工程品质
     - **950+ 单元测试**，覆盖全部核心路径
-    - **深度重构** · 按职责分层（`Cli` / `Pipeline` / `Media` / `Mux` / `Serve` / `Download` / `Auth` / `Drm` / `Util`），依赖单向成树（`check-deps` 守护），不可变契约 record 贯穿全链路，纯函数与 AOT 安全源生成器，可维护性高
+    - **深度重构** · 按职责分层（`Cli` / `Pipeline` / `Media` / `Mux` / `Serve` / `Download` / `Auth` / `Util`），依赖单向成树（`check-deps` 守护），不可变契约 record 贯穿全链路，纯函数与 AOT 安全源生成器，可维护性高
     - **结构化资源 id** · 输入统一解析为 `ResourceId` 判别联合（视频 / 番剧 / 课程 / 收藏夹 / 合集 / 系列 / 空间 / 稍后再看），按类型分发、缺分支编译报错，取代字符串前缀打标（如 `ep:ss2539`）
 
 ## 与原版 BBDown 的差异
@@ -97,9 +97,8 @@
 | 图形界面        | 无                              | BBDown.GUI（WPF，仅 Windows）                       |
 | 充电专属试看    | 无专门处理                      | 下载前识别，退出码 2 表示全部为试看                 |
 | 封面处理        | 独立封面下载                    | 独立封面 `c` + 嵌入 `C`（attached_pic）             |
-| DRM 解密        | 无                              | playurl 解析 DRM 信息，提供 key 时自动解密后混流    |
 | 断点续传        | 基础续传                        | SHA256 指纹清单，支持单流与分 P 粒度                |
-| 单元测试        | 较少                            | 950+，覆盖解析、混流、serve 安全、DRM 等核心路径    |
+| 单元测试        | 较少                            | 950+，覆盖解析、混流、serve 安全等核心路径          |
 
 逐项对照与源码位置见 [docs/compared-to-upstream.md](./docs/compared-to-upstream.md)。
 
@@ -261,7 +260,7 @@ BBDown "live12345" -lq 400
 | `--comments-sort`    | `-cs`  | 评论排序：`hot`（热度，默认）或 `time`（最新）             |
 | `--comments-formats` | `-cf`  | 指定评论导出格式（详见脚注 [^commentformats]）             |
 | `--mux`              | `-m`   | 混流方式：`none` / `mpeg4`（默认）/ `mp4box` / `mkv`       |
-| `--drm-key`          |        | 提供 DRM 解密密钥（详见脚注 [^drmkey]）                    |
+| `--post-process`     |        | 指定外部后处理进程（详见脚注 [^postprocess]）               |
 | `--allow-preview`    | `-p`   | 允许下载充电专属视频的试看片段（详见脚注 [^allowpreview]） |
 | `--lang`             |        | 设置混流音频语言代码，如 `chi`、`jpn` 等                   |
 
@@ -614,7 +613,7 @@ B 站 web 接口要求 WBI 签名，未签名的请求更容易触发风控。BB
 
 [^allowpreview]: UP 主的充电专属稿件，在当前账号没有充电权限时接口不会报错，而是照常返回成功并只下发几分钟的试看片段。BBDown 默认会在下载前识别并跳过（退出码 `2`），避免产出被报告为「下载成功」的残片。加此选项则保留试看片段，输出文件名带 `[试看]` 前缀以便与完整视频区分。登录一个已为该 UP 主充电的账号（`BBDown login`）即可正常下载完整视频，无需此选项。
 
-[^drmkey]: 提供 DRM 解密密钥，可多次传入，格式 `kid:key` 或纯 `key`（后者为全局默认）。`key` / `kid` 均为 16 字节，可用 32 位 hex 或 base64 编码。BBDown 默认解析 DRM 信息并尝试自动解密：提供匹配 `kid` 的 key 时自动解密后混流；未提供 key 或通道不支持（Widevine）时明确提示并**保留加密文件**（位于临时目录，路径会打印在日志中）。仅用于你拥有合法授权的内容。
+[^postprocess]: 指定外部后处理进程（可执行文件路径）。下载完成后带特殊标记的轨道文件会交给该进程处理，成功产物替换原文件参与混流；进程不可用或处理失败时静默保留原文件。处理方自行获取所需信息，本程序不感知其语义。
 
 [^host]: 指定 BiliPlus host。使用 BiliPlus 需要 access_token、不需要 cookie；解析服务器能够获取你账号的大部分权限，请谨慎使用！
 

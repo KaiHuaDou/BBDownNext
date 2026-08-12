@@ -127,8 +127,8 @@ public class LiveFetcherParseTests
         Assert.False(info!.Degraded);
     }
 
-    // 带 DRM 的轨道下载下来也放不了，须跳过并落到下一个编码
-    private const string DrmAvcJson = """
+    // 带加密标记的轨道下载下来也放不了，须跳过并落到下一个编码
+    private const string EncryptedAvcJson = """
     {
       "live_status": 1,
       "playurl_info": { "playurl": { "stream": [ { "protocol_name": "http_stream", "format": [ { "format_name": "flv", "codec": [
@@ -141,19 +141,19 @@ public class LiveFetcherParseTests
     """;
 
     [Fact]
-    public void ParsePlayInfo_DrmCodec_IsSkipped( )
+    public void ParsePlayInfo_EncryptedCodec_IsSkipped( )
     {
-        var info = LiveFetcher.ParsePlayInfo(Parse(DrmAvcJson), 250);
+        var info = LiveFetcher.ParsePlayInfo(Parse(EncryptedAvcJson), 250);
 
         Assert.NotNull(info);
         Assert.Equal("hevc", Assert.Single(info.Candidates).CodecName);
     }
 
-    // 全部轨道都带 DRM 时不能返回空壳，要当作「拿不到流」
+    // 全部轨道都带加密标记时不能返回空壳，要当作「拿不到流」
     [Fact]
-    public void ParsePlayInfo_AllDrm_ReturnsNull( )
+    public void ParsePlayInfo_AllEncrypted_ReturnsNull( )
     {
-        var json = DrmAvcJson.Replace("\"drm\": false", "\"drm\": true", StringComparison.Ordinal);
+        var json = EncryptedAvcJson.Replace("\"drm\": false", "\"drm\": true", StringComparison.Ordinal);
 
         Assert.Null(LiveFetcher.ParsePlayInfo(Parse(json), 250));
     }

@@ -66,7 +66,6 @@ public partial class MainWindow
             Api = ApiBox.SelectedItem as string ?? "web",
             FilePattern = FilePatternBox.Text.Trim( ),
             MultiFilePattern = MultiFilePatternBox.Text.Trim( ),
-            DrmKey = DrmKeyBox.Text.Trim( ),
             Host = HostBox.Text.Trim( ),
             EpHost = EpHostBox.Text.Trim( ),
             TvHost = TvHostBox.Text.Trim( ),
@@ -176,7 +175,6 @@ public partial class MainWindow
         ApiBox.SelectedItem = options.Api;
         FilePatternBox.Text = options.FilePattern;
         MultiFilePatternBox.Text = options.MultiFilePattern;
-        DrmKeyBox.Text = options.DrmKey;
         HostBox.Text = options.Host;
         EpHostBox.Text = options.EpHost;
         TvHostBox.Text = options.TvHost;

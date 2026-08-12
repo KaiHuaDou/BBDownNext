@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using BBDown.Core;
 using BBDown.Core.Entity;
 using BBDown.Core.Download;
-using BBDown.Core.Drm;
 using BBDown.Core.Mux;
 using BBDown.Core.Util;
 
@@ -162,22 +161,21 @@ public static class DashDownload
         }
 
         Log($"P{p.Index} 下载完成");
-        // DRM 轨解密：下载完成后统一处理，成功产物覆盖加密原件（后续混流与清理路径不变）；
-        // 任一轨不可解/失败时保留文件、跳过混流
-        var decryptOk = true;
+        // 外部后处理（可选）：对带加密标记的轨调用已配置的处理进程，成功产物覆盖原轨；
+        // 未配置 / 失败 / 超时一律静默保留原文件，加密流照常参与混流
         if (selectedVideo != null)
         {
-            decryptOk &= await DecryptTrackIfNeededAsync(session, videoPath, selectedVideo.IsDrm, selectedVideo.DrmType, selectedVideo.BiliDrmUri, ct);
+            await TryPostProcessAsync(session, videoPath, selectedVideo.IsEncrypted, "video", p.Aid, p.Cid, ct);
         }
 
         if (selectedAudio != null)
         {
-            decryptOk &= await DecryptTrackIfNeededAsync(session, audioPath, selectedAudio.IsDrm, selectedAudio.DrmType, selectedAudio.BiliDrmUri, ct);
+            await TryPostProcessAsync(session, audioPath, selectedAudio.IsEncrypted, "audio", p.Aid, p.Cid, ct);
         }
 
         if (selectedBackgroundAudio != null)
         {
-            decryptOk &= await DecryptTrackIfNeededAsync(session, backgroundPath, selectedBackgroundAudio.IsDrm, selectedBackgroundAudio.DrmType, selectedBackgroundAudio.BiliDrmUri, ct);
+            await TryPostProcessAsync(session, backgroundPath, selectedBackgroundAudio.IsEncrypted, "background", p.Aid, p.Cid, ct);
         }
 
         foreach (var role in parsedResult.RoleAudioList)
@@ -185,14 +183,8 @@ public static class DashDownload
             var roleAudio = role.Audio.ElementAtOrDefault(aIndex);
             if (roleAudio != null)
             {
-                decryptOk &= await DecryptTrackIfNeededAsync(session, role.Path, roleAudio.IsDrm, roleAudio.DrmType, roleAudio.BiliDrmUri, ct);
+                await TryPostProcessAsync(session, role.Path, roleAudio.IsEncrypted, "role", p.Aid, p.Cid, ct);
             }
-        }
-
-        if (!decryptOk)
-        {
-            LogError($"P{p.Index} 存在无法解密的 DRM 轨道，已保留原始文件，跳过混流");
-            return PageOutcome.Abort(selection);
         }
 
         if (parsedResult.VideoTracks.Count == 0)
@@ -209,32 +201,19 @@ public static class DashDownload
         return await MuxFinish.RunAsync(session, inputs, selection, ct);
     }
 
-    // 解密选中轨（含背景音/配音）：非 DRM 轨直接放行；解密成功产物覆盖加密原件；
-    // 不可解/失败返回 false 并打印保留路径与补救方法
-    private static async Task<bool> DecryptTrackIfNeededAsync(DownloadSession session, string path, bool isDrm, string drmType, string? biliDrmUri, CancellationToken ct)
+    // 对带加密标记的轨发起外部后处理；产物校验通过后覆盖原轨，其余情况静默
+    private static async Task TryPostProcessAsync(DownloadSession session, string path, bool isEncrypted, string kind, string aid, string cid, CancellationToken ct)
     {
-        if (!isDrm)
+        if (!isEncrypted || !PostProcessClient.Enabled)
         {
-            return true;
+            return;
         }
 
-        var destPath = path + ".dec.mp4";
-        var result = await DrmDecryptor.DecryptAsync(drmType, biliDrmUri, path, destPath, session.Ctx.Run.DrmKeys, session.Ctx.Run.Tools.Ffmpeg, ct);
-        switch (result)
+        var destPath = path + ".out.mp4";
+        if (await PostProcessClient.TryProcessAsync(aid, cid, kind, path, destPath, session.Ctx.Run.Tools.Ffmpeg, ct)
+            && File.Exists(destPath) && new FileInfo(destPath).Length > 0)
         {
-            case DrmResult.Decrypted:
-                File.Move(destPath, path, true);
-                return true;
-            case DrmResult.KeyMissing:
-                var kid = DrmDecryptor.KidFromUri(biliDrmUri);
-                LogWarn($"该轨为 bili_drm 加密且未提供匹配 key（KID={kid}），已保留加密文件：{path}。用 --drm-key {kid}:<key> 传入密钥后重试");
-                return false;
-            case DrmResult.Unsupported:
-                LogError($"该轨为 Widevine 加密，无法自动解密，已保留加密文件：{path}");
-                return false;
-            default:
-                LogError($"该轨解密失败，已保留加密文件：{path}");
-                return false;
+            File.Move(destPath, path, true);
         }
     }
 }

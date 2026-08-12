@@ -32,7 +32,7 @@ public static partial class Redactor
     }
 
     // 自由文本（URL / 响应体）里的凭据键值对打码
-    [GeneratedRegex(@"(SESSDATA|bili_jct|access_token|refresh_token|csrf|drm[-_]?key)(""?:|"":\s*""?|=)([^&\s""'<>,]+)")]
+    [GeneratedRegex(@"(SESSDATA|bili_jct|access_token|refresh_token|csrf)(""?:|"":\s*""?|=)([^&\s""'<>,]+)")]
     private static partial Regex SecretTextRegex( );
 
     public static string Text(string text)

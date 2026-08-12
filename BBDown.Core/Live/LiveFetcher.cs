@@ -110,7 +110,7 @@ public static class LiveFetcher
 
                         if (ReadBool(codec, "drm"))
                         {
-                            LogWarn($"直播流 {codecName} 轨道带 DRM 保护，已跳过");
+                            LogWarn($"直播流 {codecName} 轨道受保护，已跳过");
                             continue;
                         }
 

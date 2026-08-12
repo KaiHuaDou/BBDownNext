@@ -329,49 +329,40 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Grid.Column="0"
                                            Style="{StaticResource FieldLabel}"
-                                           Text="DRM 密钥" />
-                                <TextBox x:Name="DrmKeyBox"
-                                         Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3"
-                                         Margin="0,3,0,3"
-                                         AcceptsReturn="True" MaxLines="2"
-                                         ToolTip="kid:key 或纯 key，多个以空白分隔" />
-                                <TextBlock Grid.Row="1" Grid.Column="0"
-                                           Style="{StaticResource FieldLabel}"
                                            Text="Host" />
                                 <TextBox x:Name="HostBox"
-                                         Grid.Row="1" Grid.Column="1"
+                                         Grid.Row="0" Grid.Column="1"
                                          Margin="0,3,10,3"
                                          ToolTip="BiliPlus host，需 access_token，谨慎使用" />
-                                <TextBlock Grid.Row="1" Grid.Column="2"
+                                <TextBlock Grid.Row="0" Grid.Column="2"
                                            Style="{StaticResource FieldLabel}"
                                            Text="EP Host" />
                                 <TextBox x:Name="EpHostBox"
-                                         Grid.Row="1" Grid.Column="3"
+                                         Grid.Row="0" Grid.Column="3"
                                          Style="{StaticResource FieldInput}"
                                          ToolTip="BiliPlus EP host，代理 pgc season 接口" />
-                                <TextBlock Grid.Row="2" Grid.Column="0"
+                                <TextBlock Grid.Row="1" Grid.Column="0"
                                            Style="{StaticResource FieldLabel}"
                                            Text="TV Host" />
                                 <TextBox x:Name="TvHostBox"
-                                         Grid.Row="2" Grid.Column="1"
+                                         Grid.Row="1" Grid.Column="1"
                                          Margin="0,3,10,3"
                                          ToolTip="自定义 TV 端接口请求 Host" />
-                                <TextBlock Grid.Row="2" Grid.Column="2"
+                                <TextBlock Grid.Row="1" Grid.Column="2"
                                            Style="{StaticResource FieldLabel}"
                                            Text="Area" />
                                 <TextBox x:Name="AreaBox"
-                                         Grid.Row="2" Grid.Column="3"
+                                         Grid.Row="1" Grid.Column="3"
                                          Style="{StaticResource FieldInput}"
                                          ToolTip="BiliPlus 区域：hk / tw / th" />
-                                <TextBlock Grid.Row="3" Grid.Column="0"
+                                <TextBlock Grid.Row="2" Grid.Column="0"
                                            Style="{StaticResource FieldLabel}"
                                            Text="Upos Host" />
                                 <TextBox x:Name="UposHostBox"
-                                         Grid.Row="3" Grid.Column="1"
+                                         Grid.Row="2" Grid.Column="1"
                                          Margin="0,3,0,3"
                                          ToolTip="自定义 upos 服务器" />
                             </Grid>

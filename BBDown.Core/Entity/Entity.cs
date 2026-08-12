@@ -76,11 +76,8 @@ public class Video
     public long Bandwidth { get; set; }
     public int Dur { get; set; }
     public double Size { get; set; }
-    // DRM：逐流下发，驱动解密与提示。不参与 Equals/GetHashCode——同画质同编码轨 DRM 状态必然一致
-    public bool IsDrm { get; set; }
-    public string DrmType { get; set; } = "";
-    public string? WidevinePssh { get; set; }
-    public string? BiliDrmUri { get; set; }
+    // 加密标记：逐流下发，驱动外部后处理。不参与 Equals/GetHashCode——同画质同编码轨状态必然一致
+    public bool IsEncrypted { get; set; }
 
     public override bool Equals(object? obj)
     {
@@ -109,11 +106,8 @@ public class Audio
     public required long Bandwidth { get; set; }
     public required int Dur { get; set; }
 
-    // DRM：逐流下发，驱动解密与提示。不参与 Equals/GetHashCode——同画质同编码轨 DRM 状态必然一致
-    public bool IsDrm { get; set; }
-    public string DrmType { get; set; } = "";
-    public string? WidevinePssh { get; set; }
-    public string? BiliDrmUri { get; set; }
+    // 加密标记：逐流下发，驱动外部后处理。不参与 Equals/GetHashCode——同画质同编码轨状态必然一致
+    public bool IsEncrypted { get; set; }
 
     // E-AC-3 => EAC3
     public string ShortCodecs => Codecs.ToUpper( ).Replace("-", string.Empty);

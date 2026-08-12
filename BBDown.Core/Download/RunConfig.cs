@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 
-using BBDown.Core.Drm;
-
 namespace BBDown.Core.Download;
 
 /// <summary>
@@ -25,6 +23,4 @@ public sealed record RunConfig(
     string Lang,
     int Delay,
     ToolPaths Tools,
-    // --drm-key 条目在任务启动时解析一次，全任务共享；解析告警只打印一遍
-    DrmKeySource DrmKeys,
     string WorkDir);

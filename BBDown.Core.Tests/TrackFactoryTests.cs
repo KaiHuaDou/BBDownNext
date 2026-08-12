@@ -102,74 +102,53 @@ public class TrackFactoryTests
         Assert.Equal(expected, TrackFactory.VideoCodec(code));
     }
 
-    // ═══ DRM 字段解析 ═══
+    // ═══ 加密标记解析 ═══
 
     [Fact]
-    public void BuildVideo_ReadsBiliDrmUri( )
+    public void BuildVideo_ReadsEncryptionUri( )
     {
         var v = TrackFactory.BuildVideo(Parse("""{"id":80,"bandwidth":2048000,"codecid":12,"base_url":"http://v","bilidrm_uri":"uri:bili://d8f66b93db284984b4e7fc50d71278ff"}"""), 120);
 
-        Assert.True(v.IsDrm);
-        Assert.Equal("bili_drm", v.DrmType);
-        Assert.Equal("uri:bili://d8f66b93db284984b4e7fc50d71278ff", v.BiliDrmUri);
-        Assert.Null(v.WidevinePssh);
+        Assert.True(v.IsEncrypted);
     }
 
     [Fact]
-    public void BuildVideo_ReadsWidevinePssh_InfersTypeWhenFieldMissing( )
+    public void BuildVideo_ReadsWidevinePssh( )
     {
         var v = TrackFactory.BuildVideo(Parse("""{"id":80,"bandwidth":2048000,"codecid":12,"base_url":"http://v","widevine_pssh":"AAAAdXBzc2gA"}"""), 120);
 
-        Assert.True(v.IsDrm);
-        Assert.Equal("widevine", v.DrmType);
-        Assert.Equal("AAAAdXBzc2gA", v.WidevinePssh);
-        Assert.Null(v.BiliDrmUri);
+        Assert.True(v.IsEncrypted);
     }
 
     [Fact]
-    public void BuildVideo_DrmTypeFieldTakesPrecedence( )
-    {
-        var v = TrackFactory.BuildVideo(Parse("""{"id":80,"bandwidth":2048000,"codecid":12,"base_url":"http://v","drm_type":"widevine","bilidrm_uri":"uri:bili://d8f66b93db284984b4e7fc50d71278ff"}"""), 120);
-
-        Assert.Equal("widevine", v.DrmType);
-    }
-
-    [Fact]
-    public void BuildVideo_NoDrmFields( )
+    public void BuildVideo_NoEncryptionFields( )
     {
         var v = TrackFactory.BuildVideo(Parse("""{"id":80,"bandwidth":2048000,"codecid":7,"base_url":"http://v"}"""), 120);
 
-        Assert.False(v.IsDrm);
-        Assert.Equal("", v.DrmType);
-        Assert.Null(v.WidevinePssh);
-        Assert.Null(v.BiliDrmUri);
+        Assert.False(v.IsEncrypted);
     }
 
     [Fact]
-    public void BuildVideo_NullDrmFieldsAreIgnored( )
+    public void BuildVideo_NullEncryptionFieldsAreIgnored( )
     {
         var v = TrackFactory.BuildVideo(Parse("""{"id":80,"bandwidth":2048000,"codecid":7,"base_url":"http://v","bilidrm_uri":null,"widevine_pssh":null}"""), 120);
 
-        Assert.False(v.IsDrm);
-        Assert.Equal("", v.DrmType);
+        Assert.False(v.IsEncrypted);
     }
 
     [Fact]
-    public void BuildAudio_ReadsBiliDrmUri( )
+    public void BuildAudio_ReadsEncryptionUri( )
     {
         var a = TrackFactory.BuildAudio(Parse("""{"id":30280,"bandwidth":128000,"codecs":"mp4a.40.2","base_url":"http://a","bilidrm_uri":"uri:bili://d8f66b93db284984b4e7fc50d71278ff"}"""), 120);
 
-        Assert.True(a.IsDrm);
-        Assert.Equal("bili_drm", a.DrmType);
-        Assert.Equal("uri:bili://d8f66b93db284984b4e7fc50d71278ff", a.BiliDrmUri);
+        Assert.True(a.IsEncrypted);
     }
 
     [Fact]
-    public void BuildAudio_NoDrmFields( )
+    public void BuildAudio_NoEncryptionFields( )
     {
         var a = TrackFactory.BuildAudio(Parse("""{"id":30280,"bandwidth":128000,"codecs":"mp4a.40.2","base_url":"http://a"}"""), 120);
 
-        Assert.False(a.IsDrm);
-        Assert.Equal("", a.DrmType);
+        Assert.False(a.IsEncrypted);
     }
 }

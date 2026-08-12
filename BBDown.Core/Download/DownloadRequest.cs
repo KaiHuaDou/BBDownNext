@@ -32,9 +32,6 @@ public sealed record DownloadRequest
     public bool HideStreams { get; init; }
     public bool SingleThread { get; init; }
     public bool Debug { get; init; }
-    /// <summary>DRM 解密密钥（--drm-key 可多次）：kid:key 或纯 key。serve 下不可用：key 属凭据，不进 serve 契约。</summary>
-    [SuppressMessage("Design", "CA1819:PropertiesShouldNotReturnArrays", Justification = "STJ 源生成不支持 IReadOnlyList，数组保持 DTO 序列化契约")]
-    public string[] DrmKeys { get; init; } = [];
     public bool NoForceHttp { get; init; }
     public string? DownloadDanmakuFormats { get; init; }
     /// <summary>要下载的评论条数，0 表示不下载评论</summary>
@@ -74,12 +71,12 @@ public sealed record DownloadRequest
     public string? ConfigFile { get; init; }
 
     /// <summary>
-    /// 返回遮蔽了 Cookie / AccessToken / DrmKeys 的副本，用于调试日志，避免凭据明文泄露（P0-3）。
+    /// 返回遮蔽了 Cookie / AccessToken 的副本，用于调试日志，避免凭据明文泄露（P0-3）。
     /// 类型为扁平值对象，<c>with</c> 即浅克隆，等价于原 JSON 深拷贝但无序列化开销。
     /// </summary>
     internal DownloadRequest WithSecretsRedacted( )
     {
-        return this with { Cookie = "", AccessToken = "", DrmKeys = [] };
+        return this with { Cookie = "", AccessToken = "" };
     }
 }
 
