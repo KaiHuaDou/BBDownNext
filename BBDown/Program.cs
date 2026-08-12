@@ -224,10 +224,8 @@ internal sealed class Program
         // 进程级全局状态只在每次 CLI 运行起点设置一次（serve 模式不在此路径；
         // ServeRequestOptions 已剔除 Debug/UserAgent，故 serve 任务不触碰这些全局，避免并发互相踩踏）。
         Config.SetDebugLog(myOption.Debug);
-        if (!string.IsNullOrEmpty(myOption.UserAgent))
-        {
-            HTTPUtil.SetUserAgent(myOption.UserAgent);
-        }
+        // UA 不在此设置：WorkSetup.ResolveConfig 已把 myOption.UserAgent 落入请求级 AppConfig，
+        // GUI 等并发宿主按任务各自生效，不再共享进程级全局
 
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         try

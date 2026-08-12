@@ -109,7 +109,7 @@ public static partial class Login
                     // 校验凭据可用并打印账号名（best-effort，失败不阻断）
                     try
                     {
-                        var (info, _) = await Account.ProbeAccountAsync(new Core.AppConfig(cookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", ""), cancellationToken);
+                        var (info, _) = await Account.ProbeAccountAsync(new Core.AppConfig(cookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", ""), cancellationToken);
                         if (info.IsLogin)
                         {
                             Log($"已登录账号：{info.UserName}");

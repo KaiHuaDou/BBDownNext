@@ -161,7 +161,8 @@ public static class WorkSetup
             string.IsNullOrWhiteSpace(myOption.EpHost) ? BiliApi.MainHost : myOption.EpHost.Trim( ),
             string.IsNullOrWhiteSpace(myOption.TvHost) ? BiliApi.TvHost : myOption.TvHost.Trim( ),
             myOption.Area,
-            "");
+            "",
+            myOption.UserAgent.Trim( ));
     }
 
     /// <summary>

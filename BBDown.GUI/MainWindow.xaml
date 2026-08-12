@@ -26,23 +26,9 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!--顶部：可执行文件与下载目标-->
+            <!--顶部：下载目标-->
             <StackPanel Grid.Row="0">
                 <DockPanel>
-                    <Button x:Name="ExeDetectButton"
-                            DockPanel.Dock="Right"
-                            Margin="5,0,0,0"
-                            Style="{StaticResource ButtonAction}"
-                            Click="ExeDetectButtonClicked" Content="检测" />
-                    <Button x:Name="ExeSelectButton"
-                            DockPanel.Dock="Right"
-                            Margin="5,0,0,0"
-                            Style="{StaticResource ButtonAction}"
-                            Click="ExeSelectButtonClicked" Content="..." />
-                    <TextBox x:Name="ExePathBox" LostKeyboardFocus="ExePathBoxLostKeyboardFocus" />
-                </DockPanel>
-                <TextBlock x:Name="ExeHintText" Margin="0,2,0,0" FontSize="11" />
-                <DockPanel Margin="0,10,0,0">
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="目标" />
                     <TextBox x:Name="TargetBox" TextChanged="TargetBoxTextChanged" />
                 </DockPanel>

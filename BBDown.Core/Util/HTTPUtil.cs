@@ -80,13 +80,8 @@ public static partial class HTTPUtil
         return $"Mozilla/5.0 ({platforms[Random.Shared.Next(platforms.Length)]}) {browsers[Random.Shared.Next(browsers.Length)]}";
     }
 
-    public static string UserAgent { get; private set; } = GetRandomUserAgent( );
-
-    // 仅允许在启动装配阶段设置 UA（构造期一次性设定），避免任意代码点改动全局状态
-    public static void SetUserAgent(string ua)
-    {
-        UserAgent = ua;
-    }
+    // 进程级默认 UA：无配置（登录探测、重定向跟随等）或配置未指定时使用
+    public static string UserAgent { get; } = GetRandomUserAgent( );
 
     // 番剧播放页要带 CURRENT_FNVAL 才会吐出 dash 源。只认 /ep123 /ss123 这样完整的路径段，
     // 裸 Contains("/ep") 会把 /episodes、/ssl 之类一并命中
@@ -99,9 +94,12 @@ public static partial class HTTPUtil
     [GeneratedRegex(@"^(ep|ss)\d+$")]
     private static partial Regex BangumiSegmentRegex( );
 
+    // UA 请求级化：显式参数 > AppConfig.UserAgent > 进程级默认。CLI 的 --user-agent 由 WorkSetup.ResolveConfig
+    // 落入 AppConfig，serve 契约不含该字段，故不会出现跨任务互相覆盖全局 UA 的踩踏
     internal static void ApplyStandardGetHeaders(HttpRequestMessage request, string url, AppConfig cfg, string? userAgent = null)
     {
-        request.Headers.TryAddWithoutValidation("User-Agent", userAgent ?? UserAgent);
+        var effectiveUserAgent = userAgent ?? (string.IsNullOrEmpty(cfg.UserAgent) ? UserAgent : cfg.UserAgent);
+        request.Headers.TryAddWithoutValidation("User-Agent", effectiveUserAgent);
         request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
         var cookie = cfg.Cookie;
         if (Buvid.Fragment.Length != 0)

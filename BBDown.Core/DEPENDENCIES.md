@@ -71,6 +71,16 @@ flowchart TD
 | 下载模型与传输 | `BBDown.Core.Download` | 下载领域模型（DownloadRequest、RunConfig、WorkContext、PipelineSink 等）与传输实现（DownloadUtil、PartFile、CdnHost、BBDownAria2c） |
 | 基础设施底座 | `BBDown.Core` / `Entity` / `Util` / `PlayUrl` | API 入口、实体、通用工具、播放地址解析 |
 
+## 宿主集成点
+
+Core 通过以下显式注入点向宿主（CLI / GUI）开放能力，宿主无需改动下载链路即可定制输出与交互：
+
+| 注入点 | 说明 |
+|---|---|
+| `Logger.Output` | 日志输出目标。null 时写控制台（含颜色与 `BeforeWrite` 钩子）；GUI 等无控制台宿主替换为窗口日志区回调（参数为级别 + 完整渲染文本，需自行保证线程安全）。`BeforeWrite` 仅对默认控制台路径生效 |
+| `Interaction.AskLine` / `AskIndex` | 交互式下载（逐集确认、手动选轨）的提问回调。默认读控制台；无控制台宿主返回 null 时按「不交互」回落处理 |
+| `AppConfig.UserAgent` | 请求级 UA。`--user-agent` 由 `WorkSetup.ResolveConfig` 落入该字段，空串回落 `HTTPUtil.UserAgent` 进程级默认，并发任务互不覆盖 |
+
 ## 依赖约束
 
 1. **依赖单向、无环**：下载域（Pipeline → Media/Live/Auth/Drm/Mux → Download → 底座）必须保持有向无环。新增代码禁止反向引用上层命名空间。

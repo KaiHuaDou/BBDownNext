@@ -64,7 +64,7 @@ public static partial class Login
 
     private static async Task<(string? cookie, string? refreshToken)> RefreshWebCookieAsync(string cookie, string refreshToken, CancellationToken token)
     {
-        var cfg = new Core.AppConfig(cookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "");
+        var cfg = new Core.AppConfig(cookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", "");
 
         // 1) /cookie/info 是否需要刷新（B 站官方信号，避免无谓刷新）
         using var infoResp = await HTTPUtil.GetRawResponseAsync(CookieInfoUrl, cfg, token);
@@ -117,7 +117,7 @@ public static partial class Login
                 ["csrf"] = GetCookieValue("bili_jct", newCookie) ?? "",
                 ["refresh_token"] = refreshToken,
             };
-            await HTTPUtil.PostFormRawAsync(ConfirmUrl, confirmForm, new Core.AppConfig(newCookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", ""), token);
+            await HTTPUtil.PostFormRawAsync(ConfirmUrl, confirmForm, new Core.AppConfig(newCookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", ""), token);
         }
         catch (Exception e)
         {

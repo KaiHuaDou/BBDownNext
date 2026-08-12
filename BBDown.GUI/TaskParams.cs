@@ -1,13 +1,15 @@
 using System;
-using System.Collections.Generic;
+
+using BBDown.Core;
+using BBDown.Core.Download;
 
 namespace BBDown.GUI;
 
-/// <summary>面板选项快照，不可变；既是子进程参数源，也是配置持久化 DTO。</summary>
+/// <summary>面板选项快照，不可变；既是下载任务参数源，也是配置持久化 DTO。</summary>
 public sealed record TaskParams
 {
     /// <summary>下载内容字符集，顺序固定为 a v c C d i m M o O S s，默认对齐 CLI 的 avmsCiM。</summary>
-    public string Content { get; init; } = CliArgsBuilder.DefaultContent;
+    public string Content { get; init; } = "avmsCiM";
 
     // 常用布尔选项
     public bool UseAria2c { get; init; }
@@ -21,7 +23,7 @@ public sealed record TaskParams
     public bool VideoAscending { get; init; }
     public bool AudioAscending { get; init; }
 
-    // 常用输入选项，空串表示未设置（走 CLI 内置默认）
+    // 常用输入选项，空串表示未设置（走 Core 默认值）
     public string Mux { get; init; } = "mpeg4";
     public string EncodingPriority { get; init; } = "";
     public string DfnPriority { get; init; } = "";
@@ -49,7 +51,7 @@ public sealed record TaskParams
     public bool AllowPcdn { get; init; }
     public bool NoForceHost { get; init; }
     public bool NoForceHttp { get; init; }
-    public string DrmKey { get; init; } = "";   // 多个密钥以空白分隔，CLI 支持多次传入 --drm-key
+    public string DrmKey { get; init; } = "";   // 多个密钥以空白分隔
     public string Host { get; init; } = "";
     public string EpHost { get; init; } = "";
     public string TvHost { get; init; } = "";
@@ -57,99 +59,68 @@ public sealed record TaskParams
     public string UposHost { get; init; } = "";
 }
 
-/// <summary>把 TaskParams 序列化为 BBDown.exe 命令行参数，顺序固定：内容 → 布尔 → 输入 → url。</summary>
-public static class CliArgsBuilder
+/// <summary>把面板选项转换为 Core 的下载请求。数值/枚举字段解析失败时回落安全默认值。</summary>
+public static class TaskParamsMapper
 {
-    /// <summary>CLI 内容默认值。</summary>
-    public const string DefaultContent = "avmsCiM";
-
-    public static string[] Build(TaskParams options, string url)
+    public static DownloadRequest ToDownloadRequest(this TaskParams options, string url)
     {
-        List<string> args = [];
-        AddContent(args, options.Content);
-        AddBooleanOptions(args, options);
-        AddInputOptions(args, options);
-        args.Add(url);
-        return [.. args];
-    }
-
-    private static void AddContent(List<string> args, string content)
-    {
-        // 全空也显式传 --get ""（CLI 解析为空内容集），否则 CLI 回落默认 avmsCiM，
-        // 用户清空所有复选框反而全量下载
-        args.Add("--get");
-        args.Add(content);
-    }
-
-    private static void AddBooleanOptions(List<string> args, TaskParams options)
-    {
-        AddFlag(args, "--aria2c", options.UseAria2c);
-        AddFlag(args, "--single-thread", options.SingleThread);
-        AddFlag(args, "--info-only", options.InfoOnly);
-        AddFlag(args, "--all", options.ShowAll);
-        AddFlag(args, "--allow-preview", options.AllowPreview);
-        AddFlag(args, "--save-records", options.SaveRecords);
-        AddFlag(args, "--stop-on-error", options.StopOnError);
-        AddFlag(args, "--debug", options.Debug);
-        AddFlag(args, "--video-ascending", options.VideoAscending);
-        AddFlag(args, "--audio-ascending", options.AudioAscending);
-        AddFlag(args, "--allow-pcdn", options.AllowPcdn);
-        AddFlag(args, "--no-force-host", options.NoForceHost);
-        AddFlag(args, "--no-force-http", options.NoForceHttp);
-    }
-
-    private static void AddInputOptions(List<string> args, TaskParams options)
-    {
-        AddOption(args, "--mux", options.Mux, "mpeg4");
-        AddOption(args, "--encoding-priority", options.EncodingPriority, "");
-        AddOption(args, "--dfn-priority", options.DfnPriority, "");
-        AddOption(args, "--pages", options.Pages, "");
-        AddOption(args, "--danmaku-formats", options.DanmakuFormats, "xml,ass");
-        AddOption(args, "--comments-count", options.CommentsCount, "0");
-        AddOption(args, "--comments-sort", options.CommentsSort, "hot");
-        AddOption(args, "--comments-formats", options.CommentsFormats, "json,txt");
-        AddOption(args, "--lang", options.Lang, "");
-        AddOption(args, "--cookie", options.Cookie, "");
-        AddOption(args, "--access-token", options.AccessToken, "");
-        AddOption(args, "--user-agent", options.UserAgent, "");
-        AddOption(args, "--work-dir", options.WorkDir, "");
-        AddOption(args, "--ffmpeg-path", options.FFmpegPath, "");
-        AddOption(args, "--mp4box-path", options.Mp4boxPath, "");
-        AddOption(args, "--aria2c-path", options.Aria2cPath, "");
-        AddOption(args, "--aria2c-args", options.Aria2cArgs, "");
-        AddOption(args, "--delay-per-page", options.DelayPerPage, "0");
-        AddOption(args, "--live-quality", options.LiveQuality, "10000");
-        AddOption(args, "--api", options.Api, "web");
-        AddOption(args, "--file-pattern", options.FilePattern, "");
-        AddOption(args, "--multi-file-pattern", options.MultiFilePattern, "");
-
-        foreach (var key in options.DrmKey.Split((char[]?) null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        return new DownloadRequest
         {
-            args.Add("--drm-key");
-            args.Add(key);
-        }
-
-        AddOption(args, "--host", options.Host, "");
-        AddOption(args, "--ep-host", options.EpHost, "");
-        AddOption(args, "--tv-host", options.TvHost, "");
-        AddOption(args, "--area", options.Area, "");
-        AddOption(args, "--upos-host", options.UposHost, "");
+            Url = url,
+            Api = ApiTypeUtil.TryParse(options.Api) ?? ApiType.Web,
+            Content = ContentSelector.FromNormalizedString(options.Content),
+            Mux = MuxModeUtil.TryParse(options.Mux) ?? MuxMode.Mpeg4,
+            EncodingPriority = NullIfEmpty(options.EncodingPriority),
+            DfnPriority = NullIfEmpty(options.DfnPriority),
+            EncodingFirst = false,
+            OnlyShowInfo = options.InfoOnly,
+            ShowAll = options.ShowAll,
+            UseAria2c = options.UseAria2c,
+            HideStreams = false,
+            SingleThread = options.SingleThread,
+            Debug = options.Debug,
+            DrmKeys = SplitKeys(options.DrmKey),
+            NoForceHttp = options.NoForceHttp,
+            DownloadDanmakuFormats = options.DanmakuFormats,
+            CommentCount = int.TryParse(options.CommentsCount, out var count) ? count : 0,
+            CommentSort = options.CommentsSort,
+            CommentFormats = options.CommentsFormats,
+            VideoAscending = options.VideoAscending,
+            AudioAscending = options.AudioAscending,
+            AllowPcdn = options.AllowPcdn,
+            AllowPreview = options.AllowPreview,
+            LiveQuality = int.TryParse(options.LiveQuality, out var quality) ? quality : LiveQuality.Original,
+            NoForceHost = options.NoForceHost,
+            SaveArchivesToFile = options.SaveRecords,
+            StopOnError = options.StopOnError,
+            FilePattern = options.FilePattern,
+            MultiFilePattern = options.MultiFilePattern,
+            Pages = options.Pages,
+            Lang = options.Lang,
+            UserAgent = options.UserAgent,
+            Cookie = options.Cookie,
+            AccessToken = options.AccessToken,
+            Aria2cArgs = options.Aria2cArgs,
+            WorkDir = options.WorkDir,
+            FFmpegPath = options.FFmpegPath,
+            Mp4boxPath = options.Mp4boxPath,
+            Aria2cPath = options.Aria2cPath,
+            UposHost = options.UposHost,
+            DelayPerPage = options.DelayPerPage,
+            Host = options.Host,
+            EpHost = options.EpHost,
+            TvHost = options.TvHost,
+            Area = options.Area,
+        };
     }
 
-    private static void AddFlag(List<string> args, string name, bool value)
+    private static string? NullIfEmpty(string value)
     {
-        if (value)
-        {
-            args.Add(name);
-        }
+        return value.Length == 0 ? null : value;
     }
 
-    private static void AddOption(List<string> args, string name, string value, string defaultValue)
+    private static string[] SplitKeys(string drmKey)
     {
-        if (value.Length > 0 && value != defaultValue)
-        {
-            args.Add(name);
-            args.Add(value);
-        }
+        return drmKey.Split((char[]?) null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 }

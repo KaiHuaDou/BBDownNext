@@ -11,7 +11,9 @@ using System.Windows.Media;
 
 using System.Runtime.InteropServices;
 
-using Ookii.Dialogs.Wpf;
+using BBDown.Core;
+using BBDown.Core.Download;
+using BBDown.Core.Pipeline;
 
 namespace BBDown.GUI;
 
@@ -20,9 +22,11 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<TaskState> tasks = [];
     private readonly QueueRunner queue;
     private readonly Brush okBrush = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
-    private readonly Brush badBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0x39, 0x35));
     private readonly Brush hintBrush = new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E));
     private string lastConcurrency = "3";
+
+    // 当前任务序号（异步流内传播），日志区据此加 [任务N] 前缀；0 表示非任务日志
+    private static readonly AsyncLocal<int> currentTask = new( );
 
     public MainWindow( )
     {
@@ -41,6 +45,18 @@ public partial class MainWindow : Window
         }
 
         MuxBox.SelectedIndex = 0;
+
+        // 下载核心的日志直接进窗口日志区（替代原解析子进程 stdout），按级别着色
+        Logger.Output = (level, text) =>
+        {
+            var index = currentTask.Value;
+            var line = index > 0 ? $"[任务{index}] {text}" : text;
+            var isError = level == LogLevel.Error;
+            if (!Dispatcher.HasShutdownStarted)
+            {
+                Dispatcher.BeginInvoke(( ) => AppendLog(line.TrimEnd('\n'), isError));
+            }
+        };
 
         queue = new QueueRunner(Dispatch);
         queue.Changed += OnQueueChanged;
@@ -61,7 +77,6 @@ public partial class MainWindow : Window
             ConfigData config = new( )
             {
                 Options = ReadOptions( ),
-                ExePath = ExePathBox.Text.Trim( ),
                 Concurrency = int.TryParse(ConcurrencyBox.Text, out var value) ? value : 3,
                 WindowLeft = bounds.Left,
                 WindowTop = bounds.Top,
@@ -76,35 +91,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ExeSelectButtonClicked(object o, RoutedEventArgs e)
-    {
-        VistaOpenFileDialog dialog = new( ) { Filter = "可执行文件 (*.exe)|*.exe", FileName = ExePathBox.Text.Trim( ) };
-        if (dialog.ShowDialog( ) == true)
-        {
-            ExePathBox.Text = dialog.FileName;
-            UpdateExeHint( );
-        }
-    }
-
-    private void ExeDetectButtonClicked(object o, RoutedEventArgs e)
-    {
-        var found = BBDownLocator.Find( );
-        if (found is null)
-        {
-            AppendLog("未找到 BBDown.exe，请手动选择");
-            return;
-        }
-
-        ExePathBox.Text = found;
-        UpdateExeHint( );
-        AppendLog($"自动检测到 BBDown.exe：{found}");
-    }
-
-    private void ExePathBoxLostKeyboardFocus(object o, KeyboardFocusChangedEventArgs e)
-    {
-        UpdateExeHint( );
-    }
-
     private void TargetBoxTextChanged(object o, TextChangedEventArgs e)
     {
         UpdateTargetHint( );
@@ -114,12 +100,6 @@ public partial class MainWindow : Window
     {
         if (!TryGetTarget(out var url))
         {
-            return;
-        }
-
-        if (!IsExePathValid( ))
-        {
-            AppendLog("BBDown.exe 路径无效，请先选择或自动检测");
             return;
         }
 
@@ -203,23 +183,13 @@ public partial class MainWindow : Window
         if (config is null)
         {
             ApplyOptions(new TaskParams( ));
-            var found = BBDownLocator.Find( );
-            if (found is not null)
-            {
-                ExePathBox.Text = found;
-                AppendLog($"自动检测到 BBDown.exe：{found}");
-            }
-
-            UpdateExeHint( );
             return;
         }
 
         ApplyOptions(config.Options);
-        ExePathBox.Text = config.ExePath;
         ConcurrencyBox.Text = config.Concurrency.ToString( );
         lastConcurrency = ConcurrencyBox.Text;
         ApplyWindowBounds(config);
-        UpdateExeHint( );
     }
 
     private void ApplyWindowBounds(ConfigData config)
@@ -264,18 +234,27 @@ public partial class MainWindow : Window
 
     private async Task<int> ExecuteTaskAsync(TaskState state, CancellationToken token)
     {
-        // 调度循环在后台线程执行，读 UI 控件须回 UI 线程
-        var exePath = await Dispatcher.InvokeAsync(ExePathBox.Text.Trim).Task;
-        var args = CliArgsBuilder.Build(state.Params, state.Url);
-        var index = state.Index;
+        // 调度循环在后台线程执行；日志经 Logger.Output 转发，AsyncLocal 为其标注任务序号
+        var req = state.Params.ToDownloadRequest(state.Url);
+        currentTask.Value = state.Index;
         try
         {
-            return await ProcessRunner.RunAsync(exePath, args, (line, isError) => AppendProcessLog(index, line, isError), token);
+            await DownloadPipeline.RunAsync(req, sink: default, token);
+            return 0;
         }
         catch (OperationCanceledException)
         {
-            AppendProcessLog(index, "已取消", false);
+            AppendProcessLog(state.Index, "已取消", false);
             throw;
+        }
+        catch (Exception e)
+        {
+            AppendProcessLog(state.Index, $"失败：{e.Message}", true);
+            return 1;
+        }
+        finally
+        {
+            currentTask.Value = 0;
         }
     }
 
@@ -295,19 +274,6 @@ public partial class MainWindow : Window
         }
 
         return true;
-    }
-
-    private bool IsExePathValid( )
-    {
-        var path = ExePathBox.Text.Trim( );
-        return path.Length > 0 && File.Exists(path);
-    }
-
-    private void UpdateExeHint( )
-    {
-        var valid = IsExePathValid( );
-        ExeHintText.Text = valid ? "" : "路径无效";
-        ExeHintText.Foreground = valid ? hintBrush : badBrush;
     }
 
     private void UpdateTargetHint( )

@@ -12,7 +12,7 @@ public class SignUtilTests
     // 下列向量取自 bilibili-API-collect/docs/misc/sign/wbi.md 的官方 Rust/Haskell 参考实现，
     // 用同一个 mixinKey 复算，确保本实现与服务端算法逐字节一致。
     private static readonly AppConfig WbiTestConfig =
-        new("", "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "ea1db124af3c7062474693fa704f4ff8");
+        new("", "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "ea1db124af3c7062474693fa704f4ff8", "");
 
     [Fact]
     public void WbiSign_MatchesOfficialAsciiVector( )

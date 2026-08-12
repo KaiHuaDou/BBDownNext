@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using BBDown.Core;
 using BBDown.Core.Entity;
 
 using static BBDown.Core.Logger;
@@ -124,8 +125,7 @@ public static class PageSelect
         for (var i = 0; i < vInfo.PagesInfo.Count; i++)
         {
             var p = vInfo.PagesInfo[i];
-            Log($"[{p.Index}] {p.Title}（{FormatTime(p.Dur)}）是否下载？[y/n/a/q]", false);
-            var input = Console.ReadLine( );
+            var input = Interaction.AskLine?.Invoke($"[{p.Index}] {p.Title}（{FormatTime(p.Dur)}）是否下载？[y/n/a/q]");
             var choice = string.IsNullOrWhiteSpace(input) ? "n" : input.Trim( ).ToLowerInvariant( );
             if (choice is "y" or "yes")
             {

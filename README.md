@@ -66,7 +66,7 @@
 
 - 双形态
     - **命令行 CLI** · 跨平台（Win / Linux / macOS）· .NET 9 · AOT 单文件发布
-    - **图形界面 BBDown.GUI**（仅 Windows）· 单窗口 WPF 封装命令行下载：任务队列与并发控制、日志实时显示、选项随 exe 便携保存；BBDown.exe 自动检测（同目录 / PATH，或手动选择）；独立 CI 发布单文件产物
+    - **图形界面 BBDown.GUI**（仅 Windows）· 单窗口 WPF，直接复用 BBDown.Core 下载库：任务队列与并发控制、日志实时显示、选项随 exe 便携保存；独立 CI 发布单文件产物
 
 - 扩展与集成
     - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./API.md)
@@ -148,7 +148,7 @@ BBDown.GUI 是 Windows 图形界面（GUI）客户端（WPF），目标框架 `n
 dotnet build BBDown.GUI -c Release
 ```
 
-产物位于 `BBDown.GUI/bin/Release/net9.0-windows/` 下。运行 `BBDown.GUI.exe` 时，其同目录或系统 `PATH` 中需存在 `BBDown.exe`（启动时自动检测，也可在界面中手动选择）。
+产物位于 `BBDown.GUI/bin/Release/net9.0-windows/` 下，独立运行，直接复用 `BBDown.Core` 下载库，无需额外的 `BBDown.exe`。
 
 图形界面由独立 CI（[gui.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/gui.yml)）在 `win-x64` / `win-arm64` 上构建单文件产物并上传，可手动触发追加到最新 Release；
 

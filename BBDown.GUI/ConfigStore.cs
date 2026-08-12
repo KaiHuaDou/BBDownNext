@@ -4,11 +4,10 @@ using System.Text.Json;
 
 namespace BBDown.GUI;
 
-/// <summary>GUI 配置：面板选项（不含 url）+ BBDown.exe 路径 + 并发数 + 窗口尺寸。</summary>
+/// <summary>GUI 配置：面板选项（不含 url）+ 并发数 + 窗口尺寸。</summary>
 public sealed record ConfigData
 {
     public TaskParams Options { get; init; } = new( );
-    public string ExePath { get; init; } = "";
     public int Concurrency { get; init; } = 3;
     public double? WindowLeft { get; init; }
     public double? WindowTop { get; init; }

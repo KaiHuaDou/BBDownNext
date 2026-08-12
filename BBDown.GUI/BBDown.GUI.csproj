@@ -28,4 +28,7 @@
     <ItemGroup>
         <PackageReference Include="Ookii.Dialogs.Wpf" />
     </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\BBDown.Core\BBDown.Core.csproj" />
+    </ItemGroup>
 </Project>

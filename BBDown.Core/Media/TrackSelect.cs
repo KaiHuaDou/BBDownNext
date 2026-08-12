@@ -137,14 +137,12 @@ public static partial class TrackSelect
     {
         if (parsedResult.VideoTracks.Count != 0)
         {
-            Log("请选择一条视频流（输入序号）：", false);
-            vIndex = ReadIndex(parsedResult.VideoTracks.Count);
+            vIndex = Interaction.AskIndex("请选择一条视频流（输入序号）：", parsedResult.VideoTracks.Count);
         }
 
         if (parsedResult.AudioTracks.Count != 0)
         {
-            Log("请选择一条音频流（输入序号）：", false);
-            aIndex = ReadIndex(parsedResult.AudioTracks.Count);
+            aIndex = Interaction.AskIndex("请选择一条音频流（输入序号）：", parsedResult.AudioTracks.Count);
         }
     }
 
@@ -152,21 +150,6 @@ public static partial class TrackSelect
     {
         var i = 0;
         dfns.ForEach(key => LogColor($"{i++}.{Config.GetQualityName(key)}"));
-        Log("请选择清晰度（输入序号）：", false);
-        return ReadIndex(dfns.Count);
-    }
-
-    private static int ReadIndex(int count)
-    {
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        var input = Console.ReadLine( );
-        Console.ResetColor( );
-        return ParseIndex(input, count);
-    }
-
-    // 序号非法（空行、非数字、越界）时一律回落到 0，交互选轨不该因手滑输入而抛异常
-    internal static int ParseIndex(string? input, int count)
-    {
-        return int.TryParse(input, out var index) && index >= 0 && index < count ? index : 0;
+        return Interaction.AskIndex("请选择清晰度（输入序号）：", dfns.Count);
     }
 }
