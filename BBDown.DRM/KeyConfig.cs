@@ -29,6 +29,19 @@ internal static class KeyConfig
 
         return new DrmKeySource([]);
     }
+
+    // widevine 设备文件路径：环境变量 BBDOWN_WVD_PATH 优先，回落 exe 同目录 device.wvd
+    public static string? FindWvdPath( )
+    {
+        var env = Environment.GetEnvironmentVariable("BBDOWN_WVD_PATH");
+        if (!string.IsNullOrWhiteSpace(env))
+        {
+            return env;
+        }
+
+        var bundled = Path.Combine(AppContext.BaseDirectory, "device.wvd");
+        return File.Exists(bundled) ? bundled : null;
+    }
 }
 
 internal sealed class KeyFile

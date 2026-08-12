@@ -1,0 +1,20 @@
+<Project>
+
+    <!-- 独立仓库自管包版本：阻止向上继承主仓库的中央包管理（NU1008） -->
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+        <NoWarn>$(NoWarn);NU1507</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup Label="Test">
+        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+        <PackageVersion Include="xunit.v3" Version="3.2.2" />
+        <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    </ItemGroup>
+
+    <ItemGroup Label="Drm">
+        <!-- 与主仓库 BBDown.Core 的 protobuf 工具链同版本 -->
+        <PackageVersion Include="Grpc.Tools" Version="2.83.0" />
+    </ItemGroup>
+
+</Project>

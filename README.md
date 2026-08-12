@@ -4,7 +4,7 @@ BBDown 主程序的外部后处理插件：为下载到的加密轨道执行解�
 
 ## 构建
 
-需要本地同时存在本仓库与主仓库（相对路径引用 `..\BBDown\BBDown.Core\BBDown.Core.csproj`）：
+需要本地存在主仓库（相对路径引用 `..\..\..\BBDown.Core\BBDown.Core.csproj`）：
 
 ```bash
 dotnet publish BBDown.DRM -c Release -r win-x64 --self-contained true
@@ -20,6 +20,15 @@ dotnet publish BBDown.DRM -c Release -r win-x64 --self-contained true
 - exe 同目录 `BBDown.DRM.json`：`{ "keys": ["kid:key", ...] }`
 
 `key` / `kid` 均为 16 字节，可用 32 位 hex 或 base64 编码。纯 `key` 作为全局默认，用于所有未绑定 KID 的加密轨。
+
+## Widevine 通道
+
+加密通道为 `widevine`（playurl 下发 `widevine_pssh`）时，密钥经 Widevine CDM 向 B 站 license 服务器自动获取，无需配置密钥表。需要提供设备文件 `device.wvd`：
+
+- 环境变量 `BBDOWN_WVD_PATH` 指定路径
+- 或 exe 同目录 `device.wvd`
+
+取钥流程：解析 PSSH 提取 KID → 构建 LicenseRequest 并以设备私钥签名（RSASSA-PKCS1-v1_5 + SHA-1）→ 请求 license 服务器 → 校验响应签名后解出内容密钥，随后与 bili_drm 通道同样以 ffmpeg 执行 cbcs 解密。缺少 `device.wvd` 或取钥失败时按通道不支持处理，保留加密原件。
 
 ## 协议（与主程序的文件交换）
 

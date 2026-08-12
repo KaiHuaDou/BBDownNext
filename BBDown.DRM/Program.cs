@@ -22,22 +22,22 @@ if (request is null)
 }
 
 var keys = KeyConfig.Load( );
-if (!keys.HasKeys)
+if (!keys.HasKeys && KeyConfig.FindWvdPath( ) is null)
 {
-    Console.WriteLine("未配置密钥：设置环境变量 BBDOWN_DRM_KEYS 或 exe 同目录 BBDown.DRM.json");
+    Console.WriteLine("未配置密钥：设置环境变量 BBDOWN_DRM_KEYS 或 exe 同目录 BBDown.DRM.json；widevine 需 BBDOWN_WVD_PATH 或同目录 device.wvd");
     return 2;
 }
 
 try
 {
-    var (drmType, biliDrmUri) = await PlayUrlFetcher.FetchAsync(request.Aid, request.Cid, request.Kind);
+    var (drmType, biliDrmUri, psshBase64) = await PlayUrlFetcher.FetchAsync(request.Aid, request.Cid, request.Kind);
     if (drmType is null)
     {
         Console.WriteLine("该轨道无加密信息，无需处理");
         return 0;
     }
 
-    var result = await DrmDecryptor.DecryptAsync(drmType, biliDrmUri, request.TrackPath, request.DestPath, keys, request.Ffmpeg);
+    var result = await DrmDecryptor.DecryptAsync(drmType, biliDrmUri, psshBase64, request.TrackPath, request.DestPath, keys, request.Ffmpeg, KeyConfig.FindWvdPath( ));
     Console.WriteLine($"解密结果：{result}");
     return result == DrmResult.Decrypted ? 0 : 1;
 }
