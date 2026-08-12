@@ -20,7 +20,7 @@ internal static class KeyConfig
         var configPath = Path.Combine(AppContext.BaseDirectory, "BBDown.DRM.json");
         if (File.Exists(configPath))
         {
-            var config = JsonSerializer.Deserialize<KeyFile>(File.ReadAllText(configPath));
+            var config = JsonSerializer.Deserialize(File.ReadAllText(configPath), DrmJsonContext.Default.KeyFile);
             if (config?.Keys is { Count: > 0 })
             {
                 return new DrmKeySource(config.Keys);

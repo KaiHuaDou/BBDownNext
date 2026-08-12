@@ -14,7 +14,7 @@ if (args.Length != 1)
     return 2;
 }
 
-var request = JsonSerializer.Deserialize<PostProcessRequest>(File.ReadAllText(args[0]));
+var request = JsonSerializer.Deserialize(File.ReadAllText(args[0]), DrmJsonContext.Default.PostProcessRequest);
 if (request is null)
 {
     Console.WriteLine("请求 JSON 无效");

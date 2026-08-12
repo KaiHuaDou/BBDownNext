@@ -13,7 +13,8 @@ BBDown.DRM 是 BBDown 主程序的外部后处理插件（独立 git 仓库）�
 - **代码规范**：沿用主仓库 AGENTS.md 的编码与文档规范（中文注释、命名、行数限制、无嵌套函数、去 OOP 包装、提交格式），不重复列出。
 - **相对路径**：`ProjectReference` 指向 `..\..\..\BBDown.Core`，本仓库必须位于主仓库的 `Plugins/BBDown.DRM` 位置才能编译；CI 与本地目录布局保持一致。
 - **proto**：协议文件在仓库根 `Proto/`，`csharp_namespace = BBDown.DRM.Proto`，只声明用到的字段，字段编号与 Widevine 协议标准一致。
-- **发布**：`device.wvd` 随发布产物附带（csproj `CopyToOutputDirectory`），与 exe 同目录；`KeyConfig.FindWvdPath` 按 `BBDOWN_WVD_PATH` > exe 同目录顺序查找。
+- **发布**：AOT 原生单文件（`PublishAot`，配置与主程序 `BBDown/Directory.Build.props` 一致）；`device.wvd` 随发布产物附带（csproj `CopyToOutputDirectory`），与 exe 同目录；`KeyConfig.FindWvdPath` 按 `BBDOWN_WVD_PATH` > exe 同目录顺序查找。
+- **序列化**：请求 JSON 与配置文件反序列化必须走 `DrmJsonContext`（源生成器），运行时反射序列化在 AOT 下会被裁剪。
 
 ## 结构约定
 

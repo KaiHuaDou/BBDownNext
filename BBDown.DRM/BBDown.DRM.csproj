@@ -12,10 +12,18 @@
         <WarningLevel>8</WarningLevel>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <!-- 单文件自包含发布（非 AOT：自抓取用运行时反射序列化即可） -->
-        <PublishSingleFile>true</PublishSingleFile>
-        <SelfContained>true</SelfContained>
-        <PublishTrimmed>false</PublishTrimmed>
+        <!-- AOT 单文件原生发布（配置与主程序 BBDown/Directory.Build.props 一致） -->
+        <PublishAot>true</PublishAot>
+        <IsAotCompatible>true</IsAotCompatible>
+        <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+        <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
+        <EventSourceSupport>false</EventSourceSupport>
+        <UseSystemResourceKeys>true</UseSystemResourceKeys>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <StripSymbols>true</StripSymbols>
+        <PublishTrimmed>true</PublishTrimmed>
+        <!-- linux-arm64 原生 runner 未预装 GNU objcopy，AOT 剥离符号需指定（与主项目 BBDown/Directory.Build.props 一致） -->
+        <ObjCopyName Condition="'$(RuntimeIdentifier)' == 'linux-arm64'">aarch64-linux-gnu-objcopy</ObjCopyName>
     </PropertyGroup>
 
     <ItemGroup>

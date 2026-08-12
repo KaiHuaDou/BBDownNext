@@ -51,28 +51,22 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 9.0.x
+          global-json-file: "./main/Plugins/BBDown.DRM/global.json"
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
 
       - name: Run tests
         run: dotnet test main/Plugins/BBDown.DRM/BBDown.DRM.slnx -c ${{ env.BUILD_CONFIG }} --verbosity minimal
 
-  publish:
-    name: Publish (${{ matrix.rid }})
+  build-windows:
+    name: Build Windows (${{ matrix.rid }})
     needs: [test]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - rid: win-x64
-            os: windows-latest
-          - rid: linux-x64
-            os: ubuntu-latest
-          - rid: osx-x64
-            os: macos-latest
+        rid: [win-x64, win-arm64]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -86,24 +80,179 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 9.0.x
+          global-json-file: "./main/Plugins/BBDown.DRM/global.json"
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
 
-      - name: Publish
-        run: dotnet publish main/Plugins/BBDown.DRM/BBDown.DRM -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} --self-contained true -o artifact
+      - name: Publish (AOT)
+        run: dotnet publish main/Plugins/BBDown.DRM/BBDown.DRM -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
 
-      # 单文件自包含产物按平台命名，device.wvd 由 csproj 一并复制到产物目录
       - name: Stage artifact
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            mv artifact/BBDown.DRM.exe artifact/BBDown.DRM-${{ matrix.rid }}.exe
-          else
-            mv artifact/BBDown.DRM artifact/BBDown.DRM-${{ matrix.rid }}
-          fi
-          ls -la artifact
+        shell: pwsh
+        run: mv artifact/BBDown.DRM.exe artifact/BBDown.DRM-${{ matrix.rid }}.exe
 
+      # device.wvd 由 csproj 复制到产物目录，随 exe 一并上传
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: BBDown.DRM_${{ matrix.rid }}
+          path: artifact
+          retention-days: 7
+
+  build-macos:
+    name: Build macOS (${{ matrix.rid }})
+    needs: [test]
+    runs-on: macos-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [osx-x64, osx-arm64]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: KaiHuaDou/BBDown
+          path: main
+
+      - uses: actions/checkout@v7
+        with:
+          path: main/Plugins/BBDown.DRM
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: "./main/Plugins/BBDown.DRM/global.json"
+          cache: true
+          cache-dependency-path: "**/Directory.Packages.props"
+
+      - name: Publish (AOT)
+        run: dotnet publish main/Plugins/BBDown.DRM/BBDown.DRM -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
+
+      - name: Stage artifact
+        run: mv artifact/BBDown.DRM artifact/BBDown.DRM-${{ matrix.rid }}
+
+      # device.wvd 由 csproj 复制到产物目录，随 exe 一并上传
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: BBDown.DRM_${{ matrix.rid }}
+          path: artifact
+          retention-days: 7
+
+  build-linux:
+    name: Build Linux (glibc) (${{ matrix.rid }})
+    needs: [test]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            runner: ubuntu-latest
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: KaiHuaDou/BBDown
+          path: main
+
+      - uses: actions/checkout@v7
+        with:
+          path: main/Plugins/BBDown.DRM
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: "./main/Plugins/BBDown.DRM/global.json"
+          cache: true
+          cache-dependency-path: "**/Directory.Packages.props"
+
+      # linux-arm64 在原生 arm64 runner 上构建，避免 x64 交叉编译需额外工具链。
+      # GitHub arm64 runner 未预装 clang，且 .NET AOT 剥离符号需要 aarch64-linux-gnu-objcopy。
+      - name: Cache apt archives (arm64)
+        if: matrix.rid == 'linux-arm64'
+        uses: actions/cache@v6
+        with:
+          path: ~/.apt-cache/archives
+          key: apt-arm64-aot-v2-${{ hashFiles('**/Directory.Packages.props') }}
+
+      - name: Install native AOT tools (arm64)
+        if: matrix.rid == 'linux-arm64'
+        run: |
+          mkdir -p "$HOME/.apt-cache/archives"
+          sudo apt-get update
+          sudo apt-get install -y -o Dir::Cache::archives="$HOME/.apt-cache/archives" clang binutils-aarch64-linux-gnu zlib1g-dev
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/.apt-cache"
+
+      - name: Publish (AOT)
+        run: dotnet publish main/Plugins/BBDown.DRM/BBDown.DRM -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact
+
+      - name: Stage artifact
+        run: mv artifact/BBDown.DRM artifact/BBDown.DRM-${{ matrix.rid }}
+
+      # device.wvd 由 csproj 复制到产物目录，随 exe 一并上传
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: BBDown.DRM_${{ matrix.rid }}
+          path: artifact
+          retention-days: 7
+
+  build-linux-musl:
+    name: Build Linux (musl) (${{ matrix.rid }})
+    needs: [test]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-musl-x64
+            runner: ubuntu-latest
+          - rid: linux-musl-arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: KaiHuaDou/BBDown
+          path: main
+
+      - uses: actions/checkout@v7
+        with:
+          path: main/Plugins/BBDown.DRM
+
+      # musl 目标在 Alpine 容器内按宿主架构原生编译。宿主 Ubuntu 既无 musl sysroot，
+      # 其 ld.bfd 也不支持 aarch64；交叉链接要么直接失败，要么悄悄链到 glibc 产出假 musl 二进制。
+      # 用 docker run 而非 job 级 container，避免 Actions runner 注入的 glibc node 在 musl 容器内跑不起来。
+      # 镜像 tag 里的 alpine 版本需与 global.json 的 SDK 版本一同升级，否则 docker pull 会直接报 manifest unknown。
+      - name: Resolve SDK version from global.json
+        id: sdkver
+        shell: bash
+        run: echo "version=$(grep -m 1 -o '"version"\s*:\s*"[^"]*"' main/Plugins/BBDown.DRM/global.json | sed 's/.*:\s*"//;s/"//')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache apk packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/apk
+          key: apk-musl-${{ steps.sdkver.outputs.version }}
+
+      - name: Publish (AOT in Alpine)
+        run: |
+          docker run --rm -v "$PWD":/src -v "$HOME/.cache/apk":/var/cache/apk -w /src \
+            mcr.microsoft.com/dotnet/sdk:${{ steps.sdkver.outputs.version }}-alpine3.23 sh -c '
+              apk add clang build-base zlib-dev protobuf grpc-plugins &&
+              export PROTOBUF_PROTOC=/usr/bin/protoc &&
+              export GRPC_PROTOC_PLUGIN=/usr/bin/grpc_csharp_plugin &&
+              dotnet publish main/Plugins/BBDown.DRM/BBDown.DRM -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact'
+          sudo chown -R "$(id -u):$(id -g)" artifact
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/apk"
+
+      - name: Stage artifact
+        run: mv artifact/BBDown.DRM artifact/BBDown.DRM-${{ matrix.rid }}
+
+      # device.wvd 由 csproj 复制到产物目录，随 exe 一并上传
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:

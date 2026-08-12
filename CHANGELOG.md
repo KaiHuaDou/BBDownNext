@@ -15,10 +15,11 @@
 - Widevine 通道解密：内置 Widevine CDM，解析 PSSH 提取 KID，以设备私钥对 LicenseRequest 签名（RSASSA-PKCS1-v1_5 + SHA-1）后向 B 站 license 服务器取钥，校验响应签名后解出内容密钥，再经 ffmpeg 执行 cbcs 解密；需要 `device.wvd`（环境变量 `BBDOWN_WVD_PATH` 或 exe 同目录）。
 - 取钥失败原因区分：bili_drm 无匹配 key 报密钥缺失；widevine 缺设备文件报设备缺失，license 交互失败报取钥失败。
 - 发布产物附带仓库根目录 `device.wvd`，与 exe 同目录，widevine 通道开箱即用。
-- GitHub Actions 流水线：三平台跑测试，三平台发布自包含单文件并上传产物（含 `device.wvd`）。
+- GitHub Actions 流水线：三平台跑测试，四组发布矩阵（win-x64 / win-arm64、osx-x64 / osx-arm64、linux-x64 / linux-arm64、linux-musl-x64 / linux-musl-arm64），AOT 单文件产物（含 `device.wvd`）上传。
 
 ### 修复
 
 ### 变更
 
 - 内部重构：Widevine 取钥链路拆分为 PSSH 解析、license 交互、密钥派生三部分；两条通道的取钥收敛至统一入口，解密执行层不再感知通道差异。
+- 发布改为 AOT 原生单文件（配置与主程序一致：Speed 优化、裁剪、去全球化依赖）；请求 JSON 与密钥配置的反序列化改用源生成器上下文，运行时反射序列化在 AOT 下不可用。
