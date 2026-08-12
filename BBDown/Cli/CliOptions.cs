@@ -2,7 +2,8 @@ using System.CommandLine;
 using System.CommandLine.Parsing;
 
 using BBDown.Core;
-using BBDown.Util;
+using BBDown.Core.Util;
+using BBDown.Core.Download;
 
 namespace BBDown.Cli;
 
@@ -172,7 +173,7 @@ internal static class CliOptions
         直播录制清晰度：10000 原画、400 蓝光、250 超清、150 高清、80 流畅；
         未登录时服务端通常只给到 250
         """,
-        DefaultValueFactory = _ => Core.Live.LiveQuality.Original
+        DefaultValueFactory = _ => BBDown.Core.Download.LiveQuality.Original
     };
 
     // 下载方式与性能

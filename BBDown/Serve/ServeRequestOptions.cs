@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using BBDown.Core;
+using BBDown.Core.Download;
 
 namespace BBDown.Serve;
 
@@ -67,8 +68,8 @@ internal sealed class ServeRequestOptions
     internal DownloadRequest ToDownloadRequest( )
     {
         var r = JsonSerializer.Deserialize(
-                JsonSerializer.Serialize(this, DownloadRequestJsonContext.Default.ServeRequestOptions),
-                DownloadRequestJsonContext.Default.DownloadRequest)!;
+                JsonSerializer.Serialize(this, ServeRequestOptionsJsonContext.Default.ServeRequestOptions),
+                ServeRequestOptionsJsonContext.Default.DownloadRequest)!;
         return r with
         {
             // 主机可控字段不在请求契约中，回落为安全默认值（空路径 / 官方 host）

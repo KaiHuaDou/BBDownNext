@@ -33,6 +33,7 @@
 - 图形界面文件 / 目录选择与错误提示统一改用 `ookii-dialogs-wpf`（`VistaFolderBrowserDialog` / `VistaOpenFileDialog` / `TaskDialog`），替代 Win32 旧对话框与 MessageBox。
 - 图形界面样式抽取至 `Theme.xaml` 集中定义（字段标签 / 输入框 / 复选框行 / 操作按钮四类），窗口改为固定初始尺寸 1120×820（保留最小尺寸）。
 - 图形界面分 P 间隔与评论条数失焦校验非负整数（无效回退上次有效值）；勾选「仅解析」时禁用下载内容 / 弹幕格式 / 评论格式选项，避免无效配置误导；常用输入框补 ToolTip 说明。
+- 内部架构重构：下载处理层（下载管线、媒体下载、混流、DRM、直播、登录、工具）从 BBDown（CLI）下沉至 BBDown.Core，CLI 项目仅保留命令行解析、serve 模式与交互渲染；下载域模型统一归入 `BBDown.Core.Download` 命名空间，命名空间依赖调整为单向无环；对应测试迁移至 BBDown.Core.Tests。用户可见行为不变。
 
 ## [v2.0.0-beta.1]
 

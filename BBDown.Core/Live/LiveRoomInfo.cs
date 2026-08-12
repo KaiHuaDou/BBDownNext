@@ -47,26 +47,3 @@ public sealed record LivePlayInfo(
     /// </summary>
     public bool Degraded => ActualQn != RequestedQn;
 }
-
-public static class LiveQuality
-{
-    /// <summary>原画。B 站直播的最高可用档，非会员场景下常被降级到 250。</summary>
-    public const int Original = 10000;
-
-    private static readonly Dictionary<int, string> Descriptions = new( )
-    {
-        [30000] = "杜比",
-        [20000] = "4K",
-        [15000] = "2K",
-        [10000] = "原画",
-        [400] = "蓝光",
-        [250] = "超清",
-        [150] = "高清",
-        [80] = "流畅",
-    };
-
-    public static string Describe(int qn)
-    {
-        return Descriptions.TryGetValue(qn, out var desc) ? desc : qn.ToString(CultureInfo.InvariantCulture);
-    }
-}

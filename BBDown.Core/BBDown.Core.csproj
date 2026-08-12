@@ -10,6 +10,8 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+        <!-- 登录二维码生成（QRCoder 随 CLI AOT 构建已验证兼容） -->
+        <PackageReference Include="QRCoder" />
     </ItemGroup>
     <ItemGroup>
         <!-- 这些 proto 只有 message 没有 service，生成 gRPC 客户端桩会产出一批 0 字节文件 -->

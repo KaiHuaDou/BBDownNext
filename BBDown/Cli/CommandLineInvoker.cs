@@ -5,10 +5,11 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using BBDown.Core;
-using BBDown.Util;
+using BBDown.Core.Util;
 
 using static BBDown.Cli.CliOptions;
 using static BBDown.Core.Logger;
+using BBDown.Core.Download;
 
 namespace BBDown.Cli;
 

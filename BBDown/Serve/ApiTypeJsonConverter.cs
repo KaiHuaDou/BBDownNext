@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using BBDown.Core;
+using BBDown.Core.Download;
 
 namespace BBDown.Serve;
 

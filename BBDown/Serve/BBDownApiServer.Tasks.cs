@@ -8,9 +8,10 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Auth;
+using BBDown.Core.Auth;
 using BBDown.Core;
-using BBDown.Pipeline;
+using BBDown.Core.Pipeline;
+using BBDown.Core.Download;
 
 namespace BBDown.Serve;
 

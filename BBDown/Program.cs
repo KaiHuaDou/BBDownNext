@@ -4,17 +4,17 @@ using System.CommandLine.Parsing;
 using System.Linq;
 using System.Threading.Tasks;
 
-using BBDown.Auth;
+using BBDown.Core.Auth;
 using BBDown.Cli;
 using BBDown.Core;
 using BBDown.Core.Live;
 using BBDown.Core.Opus;
 using BBDown.Core.Util;
-using BBDown.Live;
-using BBDown.Pipeline;
+using BBDown.Core.Pipeline;
 using BBDown.Serve;
 
 using static BBDown.Core.Logger;
+using BBDown.Core.Download;
 
 namespace BBDown;
 

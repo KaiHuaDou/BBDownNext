@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 
 using static BBDown.Core.Logger;
+using BBDown.Core;
 
 namespace BBDown.Cli;
 

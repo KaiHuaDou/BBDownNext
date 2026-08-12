@@ -21,5 +21,14 @@
     </ItemGroup>
     <ItemGroup>
         <Using Include="Xunit" />
+        <Using Include="BBDown.Core" />
+        <Using Include="BBDown.Core.Auth" />
+        <Using Include="BBDown.Core.Download" />
+        <Using Include="BBDown.Core.Drm" />
+        <Using Include="BBDown.Core.Live" />
+        <Using Include="BBDown.Core.Media" />
+        <Using Include="BBDown.Core.Mux" />
+        <Using Include="BBDown.Core.Pipeline" />
+        <Using Include="BBDown.Core.Util" />
     </ItemGroup>
 </Project>

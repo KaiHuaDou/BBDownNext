@@ -23,13 +23,11 @@
     <ItemGroup>
         <Using Include="Xunit" />
         <Using Include="BBDown" />
-        <Using Include="BBDown.Auth" />
+        <Using Include="BBDown.Core" />
+        <Using Include="BBDown.Core.Download" />
+        <Using Include="BBDown.Core.Pipeline" />
+        <Using Include="BBDown.Core.Util" />
         <Using Include="BBDown.Cli" />
-        <Using Include="BBDown.Download" />
-        <Using Include="BBDown.Media" />
-        <Using Include="BBDown.Mux" />
-        <Using Include="BBDown.Pipeline" />
         <Using Include="BBDown.Serve" />
-        <Using Include="BBDown.Util" />
     </ItemGroup>
 </Project>

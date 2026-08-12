@@ -1,4 +1,5 @@
 using BBDown.Core.Protobuf;
+using VideoInfo = BBDown.Core.Protobuf.VideoInfo;
 
 using Google.Protobuf;
 

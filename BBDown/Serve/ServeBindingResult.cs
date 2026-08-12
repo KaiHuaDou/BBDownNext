@@ -15,7 +15,7 @@ internal record struct ServeBindingResult<T>(T? Result, Exception? Exception)
     {
         try
         {
-            var jsonTypeInfo = DownloadRequestJsonContext.Default.GetTypeInfo(typeof(T));
+            var jsonTypeInfo = ServeRequestOptionsJsonContext.Default.GetTypeInfo(typeof(T));
             if (jsonTypeInfo is null)
             {
                 return new(default, new InvalidOperationException($"Cannot find TypeInfo for type {typeof(T)}"));

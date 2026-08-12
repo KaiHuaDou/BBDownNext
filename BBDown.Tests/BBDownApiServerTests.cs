@@ -44,7 +44,7 @@ public class BBDownApiServerTests
             "TvHost": "https://evil.example.com"
         }
         """;
-        var req = JsonSerializer.Deserialize<ServeRequestOptions>(maliciousJson, DownloadRequestJsonContext.Default.ServeRequestOptions)!;
+        var req = JsonSerializer.Deserialize<ServeRequestOptions>(maliciousJson, ServeRequestOptionsJsonContext.Default.ServeRequestOptions)!;
         var opts = req.ToDownloadRequest( );
 
         // 这些字段直接决定被拉起的进程、参数与落盘位置，必须以服务端为准，绝不允许请求注入
@@ -103,7 +103,7 @@ public class BBDownApiServerTests
     {
         // 请求体用字符串表达内容集与 API 通道，与 CLI 输入一致；转换后落入枚举字段
         const string json = """{"Url":"https://www.bilibili.com/video/BV1xx411c7XD","Content":"av","Api":"tv"}""";
-        var req = JsonSerializer.Deserialize<ServeRequestOptions>(json, DownloadRequestJsonContext.Default.ServeRequestOptions)!;
+        var req = JsonSerializer.Deserialize<ServeRequestOptions>(json, ServeRequestOptionsJsonContext.Default.ServeRequestOptions)!;
         var opts = req.ToDownloadRequest( );
 
         Assert.Equal(DownloadContent.Audio | DownloadContent.Video, opts.Content);
