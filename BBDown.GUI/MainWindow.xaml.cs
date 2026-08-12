@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -33,10 +34,12 @@ public partial class MainWindow : Window
         InitializeComponent( );
         // RichTextBox 初始 Document 自带一个空段落，清掉避免日志顶部出现空行
         LogBox.Document.Blocks.Clear( );
-        ApiBox.ItemsSource = new[] { "web", "tv", "app", "intl" };
-        foreach ((var value, var label) in LiveQualityChoices)
+        // API 通道、内容字符、直播清晰度均以 Core 枚举/表为单一来源，避免列表在多处硬编码
+        ApiBox.ItemsSource = Enum.GetNames<ApiType>( ).Select(n => n.ToLowerInvariant( )).ToArray( );
+        ContentItems.ItemsSource = ContentSelector.Order.Select(e => (e.Ch, $"{e.Name} (_{e.Ch})")).ToList( );
+        foreach (var (qn, name) in LiveQuality.Levels)
         {
-            LiveQualityBox.Items.Add(new ComboBoxItem { Content = label, Tag = value });
+            LiveQualityBox.Items.Add(new ComboBoxItem { Content = $"{qn} {name}", Tag = qn.ToString( ) });
         }
 
         foreach ((var value, var label) in MuxChoices)

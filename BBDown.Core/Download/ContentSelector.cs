@@ -36,25 +36,28 @@ public enum ContentMode
     Live,
 }
 
+/// <summary>内容字符条目：字符、对应标志与中文名。GUI 内容复选框与警告文案共用此表，避免字符集合多处硬编码。</summary>
+public readonly record struct ContentItem(char Ch, DownloadContent Flag, string Name);
+
 public static class ContentSelector
 {
     public const string Default = "avmsCiM";
 
-    /// <summary>字符的唯一规范顺序，同时用于输出、互转与警告文案。</summary>
-    private static readonly (char Ch, DownloadContent Flag, string Name)[] Order =
+    /// <summary>字符的唯一规范顺序，同时用于输出、互转、警告文案与 GUI 内容选项；顺序与 CLI 帮助、GUI 面板布局保持一致。</summary>
+    public static IReadOnlyList<ContentItem> Order { get; } =
     [
-        ('a', DownloadContent.Audio, "音频"),
-        ('c', DownloadContent.Cover, "独立封面"),
-        ('C', DownloadContent.MuxCover, "封面混流"),
-        ('d', DownloadContent.Danmaku, "弹幕"),
-        ('i', DownloadContent.OpusImage, "专栏图片"),
-        ('m', DownloadContent.MuxMetadata, "元数据混流"),
-        ('M', DownloadContent.FrontMatter, "YAML front matter"),
-        ('o', DownloadContent.Comments, "评论"),
-        ('O', DownloadContent.FullComments, "全部评论"),
-        ('S', DownloadContent.AiSubtitle, "AI 字幕"),
-        ('s', DownloadContent.Subtitle, "字幕"),
-        ('v', DownloadContent.Video, "视频"),
+        new('a', DownloadContent.Audio, "音频"),
+        new('v', DownloadContent.Video, "视频"),
+        new('c', DownloadContent.Cover, "独立封面"),
+        new('C', DownloadContent.MuxCover, "封面嵌入"),
+        new('d', DownloadContent.Danmaku, "弹幕"),
+        new('i', DownloadContent.OpusImage, "专栏图片"),
+        new('m', DownloadContent.MuxMetadata, "嵌入元数据"),
+        new('M', DownloadContent.FrontMatter, "YAML front matter"),
+        new('o', DownloadContent.Comments, "评论"),
+        new('O', DownloadContent.FullComments, "全部评论"),
+        new('S', DownloadContent.AiSubtitle, "AI 字幕"),
+        new('s', DownloadContent.Subtitle, "字幕"),
     ];
 
     private static readonly string ValidChars = string.Concat(Order.Select(e => e.Ch));
@@ -90,7 +93,7 @@ public static class ContentSelector
         if (!flags.HasAny(DownloadContent.Audio | DownloadContent.Video)
             && flags.HasAny(DownloadContent.MuxCover | DownloadContent.MuxMetadata))
         {
-            warnings.Add("未选择音频或视频，封面混流（C）与元数据混流（m）不生效");
+            warnings.Add("未选择音频或视频，封面嵌入（C）与嵌入元数据（m）不生效");
         }
 
         if ((commentCountExplicit || commentSortExplicit || commentFormatsExplicit)

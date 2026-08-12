@@ -28,6 +28,8 @@
 - 交互式下载（逐集确认、手动选轨）抽象为 `Interaction.AskLine` / `AskIndex` 回调，CLI 默认读控制台，无控制台宿主返回 null 时按「不交互」回落处理。
 - `--user-agent` 由进程级全局改为请求级：经 `WorkSetup.ResolveConfig` 落入 `AppConfig.UserAgent`，空串回落进程级默认；并发任务各自生效，不再共享全局（删除 `HTTPUtil.SetUserAgent` 与 Program 中的全局设置）。
 - 图形界面改为直接引用 BBDown.Core 下载库：不再以子进程调用 BBDown.exe，移除 BBDown.exe 路径选择与自动检测界面（BBDown.GUI 独立运行，无需额外的 BBDown.exe）；任务日志经 Core 日志回调进入窗口日志区，仍按级别着色；下载能力与 CLI 一致。
+- 图形界面直播清晰度下拉补齐杜比 / 4K / 2K 档位（此前仅 5 档），档位列表改以 Core `LiveQuality` 为单一来源。
+- 下载内容字符 m 由「混流元数据」改称「嵌入元数据」，与「封面嵌入」（C）措辞对齐；内容字符、API 通道、弹幕/评论格式等选项列表改为由 Core 枚举/表单一来源生成（GUI 与 CLI 帮助一致），内容字符规范顺序统一为 a v c C d i m M o O S s。
 
 ## [v2.0.0-beta.2]
 

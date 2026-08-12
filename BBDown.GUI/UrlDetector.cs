@@ -1,9 +1,11 @@
 using System;
 using System.Text.RegularExpressions;
 
+using BBDown.Core;
+
 namespace BBDown.GUI;
 
-/// <summary>下载目标识别，纯函数；只描述识别结果，不做格式转换。</summary>
+/// <summary>下载目标识别，纯函数；只描述识别结果，不做格式转换。ID 前缀复用 Core 的 IdPrefix 常量。</summary>
 public static partial class UrlDetector
 {
     /// <summary>识别输入文本，返回可读描述；无法识别返回 null。</summary>
@@ -36,27 +38,27 @@ public static partial class UrlDetector
     /// <summary>匹配已知 ID 前缀与特殊 URL，前缀后必须紧跟数字（BV 号亦以数字开头）。</summary>
     private static string? MatchKnownPrefix(string text)
     {
-        if (StartsWithId(text, "av"))
+        if (StartsWithId(text, IdPrefix.Av))
         {
             return "视频（av 号）";
         }
 
-        if (StartsWithId(text, "BV"))
+        if (StartsWithId(text, IdPrefix.Bv))
         {
             return "视频（BV 号）";
         }
 
-        if (StartsWithId(text, "ep"))
+        if (StartsWithId(text, IdPrefix.Ep))
         {
             return "番剧（ep 号）";
         }
 
-        if (StartsWithId(text, "ss"))
+        if (StartsWithId(text, IdPrefix.Ss))
         {
             return "番剧（ss 号）";
         }
 
-        if (StartsWithId(text, "md"))
+        if (StartsWithId(text, IdPrefix.Md))
         {
             return "番剧（md 号）";
         }

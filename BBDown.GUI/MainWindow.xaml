@@ -36,65 +36,21 @@
             </StackPanel>
 
             <Grid x:Name="ContentGrid" Grid.Row="1" Margin="5">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <CheckBox x:Name="AudioCheckBox"
-                          Grid.Row="0" Grid.Column="0"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="音频 (_a)" />
-                <CheckBox x:Name="VideoCheckBox"
-                          Grid.Row="0" Grid.Column="1"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="视频 (_v)" />
-                <CheckBox x:Name="CoverFileCheckBox"
-                          Grid.Row="0" Grid.Column="2"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="封面文件 (_c)" />
-                <CheckBox x:Name="CoverMuxCheckBox"
-                          Grid.Row="1" Grid.Column="0"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="封面嵌入 (_C)" />
-                <CheckBox x:Name="DanmakuCheckBox"
-                          Grid.Row="1" Grid.Column="1"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="弹幕 (_d)" />
-                <CheckBox x:Name="ArticleImageCheckBox"
-                          Grid.Row="1" Grid.Column="2"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="专栏图片 (_i)" />
-                <CheckBox x:Name="MetadataCheckBox"
-                          Grid.Row="2" Grid.Column="0"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="混流元数据 (_m)" />
-                <CheckBox x:Name="YamlCheckBox"
-                          Grid.Row="2" Grid.Column="1"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="front-matter (_M)" />
-                <CheckBox x:Name="CommentCheckBox"
-                          Grid.Row="2" Grid.Column="2"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="评论 (_o)" />
-                <CheckBox x:Name="AllCommentCheckBox"
-                          Grid.Row="3" Grid.Column="0"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="全部评论 (_O)" />
-                <CheckBox x:Name="AiSubtitleCheckBox"
-                          Grid.Row="3" Grid.Column="1"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="AI 字幕 (_S)" />
-                <CheckBox x:Name="SubtitleCheckBox"
-                          Grid.Row="3" Grid.Column="2"
-                          Style="{StaticResource CheckBoxItem}"
-                          Content="字幕 (_s)" />
+                <!--内容复选框由 BBDown.Core.ContentSelector.Order 生成（字符/名称单一来源）-->
+                <ItemsControl x:Name="ContentItems" Margin="5">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="3" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox Style="{StaticResource CheckBoxItem}"
+                                      Content="{Binding Item2}"
+                                      Tag="{Binding Item1}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </Grid>
 
             <ScrollViewer Grid.Row="2" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto">

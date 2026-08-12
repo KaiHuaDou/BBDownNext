@@ -37,7 +37,7 @@ public class ContentSelectorTests
     [Fact]
     public void Resolve_DefaultFlags_MatchesDefaultString( )
     {
-        Assert.Equal("aCimMsv", ContentSelector.ToNormalizedString(ContentSelector.DefaultFlags));
+        Assert.Equal("avCimMs", ContentSelector.ToNormalizedString(ContentSelector.DefaultFlags));
     }
 
     // ---- 集合运算 ----
@@ -49,7 +49,7 @@ public class ContentSelectorTests
         Assert.True(flags.Has(DownloadContent.Audio));
         Assert.True(flags.Has(DownloadContent.Video));
         Assert.True(flags.Has(DownloadContent.Cover));
-        Assert.Equal("acv", ContentSelector.ToNormalizedString(flags));
+        Assert.Equal("avc", ContentSelector.ToNormalizedString(flags));
     }
 
     [Fact]
@@ -109,14 +109,14 @@ public class ContentSelectorTests
     public void Resolve_MuxCoverWithoutAudioVideo_Warns( )
     {
         Resolve(out var warnings, get: ["C"]);
-        Assert.Contains(warnings, w => w.Contains("封面混流", System.StringComparison.Ordinal));
+        Assert.Contains(warnings, w => w.Contains("封面嵌入", System.StringComparison.Ordinal));
     }
 
     [Fact]
     public void Resolve_MuxMetadataWithoutAudioVideo_Warns( )
     {
         Resolve(out var warnings, get: ["m"]);
-        Assert.Contains(warnings, w => w.Contains("元数据混流", System.StringComparison.Ordinal));
+        Assert.Contains(warnings, w => w.Contains("嵌入元数据", System.StringComparison.Ordinal));
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public class ContentSelectorTests
     public void ToNormalizedString_OrdersByCanonicalSequence( )
     {
         var flags = DownloadContent.Video | DownloadContent.Audio | DownloadContent.Subtitle;
-        Assert.Equal("asv", ContentSelector.ToNormalizedString(flags));
+        Assert.Equal("avs", ContentSelector.ToNormalizedString(flags));
     }
 
     // ---- 模式失效 ----

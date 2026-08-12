@@ -91,7 +91,7 @@ internal static class CliOptions
           C：封面嵌入
           d：弹幕
           i：专栏图片
-          m：混流元数据
+          m：嵌入元数据
           M：YAML front matter（专栏）
           o：评论
           O：全部评论（含楼中楼全部回复）
