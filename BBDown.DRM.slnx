@@ -1,0 +1,4 @@
+<Solution>
+    <Project Path="BBDown.DRM/BBDown.DRM.csproj" />
+    <Project Path="BBDown.DRM.Tests/BBDown.DRM.Tests.csproj" />
+</Solution>
