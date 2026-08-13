@@ -7,9 +7,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageVersion Include="Avalonia" Version="12.1.1" />
+        <PackageVersion Include="Avalonia.Desktop" Version="12.1.1" />
+        <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+        <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.1" />
         <PackageVersion Include="Google.Protobuf" Version="3.35.1" />
         <PackageVersion Include="Grpc.Tools" Version="2.83.0" />
-        <PackageVersion Include="Ookii.Dialogs.Wpf" Version="5.0.1" />
         <PackageVersion Include="PublishAotCross" Version="1.0.0" />
         <PackageVersion Include="QRCoder" Version="1.8.0" />
         <PackageVersion Include="System.CommandLine" Version="2.0.10" />

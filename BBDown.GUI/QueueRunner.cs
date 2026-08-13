@@ -105,10 +105,10 @@ public sealed class QueueRunner(Action<Action> dispatch)
         _ = Task.Run(RunScheduleAsync);
     }
 
-    /// <summary>移除等待中的任务；返回是否移除成功。</summary>
-    public bool RemoveWaiting(TaskState state)
+    /// <summary>移除指定任务：等待中或已完成直接移除；运行中不处理（用取消）。</summary>
+    public bool Remove(TaskState state)
     {
-        var removed = waiting.Remove(state);
+        var removed = waiting.Remove(state) || finished.Remove(state);
         if (removed)
         {
             Changed?.Invoke(this, EventArgs.Empty);
@@ -191,7 +191,7 @@ public sealed class QueueRunner(Action<Action> dispatch)
         {
             await ExecuteAsync(state);
         }
-        catch (Exception)
+        catch
         {
             // ExecuteAsync 已兜底任务异常，此处仅防御窗口关闭时 dispatch 抛出的异常
         }

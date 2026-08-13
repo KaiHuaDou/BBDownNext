@@ -1,7 +1,7 @@
 <h1 align="center">BBDown vNEXT</h1>
 
 <p align="center">
-开源 · 免费的哔哩哔哩（B 站）视频下载 / 解析工具，以命令行（CLI，跨平台）与图形界面（BBDown.GUI，仅 Windows）双形态提供：视频 / 番剧 / 课程 / 直播 / 专栏 / 稍后再看，支持 8K、HDR、杜比视界、DASH / FLV、多线程与断点续传，并提供带鉴权令牌的 HTTP API 服务器。
+开源 · 免费的哔哩哔哩（B 站）视频下载 / 解析工具，以命令行（CLI，跨平台）与图形界面（BBDown.GUI，Avalonia 桌面端）双形态提供：视频 / 番剧 / 课程 / 直播 / 专栏 / 稍后再看，支持 8K、HDR、杜比视界、DASH / FLV、多线程与断点续传，并提供带鉴权令牌的 HTTP API 服务器。
 </p>
 
 <p align="center">
@@ -67,7 +67,7 @@
 
 - 双形态
     - **命令行 CLI** · 跨平台（Win / Linux / macOS）· .NET 9 · AOT 单文件发布
-    - **图形界面 BBDown.GUI**（仅 Windows）· 单窗口 WPF，直接复用 BBDown.Core 下载库：任务队列与并发控制、日志实时显示、选项随 exe 便携保存；独立 CI 发布单文件产物
+    - **图形界面 BBDown.GUI** · 单窗口 Avalonia，直接复用 BBDown.Core 下载库：任务队列与并发控制、日志实时显示、选项随 exe 便携保存；独立 CI 发布单文件产物
 
 - 扩展与集成
     - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./API.md)
@@ -96,7 +96,7 @@
 | 稍后再看列表    | 无                              | 根命令识别整个列表，多 P 自动展开                   |
 | UP 主空间投稿   | 无                              | 空间 URL 直接下载全部投稿                           |
 | 直播录制        | 无                              | 根命令直录，断流自动重连，分段合并                  |
-| 图形界面        | 无                              | BBDown.GUI（WPF，仅 Windows）                       |
+| 图形界面        | 无                              | BBDown.GUI（Avalonia）                       |
 | 充电专属试看    | 无专门处理                      | 下载前识别，退出码 2 表示全部为试看                 |
 | 封面处理        | 独立封面下载                    | 独立封面 `c` + 嵌入 `C`（attached_pic）             |
 | 断点续传        | 基础续传                        | SHA256 指纹清单，支持单流与分 P 粒度                |
@@ -143,13 +143,13 @@ dotnet publish BBDown -r win-x64 -c Release -o <DEST> -p:WindowsWin7Compat=true
 
 ### 图形界面
 
-BBDown.GUI 是 Windows 图形界面（GUI）客户端（WPF），目标框架 `net9.0-windows`：
+BBDown.GUI 是图形界面（GUI）客户端（Avalonia），目标框架 `net9.0`：
 
 ```bash
 dotnet build BBDown.GUI -c Release
 ```
 
-产物位于 `BBDown.GUI/bin/Release/net9.0-windows/` 下，独立运行，直接复用 `BBDown.Core` 下载库，无需额外的 `BBDown.exe`。
+产物位于 `BBDown.GUI/bin/Release/net9.0/` 下，独立运行，直接复用 `BBDown.Core` 下载库，无需额外的 `BBDown.exe`。
 
 图形界面由独立 CI（[gui.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/gui.yml)）在 `win-x64` / `win-arm64` 上构建单文件产物并上传，可手动触发追加到最新 Release；
 

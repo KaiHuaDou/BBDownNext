@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
 
-using BBDown.Core;
 using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;

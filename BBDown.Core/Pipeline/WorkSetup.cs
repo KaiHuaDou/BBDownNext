@@ -5,11 +5,10 @@ using System.Linq;
 using System.Text.Json;
 
 using BBDown.Core.Auth;
-using BBDown.Core;
+using BBDown.Core.Download;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.Utils;
-using BBDown.Core.Download;
 
 namespace BBDown.Core.Pipeline;
 

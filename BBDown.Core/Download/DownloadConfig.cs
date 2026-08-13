@@ -1,7 +1,5 @@
 using System;
 
-using BBDown.Core.Util;
-
 namespace BBDown.Core.Download;
 
 public sealed class DownloadConfig

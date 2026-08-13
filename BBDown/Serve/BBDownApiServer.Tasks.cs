@@ -1,3 +1,5 @@
+#pragma warning disable CA1001
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -8,10 +10,9 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core.Auth;
 using BBDown.Core;
-using BBDown.Core.Pipeline;
 using BBDown.Core.Download;
+using BBDown.Core.Pipeline;
 
 namespace BBDown.Serve;
 

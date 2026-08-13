@@ -9,13 +9,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
+using BBDown.Core.Download;
 using BBDown.Core.Opus;
 using BBDown.Core.Util;
-using BBDown.Core.Download;
 
-using static BBDown.Core.Logger;
 using static BBDown.Core.Download.DownloadUtil;
+using static BBDown.Core.Logger;
 
 namespace BBDown.Core.Pipeline;
 

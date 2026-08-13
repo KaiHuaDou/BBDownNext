@@ -7,14 +7,13 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
+using BBDown.Core.Download;
+using BBDown.Core.Entity;
 using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.Utils;
-using BBDown.Core.Entity;
-using BBDown.Core.Download;
 
 namespace BBDown.Core.Mux;
 

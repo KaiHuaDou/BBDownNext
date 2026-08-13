@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 
-
 namespace BBDown.Core.Entity;
 
 public class VInfo

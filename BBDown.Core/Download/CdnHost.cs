@@ -2,10 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-using BBDown.Core;
+using BBDown.Core.Entity;
 
 using static BBDown.Core.Logger;
-using BBDown.Core.Entity;
 
 namespace BBDown.Core.Download;
 

@@ -1,15 +1,41 @@
-#pragma warning disable CA1308 // 格式名取枚举名小写，与 Core 解析器共用同一来源
+#pragma warning disable CA1308, CS8600, CS8602 // CA1308：格式名取枚举名小写，与 Core 解析器共用同一来源；CS8600/CS8602：Avalonia 源生成的 x:Name 控件字段可空
 
 using System;
+using System.ComponentModel;
+using System.Linq;
 using System.Text;
-using System.Windows;
-using System.Windows.Controls;
+using System.Threading.Tasks;
+
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 
 using BBDown.Core.Download;
 
-using Ookii.Dialogs.Wpf;
-
 namespace BBDown.GUI;
+
+/// <summary>内容复选项数据：字符键 + 显示名来自 ContentSelector.Order 单一来源；IsChecked 为 UI 勾选态，变化时通知绑定，使「重置选项」与载入配置能刷新复选框。</summary>
+public sealed record ContentOption(char Key, string Label) : INotifyPropertyChanged
+{
+    private bool isChecked;
+
+    public bool IsChecked
+    {
+        get => isChecked;
+        set
+        {
+            if (isChecked == value)
+            {
+                return;
+            }
+
+            isChecked = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
 
 /// <summary>面板控件与 TaskParams 之间的映射，按 §3 控件组拆分为 partial，控制 MainWindow.xaml.cs 行数。</summary>
 public partial class MainWindow
@@ -129,11 +155,11 @@ public partial class MainWindow
     private string ReadContent( )
     {
         var builder = new StringBuilder( );
-        foreach (var item in ContentItems.Items)
+        foreach (ContentOption item in ContentItems.Items)
         {
-            if (item is CheckBox { IsChecked: true, Tag: char ch })
+            if (item.IsChecked)
             {
-                builder.Append(ch);
+                builder.Append(item.Key);
             }
         }
 
@@ -206,7 +232,7 @@ public partial class MainWindow
 
     private void ApplyMux(string mux)
     {
-        foreach (ComboBoxItem item in MuxBox.Items)
+        foreach (var item in MuxBox.Items.Cast<ComboBoxItem?>( ))
         {
             if ((item.Tag as string) == mux)
             {
@@ -220,7 +246,7 @@ public partial class MainWindow
 
     private void ApplyLiveQuality(string quality)
     {
-        foreach (ComboBoxItem item in LiveQualityBox.Items)
+        foreach (var item in LiveQualityBox.Items.Cast<ComboBoxItem?>( ))
         {
             if ((item.Tag as string) == quality)
             {
@@ -234,17 +260,14 @@ public partial class MainWindow
 
     private void ApplyContent(string content)
     {
-        foreach (var item in ContentItems.Items)
+        foreach (ContentOption item in ContentItems.Items)
         {
-            if (item is CheckBox { Tag: char ch } box)
-            {
-                box.IsChecked = content.Contains(ch, StringComparison.Ordinal);
-            }
+            item.IsChecked = content.Contains(item.Key, StringComparison.Ordinal);
         }
     }
 
     /// <summary>仅解析不下载时禁用下载内容相关复选框（含弹幕/评论格式），避免无效选项误导。</summary>
-    private void InfoOnlyCheckBoxChanged(object o, RoutedEventArgs e)
+    private void InfoOnlyCheckBoxChanged(object? o, RoutedEventArgs e)
     {
         var enabled = InfoOnlyCheckBox.IsChecked != true;
         ContentGrid.IsEnabled = enabled;
@@ -252,34 +275,38 @@ public partial class MainWindow
         CommentFormatPanel.IsEnabled = enabled;
     }
 
-    private void DebugCheckBoxChecked(object o, RoutedEventArgs e)
+    private void DebugCheckBoxChecked(object? o, RoutedEventArgs e)
     {
         LogExpander.IsExpanded = true;
     }
 
-    private void BrowseDirButtonClicked(object o, RoutedEventArgs e)
+    private async void BrowseDirButtonClicked(object? o, RoutedEventArgs e)
     {
-        VistaFolderBrowserDialog dialog = new( )
+        if (TopLevel.GetTopLevel(this) is not { } topLevel)
         {
-            Description = "选择工作目录",
-            SelectedPath = WorkDirBox.Text.Trim( ),
-            UseDescriptionForTitle = true,
-        };
-        if (dialog.ShowDialog( ) == true)
+            return;
+        }
+
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            WorkDirBox.Text = dialog.SelectedPath;
+            Title = "选择工作目录",
+            SuggestedStartLocation = await TrySuggestedLocation(topLevel, WorkDirBox.Text.Trim( )),
+        });
+        if (folders.Count > 0)
+        {
+            WorkDirBox.Text = folders[0].Path.LocalPath;
         }
     }
 
     /// <summary>ffmpeg / mp4box / aria2c 路径选择，按按钮 Tag 区分目标框。</summary>
-    private void BrowseFileButtonClicked(object o, RoutedEventArgs e)
+    private async void BrowseFileButtonClicked(object? o, RoutedEventArgs e)
     {
         if (o is not Button { Tag: string target })
         {
             return;
         }
 
-        TextBox? box = target switch
+        var box = target switch
         {
             "ffmpeg" => FFmpegPathBox,
             "mp4box" => Mp4boxPathBox,
@@ -287,19 +314,34 @@ public partial class MainWindow
             "postprocess" => PostProcessPathBox,
             _ => null,
         };
-        if (box is null)
+        if (box is null || TopLevel.GetTopLevel(this) is not { } topLevel)
         {
             return;
         }
 
-        VistaOpenFileDialog dialog = new( )
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Filter = "可执行文件 (*.exe)|*.exe|所有文件 (*.*)|*.*",
-            FileName = box.Text.Trim( ),
-        };
-        if (dialog.ShowDialog( ) == true)
+            Title = "选择可执行文件",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("可执行文件") { Patterns = ["*.exe"] },
+                new FilePickerFileType("所有文件") { Patterns = ["*"] },
+            ],
+        });
+        if (files.Count > 0)
         {
-            box.Text = dialog.FileName;
+            box.Text = files[0].Path.LocalPath;
         }
+    }
+
+    private static async Task<IStorageFolder?> TrySuggestedLocation(TopLevel topLevel, string path)
+    {
+        if (path.Length == 0)
+        {
+            return null;
+        }
+
+        return await topLevel.StorageProvider.TryGetFolderFromPathAsync(path);
     }
 }

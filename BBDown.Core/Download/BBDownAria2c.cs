@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
 using BBDown.Core.Util;
 
 namespace BBDown.Core.Download;

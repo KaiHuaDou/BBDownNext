@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace BBDown.GUI;
 
@@ -15,11 +16,14 @@ public sealed record ConfigData
     public double? WindowHeight { get; init; }
 }
 
+/// <summary>ConfigData 的 JSON 源生成上下文，AOT 下替代反射序列化。</summary>
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(ConfigData))]
+public sealed partial class ConfigJsonContext : JsonSerializerContext;
+
 /// <summary>portable 配置读写，配置文件随 exe 存放于同目录。</summary>
 public static class ConfigStore
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new( ) { WriteIndented = true };
-
     private static string FilePath => Path.Combine(ExeDirectory( ), "BBDown.GUI.config.json");
 
     /// <summary>加载配置；文件缺失或损坏返回 null（调用方回落默认值）。</summary>
@@ -32,7 +36,7 @@ public static class ConfigStore
                 return null;
             }
 
-            return JsonSerializer.Deserialize<ConfigData>(File.ReadAllText(FilePath), SerializerOptions);
+            return JsonSerializer.Deserialize(File.ReadAllText(FilePath), ConfigJsonContext.Default.ConfigData);
         }
         catch (Exception)
         {
@@ -44,7 +48,7 @@ public static class ConfigStore
     public static void Save(ConfigData config)
     {
         Directory.CreateDirectory(ExeDirectory( ));
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(config, SerializerOptions));
+        File.WriteAllText(FilePath, JsonSerializer.Serialize(config, ConfigJsonContext.Default.ConfigData));
     }
 
     private static string ExeDirectory( )

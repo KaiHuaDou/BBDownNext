@@ -4,8 +4,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-using BBDown.Core;
-
 using static BBDown.Core.Logger;
 
 namespace BBDown.Core.Auth;

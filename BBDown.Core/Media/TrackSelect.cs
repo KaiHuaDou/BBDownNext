@@ -2,12 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using BBDown.Core;
+using BBDown.Core.Download;
 using BBDown.Core.Entity;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.Utils;
-using BBDown.Core.Download;
 
 namespace BBDown.Core.Media;
 

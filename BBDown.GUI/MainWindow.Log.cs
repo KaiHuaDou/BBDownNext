@@ -1,17 +1,25 @@
-using System;
-using System.Windows;
-using System.Windows.Documents;
-using System.Windows.Media;
+#pragma warning disable CS8602 // Avalonia 源生成的 x:Name 控件字段可空
+
+using System.Collections.ObjectModel;
+
+using Avalonia.Controls;
+using Avalonia.Media;
+using Avalonia.Threading;
 
 namespace BBDown.GUI;
 
-/// <summary>RichTextBox 日志区：逐行追加、错误行红色、按段落数控制上限。</summary>
+/// <summary>日志区行数据：文本 + 行前景色；错误行为红色，普通行为主题默认前景。</summary>
+public sealed record LogLine(string Text, IBrush Brush);
+
+/// <summary>虚拟化日志区：逐行追加、错误行红色、按行数控制上限。</summary>
 public partial class MainWindow
 {
     private const int MaxLogLines = 5000;
-    private static readonly Brush ErrorBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0x39, 0x35));
-    // 显式跟随系统前景，避免 FlowDocument 继承链导致白字不可见（深色系统下 WindowTextBrush 为白）
-    private static readonly Brush NormalBrush = SystemColors.WindowTextBrush;
+    private static readonly IBrush ErrorBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0x39, 0x35));
+    private readonly ObservableCollection<LogLine> logLines = [];
+
+    /// <summary>普通行前景：沿用窗口主题文本色（深色背景下非黑即白、始终可见），避免 null 被渲染成黑色不可见。</summary>
+    private IBrush NormalBrush => Foreground ?? new SolidColorBrush(Color.FromRgb(0xEE, 0xEE, 0xEE));
 
     private void AppendProcessLog(int index, string line, bool isError)
     {
@@ -26,27 +34,22 @@ public partial class MainWindow
 
     private void AppendLog(string line, bool isError = false)
     {
-        if (!Dispatcher.CheckAccess( ))
+        if (!Dispatcher.UIThread.CheckAccess( ))
         {
-            if (!Dispatcher.HasShutdownStarted)
+            if (!closed)
             {
-                Dispatcher.BeginInvoke(( ) => AppendLog(line, isError));
+                Dispatcher.UIThread.Post(( ) => AppendLog(line, isError));
             }
 
             return;
         }
 
-        var document = LogBox.Document;
-        Paragraph paragraph = new(new Run(line) { Foreground = isError ? ErrorBrush : NormalBrush })
+        logLines.Add(new LogLine(line, isError ? ErrorBrush : NormalBrush));
+        while (logLines.Count > MaxLogLines)
         {
-            Margin = new Thickness(0),
-        };
-        document.Blocks.Add(paragraph);
-        while (document.Blocks.Count > MaxLogLines)
-        {
-            document.Blocks.Remove(document.Blocks.FirstBlock);
+            logLines.RemoveAt(0);
         }
 
-        LogBox.ScrollToEnd( );
+        LogScroll.ScrollToEnd( );
     }
 }

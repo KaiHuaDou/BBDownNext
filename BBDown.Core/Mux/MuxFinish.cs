@@ -4,10 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Download;
+using BBDown.Core.Entity;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.Utils;
-using BBDown.Core.Entity;
 
 namespace BBDown.Core.Mux;
 

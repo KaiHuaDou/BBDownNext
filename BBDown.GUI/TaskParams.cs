@@ -1,5 +1,3 @@
-using System;
-
 using BBDown.Core;
 using BBDown.Core.Download;
 
@@ -8,8 +6,8 @@ namespace BBDown.GUI;
 /// <summary>面板选项快照，不可变；既是下载任务参数源，也是配置持久化 DTO。</summary>
 public sealed record TaskParams
 {
-    /// <summary>下载内容字符集，顺序固定为 a v c C d i m M o O S s，默认对齐 CLI 的 avmsCiM。</summary>
-    public string Content { get; init; } = "avmsCiM";
+    /// <summary>下载内容字符集，顺序固定为 a v c C d i m M o O S s，默认对齐 CLI 的 ContentSelector.Default。</summary>
+    public string Content { get; init; } = ContentSelector.Default;
 
     // 常用布尔选项
     public bool UseAria2c { get; init; }

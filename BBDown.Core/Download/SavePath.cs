@@ -4,13 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-using BBDown.Core;
+using BBDown.Core.Entity;
+using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;
-using BBDown.Core.Util;
 using static BBDown.Core.Util.FileNameUtil;
-using BBDown.Core.Entity;
-using BBDown.Core.Download;
 
 namespace BBDown.Core.Download;
 public static partial class SavePath

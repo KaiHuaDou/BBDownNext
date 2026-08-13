@@ -4,8 +4,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
-
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
 

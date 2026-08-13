@@ -1,21 +1,33 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
-        <TargetFramework>net9.0-windows</TargetFramework>
+        <TargetFramework>net9.0</TargetFramework>
         <Nullable>enable</Nullable>
-        <UseWPF>true</UseWPF>
         <LangVersion>latest</LangVersion>
     </PropertyGroup>
     <PropertyGroup>
         <StartupObject>BBDown.GUI.App.Program</StartupObject>
         <AnalysisLevel>latest-all</AnalysisLevel>
-        <PublishSingleFile>true</PublishSingleFile>
-        <!-- SDK 只允许自包含单文件开启压缩（NETSDK1176），框架依赖发布会自动跳过 -->
-        <EnableCompressionInSingleFile Condition="'$(SelfContained)' == 'true'">true</EnableCompressionInSingleFile>
-        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-        <PublishReadyToRun>true</PublishReadyToRun>
         <WarningLevel>8</WarningLevel>
     </PropertyGroup>
+    <PropertyGroup>
+        <PublishAot>true</PublishAot>
+        <IsAotCompatible>true</IsAotCompatible>
+        <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+        <PublishSingleFile>true</PublishSingleFile>
+        <EventSourceSupport>false</EventSourceSupport>
+        <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
+        <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <StripSymbols>true</StripSymbols>
+        <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    </PropertyGroup>
+    <ItemGroup>
+        <!-- Fluent 主题资源经 XAML 资源字典动态加载，防止裁剪器误删 -->
+        <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
+        <TrimmerRootAssembly Include="Avalonia.Markup.Xaml" />
+    </ItemGroup>
     <PropertyGroup Condition="$(Configuration)==Debug">
         <DebugType>full</DebugType>
     </PropertyGroup>
@@ -23,10 +35,10 @@
         <DebugType>none</DebugType>
     </PropertyGroup>
     <ItemGroup>
-        <Folder Include="Properties\" />
-    </ItemGroup>
-    <ItemGroup>
-        <PackageReference Include="Ookii.Dialogs.Wpf" />
+        <PackageReference Include="Avalonia" />
+        <PackageReference Include="Avalonia.Desktop" />
+        <PackageReference Include="Avalonia.Fonts.Inter" />
+        <PackageReference Include="Avalonia.Themes.Fluent" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\BBDown.Core\BBDown.Core.csproj" />

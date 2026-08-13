@@ -4,15 +4,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
-using BBDown.Core.Entity;
 using BBDown.Core.Download;
+using BBDown.Core.Entity;
 using BBDown.Core.Mux;
-using BBDown.Core.Util;
 
+using static BBDown.Core.Download.DownloadUtil;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Parser;
-using static BBDown.Core.Download.DownloadUtil;
 using static BBDown.Core.Util.Utils;
 
 namespace BBDown.Core.Media;

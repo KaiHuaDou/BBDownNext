@@ -4,12 +4,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BBDown.Core.Download;
+using BBDown.Core.Entity;
 using BBDown.Core.Media;
 using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;
-using BBDown.Core.Entity;
-using BBDown.Core.Download;
 
 namespace BBDown.Core.Pipeline;
 

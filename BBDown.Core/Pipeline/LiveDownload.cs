@@ -3,11 +3,10 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
+using BBDown.Core.Download;
 using BBDown.Core.Live;
 
 using static BBDown.Core.Logger;
-using BBDown.Core.Download;
 
 namespace BBDown.Core.Pipeline;
 

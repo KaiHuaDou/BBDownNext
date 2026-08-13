@@ -221,6 +221,16 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 你总会遇到另一个 AGENT 在仓库里面同时工作，永远不要破坏别人的工作
 
+### Git 与 worktree
+
+- `Plugins`
+    - 除了 `BBDown.Sample` 以外，每一个插件都是一个单独的 git 仓库，且被 `.gitignore` 忽略
+    - 仓库的远程指向 `origin/plugins/<name>`，本地分支名称为 `plugins/<name>`
+    - `Plugins` 下面所有仓库与主仓库都指向同样的 github 远程，但是是不同分支
+    - 所有插件构建配置完全独立（自带 `Directory.Build.props` / `Directory.Packages.props` / `global.json`
+
+**永远不要使用 `git -C`，先 `cd` 再 `commit`！**
+
 ## 其他内容
 
 AGENT 对此文档的修改只能添加在本节，在本节添加内容无需经过批准。
@@ -232,7 +242,3 @@ AGENT 对此文档的修改只能添加在本节，在本节添加内容无需�
 ### 判别联合特例
 
 `BBDown.Core/ResourceId.cs` 采用嵌套 `record`（`abstract record ResourceId` 内含 `Av` / `Ep` / `Season` / `CheeseEp` / `CheeseSeason` / `Fav` / `MediaList` / `Series` / `Space` / `WatchLater` 等 `sealed record` 子类型）实现判别联合，属「禁止嵌套类」规则的已确认例外：它以类型安全替代字符串前缀打标，且 `FetcherRegistry` 的 `switch` 据此分发、缺分支编译报错。其余场景仍遵守「禁止嵌套类」。注意直播录制走独立链路（`LiveInputResolver` → `LiveDownload`），不经 `ResourceId`，故无对应子类型。
-
-### 内置插件例外
-
-`Plugins/BBDown.Sample` 是主仓库内置的后处理示例插件与模板（`Plugins/*` 忽略规则的特例，`.gitignore` 已开白），其构建配置完全独立（自带 `Directory.Build.props` / `Directory.Packages.props` / `global.json`，不继承主仓库）。其余插件目录仍为独立 git 仓库，不受主仓库跟踪。

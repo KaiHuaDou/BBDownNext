@@ -1,0 +1,14 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:gui="using:BBDown.GUI"
+             x:Class="BBDown.GUI.App"
+             RequestedThemeVariant="Default">
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://BBDown.GUI/Theme.axaml" />
+    </Application.Styles>
+    <Application.Resources>
+        <gui:StatusToBrushConverter x:Key="StatusBrush" />
+        <gui:StatusToVisibilityConverter x:Key="StatusCancel" />
+    </Application.Resources>
+</Application>

@@ -5,8 +5,9 @@ using System.CommandLine.Parsing;
 using System.IO;
 using System.Linq;
 
-using static BBDown.Core.Logger;
 using BBDown.Core;
+
+using static BBDown.Core.Logger;
 
 namespace BBDown.Cli;
 

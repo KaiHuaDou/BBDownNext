@@ -8,13 +8,13 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BBDown.Core.Entity;
 using BBDown.Core.Protobuf;
 
 using Google.Protobuf;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
-using BBDown.Core.Entity;
 
 namespace BBDown.Core.Util;
 

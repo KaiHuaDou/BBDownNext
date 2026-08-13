@@ -7,7 +7,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
 using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;

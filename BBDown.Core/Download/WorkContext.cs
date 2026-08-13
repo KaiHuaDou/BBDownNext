@@ -1,8 +1,3 @@
-using System.Collections.Generic;
-
-using BBDown.Core;
-using BBDown.Core.Entity;
-
 namespace BBDown.Core.Download;
 
 /// <summary>

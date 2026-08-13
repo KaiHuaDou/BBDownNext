@@ -102,7 +102,7 @@ public static partial class Utils
         DirectoryInfo d = new(dir);
         foreach (var fi in d.GetFiles( ))
         {
-            if (fi.Extension.ToUpper( ) == ext.ToUpper( ))
+            if (string.Equals(fi.Extension, ext, StringComparison.OrdinalIgnoreCase))
             {
                 al.Add(fi.FullName);
             }

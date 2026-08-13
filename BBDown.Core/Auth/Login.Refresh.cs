@@ -11,7 +11,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
 using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;

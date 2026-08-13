@@ -20,7 +20,7 @@ internal sealed class ApiTypeJsonConverter : JsonConverter<ApiType>
 
     public override void Write(Utf8JsonWriter writer, ApiType value, JsonSerializerOptions options)
     {
-        writer.WriteNumberValue((int)value);
+        writer.WriteNumberValue((int) value);
     }
 }
 
@@ -37,7 +37,7 @@ internal sealed class DownloadContentJsonConverter : JsonConverter<DownloadConte
 
     public override void Write(Utf8JsonWriter writer, DownloadContent value, JsonSerializerOptions options)
     {
-        writer.WriteNumberValue((int)value);
+        writer.WriteNumberValue((int) value);
     }
 }
 
@@ -54,6 +54,6 @@ internal sealed class MuxModeJsonConverter : JsonConverter<MuxMode>
 
     public override void Write(Utf8JsonWriter writer, MuxMode value, JsonSerializerOptions options)
     {
-        writer.WriteNumberValue((int)value);
+        writer.WriteNumberValue((int) value);
     }
 }

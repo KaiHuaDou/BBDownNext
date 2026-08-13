@@ -8,11 +8,10 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Comment;
+using BBDown.Core.Download;
 using BBDown.Core.Mux;
-using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;
-using BBDown.Core.Download;
 
 namespace BBDown.Core.Media;
 

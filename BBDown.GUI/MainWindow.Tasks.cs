@@ -1,8 +1,10 @@
+#pragma warning disable CS8602 // Avalonia 源生成的 x:Name 控件字段可空
+
 using System;
 using System.Linq;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
+
+using Avalonia.Controls;
+using Avalonia.Interactivity;
 
 namespace BBDown.GUI;
 
@@ -27,12 +29,7 @@ public partial class MainWindow
                                $" · 完成 {tasks.Count(t => t.Status is TaskStatus.Success or TaskStatus.Failed or TaskStatus.Cancelled)}";
     }
 
-    private void TaskListSelectionChanged(object o, SelectionChangedEventArgs e)
-    {
-        RemoveButton.IsEnabled = TaskList.SelectedItem is TaskState { Status: TaskStatus.Waiting };
-    }
-
-    private void CancelTaskButtonClicked(object o, RoutedEventArgs e)
+    private void CancelTaskButtonClicked(object? o, RoutedEventArgs e)
     {
         if (o is not Button { Tag: TaskState state } || state.Status != TaskStatus.Running)
         {
@@ -43,7 +40,7 @@ public partial class MainWindow
         AppendLog($"任务{state.Index} 已请求取消");
     }
 
-    private void StartQueueButtonClicked(object o, RoutedEventArgs e)
+    private void StartQueueButtonClicked(object? o, RoutedEventArgs e)
     {
         if (!queue.HasWaiting)
         {
@@ -55,25 +52,31 @@ public partial class MainWindow
         AppendLog("队列调度已启动");
     }
 
-    private void RemoveButtonClicked(object o, RoutedEventArgs e)
+    private void RemoveItemButtonClicked(object? o, RoutedEventArgs e)
     {
-        if (TaskList.SelectedItem is not TaskState state)
+        if (o is not Button { Tag: TaskState state })
         {
             return;
         }
 
-        if (!queue.RemoveWaiting(state))
+        if (state.Status == TaskStatus.Running)
         {
-            AppendLog("仅可移除等待中的任务");
+            AppendLog("运行中的任务请先取消");
+            return;
+        }
+
+        if (!queue.Remove(state))
+        {
+            AppendLog("任务已不在队列中");
         }
     }
 
-    private void ClearButtonClicked(object o, RoutedEventArgs e)
+    private void ClearButtonClicked(object? o, RoutedEventArgs e)
     {
         queue.ClearFinished( );
     }
 
-    private void ConcurrencyBoxLostKeyboardFocus(object o, KeyboardFocusChangedEventArgs e)
+    private void ConcurrencyBoxLostFocus(object? o, RoutedEventArgs e)
     {
         if (int.TryParse(ConcurrencyBox.Text, out var value) && value is >= 1 and <= 8)
         {

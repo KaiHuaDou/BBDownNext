@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
 
-using static BBDown.Core.ResourceId;
 using static BBDown.Core.Logger;
+using static BBDown.Core.ResourceId;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
 

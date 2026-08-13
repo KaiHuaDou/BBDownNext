@@ -5,8 +5,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core.Live;
-
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.Utils;
 
@@ -39,10 +37,10 @@ internal sealed class LiveRecorder(
     Action<int>? onSegmentStart = null)
 {
     /// <summary>返回 null 表示已下播。</summary>
-internal delegate Task<LivePlayInfo?> ResolveStream(int qn, CancellationToken ct);
+    internal delegate Task<LivePlayInfo?> ResolveStream(int qn, CancellationToken ct);
 
     /// <summary>契约同 <see cref="LiveSegmentWriter.WriteAsync"/>：取消时返回已写字节数而非抛出。</summary>
-internal delegate Task<long> WriteSegment(LiveStreamCandidate candidate, string partPath, CancellationToken ct);
+    internal delegate Task<long> WriteSegment(LiveStreamCandidate candidate, string partPath, CancellationToken ct);
 
     private const int MaxConsecutiveFailures = 10;
     // 服务端偶尔在断流瞬间回几百字节的残帧，这种段拿去混流只会让 ffmpeg 报错

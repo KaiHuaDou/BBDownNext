@@ -2,7 +2,6 @@ using System.Collections.Generic;
 
 using BBDown.Core.Entity;
 
-
 namespace BBDown.Core.Util;
 
 /// <summary>

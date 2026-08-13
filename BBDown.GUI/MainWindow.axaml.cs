@@ -1,18 +1,19 @@
-#pragma warning disable CA1308 // API 通道等枚举名取小写作 UI 标签，以 Core 枚举为单一来源
+#pragma warning disable CA1308, CS8600, CS8602 // CA1308：API 通道等枚举名取小写作 UI 标签，以 Core 枚举为单一来源；CS8600/CS8602：Avalonia 源生成的 x:Name 控件字段可空
 
 using System;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
 
-using System.Runtime.InteropServices;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 
 using BBDown.Core;
 using BBDown.Core.Download;
@@ -27,18 +28,21 @@ public partial class MainWindow : Window
     private readonly Brush okBrush = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
     private readonly Brush hintBrush = new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E));
     private string lastConcurrency = "3";
+    private volatile bool closed;
 
-    // 当前任务序号（异步流内传播），日志区据此加 [任务N] 前缀；0 表示非任务日志
+    // 窗口非最小化时的最近边界，最小化状态下关闭时回退到该值
+    private double lastLeft, lastTop, lastWidth = 1120, lastHeight = 820;
+
+    // 当前任务序号（异步流内传播），日志区据此加 [任务 N] 前缀；0 表示非任务日志
     private static readonly AsyncLocal<int> currentTask = new( );
 
     public MainWindow( )
     {
         InitializeComponent( );
-        // RichTextBox 初始 Document 自带一个空段落，清掉避免日志顶部出现空行
-        LogBox.Document.Blocks.Clear( );
+        LogList.ItemsSource = logLines;
         // API 通道、内容字符、直播清晰度均以 Core 枚举/表为单一来源，避免列表在多处硬编码
         ApiBox.ItemsSource = Enum.GetNames<ApiType>( ).Select(n => n.ToLowerInvariant( )).ToArray( );
-        ContentItems.ItemsSource = ContentSelector.Order.Select(e => (e.Ch, $"{e.Name} (_{e.Ch})")).ToList( );
+        ContentItems.ItemsSource = ContentSelector.Order.Select(e => new ContentOption(e.Ch, $"{e.Name} (_{e.Ch})")).ToList( );
         foreach (var (qn, name) in LiveQuality.Levels)
         {
             LiveQualityBox.Items.Add(new ComboBoxItem { Content = $"{qn} {name}", Tag = qn.ToString( ) });
@@ -57,9 +61,9 @@ public partial class MainWindow : Window
             var index = currentTask.Value;
             var line = index > 0 ? $"[任务{index}] {text}" : text;
             var isError = level == LogLevel.Error;
-            if (!Dispatcher.HasShutdownStarted)
+            if (!closed)
             {
-                Dispatcher.BeginInvoke(( ) => AppendLog(line.TrimEnd('\n'), isError));
+                Dispatcher.UIThread.Post(( ) => AppendLog(line.TrimEnd('\n'), isError));
             }
         };
 
@@ -71,22 +75,34 @@ public partial class MainWindow : Window
         LoadConfig( );
         UpdateTargetHint( );
         AppendLog("就绪");
+
+        DragDrop.SetAllowDrop(this, true);
+        DragDrop.AddDragOverHandler(this, WindowDragOver);
+        DragDrop.AddDropHandler(this, WindowDrop);
     }
 
-    private void WindowClosed(object o, EventArgs e)
+    private void WindowClosed(object? o, EventArgs e)
     {
+        closed = true;
         queue.CancelRunning( );
         try
         {
-            Rect bounds = WindowState == WindowState.Minimized ? RestoreBounds : new Rect(Left, Top, Width, Height);
+            if (WindowState != WindowState.Minimized)
+            {
+                lastLeft = Position.X;
+                lastTop = Position.Y;
+                lastWidth = Width;
+                lastHeight = Height;
+            }
+
             ConfigData config = new( )
             {
                 Options = ReadOptions( ),
                 Concurrency = int.TryParse(ConcurrencyBox.Text, out var value) ? value : 3,
-                WindowLeft = bounds.Left,
-                WindowTop = bounds.Top,
-                WindowWidth = bounds.Width,
-                WindowHeight = bounds.Height,
+                WindowLeft = lastLeft,
+                WindowTop = lastTop,
+                WindowWidth = lastWidth,
+                WindowHeight = lastHeight,
             };
             ConfigStore.Save(config);
         }
@@ -96,12 +112,12 @@ public partial class MainWindow : Window
         }
     }
 
-    private void TargetBoxTextChanged(object o, TextChangedEventArgs e)
+    private void TargetBoxTextChanged(object? o, TextChangedEventArgs e)
     {
         UpdateTargetHint( );
     }
 
-    private void RunButtonClicked(object o, RoutedEventArgs e)
+    private void RunButtonClicked(object? o, RoutedEventArgs e)
     {
         if (!TryGetTarget(out var url))
         {
@@ -112,7 +128,7 @@ public partial class MainWindow : Window
         AppendLog(queued ? $"并发已满，任务已加入队列等待执行：{url}" : $"任务已启动：{url}");
     }
 
-    private void EnqueueButtonClicked(object o, RoutedEventArgs e)
+    private void EnqueueButtonClicked(object? o, RoutedEventArgs e)
     {
         if (!TryGetTarget(out var url))
         {
@@ -123,34 +139,32 @@ public partial class MainWindow : Window
         AppendLog($"任务已加入队列：{url}");
     }
 
-    private void ResetButtonClicked(object o, RoutedEventArgs e)
+    private void ResetButtonClicked(object? o, RoutedEventArgs e)
     {
         ApplyOptions(new TaskParams( ));
         AppendLog("选项已重置");
     }
 
-    private void OpenDirButtonClicked(object o, RoutedEventArgs e)
+    private void OpenDirButtonClicked(object? o, RoutedEventArgs e)
     {
         var dir = WorkDirBox.Text.Trim( );
-        if (dir.Length > 0 && Directory.Exists(dir))
+        var path = dir.Length > 0 && Directory.Exists(dir)
+            ? dir
+            : (Path.GetDirectoryName(Environment.ProcessPath) ?? "");
+        if (path.Length == 0 || !Directory.Exists(path))
         {
-            _ = Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true });
+            AppendLog("输出目录不存在，请先在“工作目录”填写有效路径");
             return;
         }
 
-        var fallback = Path.GetDirectoryName(Environment.ProcessPath) ?? "";
-        if (Directory.Exists(fallback))
+        if (TopLevel.GetTopLevel(this) is { } topLevel)
         {
-            _ = Process.Start(new ProcessStartInfo(fallback) { UseShellExecute = true });
-        }
-        else
-        {
-            AppendLog("输出目录不存在，请先在“工作目录”填写有效路径");
+            _ = topLevel.Launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(path));
         }
     }
 
     /// <summary>非负整数字段失焦校验，无效回退上次有效值（存于 Tag）。</summary>
-    private void IntegerBoxLostKeyboardFocus(object o, KeyboardFocusChangedEventArgs e)
+    private void IntegerBoxLostFocus(object? o, RoutedEventArgs e)
     {
         if (o is not TextBox box)
         {
@@ -168,18 +182,40 @@ public partial class MainWindow : Window
         AppendLog($"{box.Name} 需为非负整数，已回退为 {fallback}");
     }
 
-    private void WindowDragOver(object o, DragEventArgs e)
+    private void WindowDragOver(object? o, DragEventArgs e)
     {
-        e.Effects = e.Data.GetDataPresent(DataFormats.Text) ? DragDropEffects.Copy : DragDropEffects.None;
-        e.Handled = true;
+        e.DragEffects = HasText(e.DataTransfer) ? DragDropEffects.Copy : DragDropEffects.None;
     }
 
-    private void WindowDrop(object o, DragEventArgs e)
+    private void WindowDrop(object? o, DragEventArgs e)
     {
-        if (e.Data.GetData(DataFormats.Text) is string text)
+        if (GetText(e.DataTransfer) is { } text)
         {
             TargetBox.Text = text.Trim( );
         }
+    }
+
+    private static bool HasText(IDataTransfer? transfer)
+    {
+        return transfer?.Formats.Contains(DataFormat.Text) == true;
+    }
+
+    private static string? GetText(IDataTransfer? transfer)
+    {
+        if (transfer is null)
+        {
+            return null;
+        }
+
+        foreach (var item in transfer.Items)
+        {
+            if (item.TryGetRaw(DataFormat.Text) is string text)
+            {
+                return text;
+            }
+        }
+
+        return null;
     }
 
     private void LoadConfig( )
@@ -206,35 +242,35 @@ public partial class MainWindow : Window
             return;
         }
 
-        Left = left;
-        Top = top;
+        Position = new PixelPoint((int) left, (int) top);
         Width = width;
         Height = height;
     }
 
-    private static bool IsOnScreen(double left, double top, double width, double height)
+    private bool IsOnScreen(double left, double top, double width, double height)
     {
-        // 虚拟屏幕覆盖多显示器；窗口至少留 100px 可见才算在屏内
-        var screenLeft = GetSystemMetrics(SM_XVIRTUALSCREEN);
-        var screenTop = GetSystemMetrics(SM_YVIRTUALSCREEN);
-        var screenWidth = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-        var screenHeight = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-        return left + width > screenLeft && left < screenLeft + screenWidth - 100 &&
-               top + height > screenTop && top < screenTop + screenHeight - 100;
+        // 窗口至少留 100px 可见才算在屏内；窗口未连接显示时跳过检查
+        if (Screens.All.Count == 0)
+        {
+            return true;
+        }
+
+        foreach (var screen in Screens.All)
+        {
+            var bounds = screen.Bounds;
+            if (left + width > bounds.X && left < bounds.X + bounds.Width - 100 &&
+                top + height > bounds.Y && top < bounds.Y + bounds.Height - 100)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
-
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("user32.dll")]
-    private static extern int GetSystemMetrics(int index);
-
-    private const int SM_XVIRTUALSCREEN = 76;
-    private const int SM_YVIRTUALSCREEN = 77;
-    private const int SM_CXVIRTUALSCREEN = 78;
-    private const int SM_CYVIRTUALSCREEN = 79;
 
     private void Dispatch(Action action)
     {
-        Dispatcher.Invoke(action);
+        Dispatcher.UIThread.Invoke(action);
     }
 
     private async Task<int> ExecuteTaskAsync(TaskState state, CancellationToken token)

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -8,14 +7,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core;
-
-using static BBDown.Core.Logger;
+using BBDown.Core.Download;
+using BBDown.Core.Entity;
 using BBDown.Core.Util;
+
 using static BBDown.Core.Util.SubUtil;
 using static BBDown.Core.Util.Utils;
-using BBDown.Core.Entity;
-using BBDown.Core.Download;
 
 namespace BBDown.Core.Mux;
 

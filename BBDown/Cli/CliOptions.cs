@@ -1,8 +1,6 @@
 using System.CommandLine;
-using System.CommandLine.Parsing;
 
 using BBDown.Core;
-using BBDown.Core.Util;
 using BBDown.Core.Download;
 
 namespace BBDown.Cli;

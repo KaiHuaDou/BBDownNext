@@ -1,17 +1,15 @@
-using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Auth;
-using BBDown.Core;
+using BBDown.Core.Download;
 using BBDown.Core.Entity;
 using BBDown.Core.Fetcher;
 using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.Utils;
-using BBDown.Core.Download;
 
 namespace BBDown.Core.Pipeline;
 
