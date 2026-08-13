@@ -24,18 +24,18 @@ internal static class DrmKeys
     }
 
     public static async Task<(string? Key, DrmResult? Failure)> ResolveAsync(
-        string drmType, string? biliDrmUri, string? psshBase64, DrmKeySource keys, string? wvdPath, CancellationToken ct)
+        string drmType, string? biliDrmUri, string? psshBase64, DrmKeySource keys, string? wvdPath, CancellationToken token)
     {
         if (drmType == "widevine")
         {
-            return await FetchWidevineAsync(psshBase64, wvdPath, ct);
+            return await FetchWidevineAsync(psshBase64, wvdPath, token);
         }
 
-        return await FetchBiliDrmAsync(biliDrmUri, keys, ct);
+        return await FetchBiliDrmAsync(biliDrmUri, keys, token);
     }
 
     // widevine 交互失败（wvd 缺失/损坏、license 服务器拒绝、响应校验不过）统一归 FetchFailed
-    private static async Task<(string? Key, DrmResult? Failure)> FetchWidevineAsync(string? psshBase64, string? wvdPath, CancellationToken ct)
+    private static async Task<(string? Key, DrmResult? Failure)> FetchWidevineAsync(string? psshBase64, string? wvdPath, CancellationToken token)
     {
         if (psshBase64 is null || wvdPath is null)
         {
@@ -44,7 +44,7 @@ internal static class DrmKeys
 
         try
         {
-            var keys = await WidevineLicense.FetchAsync(psshBase64, wvdPath, ct);
+            var keys = await WidevineLicense.FetchAsync(psshBase64, wvdPath, token);
             return keys is { Length: > 0 } ? (keys[0].Key, null) : (null, DrmResult.FetchFailed);
         }
         catch (Exception)
@@ -54,14 +54,14 @@ internal static class DrmKeys
     }
 
     // clearkey 自动取钥失败（KID 无效、接口拒绝等）回退密钥表；两者皆不可用时按密钥缺失处理
-    private static async Task<(string? Key, DrmResult? Failure)> FetchBiliDrmAsync(string? biliDrmUri, DrmKeySource keys, CancellationToken ct)
+    private static async Task<(string? Key, DrmResult? Failure)> FetchBiliDrmAsync(string? biliDrmUri, DrmKeySource keys, CancellationToken token)
     {
         var kid = KidFromUri(biliDrmUri);
         if (kid is { Length: 32 })
         {
             try
             {
-                var autoKey = await BiliDrmLicense.GetKeyAsync(kid, ct);
+                var autoKey = await BiliDrmLicense.GetKeyAsync(kid, token);
                 if (autoKey is not null)
                 {
                     return (autoKey, null);

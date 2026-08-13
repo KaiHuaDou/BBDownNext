@@ -20,6 +20,10 @@
 
 ### 修复
 
+- 修复 WBI 签名未按键名升序构造 canonical 的问题：`drm_tech_type=2` 重试（widevine 通道）时 `w_rid` 与协议规范不一致，可能被服务端拒绝；签名逻辑改为复用主仓库 `SignUtil`（排序 + 编码）。
+- 密钥配置文件 `BBDown.DRM.json` 反序列化改为大小写不敏感，README 的 `keys`（小写）示例现在可直接生效。
+- Widevine 取钥返回多个内容密钥时，优先选择与 PSSH KID 匹配的 key，避免首个 key 与当前轨道 KID 不符导致解密失败。
+
 ### 变更
 
 - 内部重构：Widevine 取钥链路拆分为 PSSH 解析、license 交互、密钥派生三部分；通道取钥收敛至统一入口，解密执行层不再感知通道差异。

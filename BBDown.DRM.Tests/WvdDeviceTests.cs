@@ -130,6 +130,38 @@ public class WvdDeviceTests
         }
     }
 
+    [Fact]
+    public void Load_TruncatedPrivateKey_Throws( )
+    {
+        // 声明 0xFFFF 私钥长度但数据不足，边界检查应拒绝而非越界崩溃
+        var path = Path.GetTempFileName( );
+        File.WriteAllBytes(path, [1, 0, 3, 0, 0xFF, 0xFF]);
+        try
+        {
+            Assert.Throws<InvalidDataException>(() => WvdDevice.Load(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_TruncatedClientId_Throws( )
+    {
+        // 私钥区为空但 client_id 长度区不足（缺 2 字节），边界检查应拒绝
+        var path = Path.GetTempFileName( );
+        File.WriteAllBytes(path, [1, 0, 3, 0, 0, 0]);
+        try
+        {
+            Assert.Throws<InvalidDataException>(() => WvdDevice.Load(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static byte[] ReverseU16(int value)
     {
         return [(byte)(value >> 8), (byte)value];

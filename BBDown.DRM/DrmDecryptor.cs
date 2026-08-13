@@ -15,15 +15,15 @@ namespace BBDown.DRM;
 /// </summary>
 internal static class DrmDecryptor
 {
-    public static async Task<DrmResult> DecryptAsync(string drmType, string? biliDrmUri, string? psshBase64, string sourcePath, string destPath, DrmKeySource keys, string ffmpeg, string? wvdPath, CancellationToken ct = default)
+    public static async Task<DrmResult> DecryptAsync(string drmType, string? biliDrmUri, string? psshBase64, string sourcePath, string destPath, DrmKeySource keys, string ffmpeg, string? wvdPath, CancellationToken token = default)
     {
-        var (key, failure) = await DrmKeys.ResolveAsync(drmType, biliDrmUri, psshBase64, keys, wvdPath, ct);
+        var (key, failure) = await DrmKeys.ResolveAsync(drmType, biliDrmUri, psshBase64, keys, wvdPath, token);
         if (failure is not null)
         {
             return failure.Value;
         }
 
-        var code = await Utils.RunExe(ffmpeg, BuildArgs(key!, sourcePath, destPath), ct);
+        var code = await Utils.RunExe(ffmpeg, BuildArgs(key!, sourcePath, destPath), token);
         return code == 0 && File.Exists(destPath) && new FileInfo(destPath).Length > 0
             ? DrmResult.Decrypted
             : DrmResult.Failed;

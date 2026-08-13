@@ -21,42 +21,42 @@ internal static class BiliDrmLicense
     private static string? cachedPublicKey;
 
     /// <summary>kid 为 32 字符 hex 字符串（SDK 按 ASCII 字节处理）；成功返回内容密钥（hex），失败返回 null。</summary>
-    public static async Task<string?> GetKeyAsync(string kid, CancellationToken ct)
+    public static async Task<string?> GetKeyAsync(string kid, CancellationToken token)
     {
-        var publicKey = await GetPublicKeyAsync(ct);
+        var publicKey = await GetPublicKeyAsync(token);
         var sessionKey = new byte[16];
         RandomNumberGenerator.Fill(sessionKey);
         var iv = new byte[16];
         RandomNumberGenerator.Fill(iv);
 
         var spc = SpcBuilder.Build(Encoding.ASCII.GetBytes(kid), sessionKey, iv, publicKey);
-        var ckc = await SendAsync(spc, ct);
+        var ckc = await SendAsync(spc, token);
         var key = CkcParser.ParseKey(ckc, sessionKey);
         return key is null ? null : Convert.ToHexString(key).ToLowerInvariant( );
     }
 
-    private static async Task<string> GetPublicKeyAsync(CancellationToken ct)
+    private static async Task<string> GetPublicKeyAsync(CancellationToken token)
     {
         if (cachedPublicKey is not null)
         {
             return cachedPublicKey;
         }
 
-        using var response = await HTTPUtil.AppHttpClient.GetAsync(PublicKeyUrl, ct);
+        using var response = await HTTPUtil.AppHttpClient.GetAsync(PublicKeyUrl, token);
         response.EnsureSuccessStatusCode( );
-        var pem = await response.Content.ReadAsStringAsync(ct);
+        var pem = await response.Content.ReadAsStringAsync(token);
         cachedPublicKey = pem;
         return pem;
     }
 
-    private static async Task<byte[]> SendAsync(string spc, CancellationToken ct)
+    private static async Task<byte[]> SendAsync(string spc, CancellationToken token)
     {
         // 接口仅接受 JSON（实测 application/x-protobuf 返回 400 only support JSON format），
         // 请求体形如 {"spc": <base64>}，响应 {"ckc": <base64>}（content-type 按旧版 SDK 用表单类型）
         using var content = new StringContent($"{{\"spc\":\"{spc}\"}}", Encoding.UTF8, "application/x-www-form-urlencoded");
-        using var response = await HTTPUtil.AppHttpClient.PostAsync(LicenseUrl, content, ct);
+        using var response = await HTTPUtil.AppHttpClient.PostAsync(LicenseUrl, content, token);
         response.EnsureSuccessStatusCode( );
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
         var ckc = json.RootElement.GetProperty("ckc").GetString( );
         return ckc is null ? [] : Convert.FromBase64String(ckc);
     }

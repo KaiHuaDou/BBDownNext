@@ -44,6 +44,11 @@ internal sealed class WvdDevice : IDisposable
     // pywidevine 布局：version(1) / type(1) / security_level(1) / flags(1) / private_key_len(2) / private_key / client_id_len(2) / client_id
     private static WvdDevice ParseBinary(ReadOnlySpan<byte> data)
     {
+        if (data.Length < 6)
+        {
+            throw new InvalidDataException("WVD 数据不足");
+        }
+
         var version = data[0];
         if (version is not (1 or 2))
         {
@@ -56,9 +61,24 @@ internal sealed class WvdDevice : IDisposable
         }
 
         var privateKeyLength = (data[4] << 8) | data[5];
+        if (6 + privateKeyLength > data.Length)
+        {
+            throw new InvalidDataException("WVD 私钥数据截断");
+        }
+
         var privateKey = data.Slice(6, privateKeyLength).ToArray( );
         var offset = 6 + privateKeyLength;
+        if (offset + 2 > data.Length)
+        {
+            throw new InvalidDataException("WVD client_id 数据截断");
+        }
+
         var clientIdLength = (data[offset] << 8) | data[offset + 1];
+        if (offset + 2 + clientIdLength > data.Length)
+        {
+            throw new InvalidDataException("WVD client_id 数据截断");
+        }
+
         var clientIdBytes = data.Slice(offset + 2, clientIdLength).ToArray( );
         return Create(privateKey, clientIdBytes);
     }

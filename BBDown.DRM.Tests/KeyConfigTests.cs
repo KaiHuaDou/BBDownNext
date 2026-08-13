@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 
 namespace BBDown.DRM.Tests;
 
@@ -28,5 +29,17 @@ public class KeyConfigTests
         var keys = KeyConfig.Load( );
 
         Assert.False(keys.HasKeys);
+    }
+
+    // README 示例用小写 keys；反序列化大小写不敏感，两种写法都须生效
+    [Theory]
+    [InlineData("""{"keys":["kid:key"]}""")]
+    [InlineData("""{"Keys":["kid:key"]}""")]
+    public void Deserialize_KeyFile_CaseInsensitive(string json)
+    {
+        var config = JsonSerializer.Deserialize(json, DrmJsonContext.Default.KeyFile);
+
+        Assert.NotNull(config);
+        Assert.Equal(["kid:key"], config!.Keys);
     }
 }

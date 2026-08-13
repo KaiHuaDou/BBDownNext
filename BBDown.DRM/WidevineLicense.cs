@@ -22,7 +22,7 @@ internal static class WidevineLicense
 {
     private const string LicenseUrl = "https://bvc-drm.bilivideo.com/bili_widevine";
 
-    public static async Task<(string Kid, string Key)[]?> FetchAsync(string psshBase64, string wvdPath, CancellationToken ct)
+    public static async Task<(string Kid, string Key)[]?> FetchAsync(string psshBase64, string wvdPath, CancellationToken token)
     {
         using var device = WvdDevice.Load(wvdPath);
         var (payload, keyIds) = PsshBox.Parse(psshBase64);
@@ -32,8 +32,8 @@ internal static class WidevineLicense
         }
 
         var (challenge, plaintext) = BuildChallenge(device, payload);
-        var response = await SendRequestAsync(challenge, ct);
-        return ParseResponse(response, plaintext, device);
+        var response = await SendRequestAsync(challenge, token);
+        return ParseResponse(response, plaintext, device, keyIds);
     }
 
     private static (byte[] Challenge, byte[] Plaintext) BuildChallenge(WvdDevice device, byte[] payload)
@@ -73,19 +73,19 @@ internal static class WidevineLicense
         return (signedMessage.ToByteArray( ), plaintext);
     }
 
-    private static async Task<byte[]> SendRequestAsync(byte[] challenge, CancellationToken ct)
+    private static async Task<byte[]> SendRequestAsync(byte[] challenge, CancellationToken token)
     {
         using var content = new ByteArrayContent(challenge);
         content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/x-protobuf");
         using var request = new HttpRequestMessage(HttpMethod.Post, LicenseUrl) { Content = content };
         request.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
         request.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com");
-        using var response = await HTTPUtil.AppHttpClient.SendAsync(request, ct);
+        using var response = await HTTPUtil.AppHttpClient.SendAsync(request, token);
         response.EnsureSuccessStatusCode( );
-        return await response.Content.ReadAsByteArrayAsync(ct);
+        return await response.Content.ReadAsByteArrayAsync(token);
     }
 
-    private static (string Kid, string Key)[]? ParseResponse(byte[] data, byte[] plaintext, WvdDevice device)
+    private static (string Kid, string Key)[]? ParseResponse(byte[] data, byte[] plaintext, WvdDevice device, List<byte[]> keyIds)
     {
         SignedMessage signedMessage;
         try
@@ -165,7 +165,14 @@ internal static class WidevineLicense
             keys.Add((Convert.ToHexString(kid).ToLowerInvariant( ), Convert.ToHexString(contentKey).ToLowerInvariant( )));
         }
 
-        return keys.Count > 0 ? keys.ToArray( ) : null;
+        if (keys.Count == 0)
+        {
+            return null;
+        }
+
+        // 多 key 时优先返回与 PSSH KID 匹配的 key，避免首个 key 与当前轨道 KID 不符导致解密失败
+        var matched = keys.Where(k => keyIds.Any(kid => Convert.FromHexString(k.Kid).AsSpan().SequenceEqual(kid))).ToArray( );
+        return matched.Length > 0 ? matched : keys.ToArray( );
     }
 
     private static byte[] NormalizeIv(byte[] iv)
