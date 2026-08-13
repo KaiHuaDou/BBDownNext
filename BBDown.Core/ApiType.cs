@@ -15,12 +15,12 @@ public static class ApiTypeUtil
     /// <summary>解析 API 通道名，忽略大小写；未知值返回 null，由调用方决定报错或回落。</summary>
     public static ApiType? TryParse(string? value)
     {
-        return value?.Trim( ).ToLowerInvariant( ) switch
+        return value?.Trim( ).ToUpperInvariant( ) switch
         {
-            "web" => ApiType.Web,
-            "tv" => ApiType.Tv,
-            "app" => ApiType.App,
-            "intl" => ApiType.Intl,
+            "WEB" => ApiType.Web,
+            "TV" => ApiType.Tv,
+            "APP" => ApiType.App,
+            "INTL" => ApiType.Intl,
             _ => null,
         };
     }

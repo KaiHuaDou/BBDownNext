@@ -19,12 +19,12 @@ public static class MuxModeUtil
     /// <summary>解析混流方式名，忽略大小写；未知值返回 null，由调用方决定报错或回落。</summary>
     public static MuxMode? TryParse(string? value)
     {
-        return value?.Trim( ).ToLowerInvariant( ) switch
+        return value?.Trim( ).ToUpperInvariant( ) switch
         {
-            "none" => MuxMode.None,
-            "mpeg4" => MuxMode.Mpeg4,
-            "mp4box" => MuxMode.Mp4box,
-            "mkv" => MuxMode.Mkv,
+            "NONE" => MuxMode.None,
+            "MPEG4" => MuxMode.Mpeg4,
+            "MP4BOX" => MuxMode.Mp4box,
+            "MKV" => MuxMode.Mkv,
             _ => null,
         };
     }

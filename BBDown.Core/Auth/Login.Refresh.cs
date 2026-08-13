@@ -1,3 +1,5 @@
+#pragma warning disable CA1308 // 刷新路径协议要求小写 hex
+
 using System;
 using System.Collections.Generic;
 using System.Linq;

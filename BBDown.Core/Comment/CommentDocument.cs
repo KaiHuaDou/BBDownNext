@@ -16,7 +16,7 @@ public sealed class CommentDocument
     /// <summary>服务端声称的评论总数（含楼中楼），未取到时为 0</summary>
     public int AllCount { get; set; }
     public long FetchedAt { get; set; }
-    public List<CommentItem> Comments { get; set; } = [];
+    public List<CommentItem> Comments { get; } = [];
 }
 
 /// <summary>
@@ -37,8 +37,8 @@ public sealed class CommentItem
     /// <summary>形如「IP属地：河北」；未登录时服务端不下发，为空串</summary>
     public string Location { get; set; } = "";
     public string Message { get; set; } = "";
-    public List<string> Pictures { get; set; } = [];
-    public List<CommentItem> Replies { get; set; } = [];
+    public List<string> Pictures { get; } = [];
+    public List<CommentItem> Replies { get; } = [];
 }
 
 [JsonSerializable(typeof(CommentDocument))]

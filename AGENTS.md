@@ -2,6 +2,8 @@
 
 下述“我”指用户。
 
+如果我使用“分析”二字，就一定不要修改代码！
+
 ## 概览
 
 BBDown 是 B 站视频下载器，C# / .NET（AOT 单文件发布）。命令入口在 `BBDown/Program.cs`，下载编排在 `BBDown.Core`，测试在 `BBDown.Tests` / `BBDown.Core.Tests`。
@@ -94,6 +96,9 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 - 不要在方法/嵌套方法/构造函数上使用 `=>`，属性可以
 - `<summary>`、`</summary>` 无论如何都单独占一行
 - **除非冲突的情况**，不要在 class 前使用 namespace 前缀，尽量使用 `using <namespace>;`（即便只有一处调用也要。
+- `#pragma`
+    - 整文件抑制
+    - `#pragma` 放在文件顶部，后留一空行
 
 ### 命名
 
@@ -227,3 +232,7 @@ AGENT 对此文档的修改只能添加在本节，在本节添加内容无需�
 ### 判别联合特例
 
 `BBDown.Core/ResourceId.cs` 采用嵌套 `record`（`abstract record ResourceId` 内含 `Av` / `Ep` / `Season` / `CheeseEp` / `CheeseSeason` / `Fav` / `MediaList` / `Series` / `Space` / `WatchLater` 等 `sealed record` 子类型）实现判别联合，属「禁止嵌套类」规则的已确认例外：它以类型安全替代字符串前缀打标，且 `FetcherRegistry` 的 `switch` 据此分发、缺分支编译报错。其余场景仍遵守「禁止嵌套类」。注意直播录制走独立链路（`LiveInputResolver` → `LiveDownload`），不经 `ResourceId`，故无对应子类型。
+
+### 内置插件例外
+
+`Plugins/BBDown.Sample` 是主仓库内置的后处理示例插件与模板（`Plugins/*` 忽略规则的特例，`.gitignore` 已开白），其构建配置完全独立（自带 `Directory.Build.props` / `Directory.Packages.props` / `global.json`，不继承主仓库）。其余插件目录仍为独立 git 仓库，不受主仓库跟踪。

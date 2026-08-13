@@ -1,3 +1,5 @@
+#pragma warning disable CA1001 // taskGate 仅走 WaitAsync 异步路径，不创建内核句柄，serve 进程退出即回收
+
 using System;
 using System.Collections.Concurrent;
 using System.Linq;

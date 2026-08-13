@@ -12,14 +12,7 @@ public class CommentRendererTests
 {
     private static CommentDocument SampleDoc(bool withReply = true)
     {
-        var replies = withReply
-            ? new List<CommentItem>
-            {
-                new() { Rpid = "2", Uname = "乙", Level = 3, Ctime = 1700000200, Like = 5, Message = "回复内容" }
-            }
-            : [];
-
-        return new CommentDocument
+        var doc = new CommentDocument
         {
             Aid = "170001",
             Bvid = "BV1xx",
@@ -27,23 +20,27 @@ public class CommentRendererTests
             Sort = "hot",
             AllCount = 50,
             FetchedAt = 1700000000,
-            Comments =
-            [
-                new CommentItem
-                {
-                    Rpid = "1",
-                    Uname = "甲",
-                    Level = 5,
-                    Ctime = 1700000100,
-                    Like = 123,
-                    // 声称 2 条但内联只拿到 1 条，才会显示「加 --full-comment 抓取全部」提示
-                    ReplyCount = withReply ? 2 : 0,
-                    Location = "IP属地：河北",
-                    Message = "第一行\n第二行",
-                    Replies = replies
-                }
-            ]
         };
+
+        var comment = new CommentItem
+        {
+            Rpid = "1",
+            Uname = "甲",
+            Level = 5,
+            Ctime = 1700000100,
+            Like = 123,
+            // 声称 2 条但内联只拿到 1 条，才会显示「加 --full-comment 抓取全部」提示
+            ReplyCount = withReply ? 2 : 0,
+            Location = "IP属地：河北",
+            Message = "第一行\n第二行",
+        };
+        if (withReply)
+        {
+            comment.Replies.Add(new CommentItem { Rpid = "2", Uname = "乙", Level = 3, Ctime = 1700000200, Like = 5, Message = "回复内容" });
+        }
+
+        doc.Comments.Add(comment);
+        return doc;
     }
 
     [Fact]

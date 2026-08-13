@@ -1,3 +1,5 @@
+#pragma warning disable CA2227 // 排序回写/分 P 拷贝/解析替换需整体替换集合，保留 setter
+
 using System;
 using System.Collections.Generic;
 

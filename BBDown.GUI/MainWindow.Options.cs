@@ -1,3 +1,5 @@
+#pragma warning disable CA1308 // 格式名取枚举名小写，与 Core 解析器共用同一来源
+
 using System;
 using System.Text;
 using System.Windows;

@@ -71,7 +71,7 @@
 
 - 扩展与集成
     - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./API.md)
-    - **后处理插件协议** · `--post-process` 调用外部进程处理加密轨道，主程序不内置解密能力，密钥与加密信息由外部进程自行获取管理 → [PROTOCOL.md](./PROTOCOL.md)
+    - **后处理插件协议** · `--post-process` 对所有 DASH 轨调起外部进程，是否加密由处理方自行判断，主程序不内置解密能力，密钥与加密信息由外部进程自行获取管理 → [PROTOCOL.md](./PROTOCOL.md)
     - **Windows 7 兼容** · `win-x64` 产物内置 YY-Thunks 与 VC-LTL，在 Windows 7 上可直接运行（无需安装 .NET 运行时）
     - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行（无需 Dockerfile）
 

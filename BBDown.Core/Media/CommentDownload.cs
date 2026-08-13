@@ -1,3 +1,5 @@
+#pragma warning disable CA1308 // 产物文件名使用小写扩展名
+
 using System.Globalization;
 using System.IO;
 using System.Text.Encodings.Web;

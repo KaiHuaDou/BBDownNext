@@ -1,0 +1,15 @@
+<Project>
+
+    <!-- 模板自带中央包管理：阻断向上继承主仓库的 Directory.Packages.props -->
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+        <NoWarn>$(NoWarn);NU1507</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup Label="Test">
+        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+        <PackageVersion Include="xunit.v3" Version="3.2.2" />
+        <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    </ItemGroup>
+
+</Project>

@@ -65,7 +65,7 @@ BBDown/
 │   │   ├── CdnHost.cs             # CDN host 策略
 │   │   ├── BBDownAria2c.cs        # Aria2c 下载
 │   │   ├── SavePath.cs            # 文件名/路径格式化（含充电试看 [试看] 前缀）
-│   │   └── PostProcessClient.cs   # 外部后处理进程的文件交换协议（加密轨交外部处理）
+│   │   └── PostProcessClient.cs   # 外部后处理进程的文件交换协议（DASH 轨交外部处理）
 │   │
 │   ├── Pipeline/           # 命名空间 BBDown.Core.Pipeline — 下载编排主干（CLI 与 serve 共用）
 │   │   ├── DownloadPipeline.cs     # RunAsync 三段下载主干
@@ -79,7 +79,7 @@ BBDown/
 │   │
 │   ├── Media/              # 命名空间 BBDown.Core.Media — 单分 P 下载与封装
 │   │   ├── PageDownload.cs         # 单分 P 下载入口，分派 DASH/FLV (RunAsync / DispatchAsync)
-│   │   ├── DashDownload.cs         # DASH 轨下载 (RunAsync；下载后对加密轨调用外部后处理，见 TryPostProcessAsync)
+│   │   ├── DashDownload.cs         # DASH 轨下载 (RunAsync；下载后调用外部后处理，见 TryPostProcessAsync)
 │   │   ├── FlvDownload.cs          # FLV 分段下载与合并 (RunAsync)
 │   │   ├── PageAssets.cs           # 封面/字幕准备、弹幕下载（`PrepareAsync` 现收窄接收 `DownloadSession`）
 │   │   ├── CommentDownload.cs      # 评论区导出（按 --comment-formats 落盘 json/txt，挂 PageQueue）
@@ -131,7 +131,7 @@ BBDown/
 │   │   ├── FlvTrackReader.cs       # 纯函数：FLV 分段 → 轨道
 │   │   ├── IntlTrackReader.cs      # 纯函数：INTL(BiliPlus) video_info → 轨道
 │   │   ├── AppTrackReader.cs       # APP(gRPC) PlayViewReply → 轨道（FetchAsync 含 gRPC 调用）
-│   │   └── TrackFactory.cs         # 跨端共享：baseUrl 选择 / codec 名 / Audio 构建 / 加密标记读取（ReadEncrypted）
+│   │   └── TrackFactory.cs         # 跨端共享：baseUrl 选择 / codec 名 / Audio 构建
 │   │
 │   ├── Opus/               # 命名空间 BBDown.Core.Opus — 专栏导出
 │   │   ├── OpusInputResolver.cs    # 专栏地址解析
@@ -147,7 +147,7 @@ BBDown/
 │   │   ├── CommentRenderer.cs      # JSON / TXT 渲染
 │   │   └── CommentDocument.cs      # 评论域模型
 │   │
-│   ├── Entity/             # VInfo / Page / Video / Audio / ParsedResult 等（Video/Audio 含 IsEncrypted 加密标记）
+│   ├── Entity/             # VInfo / Page / Video / Audio / ParsedResult 等
 │   ├── Util/               # BV 转换、FileNameUtil(200 字节截断)、HTTPUtil、SignUtil(WBI)、SubUtil、ArchiveLog、ProgressBar、Redactor、JsonUtil、Utils、ViewPointUtil
 │   ├── APP/                # APP gRPC 协议 (proto 生成代码)
 │   ├── Parser.cs           # 播放地址解析入口：编排 ExtractTracksAsync + 番剧分段点映射（请求构造/发送、响应导航、轨道读取已下沉到 PlayUrl/）
@@ -180,11 +180,11 @@ BBDown/
 │
 ├── BBDown.Tests/           # 针对 BBDown 的 xUnit 测试
 ├── BBDown.Core.Tests/      # 针对 BBDown.Core 的 xUnit 测试
-└── Plugins/                # 外部插件（独立仓库，不进主构建）
-    └── BBDown.DRM/         # 加密轨道解密插件：经 --post-process 被主程序调起（见第 9 节）
+└── Plugins/                # 插件（BBDown.Sample 内置模板；其余为独立 git 仓库，不进主构建）
+    └── BBDown.Sample/      # 外部后处理协议示例插件与模板（见第 9 节）
 ```
 
-**依赖方向**：`BBDown` → `BBDown.Core`；两个测试项目分别依赖对应实现。Core 不反向依赖入口项目，保证核心逻辑可独立测试。`BBDown.GUI` 只依赖 `BBDown.Core`，不引用 CLI 项目，其测试由独立 CI（`gui.yml`）覆盖构建。`Plugins/BBDown.DRM` 引用 `BBDown.Core`（协议 record 对齐），以独立进程被主程序按需调起，不在主构建链路上。
+**依赖方向**：`BBDown` → `BBDown.Core`；两个测试项目分别依赖对应实现。Core 不反向依赖入口项目，保证核心逻辑可独立测试。`BBDown.GUI` 只依赖 `BBDown.Core`，不引用 CLI 项目，其测试由独立 CI（`gui.yml`）覆盖构建。`Plugins/BBDown.Sample` 引用 `BBDown.Core`（协议 record 对齐），以独立进程被主程序按需调起，不在主构建链路上；其余插件为独立仓库。
 
 **入口项目职责**：`BBDown` 主项目只保留命令行解析（`Cli`）、serve 服务器（`Serve`）与入口编排（`Program`：login/serve 子命令装配、专栏/直播分流、异常→退出码映射）。下载链路全部在 `BBDown.Core`，`Program.RunApp` 仅做三条链路的分流后调用 Core 的 `OpusDownload` / `LiveDownload` / `DownloadPipeline`。子命名空间之间的引用一律显式 `using`；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。
 
@@ -209,7 +209,6 @@ FetcherRegistry.FetchAsync     按 ResourceId 子类型 switch 分发给对应 F
   ▼
 Parser.ExtractTracksAsync (编排，按 API 模式委派到 PlayUrl/*) → ParsedResult(视频轨/音频轨/FLV 分段/字幕/弹幕入口)
   │  WEB: WBI 签名(UGC)；TV: access_token；APP: gRPC + identify_v1；INTL: protobuf/json
-  │  TrackFactory.ReadEncrypted 逐流解析 widevine_pssh / bilidrm_uri，任一存在即标记 IsEncrypted
   ▼
 DownloadPipeline.RunAsync (BBDown.Core.Pipeline，三段下载主干，CLI 与 serve 共用)
   │  ① WorkSetup.Build      → RunConfig (进程级初始化、工具路径探测、优先级解析)
@@ -220,9 +219,9 @@ DownloadPipeline.RunAsync (BBDown.Core.Pipeline，三段下载主干，CLI 与 s
   ▼
 PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分派 DASH/FLV)
   │  ├─ DashDownload.RunAsync   / FlvDownload.RunAsync
-  │  │    └─ 下载完成后对带加密标记（IsEncrypted）的轨调用外部后处理
-  │  │       (PostProcessClient.TryProcessAsync：调起 --post-process 指定进程，成功产物覆盖原轨参与混流；
-  │  │       未配置 / 失败 / 超时一律静默保留原文件，加密流照常混流)
+  │  │    └─ 下载完成后调用外部后处理（PostProcessClient.TryProcessAsync：调起 --post-process 指定进程，
+  │  │       对所有 DASH 轨统一处理，是否加密由处理方判断；成功产物覆盖原轨参与混流，
+  │  │       未配置 / 失败 / 超时一律静默保留原文件)
   │  ├─ DownloadUtil.DownloadAsync (续传写入 .bbdown.part)
   │  ├─ SubUtil / DanmakuUtil (字幕/弹幕)
   │  └─ MuxFinish.RunAsync (FFmpeg/MP4Box 混流 + 嵌入元数据/章节/字幕) — 统一 DASH/FLV 收尾
@@ -336,14 +335,13 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 
 ---
 
-## 9. 加密轨道与外部后处理
+## 9. 外部后处理（--post-process）
 
-playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）。主程序**不内置任何解密能力**，只负责识别加密标记，并把带标记的轨道文件交由 `--post-process` 指定的外部进程处理；密钥、通道与加密信息均由外部进程自行获取管理，主程序不感知。
+playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）。主程序**不内置任何解密能力，也不解析任何加密特征**：下载完成后把所有 DASH 轨统一交由 `--post-process` 指定的外部进程处理；是否加密、密钥、通道与加密信息均由外部进程自行获取判断，主程序不感知。
 
-- **识别**（`BBDown.Core/PlayUrl/TrackFactory.cs`：`ReadEncrypted`）：逐流读取 `widevine_pssh` / `bilidrm_uri`，任一存在即视为受保护（协议字段），加密标记挂在 `Video` / `Audio` 轨道（`BBDown.Core/Entity/Entity.cs` 的 `IsEncrypted`），不参与轨道相等比较。
-- **调起**（`BBDown.Core/Download/PostProcessClient.cs`：`TryProcessAsync` / `Configure`）：`--post-process <exe>` 由 `CommandLineInvoker` 经 `PostProcessClient.Configure` 注册；对带加密标记的轨写请求 JSON（`PostProcessRequest`：`Aid` / `Cid` / `Kind` / `TrackPath` / `DestPath` / `Ffmpeg`），以请求文件路径为唯一参数调起外部进程，20 秒超时。请求只携带轨道定位与本地路径，**不携带任何加密特征与凭据**。
-- **接入点与降级**（`BBDown.Core/Media/DashDownload.cs`：`TryPostProcessAsync`）：DASH 轨下载完成后对视频轨 / 音频轨 / 背景音 / 配音轨统一处理——进程退出码为 0 且产物非空时，产物覆盖原轨参与混流；未配置 `--post-process` / 进程不可用 / 超时 / 失败，一律静默保留原文件，加密流照常参与混流。FLV 分支与直播录制不经此路径（直播对带加密标记的流直接跳过，见 `LiveFetcher`）。
-- **参考插件**：`Plugins/BBDown.DRM`（独立仓库）即外部后处理的一个实现，负责加密轨道解密（`--post-process` 用法见其 README，文件交换协议见 [PROTOCOL.md](./PROTOCOL.md)）。
+- **调起**（`BBDown.Core/Download/PostProcessClient.cs`：`TryProcessAsync` / `Configure`）：`--post-process <exe>` 由 `CommandLineInvoker` 经 `PostProcessClient.Configure` 注册；对每条 DASH 轨写请求 JSON（`PostProcessRequest`：`Aid` / `Cid` / `Kind` / `TrackPath` / `DestPath` / `Ffmpeg`），以请求文件路径为唯一参数调起外部进程，20 秒超时。请求只携带轨道定位与本地路径，**不携带任何加密特征与凭据**。
+- **接入点与降级**（`BBDown.Core/Media/DashDownload.cs`：`TryPostProcessAsync`）：DASH 轨下载完成后对视频轨 / 音频轨 / 背景音 / 配音轨统一处理——进程退出码为 0 且产物非空时，产物覆盖原轨参与混流；退出码 0 且无产物视为无需处理；未配置 `--post-process` / 进程不可用 / 超时 / 失败，一律静默保留原文件，原文件照常参与混流。FLV 分支与直播录制不经此路径（直播对带加密标记的流直接跳过，见 `LiveFetcher`）。
+- **示例插件**：`Plugins/BBDown.Sample`（主仓库内置）即协议的最小实现与模板，演示请求字段访问与「无需处理」语义（构建与使用见其 [README](./Plugins/BBDown.Sample/README.md)）；文件交换协议见 [PROTOCOL.md](./PROTOCOL.md)。
 
 ---
 

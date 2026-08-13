@@ -1,3 +1,5 @@
+#pragma warning disable CA1001 // wakeup 仅走 WaitAsync 异步路径，不创建内核句柄，生命周期随窗口
+
 using System;
 using System.Collections.Generic;
 using System.Linq;

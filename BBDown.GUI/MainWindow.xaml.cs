@@ -1,3 +1,5 @@
+#pragma warning disable CA1308 // API 通道等枚举名取小写作 UI 标签，以 Core 枚举为单一来源
+
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;

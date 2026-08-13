@@ -24,7 +24,7 @@
 | **稍后再看列表** | 无 | `watchlater` 系列地址解析为整个列表（按添加顺序），多 P 自动展开，支持 `-p` / `-iap`；接口私有，需登录 Cookie |
 | **UP 主空间投稿列表** | 无 | 新增 `SpaceListFetcher` 与 space URL 解析，可下载某 UP 全部投稿 |
 | **充电专属试看识别** | 无专门处理（按普通失败或下载残缺片段） | `IsTruncatedPreview` 双条件判定，命中抛 `ChargedPreviewException`，退出码 2 表示全部为试看（可 `--allow-preview` 放行） |
-| **加密轨道后处理** | 无 | playurl 默认解析 `widevine_pssh` / `bilidrm_uri` 加密标记（`IsEncrypted`）；`--post-process <exe>` 指定外部进程处理加密轨，成功产物覆盖原轨参与混流，未配置 / 失败 / 超时静默保留原文件。主程序不内置解密能力，密钥与加密信息由外部进程自行获取管理 |
+| **外部后处理** | 无 | `--post-process <exe>` 对所有 DASH 轨统一调起外部进程，是否加密由处理方自行判断（退出码 0 且无产物视为无需处理）；成功产物覆盖原轨参与混流，未配置 / 失败 / 超时静默保留原文件。主程序不解析任何加密特征（`widevine_pssh` / `bilidrm_uri`），密钥与加密信息由外部进程自行获取管理 |
 | **断点续传** | 基础续传 | 每条流维护 `<路径>.bbdown.part` 数据 + `<路径>.bbdown.json` **SHA256 指纹清单**，支持单流粒度与合集/多 P 粒度续传 |
 | **文件名日期格式** | 固定 `yyyy-MM-dd_HH-mm-ss` | 支持自定义 `<publishDate:格式>` / `<videoDate:格式>`（任意 .NET `DateTime` 格式串） |
 | **文件名长度** | 无特殊处理，超长路径易写入失败 | 按 **UTF-8 字节数截断，上限 200 字节**，并清理非法字符 / 保留设备名 / 处理首尾点 |
@@ -32,7 +32,7 @@
 | **解析模式选择** | 未明确文档化 | 单选 `--api web | tv | app | intl`（忽略大小写），取代多布尔开关的隐式优先级 |
 | **FLV / DASH 封装** | 通用说明 | DASH 先按 `-q` 请求再额外以 `MaxQn(127)` 取原始画质轨（两次并集）；FLV 固定 `qn=127`、忽略 `-q` |
 | **归档记录** | `--save-archives-to-file`（旧竖线格式） | `--save-records` 写 Tab 分隔 `BBDown.archives`（`<aid>\t<cid>\t<路径>`），键为 `(aid, cid)` |
-| **测试覆盖** | 较少 | **950+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名、加密标记、Opus 渲染等） |
+| **测试覆盖** | 较少 | **950+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名、直播加密流跳过、Opus 渲染等） |
 | **代码结构** | 传统结构 | 深度重构：下载能力整体下沉 `BBDown.Core`，按职责拆分命名空间（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`，CLI 与 serve 留在 `BBDown`），依赖单向成树（`just check-deps` 守护）；god-class 拆分（如 `BBDownUtil` 按归属拆分）、现代化命名、`System.Threading.Lock`、`[GeneratedRegex]`、`Nullable enable` + `TreatWarningsAsErrors`、net9.0 |
 | **直播录制** | 无 | 新增独立直播链路，直播间地址直录（`live:` / `live.bilibili.com`），`--live-quality` 选清晰度（默认原画 10000，可选 250 超清 / 400 蓝光 / 15000 2K / 20000 4K / 30000 杜比），分段 FLV 落盘后合并为 mp4（`Ctrl+Break` 停录合并 / `Ctrl+C` 中断保留分段）；录制状态机具备断流退避重连、CDN failover、编码锁定 |
 | **图形界面** | 无 | 新增 BBDown.GUI（WPF，仅 Windows）：单窗口封装下载，直接引用 `BBDown.Core` 下载库（非子进程调用 BBDown.exe），任务队列与并发控制（1–8）、日志实时显示、选项随 exe 便携保存；独立 CI（`gui.yml`）发布单文件自包含产物 |
@@ -149,7 +149,7 @@
 
 ### 2.13 测试与工程化
 
-- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **950+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、加密标记、空间列表与稍后再看等。
+- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **950+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、直播加密流跳过、空间列表与稍后再看等。
 - **AOT 与现代化**：
     - `BBDown/Directory.Build.props`：`<PublishAot>true</PublishAot>`，直接 `dotnet publish BBDown -r <RID> -c Release`（CI 命令见 `.github/workflows/ci.yml`，RID 矩阵 8 个）。
     - `Directory.Build.props`：`<TargetFramework>net9.0</TargetFramework>`、`<Nullable>enable</Nullable>`、`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`、`<AnalysisLevel>latest-all</AnalysisLevel>`。
@@ -165,11 +165,11 @@
 - **合并**（`BBDown.Core/Live/LiveMuxer.cs`）：`Ctrl+Break` 触发分段 FLV → 单个 mp4，按编码分派 bitstream filter（avc → `h264_mp4toannexb`、hevc → `hevc_mp4toannexb`，加 `+genpts`）；`Ctrl+C` 中断保留分段不合并。
 - **清晰度**（`BBDown.Core/Live/LiveRoomInfo.cs`：`LiveQuality`）：`--live-quality` / `-lq` 取值，10000 原画（默认）/ 400 蓝光 / 250 超清 / 150 高清 / 80 流畅 / 15000 2K / 20000 4K / 30000 杜比；未登录通常只给到 250。
 
-### 2.15 加密轨道与外部后处理
+### 2.15 外部后处理（--post-process）
 
 - **主程序不判断加密**：是否加密由外部进程自行判断，主程序不解析任何加密特征（`widevine_pssh` / `bilidrm_uri`），也不感知其语义。
 - **调起外部进程**（`BBDown.Core/Download/PostProcessClient.cs`：`Configure` / `TryProcessAsync`）：`--post-process <exe>` 由 `CommandLineInvoker` 注册；对每条轨写请求 JSON（`PostProcessRequest`：`Aid` / `Cid` / `Kind` / `TrackPath` / `DestPath` / `Ffmpeg`），以请求文件路径为唯一参数调起进程，20 秒超时。请求只携带轨道定位与本地路径，**不携带任何加密特征与凭据**。
-- **接入点与降级**（`BBDown.Core/Media/DashDownload.cs`：`TryPostProcessAsync`）：DASH 轨下载完成后统一处理视频轨 / 音频轨 / 背景音 / 配音轨——进程退出码为 0 且产物非空时产物覆盖原轨参与混流；退出码 0 且无产物视为无需处理；未配置 / 进程不可用 / 超时 / 失败一律静默保留原文件，加密流照常参与混流。FLV 分支与直播录制不经此路径（直播对带加密标记的流直接跳过）。
+- **接入点与降级**（`BBDown.Core/Media/DashDownload.cs`：`TryPostProcessAsync`）：DASH 轨下载完成后统一处理视频轨 / 音频轨 / 背景音 / 配音轨——进程退出码为 0 且产物非空时产物覆盖原轨参与混流；退出码 0 且无产物视为无需处理；未配置 / 进程不可用 / 超时 / 失败一律静默保留原文件，原文件照常参与混流。FLV 分支与直播录制不经此路径（直播对带加密标记的流直接跳过）。
 
 ### 2.16 稍后再看列表
 
@@ -193,7 +193,7 @@
 - **Opus 导出**：`BBDown.Core/Opus/`（`OpusFetcher` partial：`OpusFetcher.cs` / `OpusFetcher.Parse.cs` / `OpusFetcher.Paragraph.cs`；`OpusInputResolver` / `OpusHtmlToMarkdown` / `OpusMarkdownRenderer` / `OpusImageUtil` / `OpusRegexes` / `OpusDocument`）与 `BBDown.Core/Pipeline/OpusDownload.cs`。
 - **空间列表**：`BBDown.Core/Fetcher/SpaceListFetcher.cs`、`BBDown.Core/Pipeline/InputResolver.cs`、`BBDown.Core/Fetcher/FetcherRegistry.cs`。
 - **稍后再看**：`BBDown.Core/Fetcher/WatchLaterFetcher.cs`、`BBDown.Core/Pipeline/InputResolver.cs`、`BBDown.Core/IdPrefix.cs`（`WatchLater`）。
-- **加密轨道后处理**：`BBDown.Core/Download/PostProcessClient.cs`（`Configure` / `TryProcessAsync` / `PostProcessRequest`）、`BBDown.Core/Media/DashDownload.cs`（`TryPostProcessAsync`）。
+- **外部后处理**：`BBDown.Core/Download/PostProcessClient.cs`（`Configure` / `TryProcessAsync` / `PostProcessRequest`）、`BBDown.Core/Media/DashDownload.cs`（`TryPostProcessAsync`）。
 - **图形界面**：`BBDown.GUI/`（`MainWindow` / `QueueRunner` / `TaskParams` / `ConfigStore` / `UrlDetector`）、`.github/workflows/gui.yml`。
 - **充电试看**：`BBDown.Core/Download/ChargedPreviewException.cs`、`BBDown.Core/Media/PageDownload.cs`（`IsTruncatedPreview` / `ShouldRetry`）、`BBDown/Program.cs`（`IsChargedPreviewOnly` / `ApplyPreviewPrefix` 经 `SavePath.cs`）。
 - **断点续传**：`BBDown.Core/Download/PartFile.cs`（`PartFile` / `PartManifest` / `Fingerprint`）。

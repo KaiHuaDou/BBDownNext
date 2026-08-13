@@ -12,6 +12,7 @@
 
 - 外部后处理触发改为全轨调起：`--post-process` 配置后对所有 DASH 轨发起后处理，是否加密由处理方自行判断（退出码 0 且无产物视为无需处理）；主程序移除 playurl 加密标记解析（`widevine_pssh` / `bilidrm_uri`）与轨道 `IsEncrypted` 字段。
 - 图形界面适配后处理：常用输入区新增「后处理程序」路径项（含文件选择），随配置持久化，任务执行前按快照配置 Core 后处理通道，留空则不启用；下载能力与 CLI 的 `--post-process` 一致。
+- 新增 `Plugins/BBDown.Sample` 后处理示例插件（协议最小实现与模板：复用主程序源生成器上下文解析请求 JSON，自带独立构建配置、中央包管理与协议契约测试，演示「无需处理」语义；`Plugins/` 目录忽略规则开特例）；`PROTOCOL.md` 与 `ARCHITECTURE.md` 的参考实现改为内置 Sample，不再引用独立插件仓库。
 
 ## [v2.0.0-rc.1]
 

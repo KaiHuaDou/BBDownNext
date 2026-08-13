@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <AssemblyName>BBDown.Sample</AssemblyName>
+        <RootNamespace>BBDown.Sample</RootNamespace>
+
+        <PublishAot>true</PublishAot>
+        <IsAotCompatible>true</IsAotCompatible>
+        <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+        <EventSourceSupport>false</EventSourceSupport>
+        <UseSystemResourceKeys>true</UseSystemResourceKeys>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <StripSymbols>true</StripSymbols>
+        <PublishTrimmed>true</PublishTrimmed>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- 唯一外部依赖：复用主程序协议类型与源生成器上下文，保证字段严格对齐 -->
+        <ProjectReference Include="..\..\..\BBDown.Core\BBDown.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="BBDown.Sample.Tests" />
+    </ItemGroup>
+
+</Project>

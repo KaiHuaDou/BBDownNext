@@ -14,12 +14,8 @@ using static BBDown.Core.Logger;
 
 namespace BBDown.Core.Util;
 
-// CA1054/CA2234: 本类中以 string 接收 url 的公开方法（GetWebSourceAsync / GetWebLocationAsync /
-// GetJsonAsync / AddDownloadHeaders / GetWithRangeAsync / GetPostResponseAsync）均被 BBDown 主项目
-// 直接调用，改为 System.Uri 会造成跨项目破坏性变更（本次改动范围仅限 BBDown.Core），故保留 string。
 public static partial class HTTPUtil
 {
-
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
 
     // 可替换：测试经 InternalsVisibleTo 注入带 stub handler 的实例，解锁 8 个 Fetcher 的离线单测

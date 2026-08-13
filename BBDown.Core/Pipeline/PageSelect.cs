@@ -126,17 +126,17 @@ public static class PageSelect
         {
             var p = vInfo.PagesInfo[i];
             var input = Interaction.AskLine?.Invoke($"[{p.Index}] {p.Title}（{FormatTime(p.Dur)}）是否下载？[y/n/a/q]");
-            var choice = string.IsNullOrWhiteSpace(input) ? "n" : input.Trim( ).ToLowerInvariant( );
-            if (choice is "y" or "yes")
+            var choice = string.IsNullOrWhiteSpace(input) ? "N" : input.Trim( ).ToUpperInvariant( );
+            if (choice is "Y" or "YES")
             {
                 selected.Add(p.Index.ToString( ));
             }
-            else if (choice is "a" or "all")
+            else if (choice is "A" or "ALL")
             {
                 selected.AddRange(vInfo.PagesInfo[i..].Select(rest => rest.Index.ToString( )));
                 break;
             }
-            else if (choice is "q" or "quit")
+            else if (choice is "Q" or "QUIT")
             {
                 break;
             }

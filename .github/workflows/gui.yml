@@ -2,7 +2,7 @@ name: GUI Build & Publish
 
 on:
   push:
-    branches: [master]
+    branches: ["main"]
     paths:
       - "BBDown.GUI/**"
       - ".github/workflows/gui.yml"

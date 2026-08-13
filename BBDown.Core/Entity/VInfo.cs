@@ -43,7 +43,7 @@ public class VInfo
     /// <summary>
     /// 视频分P信息
     /// </summary>
-    public required List<Page> PagesInfo { get; set; }
+    public required List<Page> PagesInfo { get; init; }
 
     /// <summary>
     /// 是否为互动视频

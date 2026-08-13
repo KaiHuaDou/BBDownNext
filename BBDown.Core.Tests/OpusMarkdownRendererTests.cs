@@ -39,9 +39,10 @@ public class OpusMarkdownRendererTests
             AuthorMid = "12345",
             PublishTime = 1700000000,
             SourceUrl = "https://www.bilibili.com/read/cv1",
-            Tags = ["标签A", "标签B"],
             Paragraphs = [Text("正文")],
         };
+        doc.Tags.Add("标签A");
+        doc.Tags.Add("标签B");
 
         var withFm = OpusMarkdownRenderer.Render(doc, new OpusRenderOptions( ));
         Assert.StartsWith("---\n", withFm.Replace("\r\n", "\n"), System.StringComparison.Ordinal);

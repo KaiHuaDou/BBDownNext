@@ -1,3 +1,5 @@
+#pragma warning disable CA2227 // 排序回写/分 P 拷贝/解析替换需整体替换集合，保留 setter
+
 using System.Collections.Generic;
 
 namespace BBDown.Core.Opus;
@@ -60,11 +62,11 @@ public sealed class OpusParagraph
     /// <summary>仅 <see cref="Kind"/> 为 <see cref="OpusParagraphKind.Heading"/> 时有效，取值 2 或 3（不产出 H1，避免与文档标题冲突）。</summary>
     public int HeadingLevel { get; set; }
     public List<OpusTextNode> TextNodes { get; set; } = [];
-    public List<OpusImage> Images { get; set; } = [];
+    public List<OpusImage> Images { get; } = [];
     public string CodeLang { get; set; } = "";
     public string Code { get; set; } = "";
     public OpusListStyle ListStyle { get; set; } = OpusListStyle.Unordered;
-    public List<OpusListItem> ListItems { get; set; } = [];
+    public List<OpusListItem> ListItems { get; } = [];
     public string LinkTitle { get; set; } = "";
     public string LinkUrl { get; set; } = "";
 }
@@ -78,7 +80,7 @@ public sealed class OpusDocument
     public string AuthorName { get; set; } = "";
     public string AuthorMid { get; set; } = "";
     public long PublishTime { get; set; }
-    public List<string> Tags { get; set; } = [];
+    public List<string> Tags { get; } = [];
     public string Summary { get; set; } = "";
     public string OpusId { get; set; } = "";
     public string CvId { get; set; } = "";

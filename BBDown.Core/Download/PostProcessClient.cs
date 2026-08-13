@@ -11,7 +11,7 @@ using static BBDown.Core.Logger;
 namespace BBDown.Core.Download;
 
 // 外部后处理进程的文件交换协议：请求 JSON 落盘 → 调起进程单次执行 → 产物文件即响应。
-// 未配置 --post-process 时整个路径不初始化：默认静默，加密流照常混流输出。
+// 未配置 --post-process 时整个路径不初始化：默认静默，原文件照常混流输出。
 // 请求只携带轨道定位与本地路径，不携带任何加密特征与凭据——处理方自行获取所需信息。
 public static class PostProcessClient
 {

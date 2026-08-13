@@ -115,7 +115,14 @@ public static partial class OpusFetcher
             break;
         }
 
-        return images.Count > 0 ? new OpusParagraph { Kind = OpusParagraphKind.Image, Images = images } : null;
+        if (images.Count == 0)
+        {
+            return null;
+        }
+
+        var paragraph = new OpusParagraph { Kind = OpusParagraphKind.Image };
+        paragraph.Images.AddRange(images);
+        return paragraph;
     }
 
     private static void PrependTopAlbum(OpusDocument doc, OpusParagraph? topAlbum)

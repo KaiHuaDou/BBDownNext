@@ -1,3 +1,5 @@
+#pragma warning disable CA1308 // 产物文件名：小写扩展名与 URL 友好小写 hex
+
 using System;
 using System.Collections.Generic;
 using System.IO;

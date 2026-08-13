@@ -1,0 +1,4 @@
+<Solution>
+    <Project Path="BBDown.Sample/BBDown.Sample.csproj" />
+    <Project Path="BBDown.Sample.Tests/BBDown.Sample.Tests.csproj" />
+</Solution>
