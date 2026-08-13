@@ -64,7 +64,7 @@
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <!--非整行选项：占满 GroupBox 宽度-->
+                            <!--非整行选项：占满宽度-->
                             <Grid Grid.Row="0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
@@ -211,7 +211,6 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Grid.Column="0"
                                                Classes="FieldLabel"
@@ -229,26 +228,28 @@
                                              ToolTip.Tip="逗号分隔，如 8K 超高清,1080P 高码率,HDR 真彩,杜比视界" />
                                     <TextBlock Grid.Row="2" Grid.Column="0"
                                                Classes="FieldLabel"
-                                               Text="Cookie" />
-                                    <TextBox x:Name="CookieBox"
-                                             Grid.Row="2" Grid.Column="1"
-                                             Classes="FieldInput" />
+                                               Text="登录" />
+                                    <StackPanel Grid.Row="2" Grid.Column="1"
+                                                Margin="0,3,5,3"
+                                                Orientation="Horizontal">
+                                        <Button x:Name="LoginButton"
+                                                Padding="15,3"
+                                                Click="LoginButtonClicked" Content="登录" />
+                                        <TextBlock x:Name="LoginStatusText"
+                                                   Margin="10,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   Text="未登录" />
+                                    </StackPanel>
                                     <TextBlock Grid.Row="3" Grid.Column="0"
                                                Classes="FieldLabel"
-                                               Text="access_token" />
-                                    <TextBox x:Name="AccessTokenBox"
+                                               Text="User-Agent" />
+                                    <TextBox x:Name="UserAgentBox"
                                              Grid.Row="3" Grid.Column="1"
                                              Classes="FieldInput" />
                                     <TextBlock Grid.Row="4" Grid.Column="0"
                                                Classes="FieldLabel"
-                                               Text="User-Agent" />
-                                    <TextBox x:Name="UserAgentBox"
-                                             Grid.Row="4" Grid.Column="1"
-                                             Classes="FieldInput" />
-                                    <TextBlock Grid.Row="5" Grid.Column="0"
-                                               Classes="FieldLabel"
                                                Text="工作目录" />
-                                    <DockPanel Grid.Row="5" Grid.Column="1" Margin="0,3,5,3">
+                                    <DockPanel Grid.Row="4" Grid.Column="1" Margin="0,3,5,3">
                                         <Button x:Name="BrowseDirButton"
                                                 DockPanel.Dock="Right"
                                                 Margin="5,0,0,0" Padding="8,2"
@@ -256,10 +257,10 @@
                                         <TextBox x:Name="WorkDirBox"
                                                  ToolTip.Tip="程序的工作目录，也是下载输出位置" />
                                     </DockPanel>
-                                    <TextBlock Grid.Row="6" Grid.Column="0"
+                                    <TextBlock Grid.Row="5" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="FFmpeg 路径" />
-                                    <DockPanel Grid.Row="6" Grid.Column="1" Margin="0,3,5,3">
+                                    <DockPanel Grid.Row="5" Grid.Column="1" Margin="0,3,5,3">
                                         <Button x:Name="BrowseFfmpegButton"
                                                 DockPanel.Dock="Right"
                                                 Margin="5,0,0,0" Padding="8,2"
@@ -267,10 +268,10 @@
                                                 Click="BrowseFileButtonClicked" Content="..." />
                                         <TextBox x:Name="FFmpegPathBox" />
                                     </DockPanel>
-                                    <TextBlock Grid.Row="7" Grid.Column="0"
+                                    <TextBlock Grid.Row="6" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="MP4Box 路径" />
-                                    <DockPanel Grid.Row="7" Grid.Column="1" Margin="0,3,5,3">
+                                    <DockPanel Grid.Row="6" Grid.Column="1" Margin="0,3,5,3">
                                         <Button x:Name="BrowseMp4boxButton"
                                                 DockPanel.Dock="Right"
                                                 Margin="5,0,0,0" Padding="8,2"
@@ -278,10 +279,10 @@
                                                 Click="BrowseFileButtonClicked" Content="..." />
                                         <TextBox x:Name="Mp4boxPathBox" />
                                     </DockPanel>
-                                    <TextBlock Grid.Row="8" Grid.Column="0"
+                                    <TextBlock Grid.Row="7" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="aria2c 路径" />
-                                    <DockPanel Grid.Row="8" Grid.Column="1" Margin="0,3,5,3">
+                                    <DockPanel Grid.Row="7" Grid.Column="1" Margin="0,3,5,3">
                                         <Button x:Name="BrowseAria2cButton"
                                                 DockPanel.Dock="Right"
                                                 Margin="5,0,0,0" Padding="8,2"
@@ -289,10 +290,10 @@
                                                 Click="BrowseFileButtonClicked" Content="..." />
                                         <TextBox x:Name="Aria2cPathBox" />
                                     </DockPanel>
-                                    <TextBlock Grid.Row="9" Grid.Column="0"
+                                    <TextBlock Grid.Row="8" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="后处理程序" />
-                                    <DockPanel Grid.Row="9" Grid.Column="1" Margin="0,3,5,3">
+                                    <DockPanel Grid.Row="8" Grid.Column="1" Margin="0,3,5,3">
                                         <Button x:Name="BrowsePostProcessButton"
                                                 DockPanel.Dock="Right"
                                                 Margin="5,0,0,0" Padding="8,2"
@@ -301,18 +302,18 @@
                                         <TextBox x:Name="PostProcessPathBox"
                                                  ToolTip.Tip="下载完成后由外部进程处理后缀为 .out 的轨道文件；留空则不启用" />
                                     </DockPanel>
-                                    <TextBlock Grid.Row="10" Grid.Column="0"
+                                    <TextBlock Grid.Row="9" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="文件命名模式" />
                                     <TextBox x:Name="FilePatternBox"
-                                             Grid.Row="10" Grid.Column="1"
+                                             Grid.Row="9" Grid.Column="1"
                                              Classes="FieldInput"
                                              ToolTip.Tip="单 P 文件名模板，内置变量见 BBDown --help" />
-                                    <TextBlock Grid.Row="11" Grid.Column="0"
+                                    <TextBlock Grid.Row="10" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="多 P 文件命名" />
                                     <TextBox x:Name="MultiFilePatternBox"
-                                             Grid.Row="11" Grid.Column="1"
+                                             Grid.Row="10" Grid.Column="1"
                                              Classes="FieldInput"
                                              ToolTip.Tip="多 P 文件名模板，内置变量见 BBDown --help" />
                                 </Grid>
@@ -420,33 +421,64 @@
                            DockPanel.Dock="Top"
                            Margin="0,0,0,5" FontSize="12" />
                 <ListBox x:Name="TaskList">
+                    <!-- 去掉 Fluent ListBoxItem 默认内边距，让背景进度条铺满整项 -->
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                        </Style>
+                    </ListBox.Styles>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="gui:TaskState">
-                            <DockPanel Margin="0,2">
-                                <Button x:Name="CancelButton"
-                                        DockPanel.Dock="Right"
-                                        Margin="6,0,0,0" Padding="8,1"
-                                        Content="取消"
-                                        IsVisible="{Binding Status, Converter={StaticResource StatusCancel}}"
-                                        Click="CancelTaskButtonClicked"
-                                        Tag="{Binding}" />
-                                <Button x:Name="RemoveItemButton"
-                                        DockPanel.Dock="Right"
-                                        Margin="6,0,0,0" Padding="8,1"
-                                        Content="X"
-                                        IsVisible="{Binding Status, Converter={StaticResource StatusCancel}, ConverterParameter=invert}"
-                                        Click="RemoveItemButtonClicked"
-                                        Tag="{Binding}" />
-                                <DockPanel>
-                                    <TextBlock x:Name="StatusText"
-                                               DockPanel.Dock="Left"
-                                               Text="{Binding StatusText}"
-                                               FontWeight="Bold"
-                                               Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
-                                    <TextBlock DockPanel.Dock="Left" Text=" | " />
-                                    <TextBlock Text="{Binding Url}" TextWrapping="Wrap" />
+                            <Grid>
+                                <ProgressBar Classes="TaskProgress"
+                                             Value="{Binding Progress}"
+                                             IsVisible="{Binding Status, Converter={StaticResource StatusCancel}}" />
+                                <DockPanel Margin="12,9,12,12">
+                                    <Button x:Name="StopRecordButton"
+                                            DockPanel.Dock="Right"
+                                            Margin="6,0,0,0" Padding="8,1"
+                                            Content="停止"
+                                            IsVisible="{Binding Converter={StaticResource LiveStop}}"
+                                            Click="StopRecordButtonClicked"
+                                            Tag="{Binding}" />
+                                    <Button x:Name="CancelButton"
+                                            DockPanel.Dock="Right"
+                                            Margin="6,0,0,0" Padding="8,1"
+                                            Content="取消"
+                                            IsVisible="{Binding Status, Converter={StaticResource StatusCancel}}"
+                                            Click="CancelTaskButtonClicked"
+                                            Tag="{Binding}" />
+                                    <Button x:Name="RetryButton"
+                                            DockPanel.Dock="Right"
+                                            Margin="6,0,0,0" Padding="8,1"
+                                            Content="继续"
+                                            IsVisible="{Binding Status, Converter={StaticResource StatusCancel}, ConverterParameter=retry}"
+                                            Click="RetryButtonClicked"
+                                            Tag="{Binding}" />
+                                    <Button x:Name="RemoveItemButton"
+                                            DockPanel.Dock="Right"
+                                            Margin="6,0,0,0" Padding="8,1"
+                                            Content="X"
+                                            IsVisible="{Binding Status, Converter={StaticResource StatusCancel}, ConverterParameter=invert}"
+                                            Click="RemoveItemButtonClicked"
+                                            Tag="{Binding}" />
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <TextBlock x:Name="StatusText"
+                                                       DockPanel.Dock="Left"
+                                                       Text="{Binding StatusText}"
+                                                       FontWeight="Bold"
+                                                       Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
+                                            <TextBlock DockPanel.Dock="Left" Text=" | " />
+                                            <TextBlock Text="{Binding Display}" TextWrapping="Wrap" />
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Detail}"
+                                                   FontSize="11"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding Status, Converter={StaticResource StatusCancel}}" />
+                                    </StackPanel>
                                 </DockPanel>
-                            </DockPanel>
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
@@ -469,26 +501,28 @@
             <Expander x:Name="LogExpander" Grid.Row="2" Margin="0,10,0,0" IsExpanded="True"
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                       Header="日志">
-                <ScrollViewer x:Name="LogScroll"
-                              MaxHeight="256"
-                              FontFamily="Consolas, monospace"
-                              HorizontalScrollBarVisibility="Disabled"
-                              VerticalScrollBarVisibility="Auto">
-                    <ItemsControl x:Name="LogList">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
+                <StackPanel>
+                    <ListBox x:Name="LogList"
+                             MaxHeight="256"
+                             FontFamily="Consolas, monospace">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="0" />
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="gui:LogLine">
                                 <TextBlock Text="{Binding Text}"
                                            Foreground="{Binding Brush}"
                                            TextWrapping="Wrap" />
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <Button x:Name="ExportLogButton"
+                            Margin="0,6,0,0" Padding="15,3"
+                            HorizontalAlignment="Left"
+                            Click="ExportLogButtonClicked" Content="导出日志" />
+                </StackPanel>
             </Expander>
         </Grid>
     </Grid>

@@ -10,7 +10,7 @@ BBDown 是一个基于 **.NET 9** 的哔哩哔哩视频下载 / 解析命令行�
 
 - **`BBDown`**：入口可执行项目（SDK `Microsoft.NET.Sdk.Web`），负责命令行解析、serve 服务器模式与入口编排；下载能力全部在 `BBDown.Core`。
 - **`BBDown.Core`**：核心类库（`IsAotCompatible=true`），负责下载编排、媒体下载、混流、直播、登录、解析、字幕、弹幕等全部可复用能力。
-- **`BBDown.GUI`**：图形界面（WPF，仅 Windows，`net9.0-windows`），直接引用 `BBDown.Core` 下载库，以库调用方式执行下载（非子进程调用 `BBDown.exe`），单文件 + ReadyToRun 发布（非 AOT）。
+- **`BBDown.GUI`**：图形界面（Avalonia，`net9.0`），直接引用 `BBDown.Core` 下载库，以库调用方式执行下载（非子进程调用 `BBDown.exe`），AOT 单文件发布。
 
 代码层面强制 **nullable enable**、**`TreatWarningsAsErrors=true`**、**集中式包版本管理**（`Directory.Packages.props`），并以 `System.Text.Json` **源生成器**（`JsonSerializerContext`）替代运行时反射，保证 AOT 裁剪安全。
 
@@ -166,17 +166,21 @@ BBDown/
 │   ├── Logger.cs           # 日志（Output 可注入，GUI 等宿主替换输出目标）
 │   └── DEPENDENCIES.md     # 依赖架构说明
 │
-├── BBDown.GUI/             # 图形界面（WPF，仅 Windows，net9.0-windows，单文件 + ReadyToRun，非 AOT）
-│   ├── App.xaml.cs         # Application 入口
-│   ├── MainWindow.xaml.cs  # 主窗口（任务列表 / 日志区 / 选项面板）
+├── BBDown.GUI/             # 图形界面（Avalonia，net9.0，AOT 单文件）
+│   ├── App.axaml.cs        # Application 入口
+│   ├── MainWindow.axaml    # 主窗口布局（任务列表 / 日志区 / 选项面板）
+│   ├── MainWindow.axaml.cs # 主窗口：初始化、队列执行与直播/专栏分流
 │   ├── MainWindow.Options.cs # 选项面板与下载参数的双向绑定
-│   ├── MainWindow.Tasks.cs # 任务列表交互
-│   ├── MainWindow.Log.cs   # 日志区渲染（RichTextBox）
+│   ├── MainWindow.Tasks.cs # 任务列表交互（取消 / 停止录制 / 重试 / 移除）
+│   ├── MainWindow.Log.cs   # 日志区（ListBox 虚拟化 + 导出）
+│   ├── MainWindow.Login.cs # 扫码登录入口与登录态展示
+│   ├── LoginWindow.axaml(.cs) # 扫码登录弹窗（WEB / TV / APP）
 │   ├── QueueRunner.cs      # 任务队列与并发池（1–8，运行中可调）
-│   ├── TaskParams.cs       # 单任务参数模型
-│   ├── UrlDetector.cs      # 下载目标合法性判定
+│   ├── TaskParams.cs       # 单任务参数模型 + DownloadRequest 映射
+│   ├── UrlDetector.cs      # 下载目标识别
 │   ├── ConfigStore.cs      # 面板选项便携保存（BBDown.GUI.config.json）
-│   └── Theme.xaml          # 样式集中定义
+│   ├── StatusConverters.cs # 状态 → 颜色 / 可见性转换器
+│   └── Theme.axaml         # 样式集中定义
 │
 ├── BBDown.Tests/           # 针对 BBDown 的 xUnit 测试
 ├── BBDown.Core.Tests/      # 针对 BBDown.Core 的 xUnit 测试
@@ -347,11 +351,11 @@ playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）�
 
 ## 10. 构建与 AOT
 
-- SDK：`Microsoft.NET.Sdk.Web`（`BBDown`）、`Microsoft.NET.Sdk`（`BBDown.Core` / 测试）、`Microsoft.NET.Sdk` + `UseWPF`（`BBDown.GUI`，`net9.0-windows`）。
+- SDK：`Microsoft.NET.Sdk.Web`（`BBDown`）、`Microsoft.NET.Sdk`（`BBDown.Core` / 测试）、`Microsoft.NET.Sdk`（`BBDown.GUI`，Avalonia，`net9.0`）。
 - `BBDown.Core` 标记 `IsAotCompatible=true`；序列化一律用 `JsonSerializerContext` 源生成器（`CredentialJsonContext` / `DownloadRequestJsonContext` / `PartJsonContext` / `PostProcessJsonContext` / `AppJsonSerializerContext` / `ServeRequestOptionsJsonContext`），禁止运行时反射。
 - 全局 `TreatWarningsAsErrors=true`、`Nullable enable`、`LangVersion latest`、集中式包版本（`Directory.Packages.props`）。
 - 发布 AOT：`dotnet publish -c Release -r <RID> /p:PublishAot=true`。注意 AOT 下 `BBDown.data` 等 JSON 必须走源生成器，否则会被裁剪导致反序列化失败。
-- **图形界面发布**（`BBDown.GUI`）：`PublishSingleFile` + `PublishReadyToRun`（非 AOT），由独立 CI（`.github/workflows/gui.yml`）在 `win-x64` / `win-arm64` 上产出 framework-dependent 与自包含单文件并上传产物，可手动触发追加到最新 Release；主 CI（`ci.yml`）不构建 GUI。
+- **图形界面发布**（`BBDown.GUI`）：`PublishAot` + `PublishSingleFile`，由独立 CI（`.github/workflows/gui.yml`）在 `win-x64` / `win-arm64` 上产出自包含单文件并上传产物，可手动触发追加到最新 Release；主 CI（`ci.yml`）不构建 GUI。
 - **Win7 兼容构建**（CLI，`win-x64`）：`-p:WindowsWin7Compat=true` 接入 YY-Thunks 与 VC-LTL，产物可在 Windows 7 直接运行（需先装 KB3140245 提供 TLS 1.1/1.2）。
 
 > 调试构建（`dotnet build -c Debug`）不受 AOT 限制，可正常用运行时反射；仅发布 AOT 时需遵守上述约束。

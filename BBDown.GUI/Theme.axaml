@@ -24,4 +24,19 @@
         <Setter Property="FontSize" Value="14" />
     </Style>
 
+    <!-- 任务列表项背景进度条：全幅填充、无轨道、不拦截鼠标 -->
+    <Style Selector="ProgressBar.TaskProgress">
+        <Setter Property="Minimum" Value="0" />
+        <Setter Property="Maximum" Value="1" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="#332F6FEB" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+
 </Styles>

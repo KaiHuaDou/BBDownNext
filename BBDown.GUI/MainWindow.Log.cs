@@ -1,8 +1,12 @@
 #pragma warning disable CS8602 // Avalonia 源生成的 x:Name 控件字段可空
 
+using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
 
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 
@@ -11,7 +15,7 @@ namespace BBDown.GUI;
 /// <summary>日志区行数据：文本 + 行前景色；错误行为红色，普通行为主题默认前景。</summary>
 public sealed record LogLine(string Text, IBrush Brush);
 
-/// <summary>虚拟化日志区：逐行追加、错误行红色、按行数控制上限。</summary>
+/// <summary>日志区：逐行追加、错误行红色、按行数控制上限，ListBox 虚拟化渲染。</summary>
 public partial class MainWindow
 {
     private const int MaxLogLines = 5000;
@@ -32,6 +36,20 @@ public partial class MainWindow
         AppendLog($"[任务{state.Index}] {message}");
     }
 
+    private void ExportLogButtonClicked(object? o, RoutedEventArgs e)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, $"BBDown.GUI.log.{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+        try
+        {
+            File.WriteAllLines(path, logLines.Select(line => line.Text));
+            AppendLog($"日志已导出到 {path}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"日志导出失败：{ex.Message}", isError: true);
+        }
+    }
+
     private void AppendLog(string line, bool isError = false)
     {
         if (!Dispatcher.UIThread.CheckAccess( ))
@@ -50,6 +68,6 @@ public partial class MainWindow
             logLines.RemoveAt(0);
         }
 
-        LogScroll.ScrollToEnd( );
+        LogList.ScrollIntoView(logLines[^1]);
     }
 }

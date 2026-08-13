@@ -81,8 +81,6 @@ public partial class MainWindow
             CommentsSort = ReadCommentsSort( ),
             CommentsFormats = ReadCommentsFormats( ),
             Lang = LangBox.Text.Trim( ),
-            Cookie = CookieBox.Text.Trim( ),
-            AccessToken = AccessTokenBox.Text.Trim( ),
             UserAgent = UserAgentBox.Text.Trim( ),
             WorkDir = WorkDirBox.Text.Trim( ),
             FFmpegPath = FFmpegPathBox.Text.Trim( ),
@@ -191,8 +189,6 @@ public partial class MainWindow
         ApplyCommentsSort(options.CommentsSort);
         ApplyCommentsFormats(options.CommentsFormats);
         LangBox.Text = options.Lang;
-        CookieBox.Text = options.Cookie;
-        AccessTokenBox.Text = options.AccessToken;
         UserAgentBox.Text = options.UserAgent;
         WorkDirBox.Text = options.WorkDir;
         FFmpegPathBox.Text = options.FFmpegPath;

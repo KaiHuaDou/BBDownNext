@@ -17,7 +17,9 @@ using Avalonia.Threading;
 
 using BBDown.Core;
 using BBDown.Core.Download;
+using BBDown.Core.Live;
 using BBDown.Core.Pipeline;
+using BBDown.Core.Util;
 
 namespace BBDown.GUI;
 
@@ -27,7 +29,8 @@ public partial class MainWindow : Window
     private readonly QueueRunner queue;
     private readonly Brush okBrush = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
     private readonly Brush hintBrush = new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E));
-    private string lastConcurrency = "3";
+    private const int DefaultConcurrency = 3;
+    private string lastConcurrency = DefaultConcurrency.ToString( );
     private volatile bool closed;
 
     // 窗口非最小化时的最近边界，最小化状态下关闭时回退到该值
@@ -73,6 +76,8 @@ public partial class MainWindow : Window
         queue.Logger = LogTaskError;
         TaskList.ItemsSource = tasks;
         LoadConfig( );
+        RestoreQueue( );
+        _ = RefreshLoginStatusAsync( );
         UpdateTargetHint( );
         AppendLog("就绪");
 
@@ -110,6 +115,39 @@ public partial class MainWindow : Window
         {
             AppendLog($"配置保存失败：{ex.Message}");
         }
+
+        try
+        {
+            SaveQueue( );
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"队列保存失败：{ex.Message}");
+        }
+    }
+
+    /// <summary>把未完成（等待 / 运行中）的任务落盘，下次启动恢复。</summary>
+    private void SaveQueue( )
+    {
+        var pending = queue.All
+            .Where(t => t.Status is TaskStatus.Waiting or TaskStatus.Running)
+            .Select(t => new QueuedTask(t.Params, t.Url));
+        QueueStore.Save(pending);
+    }
+
+    /// <summary>恢复上次未完成的任务到等待队列。</summary>
+    private void RestoreQueue( )
+    {
+        var pending = QueueStore.Load( );
+        foreach (var task in pending)
+        {
+            queue.Enqueue(task.Options, task.Url);
+        }
+
+        if (pending.Count > 0)
+        {
+            AppendLog($"已恢复 {pending.Count} 个未完成任务到队列");
+        }
     }
 
     private void TargetBoxTextChanged(object? o, TextChangedEventArgs e)
@@ -142,6 +180,9 @@ public partial class MainWindow : Window
     private void ResetButtonClicked(object? o, RoutedEventArgs e)
     {
         ApplyOptions(new TaskParams( ));
+        lastConcurrency = DefaultConcurrency.ToString( );
+        ConcurrencyBox.Text = lastConcurrency;
+        queue.Concurrency = DefaultConcurrency;
         AppendLog("选项已重置");
     }
 
@@ -273,6 +314,44 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Invoke(action);
     }
 
+    /// <summary>后台采样线程回投进度与速度 / 剩余时间到 UI 线程。</summary>
+    private void SetTaskSample(TaskState state, double ratio, long delta)
+    {
+        if (closed)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(( ) =>
+        {
+            if (closed)
+            {
+                return;
+            }
+
+            state.Progress = Math.Clamp(ratio, 0, 1);
+            var now = DateTime.UtcNow;
+            // 进度回退视为分 P 切换，重置 ETA 基准
+            if (state.lastRatio == 0 || ratio < state.lastRatio)
+            {
+                state.etaStart = now;
+            }
+
+            state.lastRatio = ratio;
+
+            // 采样周期 1 秒，delta 即本周期新增字节数（速度）
+            var detail = delta > 0 ? $"{Utils.FormatFileSize(delta)}/s" : "";
+            if (ratio > 0.02)
+            {
+                var remaining = (now - state.etaStart).TotalSeconds * (1 - ratio) / ratio;
+                var eta = Utils.FormatTime((int) Math.Ceiling(remaining));
+                detail = detail.Length == 0 ? $"剩余 {eta}" : $"{detail} · 剩余 {eta}";
+            }
+
+            state.Detail = detail;
+        });
+    }
+
     private async Task<int> ExecuteTaskAsync(TaskState state, CancellationToken token)
     {
         // 调度循环在后台线程执行；日志经 Logger.Output 转发，AsyncLocal 为其标注任务序号
@@ -282,7 +361,30 @@ public partial class MainWindow : Window
         currentTask.Value = state.Index;
         try
         {
-            await DownloadPipeline.RunAsync(req, sink: default, token);
+            switch (state.Kind)
+            {
+                case TaskKind.Opus:
+                    await OpusDownload.RunAsync(req, token);
+                    break;
+                case TaskKind.Live:
+                    if (!LiveInputResolver.TryParse(state.Url, out var live))
+                    {
+                        throw new InvalidOperationException("直播地址解析失败");
+                    }
+
+                    await LiveDownload.RunAsync(req, live, token);
+                    break;
+                default:
+                {
+                    var sink = new PipelineSink(
+                        Meta: info => SetTaskTitle(state, info.Title),
+                        Saved: path => AppendProcessLog(state.Index, $"已保存：{path}", false),
+                        Sample: (ratio, delta) => SetTaskSample(state, ratio, delta));
+                    await DownloadPipeline.RunAsync(req, sink, token);
+                    break;
+                }
+            }
+
             return 0;
         }
         catch (OperationCanceledException)
@@ -299,6 +401,23 @@ public partial class MainWindow : Window
         {
             currentTask.Value = 0;
         }
+    }
+
+    /// <summary>解析出标题后回投到任务列表（替代裸 Url 展示）。</summary>
+    private void SetTaskTitle(TaskState state, string title)
+    {
+        if (closed)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(( ) =>
+        {
+            if (!closed)
+            {
+                state.Title = title;
+            }
+        });
     }
 
     private bool TryGetTarget(out string url)

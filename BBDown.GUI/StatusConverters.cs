@@ -33,18 +33,31 @@ public sealed class StatusToBrushConverter : IValueConverter
     }
 }
 
-/// <summary>任务状态 → 取消按钮可见性（仅运行中可见；parameter 传 "invert" 取反，用于移除按钮）。</summary>
+/// <summary>任务状态 → 按钮可见性：默认仅运行中；"invert" 非运行中（移除按钮）；"retry" 仅失败/已取消（继续按钮）。</summary>
 public sealed class StatusToVisibilityConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var running = value is TaskStatus.Running;
-        if (parameter is string s && s == "invert")
+        return (parameter as string) switch
         {
-            return !running;
-        }
+            "invert" => value is not TaskStatus.Running,
+            "retry" => value is TaskStatus.Failed or TaskStatus.Cancelled,
+            _ => value is TaskStatus.Running,
+        };
+    }
 
-        return running;
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException( );
+    }
+}
+
+/// <summary>直播任务「停止录制」按钮可见性：仅运行中的直播任务可见（区分于普通任务的取消）。</summary>
+public sealed class LiveStopVisibilityConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value is TaskState { Kind: TaskKind.Live, Status: TaskStatus.Running };
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

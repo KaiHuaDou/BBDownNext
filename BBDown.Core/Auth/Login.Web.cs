@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text.Json;
@@ -51,79 +50,106 @@ public static partial class Login
         return (state, state == QrState.Success ? data.GetProperty("url").GetString( ) : null);
     }
 
-    public static async Task<int> Web(CancellationToken token = default)
+    /// <summary>
+    /// WEB 扫码登录：生成二维码后回调 showQr，轮询状态经 onState 回传，成功后返回 cookie 与 refresh_token（不落盘）。
+    /// 二维码过期返回 (null, null)；取消上抛 OperationCanceledException；其余异常上抛由调用方处置。
+    /// </summary>
+    public static async Task<(string? Cookie, string? RefreshToken)> WebCredentialAsync(
+        Func<string, Task>? showQr = null, Action<QrState>? onState = null, CancellationToken token = default)
     {
-        var qrPath = Path.Combine(Path.GetTempPath( ), "BBDown_qrcode.png");
         var setCookies = new List<string>( );
         string? refreshToken = null;
+
+        // 设备指纹（buvid3/4）非登录必需，但 B 站风控可能核查；尽力初始化，失败不阻断
+        try { await Buvid.InitAsync(token); } catch (Exception e) { LogDebug("初始化设备指纹失败，继续登录：{0}", e.Message); }
+
+        var url = await RunQrLoginAsync(new QrLoginPlan(
+            Generate: async cancellationToken =>
+            {
+                Log("获取登录地址...");
+                var loginUrl = $"{BiliApi.QrCodeGenerate}?source=main-fe-header";
+                using var doc = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(loginUrl, Core.AppConfig.Empty, null, cancellationToken));
+                var qrUrl = ReadData(doc.RootElement, "获取登录二维码失败").GetProperty("url").GetString( )!;
+                var key = GetQueryString("qrcode_key", qrUrl);
+                return (qrUrl, key);
+            },
+            Poll: async (key, cancellationToken) =>
+            {
+                // 轮询响应的 Set-Cookie 头在成功后还要用，这里先快照下来，避免跨闭包持有 HttpResponseMessage
+                var pollUrl = $"{BiliApi.QrCodePoll}?qrcode_key={key}&source=main-fe-header";
+                using var response = await HTTPUtil.GetRawResponseAsync(pollUrl, Core.AppConfig.Empty, cancellationToken);
+                setCookies.Clear( );
+                if (response.Headers.TryGetValues("Set-Cookie", out var setCookieHeaders))
+                {
+                    setCookies.AddRange(setCookieHeaders);
+                }
+
+                using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+                return doc.RootElement.Clone( );
+            },
+            Interpret: root =>
+            {
+                var (state, url) = InterpretWeb(root);
+                if (state == QrState.Success && root.GetProperty("data").TryGetProperty("refresh_token", out var rt))
+                {
+                    refreshToken = rt.ValueKind == JsonValueKind.String ? rt.GetString( ) : null;
+                }
+
+                return (state, url);
+            },
+            ExpiredText: "二维码已过期，请重新登录。"), showQr, onState, token);
+
+        if (url is null)
+        {
+            return (null, null);
+        }
+
+        var cookie = await BuildWebCookieResilient(url, setCookies);
+        return (cookie, refreshToken);
+    }
+
+    public static async Task<int> Web(CancellationToken token = default)
+    {
         try
         {
-            // 设备指纹（buvid3/4）非登录必需，但 B 站风控可能核查；尽力初始化，失败不阻断
-            try { await Buvid.InitAsync(token); } catch (Exception e) { LogDebug("初始化设备指纹失败，继续登录：{0}", e.Message); }
+            var (cookie, refreshToken) = await WebCredentialAsync(showQr: ShowQrCodeCliAsync, token: token);
+            if (cookie is null)
+            {
+                return 1;
+            }
 
-            var ok = await RunQrLoginAsync(new QrLoginPlan(
-                Generate: async cancellationToken =>
-                {
-                    Log("获取登录地址...");
-                    var loginUrl = $"{BiliApi.QrCodeGenerate}?source=main-fe-header";
-                    using var doc = JsonDocument.Parse(await HTTPUtil.GetWebSourceAsync(loginUrl, Core.AppConfig.Empty, null, cancellationToken));
-                    var url = ReadData(doc.RootElement, "获取登录二维码失败").GetProperty("url").GetString( )!;
-                    var key = GetQueryString("qrcode_key", url);
-                    return (url, key);
-                },
-                Poll: async (key, cancellationToken) =>
-                {
-                    // 轮询响应的 Set-Cookie 头在 Persist 阶段还要用，这里先快照下来，避免跨闭包持有 HttpResponseMessage
-                    var pollUrl = $"{BiliApi.QrCodePoll}?qrcode_key={key}&source=main-fe-header";
-                    using var response = await HTTPUtil.GetRawResponseAsync(pollUrl, Core.AppConfig.Empty, cancellationToken);
-                    setCookies.Clear( );
-                    if (response.Headers.TryGetValues("Set-Cookie", out var setCookieHeaders))
-                    {
-                        setCookies.AddRange(setCookieHeaders);
-                    }
+            Log($"登录成功：SESSDATA={MaskSecret(GetCookieValue("SESSDATA", cookie))}");
+            await CredentialStore.SaveWebCookie(cookie, refreshToken: refreshToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
+            if (!string.IsNullOrEmpty(refreshToken))
+            {
+                Log("已保存 refresh_token，将用于后续 SESSDATA 主动续期。");
+            }
 
-                    using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-                    return doc.RootElement.Clone( );
-                },
-                Interpret: root =>
+            // 校验凭据可用并打印账号名（best-effort，失败不阻断）
+            try
+            {
+                var (info, _) = await Account.ProbeAccountAsync(new Core.AppConfig(cookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", ""), token);
+                if (info.IsLogin)
                 {
-                    var (state, url) = InterpretWeb(root);
-                    if (state == QrState.Success && root.GetProperty("data").TryGetProperty("refresh_token", out var rt))
-                    {
-                        refreshToken = rt.ValueKind == JsonValueKind.String ? rt.GetString( ) : null;
-                    }
+                    Log($"已登录账号：{info.UserName}");
+                }
+            }
+            catch (Exception e)
+            {
+                LogDebug("登录后账号校验失败（可忽略）：{0}", e.Message);
+            }
 
-                    return (state, url);
-                },
-                Persist: async (url, cancellationToken) =>
-                {
-                    var cookie = await BuildWebCookieResilient(url, setCookies);
-                    Log($"登录成功：SESSDATA={MaskSecret(GetCookieValue("SESSDATA", cookie))}");
-                    await CredentialStore.SaveWebCookie(cookie, refreshToken: refreshToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
-                    if (!string.IsNullOrEmpty(refreshToken))
-                    {
-                        Log("已保存 refresh_token，将用于后续 SESSDATA 主动续期。");
-                    }
-
-                    // 校验凭据可用并打印账号名（best-effort，失败不阻断）
-                    try
-                    {
-                        var (info, _) = await Account.ProbeAccountAsync(new Core.AppConfig(cookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", ""), cancellationToken);
-                        if (info.IsLogin)
-                        {
-                            Log($"已登录账号：{info.UserName}");
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        LogDebug("登录后账号校验失败（可忽略）：{0}", e.Message);
-                    }
-                },
-                ExpiredText: "二维码已过期，请重新执行登录指令。"), qrPath, token);
-            return ok ? 0 : 1;
+            return 0;
         }
-        catch (Exception e) { LogError(e.Message); return 1; }
-        finally { DeleteQrCode(qrPath); }
+        catch (Exception e)
+        {
+            LogError(e.Message);
+            return 1;
+        }
+        finally
+        {
+            DeleteQrCode(TempQrPath);
+        }
     }
 
     /// <summary>

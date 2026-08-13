@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <!-- CA1707: xUnit 的 Method_Scenario_Expected 命名约定要求下划线 -->
+        <NoWarn>$(NoWarn);CA1707</NoWarn>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="xunit.v3" />
+        <PackageReference Include="xunit.runner.visualstudio">
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="coverlet.collector">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\BBDown.GUI\BBDown.GUI.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+        <Using Include="Xunit" />
+        <Using Include="BBDown.GUI" />
+        <Using Include="BBDown.Core" />
+        <Using Include="BBDown.Core.Download" />
+    </ItemGroup>
+</Project>

@@ -10,5 +10,6 @@
     <Application.Resources>
         <gui:StatusToBrushConverter x:Key="StatusBrush" />
         <gui:StatusToVisibilityConverter x:Key="StatusCancel" />
+        <gui:LiveStopVisibilityConverter x:Key="LiveStop" />
     </Application.Resources>
 </Application>

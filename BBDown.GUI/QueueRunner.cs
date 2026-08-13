@@ -2,9 +2,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
+using BBDown.Core.Live;
+using BBDown.Core.Opus;
 
 namespace BBDown.GUI;
 
@@ -17,14 +21,87 @@ public enum TaskStatus
     Cancelled,
 }
 
-/// <summary>队列任务单元：参数快照 + 目标 + 状态 + 日志序号。</summary>
-public sealed class TaskState
+/// <summary>任务执行链路：视频下载 / 直播录制 / 专栏导出，决定 ExecuteTaskAsync 的分流。</summary>
+public enum TaskKind
 {
+    Video,
+    Live,
+    Opus,
+}
+
+/// <summary>队列任务单元：参数快照 + 目标 + 状态 + 日志序号。</summary>
+public sealed class TaskState : INotifyPropertyChanged
+{
+    private double progress;
+    private string? title;
+    private string? detail;
+
+    /// <summary>速度 / 剩余时间采样的基准时刻，仅 UI 线程由采样回调读写。</summary>
+    internal DateTime etaStart;
+
+    /// <summary>上一次采样进度（0..1），用于检测分 P 切换导致的进度回退。</summary>
+    internal double lastRatio;
+
     public required TaskParams Params { get; init; }
     public required string Url { get; init; }
+    public required TaskKind Kind { get; init; }
     public required int Index { get; init; }
     public TaskStatus Status { get; set; }
     public CancellationTokenSource? TokenSource { get; set; }
+
+    /// <summary>解析出的视频标题（Meta 回吐后填充）；空则列表回退显示 Url。</summary>
+    public string? Title
+    {
+        get => title;
+        set
+        {
+            if (title == value)
+            {
+                return;
+            }
+
+            title = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Title)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Display)));
+        }
+    }
+
+    /// <summary>任务列表展示文本：有标题显标题，否则显 Url。</summary>
+    public string Display => title ?? Url;
+
+    /// <summary>运行中的速度 / 剩余时间文本（如「12.3 MB/s · 剩余 1m23s」），空则隐藏。</summary>
+    public string? Detail
+    {
+        get => detail;
+        set
+        {
+            if (detail == value)
+            {
+                return;
+            }
+
+            detail = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Detail)));
+        }
+    }
+
+    /// <summary>当前分片下载进度（0..1）；仅在 UI 线程变更。</summary>
+    public double Progress
+    {
+        get => progress;
+        set
+        {
+            if (progress == value)
+            {
+                return;
+            }
+
+            progress = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Progress)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public string StatusText => Status switch
     {
@@ -117,6 +194,23 @@ public sealed class QueueRunner(Action<Action> dispatch)
         return removed;
     }
 
+    /// <summary>把失败/已取消的任务重新入队尾并启动调度；不在已完成列表时返回 false。</summary>
+    public bool Retry(TaskState state)
+    {
+        if (!finished.Remove(state))
+        {
+            return false;
+        }
+
+        state.Status = TaskStatus.Waiting;
+        state.Progress = 0;
+        state.TokenSource = null;
+        waiting.Add(state);
+        Changed?.Invoke(this, EventArgs.Empty);
+        StartSchedule( );
+        return true;
+    }
+
     public void ClearFinished( )
     {
         if (finished.Count == 0)
@@ -149,8 +243,24 @@ public sealed class QueueRunner(Action<Action> dispatch)
         {
             Params = options,
             Url = url,
+            Kind = DetectKind(url),
             Index = nextIndex++,
         };
+    }
+
+    private static TaskKind DetectKind(string url)
+    {
+        if (LiveInputResolver.TryParse(url, out _))
+        {
+            return TaskKind.Live;
+        }
+
+        if (OpusInputResolver.TryParse(url, out _))
+        {
+            return TaskKind.Opus;
+        }
+
+        return TaskKind.Video;
     }
 
     private async Task RunScheduleAsync( )

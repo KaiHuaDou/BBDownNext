@@ -242,3 +242,12 @@ AGENT 对此文档的修改只能添加在本节，在本节添加内容无需�
 ### 判别联合特例
 
 `BBDown.Core/ResourceId.cs` 采用嵌套 `record`（`abstract record ResourceId` 内含 `Av` / `Ep` / `Season` / `CheeseEp` / `CheeseSeason` / `Fav` / `MediaList` / `Series` / `Space` / `WatchLater` 等 `sealed record` 子类型）实现判别联合，属「禁止嵌套类」规则的已确认例外：它以类型安全替代字符串前缀打标，且 `FetcherRegistry` 的 `switch` 据此分发、缺分支编译报错。其余场景仍遵守「禁止嵌套类」。注意直播录制走独立链路（`LiveInputResolver` → `LiveDownload`），不经 `ResourceId`，故无对应子类型。
+
+### GUI 已由 WPF 迁移至 Avalonia
+
+`BBDown.GUI` 已由 WPF 迁移至 Avalonia（`.axaml`，`net9.0`，`PublishAot`）。上文「WPF 要求」整节已与代码事实冲突（`ookii-dialogs-wpf` / `TaskDialog` / `VistaFolderBrowserDialog` / `DispatcherUnhandledException` / `using System.Windows.Forms` 禁令等均不再适用），该节只能由用户本人改写，本处仅记录事实供后续整理。Avalonia 下已知约定：
+
+- `null` 的 `Foreground` / `Brush` 一律渲染为黑色，深色主题下必须显式给笔刷（日志、状态文字两处曾踩坑）。
+- 文件/目录选择用 `TopLevel.StorageProvider`（`OpenFolderPickerAsync` / `OpenFilePickerAsync`）。
+- 日志区虚拟化用 `ListBox`（自带虚拟化与滚动），滚动到底用 `ScrollIntoView`；勿用「`ItemsControl` + 外层 `ScrollViewer` + `VirtualizingStackPanel`」组合（视口为 0、物化 0 个容器）。
+- 源生成 COM（`GeneratedComInterface` + `StrategyBasedComWrappers`）在 Avalonia + .NET9 AOT 组合下曾致启动栈溢出，任务栏进度类功能应改用「手动 vtable 函数指针」或 CsWin32，避免源生成 COM。

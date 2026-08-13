@@ -165,7 +165,7 @@ dotnet build BBDown.GUI -c Release
 
 ## 快速开始
 
-以下为命令行（CLI）用法；Windows 用户也可直接使用图形界面 BBDown.GUI，下载能力与 CLI 一致，无需命令行操作。
+以下为命令行（CLI）用法；Windows 用户也可直接使用图形界面 BBDown.GUI，覆盖视频 / 番剧 / 直播录制 / 专栏导出，无需命令行操作。
 
 ```bash
 # 下载一个视频（默认下载最高清晰度）

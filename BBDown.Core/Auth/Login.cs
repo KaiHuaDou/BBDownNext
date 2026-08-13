@@ -44,21 +44,25 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 扫码登录的通用编排参数：生成二维码、轮询状态、解释状态、落盘凭据。
-    /// Web 与 TV 仅这些环节不同，轮询循环本身完全一致。
+    /// 扫码登录的通用编排参数：生成二维码、轮询状态、解释状态。
+    /// Web 与 TV 仅这些环节不同，轮询循环本身完全一致；成功后凭据数据由调用方处置。
     /// </summary>
     private record QrLoginPlan(
         Func<CancellationToken, Task<(string Url, string Key)>> Generate,
         Func<string, CancellationToken, Task<JsonElement>> Poll,
         Func<JsonElement, (QrState State, string? Data)> Interpret,
-        Func<string, CancellationToken, Task> Persist,
         string ExpiredText);
 
-    // 状态轮询：1 秒间隔；单次失败（网络抖动）重试至多 3 次自愈，超限才抛；成功返回 true，过期返回 false
-    private static async Task<bool> RunQrLoginAsync(QrLoginPlan plan, string qrPath, CancellationToken token)
+    // 状态轮询：1 秒间隔；单次失败（网络抖动）重试至多 3 次自愈，超限才抛；成功返回凭据数据，过期返回 null
+    private static async Task<string?> RunQrLoginAsync(
+        QrLoginPlan plan, Func<string, Task>? showQr, Action<QrState>? onState, CancellationToken token)
     {
         var (url, key) = await plan.Generate(token);
-        await ShowQrCodeAsync(url, qrPath);
+        if (showQr is not null)
+        {
+            await showQr(url);
+        }
+
         var confirmed = false;
         var failures = 0;
         while (true)
@@ -81,11 +85,12 @@ public static partial class Login
             }
 
             var (state, data) = plan.Interpret(root);
+            onState?.Invoke(state);
             switch (state)
             {
                 case QrState.Expired:
                     LogColor(plan.ExpiredText);
-                    return false;
+                    return null;
                 case QrState.WaitingScan:
                     break;
                 case QrState.WaitingConfirm:
@@ -97,24 +102,30 @@ public static partial class Login
 
                     break;
                 case QrState.Success:
-                    if (data is not null)
-                    {
-                        await plan.Persist(data, token);
-                    }
-
-                    return true;
+                    return data;
             }
         }
     }
 
-    private static async Task ShowQrCodeAsync(string url, string qrPath)
+    private static readonly string TempQrPath = Path.Combine(Path.GetTempPath( ), "BBDown_qrcode.png");
+
+    /// <summary>生成二维码 PNG 字节，GUI 显示与 CLI 落盘共用。</summary>
+    public static byte[] GenerateQrPng(string url)
     {
-        Log("生成二维码...");
         using QRCodeGenerator qrGenerator = new( );
         using var qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
         using PngByteQRCode pngByteCode = new(qrCodeData);
-        await File.WriteAllBytesAsync(qrPath, pngByteCode.GetGraphic(7));
+        return pngByteCode.GetGraphic(7);
+    }
+
+    // CLI 展示：写临时 PNG + 打印 ASCII 二维码到控制台
+    private static async Task ShowQrCodeCliAsync(string url)
+    {
+        Log("生成二维码...");
+        await File.WriteAllBytesAsync(TempQrPath, GenerateQrPng(url));
         Log("生成二维码成功，请打开并扫描，或扫描打印的二维码。");
+        using QRCodeGenerator qrGenerator = new( );
+        using var qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
         using var ascii = new AsciiQRCode(qrCodeData);
         Console.WriteLine(ascii.GetGraphic(1, "█", " ", false));
     }

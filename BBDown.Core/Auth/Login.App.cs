@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Specialized;
-using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
@@ -20,28 +19,68 @@ public static partial class Login
     private const string PhoneAppKey = "783bbb7264451d82";
     private const string PhoneAppSecret = "2653583c8873dea268ab9386918b1d65";
 
+    /// <summary>TV 扫码登录：生成二维码后回调 showQr，成功后返回 access_token（不落盘）；过期返回 null。</summary>
+    public static Task<string?> TvCredentialAsync(
+        Func<string, Task>? showQr = null, Action<QrState>? onState = null, CancellationToken token = default)
+    {
+        return LoginWithAppKey(TvAppKey, "android_tv_yst", TvAppSecret, showQr, onState, token);
+    }
+
+    /// <summary>APP 扫码登录：生成二维码后回调 showQr，成功后返回 access_token（不落盘）；过期返回 null。</summary>
+    public static Task<string?> AppCredentialAsync(
+        Func<string, Task>? showQr = null, Action<QrState>? onState = null, CancellationToken token = default)
+    {
+        return LoginWithAppKey(PhoneAppKey, "android", PhoneAppSecret, showQr, onState, token);
+    }
+
     public static async Task<int> TV(CancellationToken token = default)
     {
-        var accessToken = await LoginWithAppKey(TvAppKey, "android_tv_yst", TvAppSecret, token);
-        if (accessToken is null)
+        try
         {
+            var accessToken = await TvCredentialAsync(showQr: ShowQrCodeCliAsync, token: token);
+            if (accessToken is null)
+            {
+                return 1;
+            }
+
+            Log($"登录成功：AccessToken={MaskSecret(accessToken)}");
+            await CredentialStore.SaveTvToken(accessToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
+            return 0;
+        }
+        catch (Exception e)
+        {
+            LogError(e.Message);
             return 1;
         }
-
-        await CredentialStore.SaveTvToken(accessToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
-        return 0;
+        finally
+        {
+            DeleteQrCode(TempQrPath);
+        }
     }
 
     public static async Task<int> App(CancellationToken token = default)
     {
-        var accessToken = await LoginWithAppKey(PhoneAppKey, "android", PhoneAppSecret, token);
-        if (accessToken is null)
+        try
         {
+            var accessToken = await AppCredentialAsync(showQr: ShowQrCodeCliAsync, token: token);
+            if (accessToken is null)
+            {
+                return 1;
+            }
+
+            Log($"登录成功：AccessToken={MaskSecret(accessToken)}");
+            await CredentialStore.SaveAppToken(accessToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
+            return 0;
+        }
+        catch (Exception e)
+        {
+            LogError(e.Message);
             return 1;
         }
-
-        await CredentialStore.SaveAppToken(accessToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
-        return 0;
+        finally
+        {
+            DeleteQrCode(TempQrPath);
+        }
     }
 
     public static (QrState State, string? Data) InterpretTv(JsonElement root)
@@ -100,56 +139,43 @@ public static partial class Login
     }
 
     // 纯扫码流程：生成二维码、轮询、解释状态，成功后返回 access_token；落盘由各自入口负责
-    private static async Task<string?> LoginWithAppKey(string appKey, string mobiApp, string appSecret, CancellationToken token)
+    private static async Task<string?> LoginWithAppKey(
+        string appKey, string mobiApp, string appSecret,
+        Func<string, Task>? showQr, Action<QrState>? onState, CancellationToken token)
     {
-        var qrPath = Path.Combine(Path.GetTempPath( ), "BBDown_qrcode.png");
         NameValueCollection? tvParms = null;
-        string? accessToken = null;
-        try
-        {
-            await RunQrLoginAsync(new QrLoginPlan(
-                Generate: async cancellationToken =>
-                {
-                    Log("获取登录地址...");
-                    Uri loginUrl = new(BiliApi.TvQrCodeAuth);
-                    var parms = NewLoginParams(appKey, mobiApp);
-                    ApplySign(parms, appSecret);
-                    using var loginContent = new FormUrlEncodedContent(parms.ToDictionary( ));
-                    using var loginRequest = new HttpRequestMessage(HttpMethod.Post, loginUrl) { Content = loginContent };
-                    loginRequest.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
-                    using var response = await HTTPUtil.AppHttpClient.SendAsync(loginRequest, cancellationToken);
-                    using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(cancellationToken));
-                    var data = ReadData(doc.RootElement, "获取登录二维码失败");
-                    var url = data.GetProperty("url").GetString( )!;
-                    var authCode = data.GetProperty("auth_code").GetString( )!;
-                    parms.Set("auth_code", authCode);
-                    parms.Set("ts", GetTimeStamp(true));
-                    ApplySign(parms, appSecret);
-                    tvParms = parms;
-                    return (url, authCode);
-                },
-                Poll: async (_, cancellationToken) =>
-                {
-                    Uri pollUrl = new(BiliApi.TvQrCodePoll);
-                    using var pollContent = new FormUrlEncodedContent(tvParms!.ToDictionary( ));
-                    using var pollRequest = new HttpRequestMessage(HttpMethod.Post, pollUrl) { Content = pollContent };
-                    pollRequest.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
-                    using var response = await HTTPUtil.AppHttpClient.SendAsync(pollRequest, cancellationToken);
-                    using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(cancellationToken));
-                    return doc.RootElement.Clone( );
-                },
-                Interpret: InterpretTv,
-                Persist: (data, _) =>
-                {
-                    Log($"登录成功：AccessToken={MaskSecret(data)}");
-                    accessToken = data;
-                    return Task.CompletedTask;
-                },
-                ExpiredText: "二维码已过期，请重新执行登录指令。"), qrPath, token);
-        }
-        catch (Exception e) { LogError(e.Message); }
-        finally { DeleteQrCode(qrPath); }
-
-        return accessToken;
+        return await RunQrLoginAsync(new QrLoginPlan(
+            Generate: async cancellationToken =>
+            {
+                Log("获取登录地址...");
+                Uri loginUrl = new(BiliApi.TvQrCodeAuth);
+                var parms = NewLoginParams(appKey, mobiApp);
+                ApplySign(parms, appSecret);
+                using var loginContent = new FormUrlEncodedContent(parms.ToDictionary( ));
+                using var loginRequest = new HttpRequestMessage(HttpMethod.Post, loginUrl) { Content = loginContent };
+                loginRequest.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
+                using var response = await HTTPUtil.AppHttpClient.SendAsync(loginRequest, cancellationToken);
+                using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(cancellationToken));
+                var data = ReadData(doc.RootElement, "获取登录二维码失败");
+                var url = data.GetProperty("url").GetString( )!;
+                var authCode = data.GetProperty("auth_code").GetString( )!;
+                parms.Set("auth_code", authCode);
+                parms.Set("ts", GetTimeStamp(true));
+                ApplySign(parms, appSecret);
+                tvParms = parms;
+                return (url, authCode);
+            },
+            Poll: async (_, cancellationToken) =>
+            {
+                Uri pollUrl = new(BiliApi.TvQrCodePoll);
+                using var pollContent = new FormUrlEncodedContent(tvParms!.ToDictionary( ));
+                using var pollRequest = new HttpRequestMessage(HttpMethod.Post, pollUrl) { Content = pollContent };
+                pollRequest.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
+                using var response = await HTTPUtil.AppHttpClient.SendAsync(pollRequest, cancellationToken);
+                using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(cancellationToken));
+                return doc.RootElement.Clone( );
+            },
+            Interpret: InterpretTv,
+            ExpiredText: "二维码已过期，请重新登录。"), showQr, onState, token);
     }
 }
