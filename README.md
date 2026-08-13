@@ -10,7 +10,7 @@ BBDown 主程序的外部后处理插件：为下载到的加密轨道执行解�
 dotnet publish BBDown.DRM -c Release -r win-x64
 ```
 
-AOT 原生单文件发布，产物为 `BBDown.DRM.exe`，并附带仓库根目录的 `device.wvd`（widevine 通道直接命中 exe 同目录）。
+AOT 原生单文件发布，产物为 `BBDown.DRM.exe`；`device.wvd` 不随发布产物附带，需自行下载（见 [Widevine 通道](#widevine-通道) 节）。
 
 ## 配置密钥
 
@@ -23,7 +23,7 @@ bili_drm 通道默认走 clearkey 自动取钥（公开 RSA 公钥即可换 key�
 
 ## Widevine 通道
 
-加密通道为 `widevine`（playurl 下发 `widevine_pssh`）时，密钥经 Widevine CDM 向 B 站 license 服务器自动获取，无需配置密钥表。需要提供设备文件 `device.wvd`：
+加密通道为 `widevine`（playurl 下发 `widevine_pssh`）时，密钥经 Widevine CDM 向 B 站 license 服务器自动获取，无需配置密钥表。需要提供设备文件 `device.wvd`，不随发布产物附带，请从仓库下载：[device.wvd](https://github.com/KaiHuaDou/BBDownNext/blob/plugins/DRM/device.wvd)，然后任选其一：
 
 - 环境变量 `BBDOWN_WVD_PATH` 指定路径
 - 或 exe 同目录 `device.wvd`
@@ -32,7 +32,7 @@ bili_drm 通道默认走 clearkey 自动取钥（公开 RSA 公钥即可换 key�
 
 ## 协议（与主程序的文件交换）
 
-主程序对加密轨写请求 JSON（PascalCase，含 `Aid` / `Cid` / `Kind` / `TrackPath` / `DestPath` / `Ffmpeg`），以请求文件路径为唯一参数调起本插件：
+主程序对每条 DASH 轨写请求 JSON（PascalCase，含 `Aid` / `Cid` / `Kind` / `TrackPath` / `DestPath` / `Ffmpeg`），以请求文件路径为唯一参数调起本插件；是否加密由本插件自行判断：
 
 ```
 BBDown.DRM <请求JSON路径>
@@ -44,8 +44,8 @@ BBDown.DRM <请求JSON路径>
 |--------|------|-----------|
 | 0 且 `DestPath` 存在 | 解密成功 | 产物覆盖原轨参与混流 |
 | 0 且无产物 | 轨道无加密信息 | 原文件照常混流 |
-| 1 | 解密失败 / 通道不支持 / 密钥缺失 | 保留加密原件，静默降级 |
-| 2 | 未配置密钥 / 请求无效 | 保留加密原件，静默降级 |
+| 1 | 处理失败（取钥 / 解密失败或异常） | 保留加密原件，静默降级 |
+| 2 | 用法错误（参数数量不对或请求内容为空） | 保留加密原件，静默降级 |
 
 加密信息由本插件自行重新抓取（web 通道 playurl + WBI 签名），登录态经主程序的 `BBDown.data` 凭据文件获取；主程序不传任何加密特征与凭据。
 

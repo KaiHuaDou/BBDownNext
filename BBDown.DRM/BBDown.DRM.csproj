@@ -2,17 +2,9 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net9.0</TargetFramework>
-        <LangVersion>latest</LangVersion>
-        <Nullable>enable</Nullable>
         <RootNamespace>BBDown.DRM</RootNamespace>
         <AssemblyName>BBDown.DRM</AssemblyName>
-        <!-- 与主程序同款源码规范：CA 全开、警告即错误 -->
-        <AnalysisLevel>latest-all</AnalysisLevel>
-        <WarningLevel>8</WarningLevel>
-        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <!-- AOT 单文件原生发布（配置与主程序 BBDown/Directory.Build.props 一致） -->
+
         <PublishAot>true</PublishAot>
         <IsAotCompatible>true</IsAotCompatible>
         <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
@@ -22,28 +14,23 @@
         <InvariantGlobalization>true</InvariantGlobalization>
         <StripSymbols>true</StripSymbols>
         <PublishTrimmed>true</PublishTrimmed>
+
         <!-- linux-arm64 原生 runner 未预装 GNU objcopy，AOT 剥离符号需指定（与主项目 BBDown/Directory.Build.props 一致） -->
         <ObjCopyName Condition="'$(RuntimeIdentifier)' == 'linux-arm64'">aarch64-linux-gnu-objcopy</ObjCopyName>
     </PropertyGroup>
 
     <ItemGroup>
-        <!-- 引用主仓库 Core：复用 HTTPUtil / CredentialStore / Utils 等 public API -->
         <ProjectReference Include="..\..\..\BBDown.Core\BBDown.Core.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <!-- 发布时附带根目录 device.wvd，与 exe 同目录便于 KeyConfig.FindWvdPath 直接命中 -->
-        <None Include="..\device.wvd" Link="device.wvd" CopyToOutputDirectory="PreserveNewest" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <!-- Widevine 许可证协议编解码（版本走中央包管理） -->
         <PackageReference Include="Grpc.Tools">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <Protobuf Include="..\Proto\*.proto" GrpcServices="None" />
     </ItemGroup>
+
     <ItemGroup>
         <InternalsVisibleTo Include="BBDown.DRM.Tests" />
     </ItemGroup>

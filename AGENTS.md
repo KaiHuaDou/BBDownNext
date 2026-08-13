@@ -26,3 +26,5 @@ BBDown.DRM 是 BBDown 主程序的外部后处理插件（独立 git 仓库）�
 ## 其他内容
 
 AGENT 对此文档的修改只能添加在本节，在本节添加内容无需经过批准。其他节不许动。
+
+- 2026-08-13：发布产物不再附带 `device.wvd`（csproj 移除复制、CI artifact 不含）；wvd 仍跟踪在仓库内（有意保留），README 提供仓库内文件链接供用户自行下载放置。`KeyConfig.FindWvdPath` 查找逻辑不变。

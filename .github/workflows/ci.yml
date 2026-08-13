@@ -2,13 +2,13 @@ name: Build & Test
 
 on:
   push:
-    branches: [main]
+    branches: [plugins/DRM]
     tags: ["v*"]
     paths-ignore:
       - "**/*.md"
       - "LICENSE"
   pull_request:
-    branches: [main]
+    branches: [plugins/DRM]
     paths-ignore:
       - "**/*.md"
       - "LICENSE"
@@ -91,7 +91,6 @@ jobs:
         shell: pwsh
         run: mv artifact/BBDown.DRM.exe artifact/BBDown.DRM-${{ matrix.rid }}.exe
 
-      # device.wvd 由 csproj 复制到产物目录，随 exe 一并上传
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -131,7 +130,6 @@ jobs:
       - name: Stage artifact
         run: mv artifact/BBDown.DRM artifact/BBDown.DRM-${{ matrix.rid }}
 
-      # device.wvd 由 csproj 复制到产物目录，随 exe 一并上传
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -192,7 +190,6 @@ jobs:
       - name: Stage artifact
         run: mv artifact/BBDown.DRM artifact/BBDown.DRM-${{ matrix.rid }}
 
-      # device.wvd 由 csproj 复制到产物目录，随 exe 一并上传
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -252,7 +249,6 @@ jobs:
       - name: Stage artifact
         run: mv artifact/BBDown.DRM artifact/BBDown.DRM-${{ matrix.rid }}
 
-      # device.wvd 由 csproj 复制到产物目录，随 exe 一并上传
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:

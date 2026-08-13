@@ -1,0 +1,15 @@
+<Project>
+
+    <!-- 模板自带构建配置：阻断向上继承主仓库的 Directory.Build.props，插件构建完全独立 -->
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <AnalysisLevel>latest-all</AnalysisLevel>
+        <WarningLevel>8</WarningLevel>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <DebugType>portable</DebugType>
+    </PropertyGroup>
+
+</Project>

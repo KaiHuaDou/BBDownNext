@@ -28,3 +28,5 @@
 
 - 内部重构：Widevine 取钥链路拆分为 PSSH 解析、license 交互、密钥派生三部分；通道取钥收敛至统一入口，解密执行层不再感知通道差异。
 - 发布改为 AOT 原生单文件（配置与主程序一致：Speed 优化、裁剪、去全球化依赖）；请求 JSON 与密钥配置的反序列化改用源生成器上下文，运行时反射序列化在 AOT 下不可用。
+- 发布产物不再附带 `device.wvd`：csproj 移除复制、CI artifact 不含；wvd 仍保留在仓库内，README 提供仓库内文件链接，用户自行下载后放置（exe 同目录或 `BBDOWN_WVD_PATH`）。
+- CI 触发分支改为 `plugins/DRM`（原 `main`）；README 协议描述对齐最新主程序行为（对所有 DASH 轨调起，加密与否由插件判断）并修正退出码语义。
