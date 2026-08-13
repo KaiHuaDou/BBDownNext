@@ -45,12 +45,11 @@ public static class LiveFileNaming
     }
 
     /// <summary>
-    /// 同一场直播重复录制时避免覆盖已有成品。<paramref name="exists"/> 便于测试注入。
+    /// 同一场直播重复录制时避免覆盖已有成品。
     /// </summary>
-    public static string EnsureUnique(string path, Func<string, bool>? exists = null)
+    public static string EnsureUnique(string path)
     {
-        exists ??= File.Exists;
-        if (!exists(path))
+        if (!File.Exists(path))
         {
             return path;
         }
@@ -61,7 +60,7 @@ public static class LiveFileNaming
         for (var i = 2; i < 1000; i++)
         {
             var candidate = Path.Combine(dir, $"{stem}-{i.ToString(CultureInfo.InvariantCulture)}{ext}");
-            if (!exists(candidate))
+            if (!File.Exists(candidate))
             {
                 return candidate;
             }

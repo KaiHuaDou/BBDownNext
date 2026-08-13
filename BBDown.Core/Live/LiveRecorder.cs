@@ -26,14 +26,11 @@ public sealed record LiveRecordResult(IReadOnlyList<string> Segments, string Cod
 
 /// <summary>
 /// 录制状态机：解析流地址 → 写一个分段 → 断了就退避重连写下一段，直到停录 / 下播 / 失败超限。
-/// 网络、文件、计时全部经委托注入，状态机本身可离线单测。
+/// 流的解析与写入经委托注入，状态机只做编排与决策，不碰网络与文件 IO。
 /// </summary>
 internal sealed class LiveRecorder(
     LiveRecorder.ResolveStream resolve,
     LiveRecorder.WriteSegment write,
-    Func<TimeSpan, CancellationToken, Task>? delay = null,
-    Func<string, long>? fileLength = null,
-    Action<string>? deleteFile = null,
     Action<int>? onSegmentStart = null)
 {
     /// <summary>返回 null 表示已下播。</summary>
@@ -49,9 +46,6 @@ internal sealed class LiveRecorder(
 
     private readonly ResolveStream resolve = resolve;
     private readonly WriteSegment write = write;
-    private readonly Func<TimeSpan, CancellationToken, Task> delay = delay ?? Task.Delay;
-    private readonly Func<string, long> fileLength = fileLength ?? (p => File.Exists(p) ? new FileInfo(p).Length : 0);
-    private readonly Action<string> deleteFile = deleteFile ?? SafeDelete;
     private readonly Action<int>? onSegmentStart = onSegmentStart;
 
     /// <summary>
@@ -184,11 +178,11 @@ internal sealed class LiveRecorder(
         return new LiveRecordResult(segments, codecName, reason);
     }
 
-    private void Keep(List<string> segments, string partPath, LiveStreamCandidate candidate, ref string codecName)
+    private static void Keep(List<string> segments, string partPath, LiveStreamCandidate candidate, ref string codecName)
     {
-        if (fileLength(partPath) < MinSegmentBytes)
+        if (FileLength(partPath) < MinSegmentBytes)
         {
-            deleteFile(partPath);
+            SafeDelete(partPath);
             return;
         }
 
@@ -196,18 +190,23 @@ internal sealed class LiveRecorder(
         codecName = candidate.CodecName;
     }
 
-    private void Discard(string partPath)
+    private static void Discard(string partPath)
     {
-        if (fileLength(partPath) < MinSegmentBytes)
+        if (FileLength(partPath) < MinSegmentBytes)
         {
-            deleteFile(partPath);
+            SafeDelete(partPath);
         }
+    }
+
+    private static long FileLength(string path)
+    {
+        return File.Exists(path) ? new FileInfo(path).Length : 0;
     }
 
     /// <summary>
     /// 返回非 null 表示应停止录制（达最大失败次数，或等待期间被取消），值即停止原因。
     /// </summary>
-    private async Task<LiveStopReason?> GiveUpAsync(string message, int failures, CancellationToken recordToken)
+    private static async Task<LiveStopReason?> GiveUpAsync(string message, int failures, CancellationToken recordToken)
     {
         if (failures >= MaxConsecutiveFailures)
         {
@@ -219,7 +218,7 @@ internal sealed class LiveRecorder(
         LogWarn($"录制中断（{message}），{wait.TotalSeconds:0} 秒后重连（第 {failures} 次）");
         try
         {
-            await delay(wait, recordToken);
+            await Task.Delay(wait, recordToken);
             return null;
         }
         catch (OperationCanceledException)

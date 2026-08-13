@@ -340,11 +340,9 @@ public partial class MainWindow : Window
             state.lastRatio = ratio;
 
             // 采样周期 1 秒，delta 即本周期新增字节数（速度）
-            var detail = delta > 0 ? $"{Utils.FormatFileSize(delta)}/s" : "";
-            if (ratio > 0.02)
+            var detail = delta > 0 ? Utils.FormatSpeed(delta) : "";
+            if (Utils.FormatEta(ratio, now - state.etaStart) is { } eta)
             {
-                var remaining = (now - state.etaStart).TotalSeconds * (1 - ratio) / ratio;
-                var eta = Utils.FormatTime((int) Math.Ceiling(remaining));
                 detail = detail.Length == 0 ? $"剩余 {eta}" : $"{detail} · 剩余 {eta}";
             }
 

@@ -29,7 +29,7 @@ public static class PartDownloader
         var manifestLock = new Lock( );
         var lastSaveTick = 0L;
 
-        using var progress = new ProgressBar(config.OnSample, ct);
+        using var progress = new ProgressSampler(config.OnSample);
         progress.Report(0);
 
         void Report( )

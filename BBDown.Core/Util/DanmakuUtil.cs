@@ -9,7 +9,7 @@ using System.Xml;
 
 using static BBDown.Core.Logger;
 
-namespace BBDown.Core;
+namespace BBDown.Core.Util;
 
 public static class DanmakuUtil
 {
@@ -81,7 +81,7 @@ public static class DanmakuUtil
         var sb = new StringBuilder( );
         // ASS字幕文件头
         sb.AppendLine("[Script Info]");
-        sb.AppendLine("Script Updated By: BBDown(https://github.com/nilaoda/BBDown)");
+        sb.AppendLine("Script Updated By: BBDown(https://github.com/KaiHuaDou/BBDownNext)");
         sb.AppendLine("ScriptType: v4.00+");
         sb.AppendLine($"PlayResX: {MONITOR_WIDTH}");
         sb.AppendLine($"PlayResY: {MONITOR_HEIGHT}");

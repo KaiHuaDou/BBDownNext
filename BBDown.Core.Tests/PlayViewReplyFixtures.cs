@@ -127,6 +127,6 @@ internal static class PlayViewReplyFixtures
 
     private static PlayViewReply RoundTrip(PlayViewReply reply)
     {
-        return Parser.ParseFrom(AppHelper.ReadMessage(AppHelper.PackMessage(reply.ToByteArray( ))));
+        return Parser.ParseFrom(GrpcUtil.ReadMessage(GrpcUtil.PackMessage(reply.ToByteArray( ))));
     }
 }

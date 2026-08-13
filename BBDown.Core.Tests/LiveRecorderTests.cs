@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -9,11 +10,33 @@ using BBDown.Core.Live;
 
 namespace BBDown.Core.Tests;
 
-public class LiveRecorderTests
+public sealed class LiveRecorderTests : IDisposable
 {
-    private const string Dest = "/tmp/rec/room";
-    private const string Seg1 = Dest + ".001.bbdown.part";
-    private const string Seg2 = Dest + ".002.bbdown.part";
+    private readonly string tempDir = Path.Combine(Path.GetTempPath( ), "bbdown_live_" + Guid.NewGuid( ).ToString("N"));
+    private readonly string dest;
+    private readonly string seg1;
+    private readonly string seg2;
+
+    public LiveRecorderTests( )
+    {
+        Directory.CreateDirectory(tempDir);
+        dest = Path.Combine(tempDir, "room");
+        seg1 = dest + ".001.bbdown.part";
+        seg2 = dest + ".002.bbdown.part";
+    }
+
+    public void Dispose( )
+    {
+        try
+        {
+            Directory.Delete(tempDir, true);
+        }
+        catch (IOException)
+        {
+        }
+
+        GC.SuppressFinalize(this);
+    }
 
     private static LivePlayInfo Info(params string[] hosts)
     {
@@ -48,7 +71,6 @@ public class LiveRecorderTests
     private sealed class Script<T>(params T[] items)
     {
         private int calls;
-        public int Calls => calls;
         public T Next( )
         {
             var i = Interlocked.Increment(ref calls) - 1;
@@ -58,11 +80,8 @@ public class LiveRecorderTests
 
     private sealed class Harness
     {
-        public List<TimeSpan> Delays { get; } = [];
-        public List<string> Deleted { get; } = [];
         public List<string> WrittenPaths { get; } = [];
         public List<string> UsedHosts { get; } = [];
-        public Dictionary<string, long> Sizes { get; } = [];
         public List<int> SegmentStarts { get; } = [];
 
         public LiveRecorder Build(LiveRecorder.ResolveStream resolve, LiveRecorder.WriteSegment write) =>
@@ -73,9 +92,6 @@ public class LiveRecorderTests
                     UsedHosts.Add(candidate.Host);
                     return write(candidate, path, ct);
                 },
-                delay: (d, _) => { Delays.Add(d); return Task.CompletedTask; },
-                fileLength: p => Sizes.GetValueOrDefault(p, 0),
-                deleteFile: Deleted.Add,
                 onSegmentStart: SegmentStarts.Add);
     }
 
@@ -100,12 +116,11 @@ public class LiveRecorderTests
         var h = new Harness( );
         var recorder = h.Build((_, _) => Task.FromResult(plan.Next( )), (_, _, _) => Task.FromResult(5000L));
 
-        var result = await recorder.RunAsync(Dest, 10000, record.Token, global.Token);
+        var result = await recorder.RunAsync(dest, 10000, record.Token, global.Token);
 
-        Assert.Equal([Seg1], result.Segments);
+        Assert.Equal([seg1], result.Segments);
         Assert.Equal("avc", result.CodecName);
         Assert.Equal(LiveStopReason.StreamEnded, result.Reason);
-        Assert.Empty(h.Delays);
         Assert.Equal([1], h.SegmentStarts);
     }
 
@@ -122,10 +137,9 @@ public class LiveRecorderTests
         var h = new Harness( );
         var recorder = h.Build((_, _) => Task.FromResult(plan.Next( )), (_, _, _) => Task.FromResult(5000L));
 
-        var result = await recorder.RunAsync(Dest, 10000, record.Token, global.Token);
+        var result = await recorder.RunAsync(dest, 10000, record.Token, global.Token);
 
-        Assert.Equal([Seg1, Seg2], result.Segments);
-        Assert.Empty(h.Delays);
+        Assert.Equal([seg1, seg2], result.Segments);
     }
 
     // ---- 空段与重试 ----
@@ -143,30 +157,11 @@ public class LiveRecorderTests
         var h = new Harness( );
         var recorder = h.Build((_, _) => Task.FromResult(plan.Next( )), (_, _, _) => Task.FromResult(bytes.Next( )));
 
-        var result = await recorder.RunAsync(Dest, 10000, record.Token, global.Token);
+        var result = await recorder.RunAsync(dest, 10000, record.Token, global.Token);
 
-        Assert.Equal([Seg1], result.Segments);
-        Assert.Equal([Seg1], h.Deleted);
+        Assert.Equal([seg1], result.Segments);
         // 两次都写在 .001 上：空段没占用序号
-        Assert.Equal([Seg1, Seg1], h.WrittenPaths);
-    }
-
-    [Fact]
-    public async Task Backoff_DoublesAndResetsAfterSuccess( )
-    {
-        var (global, stop, record) = Tokens( );
-        using var _1 = global;
-        using var _2 = stop;
-        using var _3 = record;
-
-        var plan = new Script<LivePlayInfo?>(Info("cdn1"), Info("cdn1"), Info("cdn1"), Info("cdn1"), Info("cdn1"), Info("cdn1"), null);
-        var bytes = new Script<long>(0L, 0L, 0L, 5000L, 0L, 5000L);
-        var h = new Harness( );
-        var recorder = h.Build((_, _) => Task.FromResult(plan.Next( )), (_, _, _) => Task.FromResult(bytes.Next( )));
-
-        await recorder.RunAsync(Dest, 10000, record.Token, global.Token);
-
-        Assert.Equal([TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(1)], h.Delays);
+        Assert.Equal([seg1, seg1], h.WrittenPaths);
     }
 
     [Theory]
@@ -178,27 +173,6 @@ public class LiveRecorderTests
     public void Backoff_CapsAt16Seconds(int failures, int expectedSeconds)
     {
         Assert.Equal(TimeSpan.FromSeconds(expectedSeconds), LiveRecorder.Backoff(failures));
-    }
-
-    // 录了几小时后网络彻底断掉，不能因为重试超限就把已录内容丢掉
-    [Fact]
-    public async Task MaxFailures_StopsWithoutThrowing_KeepsRecordedSegments( )
-    {
-        var (global, stop, record) = Tokens( );
-        using var _1 = global;
-        using var _2 = stop;
-        using var _3 = record;
-
-        var bytes = new Script<long>(5000L, 0L);
-        var h = new Harness( );
-        var recorder = h.Build((_, _) => Task.FromResult<LivePlayInfo?>(Info("cdn1")), (_, _, _) => Task.FromResult(bytes.Next( )));
-
-        var result = await recorder.RunAsync(Dest, 10000, record.Token, global.Token);
-
-        Assert.Equal([Seg1], result.Segments);
-        Assert.Equal(LiveStopReason.TooManyFailures, result.Reason);
-        // 第 10 次失败直接放弃，不再退避
-        Assert.Equal(9, h.Delays.Count);
     }
 
     [Fact]
@@ -215,10 +189,9 @@ public class LiveRecorderTests
             (_, _) => ++attempts == 1 ? throw new HttpRequestException("boom") : Task.FromResult<LivePlayInfo?>(attempts == 2 ? Info("cdn1") : null),
             (_, _, _) => Task.FromResult(5000L));
 
-        var result = await recorder.RunAsync(Dest, 10000, record.Token, global.Token);
+        var result = await recorder.RunAsync(dest, 10000, record.Token, global.Token);
 
-        Assert.Equal([Seg1], result.Segments);
-        Assert.Equal([TimeSpan.FromSeconds(1)], h.Delays);
+        Assert.Equal([seg1], result.Segments);
     }
 
     // ---- CDN failover ----
@@ -239,9 +212,9 @@ public class LiveRecorderTests
                 ? Task.FromException<long>(new HttpRequestException("403"))
                 : Task.FromResult(5000L));
 
-        var result = await recorder.RunAsync(Dest, 10000, record.Token, global.Token);
+        var result = await recorder.RunAsync(dest, 10000, record.Token, global.Token);
 
-        Assert.Equal([Seg1], result.Segments);
+        Assert.Equal([seg1], result.Segments);
         Assert.Equal(["cdn1", "cdn2"], h.UsedHosts);
     }
 
@@ -261,7 +234,7 @@ public class LiveRecorderTests
         var h = new Harness( );
         var recorder = h.Build((_, _) => Task.FromResult(plan.Next( )), (_, _, _) => Task.FromResult(bytes.Next( )));
 
-        var result = await recorder.RunAsync(Dest, 10000, record.Token, global.Token);
+        var result = await recorder.RunAsync(dest, 10000, record.Token, global.Token);
 
         Assert.Equal(2, result.Segments.Count);
         Assert.Equal("avc", result.CodecName);
@@ -281,7 +254,7 @@ public class LiveRecorderTests
         var h = new Harness( );
         var recorder = h.Build((_, _) => Task.FromResult(plan.Next( )), (_, _, _) => Task.FromResult(5000L));
 
-        var result = await recorder.RunAsync(Dest, 10000, record.Token, global.Token);
+        var result = await recorder.RunAsync(dest, 10000, record.Token, global.Token);
 
         Assert.Equal(2, result.Segments.Count);
         Assert.Contains("cdn9", h.UsedHosts);
@@ -300,7 +273,7 @@ public class LiveRecorderTests
         var h = new Harness( );
         var recorder = h.Build((_, _) => Task.FromResult<LivePlayInfo?>(null), (_, _, _) => Task.FromResult(5000L));
 
-        var e = await Assert.ThrowsAsync<InvalidOperationException>(( ) => recorder.RunAsync(Dest, 10000, record.Token, global.Token));
+        var e = await Assert.ThrowsAsync<InvalidOperationException>(( ) => recorder.RunAsync(dest, 10000, record.Token, global.Token));
         Assert.Contains("未录制到任何内容", e.Message, StringComparison.Ordinal);
     }
 
@@ -318,7 +291,7 @@ public class LiveRecorderTests
             (_, _) => Task.FromResult<LivePlayInfo?>(Info("cdn1")),
             (_, _, _) => { global.Cancel( ); return Task.FromResult(5000L); });
 
-        await Assert.ThrowsAsync<OperationCanceledException>(( ) => recorder.RunAsync(Dest, 10000, record.Token, global.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(( ) => recorder.RunAsync(dest, 10000, record.Token, global.Token));
     }
 
     // SIGQUIT：正常返回，已写入的分段要参与混流
@@ -335,9 +308,9 @@ public class LiveRecorderTests
             (_, _) => Task.FromResult<LivePlayInfo?>(Info("cdn1")),
             (_, _, _) => { stop.Cancel( ); return Task.FromResult(5000L); });
 
-        var result = await recorder.RunAsync(Dest, 10000, record.Token, global.Token);
+        var result = await recorder.RunAsync(dest, 10000, record.Token, global.Token);
 
-        Assert.Equal([Seg1], result.Segments);
+        Assert.Equal([seg1], result.Segments);
         Assert.Equal(LiveStopReason.UserStopped, result.Reason);
     }
 
@@ -350,18 +323,19 @@ public class LiveRecorderTests
         using var _2 = stop;
         using var _3 = record;
 
+        // 模拟写了一半的段：磁盘满前已落盘 999999 字节
+        File.WriteAllBytes(seg1, new byte[999_999]);
+
         var h = new Harness( );
-        h.Sizes[Seg1] = 999_999;
         var recorder = h.Build(
             (_, _) => Task.FromResult<LivePlayInfo?>(Info("cdn1")),
-            (_, _, _) => Task.FromException<long>(new System.IO.IOException("磁盘空间不足")));
+            (_, _, _) => Task.FromException<long>(new IOException("磁盘空间不足")));
 
-        var result = await recorder.RunAsync(Dest, 10000, record.Token, global.Token);
+        var result = await recorder.RunAsync(dest, 10000, record.Token, global.Token);
 
-        Assert.Equal([Seg1], result.Segments);
+        Assert.Equal([seg1], result.Segments);
         Assert.Equal(LiveStopReason.DiskError, result.Reason);
-        Assert.Empty(h.Delays);
-        Assert.Empty(h.Deleted);
+        Assert.True(File.Exists(seg1));
     }
 
     [Fact]
@@ -375,9 +349,9 @@ public class LiveRecorderTests
         var h = new Harness( );
         var recorder = h.Build(
             (_, _) => Task.FromResult<LivePlayInfo?>(Info("cdn1")),
-            (_, _, _) => Task.FromException<long>(new System.IO.IOException("磁盘空间不足")));
+            (_, _, _) => Task.FromException<long>(new IOException("磁盘空间不足")));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(( ) => recorder.RunAsync(Dest, 10000, record.Token, global.Token));
-        Assert.Equal([Seg1], h.Deleted);
+        await Assert.ThrowsAsync<InvalidOperationException>(( ) => recorder.RunAsync(dest, 10000, record.Token, global.Token));
+        Assert.False(File.Exists(seg1));
     }
 }

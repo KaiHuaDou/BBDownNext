@@ -151,7 +151,7 @@ dotnet build BBDown.GUI -c Release
 
 产物位于 `BBDown.GUI/bin/Release/net9.0/` 下，独立运行，直接复用 `BBDown.Core` 下载库，无需额外的 `BBDown.exe`。
 
-图形界面由独立 CI（[gui.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/gui.yml)）在 `win-x64` / `win-arm64` 上构建单文件产物并上传，可手动触发追加到最新 Release；
+图形界面由独立 CI（[gui.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/gui.yml)）在 Windows / macOS / Linux（各 `x64` / `arm64`，Linux 仅 glibc）构建自包含 AOT 单文件产物并上传，可手动触发追加到最新 Release；
 
 ## 依赖
 

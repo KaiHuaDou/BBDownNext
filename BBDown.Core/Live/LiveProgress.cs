@@ -10,14 +10,13 @@ using static BBDown.Core.Logger;
 namespace BBDown.Core.Live;
 
 /// <summary>
-/// 直播录制的状态行。不能复用 <see cref="ProgressBar"/>：它的 Report 接受 0–1 完成比例，
-/// 而直播没有总量。这里改为展示「已录时长 / 已写体积 / 瞬时速度」。
+/// 直播录制的状态行。不复用下载进度条：它按 0–1 完成比例显示，而直播没有总量。
+/// 这里改为展示「已录时长 / 已写体积 / 瞬时速度」。
 /// 用 \r 原地刷新单行，比逐字符退格重写更简单也更稳。
 /// </summary>
 public sealed class LiveProgress : IDisposable
 {
     private static readonly TimeSpan RenderInterval = TimeSpan.FromSeconds(0.5);
-    private static readonly TimeSpan SampleInterval = TimeSpan.FromSeconds(1);
     // 输出重定向时状态行改为定期打日志，否则日志文件里只会剩最后一行
     private static readonly TimeSpan RedirectedLogInterval = TimeSpan.FromSeconds(60);
 
@@ -26,7 +25,7 @@ public sealed class LiveProgress : IDisposable
     private readonly bool drawToConsole = !Console.IsOutputRedirected;
     private readonly Lock gate = new( );
     private readonly Timer? renderTimer;
-    private readonly Timer sampleTimer;
+    private readonly ProgressSampler sampler;
 
     // 写盘线程高频累加，定时器线程读
     private long totalBytes;
@@ -35,7 +34,6 @@ public sealed class LiveProgress : IDisposable
     // 以下字段只在持有 gate 时访问
     private string renderedText = string.Empty;
     private string speedText = "0.00 KB/s";
-    private long lastSampledBytes;
     private DateTime lastRedirectedLog = DateTime.Now;
     private bool disposed;
 
@@ -45,19 +43,18 @@ public sealed class LiveProgress : IDisposable
         if (drawToConsole)
         {
             renderTimer = new Timer(_ => Render( ));
-            Schedule(renderTimer, RenderInterval);
+            renderTimer.Change(RenderInterval, Timeout.InfiniteTimeSpan);
             Logger.BeforeWrite = ClearLine;
         }
 
-        sampleTimer = new Timer(_ => Sample( ));
-        Schedule(sampleTimer, SampleInterval);
+        sampler = new ProgressSampler((_, delta) => OnSample(delta));
     }
 
     public long TotalBytes => Interlocked.Read(ref totalBytes);
 
     public void Add(long bytes)
     {
-        Interlocked.Add(ref totalBytes, bytes);
+        sampler.Report(Interlocked.Add(ref totalBytes, bytes));
     }
 
     public void StartSegment(int index)
@@ -70,8 +67,8 @@ public sealed class LiveProgress : IDisposable
     /// </summary>
     public void ClearLine( )
     {
-        // 提前返回不只是省事：重定向时 Sample 会在持有 gate 的情况下调 Log，
-        // 而 Log 又会回调到这里，先拿 gate 再拿 Logger 锁与反向顺序撞上就是死锁。
+        // 提前返回不只是省事：重定向时采样会调 Log，而 Log 又会回调到这里，
+        // 先拿 gate 再拿 Logger 锁与反向顺序撞上就是死锁。
         // 这条分支保证「Logger 锁 → gate」只可能发生在 drawToConsole 为真时。
         if (!drawToConsole)
         {
@@ -87,7 +84,8 @@ public sealed class LiveProgress : IDisposable
         }
     }
 
-    private void Sample( )
+    // ProgressSampler 每秒回调一次，更新速度显示；重定向时定期落一行日志
+    private void OnSample(long delta)
     {
         lock (gate)
         {
@@ -96,18 +94,13 @@ public sealed class LiveProgress : IDisposable
                 return;
             }
 
-            var total = Interlocked.Read(ref totalBytes);
-            var delta = Math.Max(total - lastSampledBytes, 0);
-            lastSampledBytes = total;
-            speedText = $"{Utils.FormatFileSize(delta)}/s";
+            speedText = Utils.FormatSpeed(delta);
 
             if (!drawToConsole && DateTime.Now - lastRedirectedLog >= RedirectedLogInterval)
             {
                 lastRedirectedLog = DateTime.Now;
-                Log(Compose(total));
+                Log(Compose(Interlocked.Read(ref totalBytes)));
             }
-
-            Schedule(sampleTimer, SampleInterval);
         }
     }
 
@@ -121,7 +114,7 @@ public sealed class LiveProgress : IDisposable
             }
 
             Draw(Compose(Interlocked.Read(ref totalBytes)));
-            Schedule(renderTimer, RenderInterval);
+            renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
         }
     }
 
@@ -156,11 +149,6 @@ public sealed class LiveProgress : IDisposable
         renderedText = text;
     }
 
-    private static void Schedule(Timer? timer, TimeSpan dueTime)
-    {
-        timer?.Change(dueTime, Timeout.InfiniteTimeSpan);
-    }
-
     public void Dispose( )
     {
         Logger.BeforeWrite = null;
@@ -174,8 +162,10 @@ public sealed class LiveProgress : IDisposable
             disposed = true;
             Draw(string.Empty);
             renderTimer?.Dispose( );
-            sampleTimer.Dispose( );
             elapsed.Stop( );
         }
+
+        // sampler 的采样回调在自身锁内反向拿 gate，持 gate 调 Dispose 会形成 ABBA 死锁，故放锁外
+        sampler.Dispose( );
     }
 }

@@ -220,31 +220,6 @@ public static partial class SubUtil
     public static async Task<List<Subtitle>> GetSubtitlesAsync(string aid, string cid, string epId, int index, bool intl, AppConfig cfg, CancellationToken ct = default)
     {
         var pathPrefix = $"{aid}/{aid}.{cid}";
-
-        async Task<List<Subtitle>> FromJsonAsync(string api, Func<JsonElement, JsonElement> locate, string lanKey, string urlKey, CancellationToken ct = default)
-        {
-            using var json = JsonDocument.Parse(await GetWebSourceAsync(api, cfg, null, ct));
-            return ReadSubtitles(locate(json.RootElement), lanKey, urlKey, pathPrefix, intl);
-        }
-
-        async Task<List<Subtitle>> FromAppAsync(CancellationToken ct = default)
-        {
-            const string api = BiliApi.GrpcDmView;
-            var payload = AppHelper.PackMessage(new DmViewReq
-            {
-                Pid = Convert.ToInt64(aid),
-                Oid = Convert.ToInt64(cid),
-                Type = 1,
-                Spmid = "main.ugc-video-detail.0.0",
-            }.ToByteArray( ));
-            var headers = AppHelper.GetHeader("", cfg, "app.biliapi.net");
-            var body = AppHelper.ReadMessage(await GetPostResponseAsync(api, payload, headers, ct));
-            var reply = new MessageParser<DmViewReply>(( ) => new DmViewReply( )).ParseFrom(body);
-            return reply.Subtitle?.Subtitles?
-                .Select(s => new Subtitle { Lan = s.Lan, Url = s.SubtitleUrl, Path = $"{pathPrefix}.{s.Lan}.srt" })
-                .ToList( ) ?? [];
-        }
-
         var intlWebHost = cfg.EpHost == BiliApi.MainHost ? BiliApi.IntlWebHost : cfg.EpHost;
         var intlAppHost = cfg.Host == BiliApi.MainHost ? BiliApi.IntlAppHost : cfg.Host;
         var accessKey = cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "";
@@ -254,22 +229,22 @@ public static partial class SubUtil
             ?
             [
                 ( ) => FromJsonAsync($"https://{intlWebHost}{BiliApi.IntlSubtitleWebPath}?episode_id={epId}",
-                    root => root.GetProperty("data").GetProperty("subtitles"), "lang_key", "url", ct),
+                    root => root.GetProperty("data").GetProperty("subtitles"), "lang_key", "url", pathPrefix, intl, cfg, ct),
                 ( ) => FromJsonAsync($"https://{intlAppHost}{BiliApi.IntlSeasonAppPath}?ep_id={epId}&platform=android&s_locale=zh_SG{accessKey}",
                     root => root.GetProperty("result").GetProperty("modules")[0].GetProperty("data").GetProperty("episodes")[index - 1].GetProperty("subtitles"),
-                    "key", "url", ct),
+                    "key", "url", pathPrefix, intl, cfg, ct),
             ]
             : cfg.Cookie.Length == 0
                 // 未登录只有 APP 端能拿到字幕
-                ? [( ) => FromAppAsync(ct)]
+                ? [( ) => FromAppAsync(aid, cid, pathPrefix, cfg, ct)]
                 :
                 [
                     // wbi 接口未签名会被服务端拒绝（P1-27）
                     ( ) => FromJsonAsync($"{BiliApi.PlayerWbiV2}?{SignUtil.WbiSignNow($"aid={aid}&cid={cid}", cfg)}",
-                        root => root.GetProperty("data").GetProperty("subtitle").GetProperty("subtitles"), "lan", "subtitle_url", ct),
+                        root => root.GetProperty("data").GetProperty("subtitle").GetProperty("subtitles"), "lan", "subtitle_url", pathPrefix, intl, cfg, ct),
                     ( ) => FromJsonAsync($"{BiliApi.View}?aid={aid}&cid={cid}",
-                        root => root.GetProperty("data").GetProperty("subtitle").GetProperty("list"), "lan", "subtitle_url", ct),
-                    ( ) => FromAppAsync(ct),
+                        root => root.GetProperty("data").GetProperty("subtitle").GetProperty("list"), "lan", "subtitle_url", pathPrefix, intl, cfg, ct),
+                    ( ) => FromAppAsync(aid, cid, pathPrefix, cfg, ct),
                 ];
 
         foreach (var candidate in candidates)
@@ -288,6 +263,29 @@ public static partial class SubUtil
         }
 
         return [];
+    }
+
+    private static async Task<List<Subtitle>> FromJsonAsync(string api, Func<JsonElement, JsonElement> locate, string lanKey, string urlKey, string pathPrefix, bool intl, AppConfig cfg, CancellationToken ct)
+    {
+        using var json = JsonDocument.Parse(await GetWebSourceAsync(api, cfg, null, ct));
+        return ReadSubtitles(locate(json.RootElement), lanKey, urlKey, pathPrefix, intl);
+    }
+
+    private static async Task<List<Subtitle>> FromAppAsync(string aid, string cid, string pathPrefix, AppConfig cfg, CancellationToken ct)
+    {
+        var payload = GrpcUtil.PackMessage(new DmViewReq
+        {
+            Pid = Convert.ToInt64(aid),
+            Oid = Convert.ToInt64(cid),
+            Type = 1,
+            Spmid = "main.ugc-video-detail.0.0",
+        }.ToByteArray( ));
+        var headers = AppHelper.GetHeader(cfg, "app.biliapi.net");
+        var body = GrpcUtil.ReadMessage(await GetPostResponseAsync(BiliApi.GrpcDmView, payload, headers, ct));
+        var reply = new MessageParser<DmViewReply>(( ) => new DmViewReply( )).ParseFrom(body);
+        return reply.Subtitle?.Subtitles?
+            .Select(s => new Subtitle { Lan = s.Lan, Url = s.SubtitleUrl, Path = $"{pathPrefix}.{s.Lan}.srt" })
+            .ToList( ) ?? [];
     }
 
     // CA1054: url 保持 string —— 该方法被 BBDown 主项目直接调用（传入 Subtitle.Url 字符串），

@@ -77,6 +77,12 @@ public static partial class Utils
         };
     }
 
+    // 采样周期 1 秒时，delta 即本周期新增字节数，也就是瞬时速度
+    public static string FormatSpeed(long delta)
+    {
+        return $"{FormatFileSize(delta)}/s";
+    }
+
     public static string FormatTime(int time, bool absolute = false)
     {
         var ts = TimeSpan.FromSeconds(time);
@@ -90,6 +96,18 @@ public static partial class Utils
         }
 
         return totalHours == 0 ? $"{minutes:D2}m{seconds:D2}s" : $"{totalHours}h{minutes:D2}m{seconds:D2}s";
+    }
+
+    // ETA：按已完成比例线性外推剩余时间。比例过低时剩余时间发散，返回 null 表示不显示。
+    public static string? FormatEta(double ratio, TimeSpan elapsed)
+    {
+        if (ratio <= 0.02)
+        {
+            return null;
+        }
+
+        var remaining = elapsed.TotalSeconds * (1 - ratio) / ratio;
+        return FormatTime((int) Math.Ceiling(remaining));
     }
 
     /// <summary>

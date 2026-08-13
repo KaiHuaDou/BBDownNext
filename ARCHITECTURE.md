@@ -22,6 +22,7 @@ BBDown 是一个基于 **.NET 9** 的哔哩哔哩视频下载 / 解析命令行�
 BBDown/
 ├── BBDown/                 # 入口可执行项目 (Sdk.Web, PackAsTool)，命名空间 BBDown
 │   ├── Program.cs          # Main、子命令装配（login/serve）、全局取消、RunApp 入口编排（专栏/直播分流）
+│   ├── ProgressBar.cs      # 控制台进度条渲染器（接收 ProgressSampler 采样回调）
 │   │
 │   ├── Cli/                # 命名空间 BBDown.Cli — 命令行解析
 │   │   ├── CliOptions.cs           # 全部 CLI 选项与别名的静态定义（按 README 分组，注册顺序即 --help 顺序）
@@ -148,21 +149,20 @@ BBDown/
 │   │   └── CommentDocument.cs      # 评论域模型
 │   │
 │   ├── Entity/             # VInfo / Page / Video / Audio / ParsedResult 等
-│   ├── Util/               # BV 转换、FileNameUtil(200 字节截断)、HTTPUtil、SignUtil(WBI)、SubUtil、ArchiveLog、ProgressBar、Redactor、JsonUtil、Utils、ViewPointUtil
+│   ├── Util/               # BV 转换、FileNameUtil(200 字节截断)、HTTPUtil、SignUtil(WBI)、SubUtil、GrpcUtil(gRPC 帧)、DanmakuUtil(弹幕 xml/ass)、ProgressSampler(进度采样)、ArchiveLog、Redactor、JsonUtil、Utils、ViewPointUtil
 │   ├── APP/                # APP gRPC 协议 (proto 生成代码)
 │   ├── Parser.cs           # 播放地址解析入口：编排 ExtractTracksAsync + 番剧分段点映射（请求构造/发送、响应导航、轨道读取已下沉到 PlayUrl/）
 │   ├── ResourceId.cs       # 判别联合（Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater）
 │   ├── ResourceIdJsonConverter.cs # ResourceId JSON 序列化
 │   ├── AppEnv.cs           # 进程级环境：AppDir / CancellationToken / Cancel()
 │   ├── AppConfig.cs        # 请求级配置（cookie / token / host 三兄弟 / UA）
-│   ├── AppHelper.cs        # APP gRPC 手写帧 (PackMessage/ReadMessage)
+│   ├── AppHelper.cs        # APP gRPC 请求构造（设备指纹 / 请求头 / PlayView 载荷）
 │   ├── BiliApi.cs          # 各接口 Host/Path 常量
 │   ├── ApiType.cs          # API 通道枚举（web / tv / app / intl）
 │   ├── Buvid.cs            # buvid3/4 获取
 │   ├── Config.cs           # 清晰度档位 (Qualities/MaxQn/DolbyVisionQn) + 调试日志开关
-│   ├── DanmakuUtil.cs      # 弹幕获取 (xml/ass)
 │   ├── IdPrefix.cs         # 输入编号前缀常量 (ep:/ss:/lists:/series:/fav:/cheese:/spaceMid:/watchLater: 等)
-│   ├── Interaction.cs      # 交互式下载回调（AskLine / AskIndex）
+│   ├── Interaction.cs      # 交互式提问（AskLine / AskIndex，读控制台）
 │   ├── Logger.cs           # 日志（Output 可注入，GUI 等宿主替换输出目标）
 │   └── DEPENDENCIES.md     # 依赖架构说明
 │

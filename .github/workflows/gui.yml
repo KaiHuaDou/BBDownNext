@@ -43,38 +43,107 @@ jobs:
           cache: true
           cache-dependency-path: "**/Directory.Packages.props"
 
-      - name: Publish (framework-dependent)
-        run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} --self-contained false -o artifact-fd
+      - name: Publish (AOT)
+        run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} -o artifact
 
-      - name: Stage artifact (framework-dependent)
+      - name: Stage artifact
         shell: pwsh
-        run: mv artifact-fd/BBDown.GUI.exe artifact-fd/BBDown.GUI-${{ matrix.rid }}-fd.exe
+        run: mv artifact/BBDown.GUI.exe artifact/BBDown.GUI-${{ matrix.rid }}.exe
 
-      - name: Upload artifact (framework-dependent)
+      - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: BBDown_GUI_${{ matrix.rid }}_fd
-          path: artifact-fd/BBDown.GUI-${{ matrix.rid }}-fd.exe
+          name: BBDown_GUI_${{ matrix.rid }}
+          path: artifact/BBDown.GUI-${{ matrix.rid }}.exe
           retention-days: 7
 
-      - name: Publish (self-contained)
-        run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} --self-contained true -o artifact-sc
+  build-macos:
+    name: Build GUI (${{ matrix.rid }})
+    runs-on: macos-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [osx-x64, osx-arm64]
+    steps:
+      - uses: actions/checkout@v7
 
-      - name: Stage artifact (self-contained)
-        shell: pwsh
-        run: mv artifact-sc/BBDown.GUI.exe artifact-sc/BBDown.GUI-${{ matrix.rid }}-sc.exe
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: "./global.json"
+          cache: true
+          cache-dependency-path: "**/Directory.Packages.props"
 
-      - name: Upload artifact (self-contained)
+      - name: Publish (AOT)
+        run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} -o artifact
+
+      - name: Stage artifact
+        run: mv artifact/BBDown.GUI artifact/BBDown.GUI-${{ matrix.rid }}
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: BBDown_GUI_${{ matrix.rid }}_sc
-          path: artifact-sc/BBDown.GUI-${{ matrix.rid }}-sc.exe
+          name: BBDown_GUI_${{ matrix.rid }}
+          path: artifact/BBDown.GUI-${{ matrix.rid }}
+          retention-days: 7
+
+  build-linux:
+    name: Build GUI (glibc) (${{ matrix.rid }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            runner: ubuntu-latest
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: "./global.json"
+          cache: true
+          cache-dependency-path: "**/Directory.Packages.props"
+
+      # linux-arm64 在原生 arm64 runner 上构建，避免 x64 交叉编译需额外工具链。
+      # GitHub arm64 runner 未预装 clang，且 .NET AOT 剥离符号需要 aarch64-linux-gnu-objcopy。
+      - name: Cache apt archives (arm64)
+        if: matrix.rid == 'linux-arm64'
+        uses: actions/cache@v6
+        with:
+          path: ~/.apt-cache/archives
+          key: apt-arm64-aot-v2-${{ hashFiles('Directory.Packages.props') }}
+
+      - name: Install native AOT tools (arm64)
+        if: matrix.rid == 'linux-arm64'
+        run: |
+          mkdir -p "$HOME/.apt-cache/archives"
+          sudo apt-get update
+          sudo apt-get install -y -o Dir::Cache::archives="$HOME/.apt-cache/archives" clang binutils-aarch64-linux-gnu zlib1g-dev
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/.apt-cache"
+
+      - name: Publish (AOT)
+        run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} -o artifact
+
+      - name: Stage artifact
+        run: mv artifact/BBDown.GUI artifact/BBDown.GUI-${{ matrix.rid }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: BBDown_GUI_${{ matrix.rid }}
+          path: artifact/BBDown.GUI-${{ matrix.rid }}
           retention-days: 7
 
   attach-to-latest-release:
     name: Attach to latest release
     if: github.event_name == 'workflow_dispatch'
-    needs: build-windows
+    needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

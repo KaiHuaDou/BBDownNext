@@ -17,6 +17,8 @@
 
 ### 修复
 
+- 修复 APP 接口请求头：`x-bili-metadata-bin` 的 access_key 由恒空改为登录 token，`authorization` 头仅在登录后发送。
+
 ### 变更
 
 - 图形界面任务列表展示解析出的视频标题（替代裸 URL），落盘文件路径写入日志；运行中显示实时速度与剩余时间。
@@ -27,6 +29,8 @@
 - 图形界面适配后处理：常用输入区新增「后处理程序」路径项（含文件选择），随配置持久化，任务执行前按快照配置 Core 后处理通道，留空则不启用；下载能力与 CLI 的 `--post-process` 一致。
 - 新增 `Plugins/BBDown.Sample` 后处理示例插件（协议最小实现与模板：复用主程序源生成器上下文解析请求 JSON，自带独立构建配置、中央包管理与协议契约测试，演示「无需处理」语义；`Plugins/` 目录忽略规则开特例）；`PROTOCOL.md` 与 `ARCHITECTURE.md` 的参考实现改为内置 Sample，不再引用独立插件仓库。
 - 图形界面由 WPF 迁移至 Avalonia：界面文件由 xaml 改为 axaml（`MainWindow` / `App` / `Theme`），目标框架 `net9.0-windows` 改为 `net9.0`，移除 `Ookii.Dialogs.Wpf` 依赖、改用 Avalonia 原生 `StorageProvider` 与 `TaskDialog` 等价能力，启用 AOT 单文件发布（`PublishAot`、不变全球化、Fluent 主题裁剪根保护）；配套 BBDown.Core / Cli / Serve 做 AOT 友好调整（移除冗余 using、字符串比较改 `StringComparison.OrdinalIgnoreCase`）。界面修复：日志区改用 StackPanel 物化并修正普通行前景色（深色下不再黑字不可见）；内容复选项勾选态接入 `INotifyPropertyChanged` 以反映默认值变化；移除按钮移入任务项（运行中显示取消、其余显示 X）；状态文字全状态显式着色（修正等待中黑字不可见）；按钮放大、Expander 充满、日志与队列等宽。
+- 图形界面独立 CI（`gui.yml`）构建矩阵由仅 Windows 扩展为 Windows / macOS / Linux 三平台（各 x64 / arm64，Linux 仅 glibc 不产 musl）；因 AOT 强制自包含，移除框架依赖（fd）产物，统一发布自包含 AOT 单文件。
+- 弹幕 `.ass` 文件头的 `Script Updated By` 地址由 `nilaoda/BBDown` 改为 `KaiHuaDou/BBDownNext`。
 
 ## [v2.0.0-rc.1]
 

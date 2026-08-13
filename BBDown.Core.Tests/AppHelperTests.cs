@@ -13,7 +13,7 @@ public class AppHelperTests
     {
         var payload = Encoding.UTF8.GetBytes("BV1uv411q7Mv 的 gRPC 请求体");
 
-        var restored = AppHelper.ReadMessage(AppHelper.PackMessage(payload));
+        var restored = GrpcUtil.ReadMessage(GrpcUtil.PackMessage(payload));
 
         Assert.Equal(payload, restored);
     }
@@ -23,16 +23,16 @@ public class AppHelperTests
     {
         var payload = Enumerable.Range(0, 200_000).Select(i => (byte) (i % 251)).ToArray( );
 
-        var packed = AppHelper.PackMessage(payload);
+        var packed = GrpcUtil.PackMessage(payload);
 
         Assert.True(packed.Length < payload.Length);
-        Assert.Equal(payload, AppHelper.ReadMessage(packed));
+        Assert.Equal(payload, GrpcUtil.ReadMessage(packed));
     }
 
     [Fact]
     public void PackMessage_WritesGzipFlagAndBigEndianBodyLength( )
     {
-        var packed = AppHelper.PackMessage(Encoding.UTF8.GetBytes("hello"));
+        var packed = GrpcUtil.PackMessage(Encoding.UTF8.GetBytes("hello"));
 
         Assert.Equal(1, packed[0]);
         Assert.Equal(packed.Length - 5, BinaryPrimitives.ReadInt32BigEndian(packed.AsSpan(1, 4)));
@@ -41,7 +41,7 @@ public class AppHelperTests
     [Fact]
     public void PackMessage_HandlesEmptyPayload( )
     {
-        Assert.Empty(AppHelper.ReadMessage(AppHelper.PackMessage([])));
+        Assert.Empty(GrpcUtil.ReadMessage(GrpcUtil.PackMessage([])));
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public class AppHelperTests
     {
         byte[] data = [0, 0, 0, 0, 3, 1, 2, 3, 9, 9];
 
-        Assert.Equal([1, 2, 3], AppHelper.ReadMessage(data));
+        Assert.Equal([1, 2, 3], GrpcUtil.ReadMessage(data));
     }
 
     [Theory]
@@ -59,7 +59,7 @@ public class AppHelperTests
     [InlineData(new byte[] { 0, 0, 0, 0 })]
     public void ReadMessage_ThrowsOnTruncatedHeader(byte[] data)
     {
-        Assert.Throws<InvalidDataException>(( ) => AppHelper.ReadMessage(data));
+        Assert.Throws<InvalidDataException>(( ) => GrpcUtil.ReadMessage(data));
     }
 
     [Theory]
@@ -68,15 +68,15 @@ public class AppHelperTests
     [InlineData(new byte[] { 0, 0xFF, 0xFF, 0xFF, 0xFF, 1 })]
     public void ReadMessage_ThrowsWhenDeclaredSizeExceedsBuffer(byte[] data)
     {
-        Assert.Throws<InvalidDataException>(( ) => AppHelper.ReadMessage(data));
+        Assert.Throws<InvalidDataException>(( ) => GrpcUtil.ReadMessage(data));
     }
 
     [Fact]
     public void ReadMessage_DecompressesExactBodyIgnoringTrailer( )
     {
-        var packed = AppHelper.PackMessage(Encoding.UTF8.GetBytes("带 trailer 的 gRPC 帧"));
+        var packed = GrpcUtil.PackMessage(Encoding.UTF8.GetBytes("带 trailer 的 gRPC 帧"));
         byte[] withTrailer = [.. packed, 0x80, 0, 0, 0, 0x10, .. Encoding.ASCII.GetBytes("grpc-status:0\r\n")];
 
-        Assert.Equal(Encoding.UTF8.GetBytes("带 trailer 的 gRPC 帧"), AppHelper.ReadMessage(withTrailer));
+        Assert.Equal(Encoding.UTF8.GetBytes("带 trailer 的 gRPC 帧"), GrpcUtil.ReadMessage(withTrailer));
     }
 }

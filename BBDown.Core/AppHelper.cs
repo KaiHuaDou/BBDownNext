@@ -1,14 +1,12 @@
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Protobuf;
+using BBDown.Core.Util;
 
 using Google.Protobuf;
 
@@ -19,8 +17,6 @@ namespace BBDown.Core;
 
 internal static class AppHelper
 {
-    private const string API = BiliApi.GrpcPlayView;
-    private const string API2 = BiliApi.GrpcPgcPlayView;
     private const string dalvikVer = "2.1.0";
     private const string osVer = "11";
     private const string brand = "M2012K11AC";
@@ -32,7 +28,7 @@ internal static class AppHelper
     private const string networkOid = "46007";
     private const string cronet = "1.36.1";
     private const string mobiApp = "android";
-    private const string appKey = "android64";
+    private const string fawkesAppKey = "android64";
     private const string sessionId = "dedf8669";
     private const string platform = "android";
     private const string env = "prod";
@@ -40,43 +36,44 @@ internal static class AppHelper
     private const string region = "CN";
     private const string language = "zh";
 
+    private static readonly MessageParser<PlayViewReply> ReplyParser = new(( ) => new PlayViewReply( ));
+
     private static PlayViewReq.Types.CodeType GetVideoCodeType(string code)
     {
         return code switch
         {
             "AVC" => PlayViewReq.Types.CodeType.Code264,
-            "HEVC" => PlayViewReq.Types.CodeType.Code265,
             "AV1" => PlayViewReq.Types.CodeType.Codeav1,
+            // HEVC 与未知编码统一兜底
             _ => PlayViewReq.Types.CodeType.Code265
         };
     }
 
-    public static async Task<PlayViewReply> DoReqAsync(string aid, string cid, string epId, bool bangumi, string encoding, AppConfig cfg, string appkey = "", CancellationToken ct = default)
+    public static async Task<PlayViewReply> DoReqAsync(string aid, string cid, string epId, bool bangumi, string encoding, AppConfig cfg, CancellationToken ct = default)
     {
-        var headers = GetHeader(appkey, cfg, bangumi ? "app.bilibili.com" : "grpc.biliapi.net");
+        var api = bangumi ? BiliApi.GrpcPgcPlayView : BiliApi.GrpcPlayView;
+        var headers = GetHeader(cfg, new Uri(api).Host);
         LogDebug("App-Req-Headers: {0}", JsonSerializer.Serialize(headers, JsonContext.Default.DictionaryStringString));
         byte[] data;
         // 只有pgc接口才有配音和片头尾信息
         if (bangumi)
         {
-            if (!(string.IsNullOrEmpty(encoding) || encoding == "HEVC"))
+            if (!string.IsNullOrEmpty(encoding) && encoding != "HEVC")
             {
                 LogWarn("APP 的番剧不支持 HEVC 以外的编码。");
             }
 
             var body = GetPayload(Convert.ToInt64(epId), Convert.ToInt64(cid), PlayViewReq.Types.CodeType.Code265);
-            data = await GetPostResponseAsync(API2, body, headers, ct);
+            data = await GetPostResponseAsync(api, body, headers, ct);
         }
         else
         {
             var body = GetPayload(Convert.ToInt64(aid), Convert.ToInt64(cid), GetVideoCodeType(encoding));
-            data = await GetPostResponseAsync(API, body, headers, ct);
+            data = await GetPostResponseAsync(api, body, headers, ct);
         }
 
-        return ReplyParser.ParseFrom(ReadMessage(data));
+        return ReplyParser.ParseFrom(GrpcUtil.ReadMessage(data));
     }
-
-    private static readonly MessageParser<PlayViewReply> ReplyParser = new(( ) => new PlayViewReply( ));
 
     private static byte[] GetPayload(long aid, long cid, PlayViewReq.Types.CodeType codec)
     {
@@ -96,21 +93,18 @@ internal static class AppHelper
             ForceHost = 2 //0:允许使用ip 1:使用http 2:使用https
         };
         LogDebug("PayLoadPlain: {0}", JsonSerializer.Serialize(obj, JsonContext.Default.PlayViewReq));
-        return PackMessage(obj.ToByteArray( ));
+        return GrpcUtil.PackMessage(obj.ToByteArray( ));
     }
 
-    #region 生成Headers相关方法
-
-    internal static Dictionary<string, string> GetHeader(string appkey, AppConfig cfg, string host)
+    internal static Dictionary<string, string> GetHeader(AppConfig cfg, string host)
     {
-        return new Dictionary<string, string>( )
+        var headers = new Dictionary<string, string>( )
         {
             ["Host"] = host,
             ["user-agent"] = $"Dalvik/{dalvikVer} (Linux; U; Android {osVer}; {brand} {model}) {appVer} os/android model/{brand} mobi_app/android build/{build} channel/{channel} innerVer/{build} osVer/{osVer} network/2 grpc-java-cronet/{cronet}",
             ["te"] = "trailers",
             ["x-bili-fawkes-req-bin"] = GenerateFawkesReqBin( ),
-            ["x-bili-metadata-bin"] = GenerateMetadataBin(appkey),
-            ["authorization"] = $"identify_v1 {cfg.Token}",
+            ["x-bili-metadata-bin"] = GenerateMetadataBin(cfg.Token),
             ["x-bili-device-bin"] = GenerateDeviceBin( ),
             ["x-bili-network-bin"] = GenerateNetworkBin( ),
             ["x-bili-restriction-bin"] = "",
@@ -120,6 +114,13 @@ internal static class AppHelper
             ["grpc-accept-encoding"] = "identity,gzip",
             ["grpc-timeout"] = "17996161u",
         };
+        // 未登录不发送鉴权头
+        if (cfg.Token.Length != 0)
+        {
+            headers["authorization"] = $"identify_v1 {cfg.Token}";
+        }
+
+        return headers;
     }
 
     private static string GenerateLocaleBin( )
@@ -162,11 +163,11 @@ internal static class AppHelper
         return Convert.ToBase64String(obj.ToByteArray( ));
     }
 
-    private static string GenerateMetadataBin(string appkey)
+    private static string GenerateMetadataBin(string accessKey)
     {
         var obj = new Metadata
         {
-            AccessKey = appkey,
+            AccessKey = accessKey,
             MobiApp = mobiApp,
             Build = build,
             Channel = channel,
@@ -180,76 +181,11 @@ internal static class AppHelper
     {
         var obj = new FawkesReq
         {
-            Appkey = appKey,
+            Appkey = fawkesAppKey,
             Env = env,
             SessionId = sessionId
         };
         return Convert.ToBase64String(obj.ToByteArray( ));
-    }
-
-    #endregion
-
-    /// <summary>
-    /// 读取gRPC响应流 通过前5字节信息 解析/解压后面的报文体
-    /// </summary>
-    public static byte[] ReadMessage(byte[] data)
-    {
-        if (data.Length < 5)
-        {
-            throw new InvalidDataException($"gRPC 响应帧头不足 5 字节(实际 {data.Length} 字节)");
-        }
-
-        var compressed = data[0] == 1;
-        var size = BinaryPrimitives.ReadInt32BigEndian(data.AsSpan(1, 4));
-        if (size < 0 || 5L + size > data.Length)
-        {
-            throw new InvalidDataException($"gRPC 帧头声明报文体 {size} 字节, 实际只有 {data.Length - 5} 字节");
-        }
-
-        var body = data[5..(5 + size)];
-        return compressed ? GzipDecompress(body) : body;
-    }
-
-    /// <summary>
-    /// 给请求载荷添加头部信息
-    /// </summary>
-    public static byte[] PackMessage(byte[] input)
-    {
-        using var stream = new MemoryStream( );
-        using (var writer = new BinaryWriter(stream))
-        {
-            var comp = GzipCompress(input);
-            Span<byte> reverse = stackalloc byte[4];
-            writer.Write((byte) 1);
-            BinaryPrimitives.WriteInt32BigEndian(reverse, comp.Length);
-            writer.Write(reverse);
-            writer.Write(comp);
-        }
-
-        return stream.ToArray( );
-    }
-
-    private static byte[] GzipCompress(byte[] data)
-    {
-        using var output = new MemoryStream( );
-        using (var comp = new GZipStream(output, CompressionMode.Compress))
-        {
-            comp.Write(data, 0, data.Length);
-        }
-
-        return output.ToArray( );
-    }
-
-    private static byte[] GzipDecompress(byte[] data)
-    {
-        using var output = new MemoryStream( );
-        using (var input = new MemoryStream(data))
-        {
-            using var decomp = new GZipStream(input, CompressionMode.Decompress);
-            decomp.CopyTo(output);
-        }
-
-        return output.ToArray( );
     }
 }
 

@@ -261,7 +261,8 @@ internal sealed class Program
                 }
             }
 
-            await DownloadPipeline.RunAsync(myOption, sink: default, AppEnv.CancellationToken);
+            using var progressBar = new ProgressBar(AppEnv.CancellationToken);
+            await DownloadPipeline.RunAsync(myOption, new PipelineSink(null, null, progressBar.OnSample), AppEnv.CancellationToken);
             return 0;
         }
         catch (Exception e)

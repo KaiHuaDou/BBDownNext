@@ -56,7 +56,7 @@ flowchart TD
 ## 分层职责
 
 | 层 | 命名空间 | 职责 |
-|---|---|---|
+| --- | --- | --- |
 | 编排层 | `BBDown.Core.Pipeline` | 下载主干编排：参数准备（WorkSetup）、信息解析（VideoInfo）、分 P 调度（PageQueue）、输入解析（InputResolver） |
 | 能力层 | `BBDown.Core.Media` | 分 P 下载流程：DASH / FLV / 页面资源 / 选轨 / 评论下载 |
 | 能力层 | `BBDown.Core.Live` | 直播录制：录流、分段、混流、信号控制 |
@@ -71,10 +71,37 @@ flowchart TD
 Core 通过以下显式注入点向宿主（CLI / GUI）开放能力，宿主无需改动下载链路即可定制输出与交互：
 
 | 注入点 | 说明 |
-|---|---|
+| --- | --- |
 | `Logger.Output` | 日志输出目标。null 时写控制台（含颜色与 `BeforeWrite` 钩子）；GUI 等无控制台宿主替换为窗口日志区回调（参数为级别 + 完整渲染文本，需自行保证线程安全）。`BeforeWrite` 仅对默认控制台路径生效 |
-| `Interaction.AskLine` / `AskIndex` | 交互式下载（逐集确认、手动选轨）的提问回调。默认读控制台；无控制台宿主返回 null 时按「不交互」回落处理 |
 | `AppConfig.UserAgent` | 请求级 UA。`--user-agent` 由 `WorkSetup.ResolveConfig` 落入该字段，空串回落 `HTTPUtil.UserAgent` 进程级默认，并发任务互不覆盖 |
+
+## 委托回调清单
+
+下表记录 Core 与主项目 / GUI 中保留的委托（`Func` / `Action` / 自定义 delegate）回调。这些回调要么是宿主集成（Core 回吐进度/日志/交互给 CLI、Serve、GUI），要么是编排分离（高阶函数 / 模板方法），没有一处是 hack（不存在特判 / 绕过逻辑）。
+
+### 宿主集成（Core 回吐到上层）
+
+| 回调 | 签名 | 用途 |
+| --- | --- | --- |
+| `PipelineSink.Meta / Saved / Sample` | `Action<VInfo>` / `Action<string>` / `Action<double,long>` | 下载链路向调用方回吐进度；取代把 serve 的 `DownloadTask` 一路透传，依赖保持单向。CLI 传 `ProgressBar.OnSample`，serve/GUI 传各自回调 |
+| `DownloadConfig.OnSample` / `ProgressSampler` | `Action<double,long>` | 每个采样周期回吐（总进度，本周期新增字节），供 serve 的下载任务观察；CLI 由 `BBDown.ProgressBar` 渲染器消费该回调 |
+| `LiveSegmentWriter.onBytes` | `Action<long>` | 直播每读一块回吐字节数，供进度显示 |
+| `LiveRecorder.onSegmentStart` | `Action<int>` | 每开始写一个分段回吐序号，供直播进度显示「第 N 段」 |
+| `Login.showQr` | `Func<string,Task>` | 生成二维码后回调展示：CLI 落盘 + 打印 ASCII，GUI 弹窗 |
+| `Login.onState` | `Action<QrState>` | 轮询状态回吐：CLI 不传（null），GUI 更新状态文本 |
+| `QueueRunner.dispatch / Executor / Logger`（GUI） | `Action<Action>` / `Func<TaskState,CancellationToken,Task<int>>` / `Action<TaskState,string>` | UI 线程回投（Avalonia 线程模型必需）+ 队列调度与执行子进程解耦 + 异常日志回吐 |
+
+### 编排分离（高阶函数 / 模板方法）
+
+| 回调 | 签名 | 用途 |
+| --- | --- | --- |
+| `LiveRecorder.ResolveStream / WriteSegment` | 自定义 `delegate` | 状态机对「解析流 / 写分段」两个 IO 依赖的端口；生产注入 `LiveFetcher.FetchPlayInfoAsync` / `LiveSegmentWriter.WriteAsync` |
+| `Login.QrLoginPlan.Generate / Poll / Interpret` | 3 × `Func` | 扫码登录模板方法：Web 与 TV/App 两套仅这三个环节不同，轮询循环共享 |
+| `PageQueue.RunPagesAsync.run` | `Func<Page,CancellationToken,Task>` | 分 P 编排：本函数只管「遍历 + 聚合失败」，单页逻辑由调用方注入 |
+| `SubUtil.TryFetchAsync.fetch` + `candidates[]` | `Func<Task<List<Subtitle>>>` | 字幕多候选接口逐个回退 |
+| `SubUtil.FromJsonAsync.locate` | `Func<JsonElement,JsonElement>` | 不同接口的 JSON 定位路径不同 |
+| `BBDownApiServer.RunGatedAsync.download` | `Func<Task>` | 任务级并发闸门与下载动作分离 |
+| `CommandLineInvoker.GetRootCommand.action` | `Func<DownloadRequest,Task<int>>` | 命令行解析与执行分离（System.CommandLine 的 `SetAction` 结构使然） |
 
 ## 依赖约束
 

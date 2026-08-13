@@ -124,7 +124,7 @@ public static class PageSelect
         for (var i = 0; i < vInfo.PagesInfo.Count; i++)
         {
             var p = vInfo.PagesInfo[i];
-            var input = Interaction.AskLine?.Invoke($"[{p.Index}] {p.Title}（{FormatTime(p.Dur)}）是否下载？[y/n/a/q]");
+            var input = Interaction.AskLine($"[{p.Index}] {p.Title}（{FormatTime(p.Dur)}）是否下载？[y/n/a/q]");
             var choice = string.IsNullOrWhiteSpace(input) ? "N" : input.Trim( ).ToUpperInvariant( );
             if (choice is "Y" or "YES")
             {
