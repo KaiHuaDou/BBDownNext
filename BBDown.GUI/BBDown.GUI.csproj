@@ -11,17 +11,15 @@
         <WarningLevel>8</WarningLevel>
     </PropertyGroup>
     <PropertyGroup>
-        <PublishAot>true</PublishAot>
-        <IsAotCompatible>true</IsAotCompatible>
         <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
-        <PublishSingleFile>true</PublishSingleFile>
         <EventSourceSupport>false</EventSourceSupport>
-        <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
-        <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
         <InvariantGlobalization>true</InvariantGlobalization>
+        <IsAotCompatible>true</IsAotCompatible>
+        <PublishAot>true</PublishAot>
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>true</SelfContained>
         <StripSymbols>true</StripSymbols>
-        <UseSystemResourceKeys>true</UseSystemResourceKeys>
     </PropertyGroup>
     <ItemGroup>
         <!-- Fluent 主题资源经 XAML 资源字典动态加载，防止裁剪器误删 -->

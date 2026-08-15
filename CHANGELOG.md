@@ -18,6 +18,7 @@
 ### 修复
 
 - 修复 APP 接口请求头：`x-bili-metadata-bin` 的 access_key 由恒空改为登录 token，`authorization` 头仅在登录后发送。
+- 修复图形界面 CI 产物缺失原生库：`gui.yml` 原先仅上传重命名的单文件可执行文件，丢失 AOT 单文件发布伴随的原生库（如 `libSkiaSharp`，文件名随依赖变化），现改为将整个发布目录打包为 zip 上传，确保发布的 GUI 可正常运行。
 
 ### 变更
 

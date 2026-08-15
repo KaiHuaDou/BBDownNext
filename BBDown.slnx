@@ -1,15 +1,23 @@
 <Solution>
-  <Folder Name="/解决方案项/">
-    <File Path=".editorconfig" />
-    <File Path=".gitignore" />
-    <File Path="API.md" />
-    <File Path="LICENSE" />
-    <File Path="README.md" />
-  </Folder>
-  <Project Path="BBDown.Core/BBDown.Core.csproj" />
-  <Project Path="BBDown.Core.Tests/BBDown.Core.Tests.csproj" />
-  <Project Path="BBDown/BBDown.csproj" />
-  <Project Path="BBDown.GUI/BBDown.GUI.csproj" Id="04b02a42-437b-40ef-acaa-c61a7f86a1b1" />
-  <Project Path="BBDown.GUI.Tests/BBDown.GUI.Tests.csproj" />
-  <Project Path="BBDown.Tests/BBDown.Tests.csproj" />
+    <Folder Name="/解决方案项/">
+        <File Path=".editorconfig" />
+        <File Path=".gitattributes" />
+        <File Path=".gitignore" />
+        <File Path="API.md" />
+        <File Path="ARCHITECTURE.md" />
+        <File Path="CHANGELOG.md" />
+        <File Path="Directory.Build.props" />
+        <File Path="Directory.Packages.props" />
+        <File Path="global.json" />
+        <File Path="justfile" />
+        <File Path="LICENSE" />
+        <File Path="PROTOCOL.json" />
+        <File Path="README.md" />
+        <File Path="TODO.md" />
+    </Folder>
+    <Project Path="BBDown/BBDown.csproj" />
+    <Project Path="BBDown.Tests/BBDown.Tests.csproj" />
+    <Project Path="BBDown.Core/BBDown.Core.csproj" />
+    <Project Path="BBDown.Core.Tests/BBDown.Core.Tests.csproj" />
+    <Project Path="BBDown.GUI/BBDown.GUI.csproj" />
 </Solution>

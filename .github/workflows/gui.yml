@@ -46,15 +46,17 @@ jobs:
       - name: Publish (AOT)
         run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} -o artifact
 
-      - name: Stage artifact
+      # AOT 单文件发布仍会伴随无法嵌入的原生库（如 libSkiaSharp，具体文件名随依赖变化），
+      # 故打包整个发布目录为 zip，避免漏掉这些伴随文件。
+      - name: Package artifact
         shell: pwsh
-        run: mv artifact/BBDown.GUI.exe artifact/BBDown.GUI-${{ matrix.rid }}.exe
+        run: Compress-Archive -Path artifact\* -DestinationPath BBDown.GUI-${{ matrix.rid }}.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: BBDown_GUI_${{ matrix.rid }}
-          path: artifact/BBDown.GUI-${{ matrix.rid }}.exe
+          path: BBDown.GUI-${{ matrix.rid }}.zip
           retention-days: 7
 
   build-macos:
@@ -78,14 +80,16 @@ jobs:
       - name: Publish (AOT)
         run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} -o artifact
 
-      - name: Stage artifact
-        run: mv artifact/BBDown.GUI artifact/BBDown.GUI-${{ matrix.rid }}
+      # AOT 单文件发布仍会伴随无法嵌入的原生库（如 libSkiaSharp，具体文件名随依赖变化），
+      # 故打包整个发布目录为 zip，避免漏掉这些伴随文件。
+      - name: Package artifact
+        run: cd artifact && zip -r "../BBDown.GUI-${{ matrix.rid }}.zip" .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: BBDown_GUI_${{ matrix.rid }}
-          path: artifact/BBDown.GUI-${{ matrix.rid }}
+          path: BBDown.GUI-${{ matrix.rid }}.zip
           retention-days: 7
 
   build-linux:
@@ -130,14 +134,16 @@ jobs:
       - name: Publish (AOT)
         run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} -o artifact
 
-      - name: Stage artifact
-        run: mv artifact/BBDown.GUI artifact/BBDown.GUI-${{ matrix.rid }}
+      # AOT 单文件发布仍会伴随无法嵌入的原生库（如 libSkiaSharp，具体文件名随依赖变化），
+      # 故打包整个发布目录为 zip，避免漏掉这些伴随文件。
+      - name: Package artifact
+        run: cd artifact && zip -r "../BBDown.GUI-${{ matrix.rid }}.zip" .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: BBDown_GUI_${{ matrix.rid }}
-          path: artifact/BBDown.GUI-${{ matrix.rid }}
+          path: BBDown.GUI-${{ matrix.rid }}.zip
           retention-days: 7
 
   attach-to-latest-release:
