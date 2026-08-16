@@ -77,10 +77,10 @@ public static partial class Utils
         };
     }
 
-    // 采样周期 1 秒时，delta 即本周期新增字节数，也就是瞬时速度
-    public static string FormatSpeed(long delta)
+    // delta 为采样周期内新增字节数，seconds 为采样周期时长，折算成每秒速率
+    public static string FormatSpeed(long delta, double seconds)
     {
-        return $"{FormatFileSize(delta)}/s";
+        return $"{FormatFileSize((long) (delta / seconds))}/s";
     }
 
     public static string FormatTime(int time, bool absolute = false)

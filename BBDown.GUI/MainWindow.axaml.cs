@@ -339,8 +339,8 @@ public partial class MainWindow : Window
 
             state.lastRatio = ratio;
 
-            // 采样周期 1 秒，delta 即本周期新增字节数（速度）
-            var detail = delta > 0 ? Utils.FormatSpeed(delta) : "";
+            // 采样周期 200 毫秒，delta 为本周期新增字节数，折算成每秒速率
+            var detail = delta > 0 ? Utils.FormatSpeed(delta, ProgressSampler.SampleInterval.TotalSeconds) : "";
             if (Utils.FormatEta(ratio, now - state.etaStart) is { } eta)
             {
                 detail = detail.Length == 0 ? $"剩余 {eta}" : $"{detail} · 剩余 {eta}";

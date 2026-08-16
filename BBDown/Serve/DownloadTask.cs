@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 
 using BBDown.Core;
+using BBDown.Core.Util;
 
 namespace BBDown.Serve;
 
@@ -44,7 +45,8 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
             return;
         }
 
-        DownloadSpeed = bytesDelta;
+        // 按采样周期折算成每秒速率；TotalDownloadedBytes 累加原始增量，不做折算
+        DownloadSpeed = bytesDelta / ProgressSampler.SampleInterval.TotalSeconds;
         TotalDownloadedBytes += bytesDelta;
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace BBDown.Core.Download;
 
@@ -15,4 +16,7 @@ public sealed class DownloadConfig
     public string Cookie { get; set; } = string.Empty;
     // 多线程分片大小（字节）
     public long ChunkSize { get; set; } = PartFile.DefaultChunkSize;
+    // 跨多次下载共享的连接配额：FLV 多片段并行时由调用方注入，各片段的分片 Range 合计不超过此上限；
+    // null 表示不限制（单文件下载由 Parallel 自身的并发上限约束）
+    public SemaphoreSlim? ConnectionGate { get; set; }
 }

@@ -1,0 +1,16 @@
+**/bin
+**/obj
+.git
+.gitignore
+.workbuddy
+.idea
+.vs
+Plugins
+bilibili-API-collect
+docs
+BBDown.Tests
+BBDown.Core.Tests
+BBDown.GUI
+.github
+*.md
+LICENSE

@@ -6,6 +6,24 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
+## [v2.0.0]
+
+### 新增
+
+- 分片级重试：单分片瞬态故障（超时 / 断连 / 截断）退避重试 3 次并从断点续下，避免整 P 退避重下。
+- FLV 分段并行下载：片段间并行（上限 4），且与片段内多线程 Range 共享 32 条连接配额（原片段间串行）。
+
+### 修复
+
+- 修复交互式输入被进度条覆盖：使用 `-iap` 逐集确认或手动选轨时，后台进度条持续重绘会覆盖 `[y/n/a/q]` 提示与用户输入；现交互读输入前暂停进度条渲染、读完后恢复（`Interaction` 新增 `BeforeRead` / `AfterRead` 钩子，CLI 的 `ProgressBar` 据此 `Suspend` / `Resume`）。
+- 修复下载进度条与日志互相污染：进度条按退格增量重绘，日志紧跟其后会把光标推离行尾，下一帧把 spinner 字符打到日志行首；现写日志前先擦除进度条行（`Logger.BeforeWrite` 钩子，与直播状态行同机制）。
+
+### 变更
+
+- 进度采样由每秒 1 次提升到 5 次，速度显示按采样周期折算为每秒速率。
+- 解析性能：播放器信息（player/v2）与拉流解析并行发起；WEB 自动档 playurl 由两次请求（qn 档 + 最高档）合并为单次最高档请求，每分 P 少一次 API 调用。
+- 下载性能：大小探测改用 `Range: bytes=0-0` 并读完响应体以复用连接（省一次 TCP+TLS 握手）；分片并发上限 32；字幕并行下载；进度上报由逐片求和改为运行总量，分片缓冲改用 `ArrayPool`。
+
 ## [v2.0.0-rc.2]
 
 ### 新增
@@ -265,3 +283,5 @@
 [v2.0.0-beta.1]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.3...v2.0.0-beta.1>
 [v2.0.0-beta.2]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-beta.1...v2.0.0-beta.2>
 [v2.0.0-rc.1]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-beta.2...v2.0.0-rc.1>
+[v2.0.0-rc.2]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-rc.1...v2.0.0-rc.2>
+[v2.0.0]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-rc.2...v2.0.0>

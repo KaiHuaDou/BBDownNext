@@ -109,7 +109,56 @@ public class ResumeDownloadTests
         }
     }
 
-    private static async Task WithStubClient(ServingHandler handler, Func<Task> act)
+    // 带并发观测的 stub：延迟响应以制造重叠窗口，统计同时在飞的请求数峰值，
+    // 用于验证跨片段共享的连接配额确实把并发压在上限内
+    private sealed class GatedServingHandler(byte[] data) : HttpMessageHandler
+    {
+        private int inFlight;
+        private int peak;
+        private readonly Lock gate = new( );
+
+        public int PeakConcurrent => Volatile.Read(ref peak);
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            lock (gate)
+            {
+                inFlight++;
+                if (inFlight > peak)
+                {
+                    peak = inFlight;
+                }
+            }
+
+            try
+            {
+                await Task.Delay(30, cancellationToken);
+                var range = request.Headers.Range?.Ranges.FirstOrDefault( );
+                if (range is null)
+                {
+                    var full = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(data) };
+                    full.Headers.TryAddWithoutValidation("ETag", Etag);
+                    return full;
+                }
+
+                var from = range.From ?? 0;
+                var to = range.To ?? data.Length - 1;
+                var resp = new HttpResponseMessage(HttpStatusCode.PartialContent) { Content = new ByteArrayContent(data[(int) from..((int) to + 1)]) };
+                resp.Headers.TryAddWithoutValidation("ETag", Etag);
+                resp.Content.Headers.ContentRange = new System.Net.Http.Headers.ContentRangeHeaderValue(from, to, data.Length);
+                return resp;
+            }
+            finally
+            {
+                lock (gate)
+                {
+                    inFlight--;
+                }
+            }
+        }
+    }
+
+    private static async Task WithStubClient(HttpMessageHandler handler, Func<Task> act)
     {
         var original = HTTPUtil.AppHttpClient;
         using var client = new HttpClient(handler, disposeHandler: false);
@@ -396,6 +445,32 @@ public class ResumeDownloadTests
                     Url, dest, new DownloadConfig { SingleThread = true }, ct: CancellationToken.None)));
             Assert.IsType<IOException>(ex.InnerException);
             Assert.Contains("416", ex.InnerException!.Message);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    // FLV 多片段共享连接配额：DownloadConfig.ConnectionGate 注入后，片段内并发 Range 合计不超过上限
+    //（防止 4 片段 x 32 Range 打出 128 条连接）。这里用 10 个分片 + 配额 2 验证峰值并发被压住。
+    [Fact]
+    public async Task ConnectionGate_CapsTotalConcurrentRangeRequests( )
+    {
+        var dir = TempDir( );
+        try
+        {
+            var data = Enumerable.Range(0, 500).Select(i => (byte) (i % 251)).ToArray( );
+            const string url = "https://upos-sz.bilivideo.com/upgcxcode/10/20/2001/2001-1-30280.m4s?e=1";
+            var dest = Path.Combine(dir, "video.mp4");
+
+            using var handler = new GatedServingHandler(data);
+            using var gate = new SemaphoreSlim(2);
+            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+                url, dest, new DownloadConfig { SingleThread = false, ChunkSize = 50, ConnectionGate = gate }, ct: CancellationToken.None));
+
+            Assert.True(handler.PeakConcurrent <= 2, $"并发峰值 {handler.PeakConcurrent} 超过配额 2");
+            Assert.True(File.ReadAllBytes(dest).SequenceEqual(data));
         }
         finally
         {

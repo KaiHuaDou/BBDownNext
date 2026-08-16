@@ -1,3 +1,5 @@
+using BBDown.Core.Util;
+
 namespace BBDown.Tests;
 
 public class DownloadTaskTests
@@ -11,7 +13,7 @@ public class DownloadTaskTests
         task.ApplySample(0.5, 0);
 
         Assert.Equal(0.5, task.Progress);
-        Assert.Equal(2048, task.DownloadSpeed);
+        Assert.Equal(2048 / ProgressSampler.SampleInterval.TotalSeconds, task.DownloadSpeed);
         Assert.Equal(2048, task.TotalDownloadedBytes);
     }
 
@@ -23,7 +25,7 @@ public class DownloadTaskTests
         task.ApplySample(0.3, 2048);
         task.ApplySample(0.6, 1024);
 
-        Assert.Equal(1024, task.DownloadSpeed);
+        Assert.Equal(1024 / ProgressSampler.SampleInterval.TotalSeconds, task.DownloadSpeed);
         Assert.Equal(3072, task.TotalDownloadedBytes);
     }
 }

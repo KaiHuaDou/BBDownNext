@@ -43,12 +43,14 @@ public static class PageAssets
             subtitleInfo = [.. subtitleInfo.Where(s => !s.Lan.StartsWith("ai-"))];
         }
 
-        foreach (var s in subtitleInfo)
+        // 各语言字幕互不依赖，并行下载；每份字幕独立落盘与移动，互不干扰
+        var options = new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = ct };
+        await Parallel.ForEachAsync(subtitleInfo, options, async (s, token) =>
         {
             s.Path = Path.Combine(pageCtx.TempDir, Path.GetFileName(s.Path));
             Log($"下载字幕 {s.Lan} => {SubUtil.GetSubtitleCode(s.Lan).Name}...");
             LogDebug("下载：{0}", s.Url);
-            await SubUtil.SaveSubtitleAsync(s.Url, s.Path, ctx.Fetch.Cfg, ct);
+            await SubUtil.SaveSubtitleAsync(s.Url, s.Path, ctx.Fetch.Cfg, token);
             if (File.Exists(s.Path) && File.ReadAllText(s.Path).Length != 0)
             {
                 MoveSubtitleToOutput(s, ctx, pageCtx, !myOption.Content.Has(DownloadContent.Video));
@@ -57,7 +59,7 @@ public static class PageAssets
             {
                 File.Delete(s.Path);
             }
-        }
+        });
 
         return subtitleInfo;
     }

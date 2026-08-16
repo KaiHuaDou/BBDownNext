@@ -1,13 +1,15 @@
 <h1 align="center">BBDown vNEXT</h1>
 
 <p align="center">
-开源 · 免费的哔哩哔哩（B 站）视频下载 / 解析工具，以命令行（CLI，跨平台）与图形界面（BBDown.GUI，Avalonia 桌面端）双形态提供：视频 / 番剧 / 课程 / 直播 / 专栏 / 稍后再看，支持 8K、HDR、杜比视界、DASH / FLV、多线程与断点续传，并提供带鉴权令牌的 HTTP API 服务器。
+nilaoda/BBDown 的全面重构 - 增强分支（上游已归档）。开源 · 免费的哔哩哔哩（B 站）视频下载 / 解析工具，以命令行（CLI，跨平台）与图形界面（BBDown.GUI，Avalonia 桌面端）双形态提供：视频 / 番剧 / 课程 / 直播 / 专栏 / 稍后再看，支持 8K、HDR、杜比视界、DASH / FLV、多线程与断点续传，并提供带鉴权令牌的 HTTP API 服务器。
 </p>
 
 <p align="center">
   <img alt=".NET" src="https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" />
+  <a href="https://github.com/KaiHuaDou/BBDownNext/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/KaiHuaDou/BBDownNext/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://github.com/KaiHuaDou/BBDownNext/releases"><img alt="Release" src="https://img.shields.io/github/v/release/KaiHuaDou/BBDownNext?label=release" /></a>
+  <img alt="Downloads" src="https://img.shields.io/github/downloads/KaiHuaDou/BBDownNext/total" />
   <a href="https://github.com/KaiHuaDou/BBDownNext/issues"><img alt="Issues" src="https://img.shields.io/github/issues/KaiHuaDou/BBDownNext" /></a>
   <a href="https://github.com/KaiHuaDou/BBDownNext/discussions"><img alt="Discussions" src="https://img.shields.io/badge/Discussions-%E5%BC%80%E5%90%AF-1EAEDB" /></a>
 </p>
@@ -24,7 +26,10 @@
   <a href="./PROTOCOL.md">后处理协议</a> ·
   <a href="#常见问题">常见问题</a> ·
   <a href="./TODO.md">路线图</a> ·
-  <a href="#与原版-bbdown-的差异">与原版差异</a>
+  <a href="#与原版-bbdown-的差异">与原版差异</a> ·
+  <a href="./docs/COMPARISON.md">与其他维护分支对比</a> ·
+  <a href="./SECURITY.md">安全</a> ·
+  <a href="./CONTRIBUTING.md">贡献</a>
 </p>
 
 > 问题反馈与功能建议请前往 [Issues](https://github.com/KaiHuaDou/BBDownNext/issues)；使用交流请前往 [Discussions](https://github.com/KaiHuaDou/BBDownNext/discussions)。
@@ -112,6 +117,17 @@
 
 Windows 7 用户请下载 `BBDown-win7-x64` 产物，并安装 [KB3140245](https://support.microsoft.com/help/3140245)（TLS 1.1 / 1.2 支持）后再使用。
 
+## Docker
+
+仓库根目录提供 `Dockerfile`（基于 `linux-musl-x64` 静态产物，运行时镜像自带 FFmpeg）。
+
+```bash
+docker build -t bbdown .
+docker run --rm -v "$PWD:/downloads" bbdown "https://www.bilibili.com/video/BV16h4y137YS"
+```
+
+产物为静态 musl 二进制，也可不写 Dockerfile、直接把 Release 中的 `linux-musl-x64` 产物 `COPY` 进 `scratch` / `distroless` 镜像运行（需自带 FFmpeg 用于混流，或 `--mux none` 跳过混流）。
+
 ## 构建
 
 需要先安装 [.NET SDK](https://dot.net)（版本 ≥ 9.0，具体版本以仓库 `global.json` 为准）。
@@ -161,7 +177,7 @@ dotnet build BBDown.GUI -c Release
 
 > 放在 BBDown 同目录或系统 `PATH` 中即可被自动识别。专栏导出不经过混流，无需 FFmpeg。
 >
-> **容器部署**：`linux-musl-x64` / `linux-musl-arm64` 产物为静态链接，无动态依赖，可直接 `COPY` 进 `scratch` / `distroless` 等镜像运行，无需 Dockerfile 构建；需要混流时在镜像中自带 FFmpeg（或使用 `--mux none` 跳过混流）。
+> **容器部署**：`linux-musl-x64` / `linux-musl-arm64` 产物为静态链接，无动态依赖，可直接 `COPY` 进 `scratch` / `distroless` 等镜像运行；仓库另提供现成 `Dockerfile`（见上文「Docker」节）。需要混流时在镜像中自带 FFmpeg（或使用 `--mux none` 跳过混流）。
 
 ## 快速开始
 

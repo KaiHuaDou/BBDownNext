@@ -35,7 +35,7 @@
 | **测试覆盖** | 较少 | **950+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名、直播加密流跳过、Opus 渲染等） |
 | **代码结构** | 传统结构 | 深度重构：下载能力整体下沉 `BBDown.Core`，按职责拆分命名空间（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`，CLI 与 serve 留在 `BBDown`），依赖单向成树（`just check-deps` 守护）；god-class 拆分（如 `BBDownUtil` 按归属拆分）、现代化命名、`System.Threading.Lock`、`[GeneratedRegex]`、`Nullable enable` + `TreatWarningsAsErrors`、net9.0 |
 | **直播录制** | 无 | 新增独立直播链路，直播间地址直录（`live:` / `live.bilibili.com`），`--live-quality` 选清晰度（默认原画 10000，可选 250 超清 / 400 蓝光 / 15000 2K / 20000 4K / 30000 杜比），分段 FLV 落盘后合并为 mp4（`Ctrl+Break` 停录合并 / `Ctrl+C` 中断保留分段）；录制状态机具备断流退避重连、CDN failover、编码锁定 |
-| **图形界面** | 无 | 新增 BBDown.GUI（WPF，仅 Windows）：单窗口封装下载，直接引用 `BBDown.Core` 下载库（非子进程调用 BBDown.exe），任务队列与并发控制（1–8）、日志实时显示、选项随 exe 便携保存；独立 CI（`gui.yml`）发布单文件自包含产物 |
+| **图形界面** | 无 | 新增 BBDown.GUI（Avalonia，跨平台）：单窗口封装下载，直接引用 `BBDown.Core` 下载库（非子进程调用 BBDown.exe），任务队列与并发控制（1–8）、日志实时显示、选项随 exe 便携保存；独立 CI（`gui.yml`）发布单文件自包含产物 |
 
 ## 2. 分主题详述
 
@@ -178,10 +178,10 @@
 
 ### 2.17 图形界面 BBDown.GUI
 
-- **形态**（`BBDown.GUI/`，WPF，仅 Windows，`net9.0-windows`）：单窗口封装下载——直接引用 `BBDown.Core` 下载库，以库调用方式执行任务（非子进程调用 BBDown.exe），下载内容按 CLI 字符集（a / v / c / C / d / i / m / M / o / O / S / s）全量 CheckBox 配置，其余选项与 CLI 参数一一对应。
+- **形态**（`BBDown.GUI/`，Avalonia，跨平台，`net9.0`）：单窗口封装下载——直接引用 `BBDown.Core` 下载库，以库调用方式执行任务（非子进程调用 BBDown.exe），下载内容按 CLI 字符集（a / v / c / C / d / i / m / M / o / O / S / s）全量 CheckBox 配置，其余选项与 CLI 参数一一对应。
 - **任务队列**（`QueueRunner` / `TaskParams`）：多任务排队与并发控制（1–8，运行中可调），「执行」与队列任务共享并发池；任务日志经 Core `Logger.Output` 回调进入窗口日志区，仍按级别着色。
 - **便携配置**（`ConfigStore`）：面板选项随 exe 保存到 `BBDown.GUI.config.json`（不保存 url 与队列）。
-- **发布**：独立 CI（`.github/workflows/gui.yml`）在 `win-x64` / `win-arm64` 上产出 framework-dependent 与自包含单文件（`PublishSingleFile` + `PublishReadyToRun`，非 AOT）并上传产物，可手动触发追加到最新 Release；主 CI（`ci.yml`）不再构建图形界面。
+- **发布**：独立 CI（`.github/workflows/gui.yml`）在 Windows / macOS / Linux（各 x64 / arm64，Linux 仅 glibc）上发布 AOT 单文件（`PublishAot` + `PublishSingleFile`），并将整个发布目录打包为 zip 上传产物，可手动触发追加到最新 Release；主 CI（`ci.yml`）不再构建图形界面。
 
 ## 3. 关键改动核实点（源码位置）
 
@@ -201,7 +201,7 @@
 - **cheese 增强**：`BBDown.Core/Fetcher/CheeseInfoFetcher.cs`（`BuildPages`）、`BBDown.Core/Pipeline/VideoInfo.cs`（`NormalizeOptionsAfterFetch`）。
 - **封装/通道**：`BBDown.Core/PlayUrl/`（`DashTrackReader.Collect` / `FlvTrackReader.Collect` / `IntlTrackReader.Collect` / `AppTrackReader.FetchAsync`，请求由 `PlayUrlClient` 发出）；`Parser.ExtractTracksAsync` 负责编排；`ApiType` 枚举与解析在 `BBDown.Core/ApiType.cs`，`BBDown.Core/Config.cs`（`MaxQn`）。
 - **归档**：`BBDown.Core/Util/ArchiveLog.cs`、`BBDown/Cli/CommandLineInvoker.cs`（`SaveRecords`）。
-- **AOT/现代化**：`BBDown/Directory.Build.props`、`Directory.Build.props`（GUI 为独立 WPF 项目，单文件 + ReadyToRun，不参与 AOT）。
+- **AOT/现代化**：`BBDown/Directory.Build.props`、`Directory.Build.props`（GUI 为独立 Avalonia 项目，AOT 单文件发布）。
 - **直播录制**：`BBDown.Core/Pipeline/LiveDownload.cs`、`BBDown.Core/Live/`（LiveInputResolver / LiveFetcher / LiveRoomInfo / LiveRecorder / LiveSegmentWriter / LiveProgress / LiveFileNaming / LiveMuxer / LiveSignal）。
 
 ## 4. 不兼容说明（升级注意）

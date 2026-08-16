@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,6 +21,12 @@ public static class PartDownloader
 {
     private const int BlockSize = 1024 * 1024;
     private const int ManifestSaveIntervalMs = 2000;
+    // 分片并发上限：分片是网络 IO，32 条连接足够吃满带宽，再高只会挤压 CDN 连接；
+    // FLV 多片段共享同一配额（见 FlvDownload），片段间与片段内合计不超过该值
+    internal const int MaxRangeConcurrency = 32;
+    // 分片级重试次数：瞬态网络故障（超时/断连）在此层消化，避免整 P 退避重下
+    private const int RangeRetryCount = 3;
+    private static readonly TimeSpan RangeRetryDelay = TimeSpan.FromMilliseconds(500);
 
     internal static async Task RunAsync(string url, string path, DownloadConfig config, PartManifest manifest,
                                         List<(long From, long To)> ranges, bool resumable, CancellationToken ct)
@@ -32,14 +39,16 @@ public static class PartDownloader
         using var progress = new ProgressSampler(config.OnSample);
         progress.Report(0);
 
-        void Report( )
+        // 已写字节运行总量：续传基数 + 各分片新增，逐块 O(1) 上报，免去每次对全部分片求和
+        var downloadedTotal = PartFile.DownloadedBytes(manifest);
+        void Report(long read)
         {
-            var downloaded = 0L;
-            foreach (var c in completed)
+            if (read > 0)
             {
-                downloaded += c;
+                Interlocked.Add(ref downloadedTotal, read);
             }
 
+            var downloaded = Volatile.Read(ref downloadedTotal);
             progress.Report(manifest.TotalSize > 0 ? (double) downloaded / manifest.TotalSize : 0, downloaded);
         }
 
@@ -71,12 +80,19 @@ public static class PartDownloader
 
             var parallelOptions = new ParallelOptions
             {
-                // -1 即 Parallel 默认并发度（= Environment.ProcessorCount），分片并行度完全由下载器决定
-                MaxDegreeOfParallelism = -1,
+                MaxDegreeOfParallelism = MaxRangeConcurrency,
                 CancellationToken = ct,
             };
+            var gate = config.ConnectionGate;
             await Parallel.ForEachAsync(Enumerable.Range(0, ranges.Count), parallelOptions, async (index, token) =>
             {
+                // FLV 多片段共享连接配额：拿不到配额就等，片段间并行与片段内 Range 合计不超过上限；
+                // WaitAsync 取消时不会进入 try，也就不会误 Release
+                if (gate is not null)
+                {
+                    await gate.WaitAsync(token);
+                }
+
                 try
                 {
                     await DownloadRangeAsync(index, url, handle, config.Cookie, manifest, ranges, completed, ranges.Count > 1, Report, token);
@@ -95,6 +111,7 @@ public static class PartDownloader
                 }
                 finally
                 {
+                    gate?.Release( );
                     Persist(force: false);
                 }
             });
@@ -126,16 +143,36 @@ public static class PartDownloader
 
     private static async Task DownloadRangeAsync(int index, string url, SafeFileHandle handle,
                                                  string cookie, PartManifest manifest, List<(long From, long To)> ranges,
-                                                 long[] completed, bool requireRangeSupport, Action report, CancellationToken ct)
+                                                 long[] completed, bool requireRangeSupport, Action<long> report, CancellationToken ct)
     {
         var (from, to) = ranges[index];
         var expected = to >= 0 ? to - from + 1 : -1;
         if (expected >= 0 && completed[index] >= expected)
         {
-            report( );
+            report(0);
             return;
         }
 
+        // 断点由 completed[index] 推进，重试只需重发 Range 从断点续下；Range 不支持与用户取消不重试
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                await DownloadRangeOnceAsync(index, url, handle, cookie, manifest, from, to, expected, completed, requireRangeSupport, report, ct);
+                return;
+            }
+            catch (Exception ex) when (attempt < RangeRetryCount && IsRetryable(ex, ct))
+            {
+                await Task.Delay(RangeRetryDelay * (attempt + 1), ct);
+            }
+        }
+    }
+
+    // 单次 HTTP 连接的整段下载：失败由调用方决定是否重试。from/to/expected 由调用方算好传入，避免两处重复推导
+    private static async Task DownloadRangeOnceAsync(int index, string url, SafeFileHandle handle,
+                                                     string cookie, PartManifest manifest, long from, long to, long expected,
+                                                     long[] completed, bool requireRangeSupport, Action<long> report, CancellationToken ct)
+    {
         HttpResponseMessage response;
         try
         {
@@ -152,6 +189,7 @@ public static class PartDownloader
                 throw new IOException($"分片 {index} 收到 416 但磁盘数据不足（{onDisk} < {from + completed[index]}），放弃不安全的续传假定");
             }
 
+            report(0);
             return;
         }
 
@@ -174,24 +212,31 @@ public static class PartDownloader
 
             var contentLength = response.Content.Headers.ContentLength;
             await using var stream = await response.Content.ReadAsStreamAsync(ct);
-            var buffer = new byte[BlockSize];
+            var buffer = ArrayPool<byte>.Shared.Rent(BlockSize);
             var offset = from + completed[index];
             var received = 0L;
-            do
+            try
             {
-                var read = await stream.ReadAsync(buffer, ct);
-                if (read == 0)
+                do
                 {
-                    break;
-                }
+                    var read = await stream.ReadAsync(buffer.AsMemory(0, BlockSize), ct);
+                    if (read == 0)
+                    {
+                        break;
+                    }
 
-                await RandomAccess.WriteAsync(handle, buffer.AsMemory(0, read), offset, ct);
-                offset += read;
-                received += read;
-                completed[index] += read;
-                report( );
+                    await RandomAccess.WriteAsync(handle, buffer.AsMemory(0, read), offset, ct);
+                    offset += read;
+                    received += read;
+                    completed[index] += read;
+                    report(read);
+                }
+                while (expected < 0 || completed[index] < expected);
             }
-            while (expected < 0 || completed[index] < expected);
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
 
             if (expected >= 0 && completed[index] != expected)
             {
@@ -204,6 +249,28 @@ public static class PartDownloader
                 throw new IOException($"响应被截断：{received} / {contentLength} bytes");
             }
         }
+    }
+
+    // 分片是否值得重试：Range 不支持与确定性 4xx 重试只会白等；
+    // ct 未取消的 OperationCanceledException 是 HttpClient 超时，属于瞬态故障，可重试
+    private static bool IsRetryable(Exception ex, CancellationToken ct)
+    {
+        if (ex is NotSupportedException)
+        {
+            return false;
+        }
+
+        if (ex is OperationCanceledException)
+        {
+            return !ct.IsCancellationRequested;
+        }
+
+        if (ex is HttpRequestException { StatusCode: { } status })
+        {
+            return (int) status >= 500 || status is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests;
+        }
+
+        return true;
     }
 
     /// <summary>记下服务器给的校验器，续传时原样回传；顺带从 Content-Range 补全未知的总长度。</summary>

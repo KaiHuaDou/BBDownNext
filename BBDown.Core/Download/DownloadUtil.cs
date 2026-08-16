@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -127,14 +128,41 @@ public static class DownloadUtil
         await PartDownloader.RunAsync(url, path, config, manifest, ranges, resumable, ct);
     }
 
+    // 探测文件大小。先带 Range 0-0 请求：206 的 Content-Range 带总长，且读完 1 字节后连接回池，
+    // 分片可复用同一连接（省掉每个文件一次 TCP+TLS 握手）。
+    // 服务器忽略 Range（200）时直接取 Content-Length（不读 body，连接无法复用）；拒绝 Range（416 等）时退化为无 Range 探测。
     private static async Task<(long Size, string? IfRange)> ProbeAsync(string url, string cookie, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        AddDownloadHeaders(request, url, cookie);
+        request.Headers.Range = new(0, 0);
+        using var response = await SendRawAsync(request, ct);
+        if (response.StatusCode == HttpStatusCode.PartialContent)
+        {
+            await response.Content.ReadAsByteArrayAsync(ct);
+            return (response.Content.Headers.ContentRange?.Length ?? 0, ReadValidator(response));
+        }
+
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            return (response.Content.Headers.ContentLength ?? 0, ReadValidator(response));
+        }
+
+        return await ProbeFullAsync(url, cookie, ct);
+    }
+
+    private static async Task<(long Size, string? IfRange)> ProbeFullAsync(string url, string cookie, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         AddDownloadHeaders(request, url, cookie);
         using var response = await SendRawAsync(request, ct);
         response.EnsureSuccessStatusCode( );
-        var validator = response.Headers.ETag?.ToString( ) ?? response.Content.Headers.LastModified?.ToString("R");
-        return (response.Content.Headers.ContentLength ?? 0, validator);
+        return (response.Content.Headers.ContentLength ?? 0, ReadValidator(response));
+    }
+
+    private static string? ReadValidator(HttpResponseMessage response)
+    {
+        return response.Headers.ETag?.ToString( ) ?? response.Content.Headers.LastModified?.ToString("R");
     }
 
     /// <summary>

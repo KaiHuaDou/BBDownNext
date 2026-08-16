@@ -14,6 +14,27 @@ BBDown 是一个基于 **.NET 9** 的哔哩哔哩视频下载 / 解析命令行�
 
 代码层面强制 **nullable enable**、**`TreatWarningsAsErrors=true`**、**集中式包版本管理**（`Directory.Packages.props`），并以 `System.Text.Json` **源生成器**（`JsonSerializerContext`）替代运行时反射，保证 AOT 裁剪安全。
 
+三个项目的依赖方向如下（`BBDown.GUI` 与 `BBDown` 都只依赖 `BBDown.Core`，Core 不反向依赖入口项目）：
+
+```mermaid
+flowchart LR
+    subgraph CORE["BBDown.Core（下载能力单一来源，按职责分层）"]
+        direction TB
+        Pipeline["Pipeline<br/>下载编排主干"]
+        Media["Media · Mux<br/>分 P 下载与混流"]
+        Download["Download<br/>域模型与传输"]
+        Live["Live<br/>直播录制（独立链路）"]
+        Auth["Auth<br/>登录与凭据"]
+        Fetcher["Fetcher<br/>信息获取"]
+        PlayUrl["PlayUrl<br/>播放地址解析"]
+        Opus["Opus<br/>专栏导出（旁路）"]
+        Comment["Comment · Entity · Util<br/>评论与基础设施"]
+    end
+
+    CLI["BBDown 入口<br/>(Cli · Serve · Program)"] --> CORE
+    GUI["BBDown.GUI<br/>(Avalonia 桌面端)"] --> CORE
+```
+
 ---
 
 ## 2. 项目结构
@@ -355,7 +376,7 @@ playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）�
 - `BBDown.Core` 标记 `IsAotCompatible=true`；序列化一律用 `JsonSerializerContext` 源生成器（`CredentialJsonContext` / `DownloadRequestJsonContext` / `PartJsonContext` / `PostProcessJsonContext` / `AppJsonSerializerContext` / `ServeRequestOptionsJsonContext`），禁止运行时反射。
 - 全局 `TreatWarningsAsErrors=true`、`Nullable enable`、`LangVersion latest`、集中式包版本（`Directory.Packages.props`）。
 - 发布 AOT：`dotnet publish -c Release -r <RID> /p:PublishAot=true`。注意 AOT 下 `BBDown.data` 等 JSON 必须走源生成器，否则会被裁剪导致反序列化失败。
-- **图形界面发布**（`BBDown.GUI`）：`PublishAot` + `PublishSingleFile`，由独立 CI（`.github/workflows/gui.yml`）在 `win-x64` / `win-arm64` 上产出自包含单文件并上传产物，可手动触发追加到最新 Release；主 CI（`ci.yml`）不构建 GUI。
+- **图形界面发布**（`BBDown.GUI`）：`PublishAot` + `PublishSingleFile`，由独立 CI（`.github/workflows/gui.yml`）在 Windows / macOS / Linux（各 x64 / arm64，Linux 仅 glibc）上发布自包含单文件，并将整个发布目录打包为 zip 上传产物，可手动触发追加到最新 Release；主 CI（`ci.yml`）不构建 GUI。
 - **Win7 兼容构建**（CLI，`win-x64`）：`-p:WindowsWin7Compat=true` 接入 YY-Thunks 与 VC-LTL，产物可在 Windows 7 直接运行（需先装 KB3140245 提供 TLS 1.1/1.2）。
 
 > 调试构建（`dotnet build -c Debug`）不受 AOT 限制，可正常用运行时反射；仅发布 AOT 时需遵守上述约束。

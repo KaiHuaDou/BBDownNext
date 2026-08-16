@@ -251,3 +251,7 @@ AGENT 对此文档的修改只能添加在本节，在本节添加内容无需�
 - 文件/目录选择用 `TopLevel.StorageProvider`（`OpenFolderPickerAsync` / `OpenFilePickerAsync`）。
 - 日志区虚拟化用 `ListBox`（自带虚拟化与滚动），滚动到底用 `ScrollIntoView`；勿用「`ItemsControl` + 外层 `ScrollViewer` + `VirtualizingStackPanel`」组合（视口为 0、物化 0 个容器）。
 - 源生成 COM（`GeneratedComInterface` + `StrategyBasedComWrappers`）在 Avalonia + .NET9 AOT 组合下曾致启动栈溢出，任务栏进度类功能应改用「手动 vtable 函数指针」或 CsWin32，避免源生成 COM。
+
+### FLV 交互选清晰度不生效（故意设计）
+
+`FlvDownload` 交互式清晰度选择（`PickDfn` → 按所选 dfn 重解析）对最终产物**没有影响**：`Parser` 对 WEB 通道一律按 `Config.MaxQn` 请求，FLV 强制最高清晰度，所选 dfn 不会改变下载的分片。该行为是既定设计，**不要**“修复”成让所选 dfn 真正生效。`Parser.ExtractTracksAsync` 的 `qn` 参数对 WEB 通道被刻意忽略（INTL 通道除外），改 `Parser` 时须保持这一点。

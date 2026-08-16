@@ -2,11 +2,12 @@ using System;
 using System.Text;
 using System.Threading;
 
+using BBDown.Core;
 using BBDown.Core.Util;
 
 namespace BBDown;
 
-// 控制台进度条渲染器：接收 ProgressSampler 每秒的采样回调，按 1/8 秒刷新一帧。
+// 控制台进度条渲染器：接收 ProgressSampler 每 200 毫秒的采样回调，按 1/8 秒刷新一帧。
 public sealed class ProgressBar : IDisposable
 {
     private const int BarWidth = 40;
@@ -27,6 +28,7 @@ public sealed class ProgressBar : IDisposable
     private DateTime etaStart;
     private double lastRatio;
     private bool disposed;
+    private bool suspended;
 
     public ProgressBar(CancellationToken ct = default)
     {
@@ -35,6 +37,71 @@ public sealed class ProgressBar : IDisposable
         {
             renderTimer = new Timer(_ => Render( ));
             renderTimer.Change(RenderInterval, Timeout.InfiniteTimeSpan);
+            // 退格重绘假定光标停在本行末尾，日志若直接跟在进度条后面会把光标推走，下一帧就把 spinner 打到日志行首。
+            // 注册日志前置钩子：写日志前先擦掉进度条行，让日志从行首开始（与 LiveProgress 同一机制）。
+            Logger.BeforeWrite = ClearLine;
+            // 逐集确认 / 选轨等交互读输入前暂停渲染，避免进度条覆盖提示与用户输入
+            Interaction.BeforeRead = Suspend;
+            Interaction.AfterRead = Resume;
+        }
+    }
+
+    // 交互读输入前暂停：停掉渲染定时器并擦掉当前行，让提示与用户输入独占本行
+    public void Suspend( )
+    {
+        if (!drawToConsole)
+        {
+            return;
+        }
+
+        lock (gate)
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            suspended = true;
+            renderTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            Draw(string.Empty);
+        }
+    }
+
+    // 交互读输入后恢复渲染
+    public void Resume( )
+    {
+        if (!drawToConsole)
+        {
+            return;
+        }
+
+        lock (gate)
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            suspended = false;
+            renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    // 擦掉进度条行，让紧随其后的日志从行首开始。日志打完由下一帧自动重画。
+    public void ClearLine( )
+    {
+        // 重定向时不渲染进度条，无事可擦，直接跳过避免无谓锁竞争
+        if (!drawToConsole)
+        {
+            return;
+        }
+
+        lock (gate)
+        {
+            if (!disposed)
+            {
+                Draw(string.Empty);
+            }
         }
     }
 
@@ -55,7 +122,7 @@ public sealed class ProgressBar : IDisposable
 
             if (delta > 0)
             {
-                speedText = $" - {Utils.FormatSpeed(delta)}";
+                speedText = $" - {Utils.FormatSpeed(delta, ProgressSampler.SampleInterval.TotalSeconds)}";
             }
 
             etaText = Utils.FormatEta(value, now - etaStart) is { } eta ? $" ETA {eta}" : string.Empty;
@@ -66,7 +133,7 @@ public sealed class ProgressBar : IDisposable
     {
         lock (gate)
         {
-            if (disposed || cancelToken.IsCancellationRequested)
+            if (disposed || cancelToken.IsCancellationRequested || suspended)
             {
                 return;
             }
@@ -111,6 +178,10 @@ public sealed class ProgressBar : IDisposable
 
     public void Dispose( )
     {
+        // 先摘钩再拿 gate：Logger 持自身锁回调 ClearLine 拿本 gate，反向持 gate 去改 Logger 状态会死锁
+        Logger.BeforeWrite = null;
+        Interaction.BeforeRead = null;
+        Interaction.AfterRead = null;
         lock (gate)
         {
             if (disposed)

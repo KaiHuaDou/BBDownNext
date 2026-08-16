@@ -24,10 +24,14 @@ public static class Parser
             return await AppTrackReader.FetchAsync(req, ct);
         }
 
+        // 一律按最高档单次请求：一次响应已含全部可用档位，免二压档位只在 MaxQn 响应出现，无需两次请求再取并集。
+        // 显式 qn 刻意忽略——FLV 交互选清晰度不生效是既定设计（FLV 强制最高清晰度），见 AGENTS.md「其他内容」；
+        // INTL 通道的 prefer_code_type 双请求按 qn 原样进行
+        var effectiveQn = req.Api == ApiType.Intl ? qn : Config.MaxQn;
         ParsedResult result = new( )
         {
             //调用解析
-            RawResponse = await PlayUrlClient.FetchAsync(req, qn, ct)
+            RawResponse = await PlayUrlClient.FetchAsync(req, effectiveQn, ct)
         };
 
         LogDebug(result.RawResponse);
@@ -39,10 +43,10 @@ public static class Parser
             return result;
         }
 
-        using var firstDoc = JsonDocument.Parse(result.RawResponse);
+        using var doc = JsonDocument.Parse(result.RawResponse);
         // playurl 非 0 code（-400/-404/-352 等）意味着拉流失败：直接抛可读错误，
         // 否则会静默落到根节点解析出空轨道，下游只报一句晦涩的「解析此分 P 失败」
-        var (code, message) = ReadApiError(firstDoc.RootElement);
+        var (code, message) = ReadApiError(doc.RootElement);
         if (code != 0)
         {
             throw new InvalidOperationException(code == -352
@@ -50,41 +54,33 @@ public static class Parser
                 : $"获取播放信息失败（code={code}）：{message}");
         }
 
-        var nodeName = PlayUrlResponse.ResolveDataNodeName(firstDoc.RootElement);
-        var firstRoot = PlayUrlResponse.GetRootNode(firstDoc.RootElement, nodeName);
+        var nodeName = PlayUrlResponse.ResolveDataNodeName(doc.RootElement);
+        var root = PlayUrlResponse.GetRootNode(doc.RootElement, nodeName);
 
-        if (HasObject(firstRoot, "dash"))
+        if (HasObject(root, "dash"))
         {
-            // 免二压视频需要按最高档再请求一次；视频轨取两次并集，音轨优先取第二次
-            result.RawResponse = await PlayUrlClient.FetchAsync(req, Config.MaxQn, ct);
-            using var maxQnDoc = JsonDocument.Parse(result.RawResponse);
-            var maxQnRoot = PlayUrlResponse.GetRootNode(maxQnDoc.RootElement, nodeName);
-            DashTrackReader.Collect(result, firstRoot, maxQnRoot, req.Api == ApiType.Tv);
-            if (DashTrackReader.DeclaredButMissing(maxQnRoot, result, Config.AiRepairQn))
+            DashTrackReader.Collect(result, root, req.Api == ApiType.Tv);
+            if (DashTrackReader.DeclaredButMissing(root, result, Config.AiRepairQn))
             {
                 LogWarn("该视频存在「智能修复」画质，当前账号非大会员无法获取");
             }
 
-            if (req.IsEpisode)
+            // 单次 MaxQn 请求的降级盲区：dash 响应却收集不到任何音轨，多半是限流/风控降级
+            //（旧逻辑在二次请求降级时回退首次响应的音轨，单次请求没有兜底，只能提示重试）
+            if (result.AudioTracks.Count == 0)
             {
-                AppendBangumiViewPoints(result, maxQnRoot);
+                LogWarn("拉流响应异常：未解析到任何音轨（可能被限流或风控降级），可稍后重试");
             }
         }
-        else if (TryGetArray(firstRoot, "durl", out _))
+        else if (TryGetArray(root, "durl", out _))
         {
-            // FLV 强制最高清晰度
-            result.RawResponse = await PlayUrlClient.FetchAsync(req, Config.MaxQn, ct);
-            using var maxQnDoc = JsonDocument.Parse(result.RawResponse);
-            var maxQnRoot = PlayUrlResponse.GetRootNode(maxQnDoc.RootElement, nodeName);
-            FlvTrackReader.Collect(result, maxQnRoot);
-            if (req.IsEpisode)
-            {
-                AppendBangumiViewPoints(result, maxQnRoot);
-            }
+            // FLV 强制最高清晰度（自动档已按 MaxQn 请求）
+            FlvTrackReader.Collect(result, root);
         }
-        else if (req.IsEpisode)
+
+        if (req.IsEpisode)
         {
-            AppendBangumiViewPoints(result, firstRoot);
+            AppendBangumiViewPoints(result, root);
         }
 
         return result;

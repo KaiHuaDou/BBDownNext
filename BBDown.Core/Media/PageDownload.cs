@@ -30,12 +30,13 @@ public static class PageDownload
             try
             {
                 LogDebug("获取播放器信息...");
-                var playerInfo = await ChapterMeta.FetchPlayerV2Async(p.Cid, p.Aid, ctx.Fetch.Cfg, ct);
-                p.Points = playerInfo.Points;
-
-                //调用解析
-                var parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedId, p.Aid, p.Cid, p.EpId,
+                // player/v2 与拉流解析互相独立，并行发起省一次 RTT
+                var playerTask = ChapterMeta.FetchPlayerV2Async(p.Cid, p.Aid, ctx.Fetch.Cfg, ct);
+                var parsedTask = ExtractTracksAsync(ctx.Fetch.FetchedId, p.Aid, p.Cid, p.EpId,
                     myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, ct: ct);
+                var playerInfo = await playerTask;
+                var parsedResult = await parsedTask;
+                p.Points = playerInfo.Points;
                 if (p.Points.Count == 0)
                 {
                     p.Points = parsedResult.ExtraPoints;

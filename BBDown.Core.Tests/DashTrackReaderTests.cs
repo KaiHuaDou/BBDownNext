@@ -21,31 +21,29 @@ public class DashTrackReaderTests
         Assert.Equal(125, DashTrackReader.ReadDuration(doc.RootElement));
     }
 
-    // 等价点 A：pDur 取首次响应，而非免二压的 MaxQn 二次响应
+    // pDur 取响应自身的 timelength，作为充电专属试看的判据（等价点 A）
     [Fact]
-    public void Collect_TakesDurationFromFirstRoot( )
+    public void Collect_TakesDurationFromRoot( )
     {
-        var first = Root("""{"timelength":125000,"dash":{"video":[]}}""");
-        var maxQn = Root("""{"timelength":999000,"dash":{"video":[]}}""");
+        var root = Root("""{"timelength":125000,"dash":{"video":[]}}""");
 
         var result = new ParsedResult( );
-        DashTrackReader.Collect(result, first, maxQn, tvApi: false);
+        DashTrackReader.Collect(result, root, tvApi: false);
 
         Assert.Equal(125, result.Duration);
     }
 
-    // 免二压视频：首次响应没有的更高档位只在 MaxQn 二次响应出现，视频轨取两次并集（按 Equals 去重）
+    // 单份响应已含全部可用档位：视频轨全部收集，重复轨道按 Equals 去重
     [Fact]
-    public void Collect_UnionsVideoTracksFromBothResponsesAndDedups( )
+    public void Collect_CollectsAllVideoTracksAndDedups( )
     {
         const string video80 = """{"id":"80","base_url":"http://a","backup_url":["http://b"],"bandwidth":3000000,"codecid":"7","size":1000,"width":1920,"height":1080,"frame_rate":"30"}""";
         const string video127 = """{"id":"127","base_url":"http://c","backup_url":[],"bandwidth":9000000,"codecid":"12","size":3000,"width":3840,"height":2160,"frame_rate":"30"}""";
 
-        var first = Root("""{"timelength":125000,"dash":{"video":[""" + video80 + """]}}""");
-        var maxQn = Root("""{"timelength":125000,"dash":{"video":[""" + video80 + "," + video127 + """]}}""");
+        var root = Root("""{"timelength":125000,"dash":{"video":[""" + video80 + "," + video127 + "," + video80 + """]}}""");
 
         var result = new ParsedResult( );
-        DashTrackReader.Collect(result, first, maxQn, tvApi: false);
+        DashTrackReader.Collect(result, root, tvApi: false);
 
         var ids = result.VideoTracks.Select(v => v.Id).ToList( );
         Assert.Equal(2, ids.Count);
@@ -53,16 +51,15 @@ public class DashTrackReaderTests
         Assert.Contains("127", ids);
     }
 
-    // 二次响应降级（无 dash/音轨）时，音轨回退到首次响应而不是被丢弃
+    // 单份响应同时携带音视频轨时，音轨一并收集
     [Fact]
-    public void Collect_FallsBackToFirstRootAudioWhenMaxQnHasNoAudio( )
+    public void Collect_CollectsAudioFromRoot( )
     {
         const string audio = """{"id":"30264","base_url":"http://au","bandwidth":64000,"codecs":"mp4a.40.2","size":300}""";
-        var first = Root("""{"timelength":100000,"dash":{"video":[{"id":"64","base_url":"http://v","bandwidth":1,"codecid":"7","size":1,"width":1920,"height":1080,"frame_rate":"30"}],"audio":[""" + audio + """]}}""");
-        var maxQn = Root("""{"timelength":100000,"dash":{"video":[{"id":"127","base_url":"http://v2","bandwidth":1,"codecid":"12","size":1,"width":3840,"height":2160,"frame_rate":"30"}]}}""");
+        var root = Root("""{"timelength":100000,"dash":{"video":[{"id":"64","base_url":"http://v","bandwidth":1,"codecid":"7","size":1,"width":1920,"height":1080,"frame_rate":"30"}],"audio":[""" + audio + """]}}""");
 
         var result = new ParsedResult( );
-        DashTrackReader.Collect(result, first, maxQn, tvApi: false);
+        DashTrackReader.Collect(result, root, tvApi: false);
 
         Assert.Equal(["30264"], result.AudioTracks.Select(a => a.Id).ToList( ));
     }
@@ -71,10 +68,10 @@ public class DashTrackReaderTests
     [Fact]
     public void Collect_CollectsDolbyAudioWhenDashAudioMissing( )
     {
-        var first = Root("""{"timelength":100000,"dash":{"video":[{"id":"80","base_url":"http://v","bandwidth":1,"codecid":"7","size":1,"width":1920,"height":1080,"frame_rate":"30"}],"dolby":{"audio":[{"id":"30250","base_url":"http://dolby","bandwidth":200000,"codecs":"ec-3","size":800}]}}}""");
+        var root = Root("""{"timelength":100000,"dash":{"video":[{"id":"80","base_url":"http://v","bandwidth":1,"codecid":"7","size":1,"width":1920,"height":1080,"frame_rate":"30"}],"dolby":{"audio":[{"id":"30250","base_url":"http://dolby","bandwidth":200000,"codecs":"ec-3","size":800}]}}}""");
 
         var result = new ParsedResult( );
-        DashTrackReader.Collect(result, first, first, tvApi: false);
+        DashTrackReader.Collect(result, root, tvApi: false);
 
         Assert.Contains("30250", result.AudioTracks.Select(a => a.Id));
     }
@@ -83,10 +80,10 @@ public class DashTrackReaderTests
     [Fact]
     public void Collect_TvApiSkipsResolutionAndDolby( )
     {
-        var first = Root("""{"timelength":100000,"dash":{"video":[{"id":"80","base_url":"http://v","bandwidth":1,"codecid":"7","size":1,"width":1920,"height":1080,"frame_rate":"30"}],"dolby":{"audio":[{"id":"30250","base_url":"http://dolby","bandwidth":200000,"codecs":"ec-3","size":800}]}}}""");
+        var root = Root("""{"timelength":100000,"dash":{"video":[{"id":"80","base_url":"http://v","bandwidth":1,"codecid":"7","size":1,"width":1920,"height":1080,"frame_rate":"30"}],"dolby":{"audio":[{"id":"30250","base_url":"http://dolby","bandwidth":200000,"codecs":"ec-3","size":800}]}}}""");
 
         var result = new ParsedResult( );
-        DashTrackReader.Collect(result, first, first, tvApi: true);
+        DashTrackReader.Collect(result, root, tvApi: true);
 
         var v = Assert.Single(result.VideoTracks);
         Assert.Null(v.Res);

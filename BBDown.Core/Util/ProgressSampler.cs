@@ -3,11 +3,12 @@ using System.Threading;
 
 namespace BBDown.Core.Util;
 
-// 进度采样器：把下载线程高频的 Report 降频为每秒一次的 onSample 回吐（总进度，本周期新增字节数），
+// 进度采样器：把下载线程高频的 Report 降频为每 200 毫秒一次的 onSample 回吐（总进度，本周期新增字节数），
 // 供 serve / GUI 等控制台之外的观察者获取进度；onSample 为 null 时只记录进度不再采样。
 public sealed class ProgressSampler : IDisposable
 {
-    private static readonly TimeSpan SampleInterval = TimeSpan.FromSeconds(1);
+    // 每秒 5 次。速度类消费方按此周期把 delta 折算成每秒速率
+    public static readonly TimeSpan SampleInterval = TimeSpan.FromMilliseconds(200);
 
     // 下载线程高频写、定时器线程读，只能通过 Interlocked/Volatile 访问
     private double progressRatio;

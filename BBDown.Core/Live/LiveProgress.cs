@@ -84,7 +84,7 @@ public sealed class LiveProgress : IDisposable
         }
     }
 
-    // ProgressSampler 每秒回调一次，更新速度显示；重定向时定期落一行日志
+    // ProgressSampler 每 200 毫秒回调一次，更新速度显示；重定向时定期落一行日志
     private void OnSample(long delta)
     {
         lock (gate)
@@ -94,7 +94,7 @@ public sealed class LiveProgress : IDisposable
                 return;
             }
 
-            speedText = Utils.FormatSpeed(delta);
+            speedText = Utils.FormatSpeed(delta, ProgressSampler.SampleInterval.TotalSeconds);
 
             if (!drawToConsole && DateTime.Now - lastRedirectedLog >= RedirectedLogInterval)
             {
