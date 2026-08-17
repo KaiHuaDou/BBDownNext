@@ -38,7 +38,7 @@ public static class WatchLaterFetcher
             throw new InvalidOperationException("稍后再看列表为空");
         }
 
-        // 多P视频此前逐个串行发 view 拿分P列表，改为限并发并行拉取
+        // 多 P 视频此前逐个串行发 view 拿分 P 列表，改为限并发并行拉取
         var multiPIds = medias
             .Where(m => m.GetProperty("videos").GetInt32( ) > 1)
             .Select(m => m.GetProperty("aid").ToString( ))

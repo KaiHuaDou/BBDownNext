@@ -17,11 +17,11 @@ BBDown serve
 BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 ```
 
-| 参数               | 简写 | 说明                                                                                                                                                                                    |
-| ------------------ | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--listen`         | `-l` | 监听地址，默认 `http://127.0.0.1:23333`                                                                                                                                                 |
-| `--serve-token`    |      | 鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 `X-BBDown-Token` 头或 `?token=` 查询参数                                                                                 |
-| `--work-dir`       |      | 所有任务的工作目录（请求体中的 `WorkDir` 字段会被忽略，一律以服务端为准）                                                                                                               |
+| 参数               | 简写 | 说明                                                                                                                                                                          |
+| ------------------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--listen`         | `-l` | 监听地址，默认 `http://127.0.0.1:23333`                                                                                                                                       |
+| `--serve-token`    |      | 鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 `X-BBDown-Token` 头或 `?token=` 查询参数                                                                       |
+| `--work-dir`       |      | 所有任务的工作目录（请求体中的 `WorkDir` 字段会被忽略，一律以服务端为准）                                                                                                     |
 | `--max-concurrent` |      | 同时下载的任务数上限，默认 `0` 表示不限制；设为 `N > 0` 时最多 `N` 个任务同时下载，其余按提交顺序排队（`Status` 为 `Queued`），单个任务内部的下载并行度由多线程下载器自行决定 |
 
 服务器启动后会一直运行，直到进程被终止（可用 `Ctrl+C` 优雅取消正在进行的下载）。
@@ -44,7 +44,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | POST | `/remove-finished`        | 移除所有已完成任务                                    |
 | POST | `/remove-finished/failed` | 移除所有已失败（`IsSuccessful == false`）的已完成任务 |
 | POST | `/remove-finished/{id}`   | 移除指定已完成任务                                    |
-| POST | `/stop-task/{id}`         | 取消指定运行中 / 排队中任务（不影响其他任务）          |
+| POST | `/stop-task/{id}`         | 取消指定运行中 / 排队中任务（不影响其他任务）         |
 
 ---
 
@@ -141,18 +141,18 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 在 `DownloadTask` 的 JSON 中，`Id` 序列化为**规范字符串**（如 `"season2539"`），`/get-tasks/{id}`、`/remove-finished/{id}`、`/stop-task/{id}` 的路径参数使用**同一编码**，客户端拿到 `Id` 即可直接回显到路径：
 
-| 类型 | `Id`（JSON 字段与路径参数同一串） |
-| ---- | --------------------------------- |
-| `av`（普通视频） | `av170001` |
-| `ep`（番剧单集） | `ep2539` |
-| `season`（番剧整季） | `season2539` |
-| `cheeseEp`（课程单集） | `cheeseEp123` |
-| `cheeseSeason`（课程整季） | `cheeseSeason123` |
-| `fav`（收藏夹） | `fav100_200` |
-| `mediaList`（合集） | `mediaList789` |
-| `series`（系列） | `series789` |
-| `space`（UP 主空间） | `space402787936` |
-| `watchLater`（稍后再看） | `watchLater` |
+| 类型                       | `Id`（JSON 字段与路径参数同一串） |
+| -------------------------- | --------------------------------- |
+| `av`（普通视频）           | `av170001`                        |
+| `ep`（番剧单集）           | `ep2539`                          |
+| `season`（番剧整季）       | `season2539`                      |
+| `cheeseEp`（课程单集）     | `cheeseEp123`                     |
+| `cheeseSeason`（课程整季） | `cheeseSeason123`                 |
+| `fav`（收藏夹）            | `fav100_200`                      |
+| `mediaList`（合集）        | `mediaList789`                    |
+| `series`（系列）           | `series789`                       |
+| `space`（UP 主空间）       | `space402787936`                  |
+| `watchLater`（稍后再看）   | `watchLater`                      |
 
 > 注意：旧版 `Aid` 字段（字符串）与「裸 AID 数字」路径参数已废弃。规范编码只接受上表形态，`/add-task` 的 `Url` 仍使用命令行输入写法（`av|bv|BV|ep|ss` 等），两者互不通用。
 
@@ -164,21 +164,21 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 表示一个下载任务。
 
-| 属性                   | 类型                 | 说明                                                                                                                                               |
-| ---------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 属性                   | 类型                 | 说明                                                                                                                                                   |
+| ---------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `Id`                   | `string`             | 资源 id 的规范字符串（见 [任务标识](#任务标识)），作为任务唯一标识。同一 id 在运行中与已完成列表内各自唯一，重复提交同一 id 会直接返回已有的运行中任务 |
-| `Url`                  | `string`             | 任务请求时的 URL。不要求完整 URL，命令行支持的 `av\|bv\|BV\|ep\|ss` 均可                                                                           |
-| `TaskCreateTime`       | `long`               | 任务创建时间，Unix 时间戳，**精确到毫秒**，本机时区                                                                                                |
-| `Title`                | `string?`            | 视频标题                                                                                                                                           |
-| `Pic`                  | `string?`            | 视频封面图片链接                                                                                                                                   |
-| `VideoPubTime`         | `long?`              | 视频发布时间，Unix 时间戳，精确到秒                                                                                                                |
-| `TaskFinishTime`       | `long?`              | 任务完成时间，Unix 时间戳，**精确到毫秒**，本机时区                                                                                                |
-| `Progress`             | `double`             | 下载进度，0–1 之间的小数                                                                                                                           |
-| `DownloadSpeed`        | `double`             | 下载速度，单位 Byte/s。下载中为最后一次更新的实时速度，完成后为平均速度                                                                            |
-| `TotalDownloadedBytes` | `double`             | 总下载字节数（Byte）；完成后的数值比实际文件略小（见下方注意事项）                                                                                 |
-| `IsSuccessful`         | `bool`               | 任务是否成功完成                                                                                                                                   |
-| `Status`               | `string`             | 任务状态：`Queued`（已受理、正在等待并发额度，仅 `--max-concurrent > 0` 时出现）/ `Running`（下载中）/ `Finished`（已结束，成败见 `IsSuccessful`） |
-| `SavePaths`            | `Collection<string>` | 已生成文件的本地路径集合（可能包含视频、音频、弹幕、封面等）                                                                                       |
+| `Url`                  | `string`             | 任务请求时的 URL。不要求完整 URL，命令行支持的 `av\|bv\|BV\|ep\|ss` 均可                                                                               |
+| `TaskCreateTime`       | `long`               | 任务创建时间，Unix 时间戳，**精确到毫秒**，本机时区                                                                                                    |
+| `Title`                | `string?`            | 视频标题                                                                                                                                               |
+| `Pic`                  | `string?`            | 视频封面图片链接                                                                                                                                       |
+| `VideoPubTime`         | `long?`              | 视频发布时间，Unix 时间戳，精确到秒                                                                                                                    |
+| `TaskFinishTime`       | `long?`              | 任务完成时间，Unix 时间戳，**精确到毫秒**，本机时区                                                                                                    |
+| `Progress`             | `double`             | 下载进度，0–1 之间的小数                                                                                                                               |
+| `DownloadSpeed`        | `double`             | 下载速度，单位 Byte/s。下载中为最后一次更新的实时速度，完成后为平均速度                                                                                |
+| `TotalDownloadedBytes` | `double`             | 总下载字节数（Byte）；完成后的数值比实际文件略小（见下方注意事项）                                                                                     |
+| `IsSuccessful`         | `bool`               | 任务是否成功完成                                                                                                                                       |
+| `Status`               | `string`             | 任务状态：`Queued`（已受理、正在等待并发额度，仅 `--max-concurrent > 0` 时出现）/ `Running`（下载中）/ `Finished`（已结束，成败见 `IsSuccessful`）     |
+| `SavePaths`            | `Collection<string>` | 已生成文件的本地路径集合（可能包含视频、音频、弹幕、封面等）                                                                                           |
 
 ### `DownloadTaskSnapshot`
 

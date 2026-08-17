@@ -47,7 +47,7 @@ public static class SpaceListFetcher
         var upName = !string.IsNullOrWhiteSpace(firstMatch.Author) ? firstMatch.Author : items[0].Author;
         if (string.IsNullOrWhiteSpace(upName))
         {
-            upName = $"UP主{midStr}";
+            upName = $"UP 主{midStr}";
         }
 
         // 课堂视频（cheese）预剔除：wbi/view 必失败，省掉注定失败的请求

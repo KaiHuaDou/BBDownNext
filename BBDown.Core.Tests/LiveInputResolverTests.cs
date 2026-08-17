@@ -33,8 +33,8 @@ public class LiveInputResolverTests
     }
 
     [Theory]
-    [InlineData("live:1754632560", "1754632560")]
-    [InlineData("LIVE:1754632560", "1754632560")]
+    [InlineData("live1754632560", "1754632560")]
+    [InlineData("LIVE1754632560", "1754632560")]
     public void TryParse_LivePrefix_ReturnsRoomId(string input, string expected)
     {
         Assert.True(LiveInputResolver.TryParse(input, out var target));
@@ -70,6 +70,9 @@ public class LiveInputResolverTests
     [InlineData("https://live.bilibili.com/abc")]
     [InlineData("live:")]
     [InlineData("live:abc")]
+    [InlineData("live:1754632560")]
+    [InlineData("live")]
+    [InlineData("liveabc")]
     public void TryParse_NonLiveInput_ReturnsFalse(string input)
     {
         Assert.False(LiveInputResolver.TryParse(input, out _));

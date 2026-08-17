@@ -23,7 +23,7 @@ public static class MediaListFetcher
         return FetchListAsync(list.BizId, 8, false, "合集", cfg, ct);
     }
 
-    // 合集(type=8)与系列(type=5)共用同一套 medialist 接口, 仅 type 与排序方向不同
+    // 合集 (type=8) 与系列 (type=5) 共用同一套 medialist 接口，仅 type 与排序方向不同
     internal static async Task<VInfo> FetchListAsync(long bizId, int type, bool descOrder, string label, AppConfig cfg, CancellationToken ct = default)
     {
         var api = $"{BiliApi.MediaListInfo}?type={type}&biz_id={bizId}&tid=0";
@@ -65,7 +65,7 @@ public static class MediaListFetcher
                         Aid = m.GetProperty("id").ToString( ),
                         Cid = page.GetProperty("id").ToString( ),
                         EpId = "",
-                        Title = pageCount == 1 ? m.GetProperty("title").ToString( ) : $"{m.GetProperty("title")}_P{page.GetProperty("page")}_{page.GetProperty("title")}", //单P使用外层标题 多P则拼接内层子标题
+                        Title = pageCount == 1 ? m.GetProperty("title").ToString( ) : $"{m.GetProperty("title")}_P{page.GetProperty("page")}_{page.GetProperty("title")}", //单 P 使用外层标题 多 P 则拼接内层子标题
                         Dur = page.GetProperty("duration").GetInt32( ),
                         Res = ReadDimension(page),
                         PubTime = m.GetProperty("pubtime").GetInt64( ),

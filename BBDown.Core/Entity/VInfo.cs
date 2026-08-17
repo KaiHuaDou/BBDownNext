@@ -35,12 +35,12 @@ public class VInfo
     public bool IsBangumiEnd { get; set; }
 
     /// <summary>
-    /// 视频index 用于番剧或课程判断当前选择的是第几集
+    /// 视频 index 用于番剧或课程判断当前选择的是第几集
     /// </summary>
     public string? Index { get; set; }
 
     /// <summary>
-    /// 视频分P信息
+    /// 视频分 P 信息
     /// </summary>
     public required List<Page> PagesInfo { get; init; }
 

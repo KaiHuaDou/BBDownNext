@@ -39,7 +39,7 @@ public sealed record MuxRequest(
     List<ViewPoint>? Points,
     long PubTime,
     bool IsHevc,
-    // 多P（总集数大于 1）时填当前分P序号与该视频总集数，写入 track / track_total 元数据
+    // 多P（总集数大于 1）时填当前分 P 序号与该视频总集数，写入 track / track_total 元数据
     int TrackNumber,
     int TotalTracks);
 

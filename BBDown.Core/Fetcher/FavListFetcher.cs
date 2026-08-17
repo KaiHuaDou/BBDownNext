@@ -70,12 +70,12 @@ public static class FavListFetcher
         {
             api = $"{BiliApi.FavResourceList}?media_id={favId}&pn={page}&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
             json = await GetWebSourceAsync(api, cfg, null, ct);
-            // medias 元素要在循环外继续使用, Clone 后才能安全释放 jsonDoc
+            // medias 元素要在循环外继续使用，Clone 后才能安全释放 jsonDoc
             using var jsonDoc = JsonDocument.Parse(json);
             medias.AddRange(EnumerateArrayOrEmpty(GetApiData(jsonDoc.RootElement, "收藏夹信息").GetProperty("medias")).Select(m => m.Clone( )));
         }
 
-        // 多P视频此前逐个串行发 view 拿分P列表，N 个多P = N 次串行 RTT；改为限并发并行拉取。
+        // 多 P 视频此前逐个串行发 view 拿分 P 列表，N 个多 P = N 次串行 RTT；改为限并发并行拉取。
         var multiPIds = medias
             .Where(m => m.GetProperty("attr").GetInt32( ) == 0 && m.GetProperty("page").GetInt32( ) > 1)
             .Select(m => m.GetProperty("id").ToString( ))
@@ -107,7 +107,7 @@ public static class FavListFetcher
             await Task.WhenAll(tasks);
         }
 
-        // 只处理视频类型(可以直接在query param上指定type=2)
+        // 只处理视频类型 (可以直接在 query param 上指定 type=2)
         // 只处理未失效视频
         foreach (var m in medias)
         {

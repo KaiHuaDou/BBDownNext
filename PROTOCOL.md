@@ -21,25 +21,25 @@
 
 PascalCase 序列化（与主程序源生成器输出一致），字段如下：
 
-| 字段        | 类型   | 说明                                     |
-| ----------- | ------ | ---------------------------------------- |
-| `Aid`       | string | 稿件 av 号（字符串）                     |
-| `Cid`       | string | 分 P 的 cid                              |
+| 字段        | 类型   | 说明                                                |
+| ----------- | ------ | --------------------------------------------------- |
+| `Aid`       | string | 稿件 av 号（字符串）                                |
+| `Cid`       | string | 分 P 的 cid                                         |
 | `Kind`      | string | 轨道类型：`video` / `audio` / `background` / `role` |
-| `TrackPath` | string | 已下载轨道文件的本地路径                 |
-| `DestPath`  | string | 产物路径（主程序约定为 `<TrackPath>.out.mp4`） |
-| `Ffmpeg`    | string | 本次运行解析到的 ffmpeg 路径（供处理方复用） |
+| `TrackPath` | string | 已下载轨道文件的本地路径                            |
+| `DestPath`  | string | 产物路径（主程序约定为 `<TrackPath>.out.mp4`）      |
+| `Ffmpeg`    | string | 本次运行解析到的 ffmpeg 路径（供处理方复用）        |
 
 示例：
 
 ```json
 {
-  "Aid": "170001",
-  "Cid": "283298412",
-  "Kind": "video",
-  "TrackPath": "C:\\Downloads\\video.m4s",
-  "DestPath": "C:\\Downloads\\video.m4s.out.mp4",
-  "Ffmpeg": "C:\\ffmpeg\\bin\\ffmpeg.exe"
+    "Aid": "170001",
+    "Cid": "283298412",
+    "Kind": "video",
+    "TrackPath": "C:\\Downloads\\video.m4s",
+    "DestPath": "C:\\Downloads\\video.m4s.out.mp4",
+    "Ffmpeg": "C:\\ffmpeg\\bin\\ffmpeg.exe"
 }
 ```
 
@@ -47,10 +47,10 @@ PascalCase 序列化（与主程序源生成器输出一致），字段如下：
 
 产物即响应：主程序以「进程退出码 + 产物文件是否存在且非空」判定结果。
 
-| 退出码 | 产物（`DestPath`） | 主程序行为 |
-| ------ | ------------------ | ---------- |
-| `0`    | 存在且非空         | 处理成功，产物覆盖原轨参与混流 |
-| `0`    | 不存在             | 轨道无需处理，原文件照常参与混流 |
+| 退出码 | 产物（`DestPath`） | 主程序行为                                   |
+| ------ | ------------------ | -------------------------------------------- |
+| `0`    | 存在且非空         | 处理成功，产物覆盖原轨参与混流               |
+| `0`    | 不存在             | 轨道无需处理，原文件照常参与混流             |
 | 非 `0` | 任意               | 处理失败，静默保留原文件，原文件照常参与混流 |
 
 其余失败情况（进程不可用 / 超时 / 异常）同样按失败处理，静默保留原文件。处理方可自行约定非 0 退出码的细分原因（主程序仅区分 0 与非 0）。

@@ -17,9 +17,9 @@ public static class LiveInputResolver
     /// <list type="bullet">
     ///   <item>https://live.bilibili.com/123456（支持 // 协议相对、m. 前缀、带 query/fragment）</item>
     ///   <item>https://live.bilibili.com/h5/123456、/blanc/123456、/blackboard/123456</item>
-    ///   <item>live:123456</item>
+    ///   <item>live123456</item>
     /// </list>
-    /// 绝不接受裸数字：根命令下裸数字属于 <see cref="IdPrefix.EpColon"/> 链路。
+    /// 不接受裸数字：根命令下裸数字属于 <see cref="IdPrefix.EpColon"/> 链路。
     /// </summary>
     public static bool TryParse(string input, out LiveTarget target)
     {
@@ -31,7 +31,8 @@ public static class LiveInputResolver
 
         var s = input.Trim( );
 
-        if (s.StartsWith(IdPrefix.Live, StringComparison.OrdinalIgnoreCase))
+        if (s.StartsWith(IdPrefix.Live, StringComparison.OrdinalIgnoreCase)
+            && char.IsAsciiDigit(s[IdPrefix.Live.Length]))
         {
             return TryTakeRoomId(s[IdPrefix.Live.Length..], out target);
         }

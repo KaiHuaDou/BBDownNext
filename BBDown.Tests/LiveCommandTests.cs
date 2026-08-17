@@ -66,7 +66,7 @@ public class LiveCommandTests
     [Fact]
     public async Task RootCommand_LivePrefix_IsRecognizedByResolver( )
     {
-        var opt = await ParseAsync("live:22632424");
+        var opt = await ParseAsync("live22632424");
         Assert.True(LiveInputResolver.TryParse(opt.Url, out var target));
         Assert.Equal("22632424", target.RoomId);
     }

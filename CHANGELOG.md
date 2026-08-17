@@ -6,6 +6,14 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
+## [v2.0.1]
+
+### 新增
+
+### 修复
+
+### 变更
+
 ## [v2.0.0]
 
 ### 新增
@@ -26,6 +34,10 @@
 - 解析性能：播放器信息（player/v2）与拉流解析并行发起；WEB 自动档 playurl 由两次请求（qn 档 + 最高档）合并为单次最高档请求，每分 P 少一次 API 调用。
 - 下载引擎整体替换为 Downloader 库（v5.9.5，AOT 兼容）：多线程分片与断点续传由库实现（续传元数据内嵌 `.download` 临时文件末尾，服务端内容变化自动删除重下），移除自研分片下载器与 `.bbdown.part` / `.bbdown.json` 清单；分片并发仍为 32，`--single-thread` 与 CMCC 域名强制单块。
 - 下载性能：分片并发上限 32；字幕并行下载。
+
+### 移除
+
+- 移除 `BBDown.GUI.Tests` 测试项目：图形界面测试由独立 CI（`gui.yml`）覆盖构建，不再随主仓库测试运行；GUI 行为与下载能力不变。
 
 ## [v2.0.0-rc.2]
 
@@ -281,11 +293,12 @@
 - 可执行文件查找不再优先当前目录。
 - aria2c / ffmpeg / mp4box 改用 `ArgumentList`，消除命令行参数注入。
 
-[v2.0.0-alpha.1]: <https://github.com/KaiHuaDou/BBDownNext/compare/259a5558cee0a349a7ebb60bd31e40c88e5bc1ed...v2.0.0-alpha.1>
-[v2.0.0-alpha.2]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.1...v2.0.0-alpha.2>
-[v2.0.0-alpha.3]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.2...v2.0.0-alpha.3>
-[v2.0.0-beta.1]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.3...v2.0.0-beta.1>
-[v2.0.0-beta.2]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-beta.1...v2.0.0-beta.2>
-[v2.0.0-rc.1]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-beta.2...v2.0.0-rc.1>
-[v2.0.0-rc.2]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-rc.1...v2.0.0-rc.2>
-[v2.0.0]: <https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-rc.2...v2.0.0>
+[v2.0.0-alpha.1]: https://github.com/KaiHuaDou/BBDownNext/compare/259a5558cee0a349a7ebb60bd31e40c88e5bc1ed...v2.0.0-alpha.1
+[v2.0.0-alpha.2]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.1...v2.0.0-alpha.2
+[v2.0.0-alpha.3]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.2...v2.0.0-alpha.3
+[v2.0.0-beta.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-alpha.3...v2.0.0-beta.1
+[v2.0.0-beta.2]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-beta.1...v2.0.0-beta.2
+[v2.0.0-rc.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-beta.2...v2.0.0-rc.1
+[v2.0.0-rc.2]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-rc.1...v2.0.0-rc.2
+[v2.0.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-rc.2...v2.0.0
+[v2.0.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0...v2.0.1

@@ -91,7 +91,7 @@ BBDown/
 │   ├── Pipeline/           # 命名空间 BBDown.Core.Pipeline — 下载编排主干（CLI 与 serve 共用）
 │   │   ├── DownloadPipeline.cs     # RunAsync 三段下载主干
 │   │   ├── WorkSetup.cs            # 进程级初始化 → RunConfig (Build / ResolveConfig / ResolveToolPaths)
-│   │   ├── VideoInfo.cs            # FetchAsync 解析视频信息（标题/分P/封面/账号探测）
+│   │   ├── VideoInfo.cs            # FetchAsync 解析视频信息（标题/分 P /封面/账号探测）
 │   │   ├── PageQueue.cs            # 逐分 P 编排 (RunAsync；-iap 逐集交互确认走 PageSelect.ResolveInteractive)
 │   │   ├── PageSelect.cs           # 分 P 选择/范围 + 逐集交互选择
 │   │   ├── InputResolver.cs        # URL/编号 → 内部 avid 解析（含稍后再看 /watchlater/ 与分享链接 bvid/oid）
@@ -228,7 +228,7 @@ InputResolver.ResolveIdAsync      URL/av/BV/ep/ss/md/合集/系列/收藏夹/空
   │  /watchlater/ 系列地址 → WatchLater（分享链接带 bvid/oid 时只取单个视频）
   │
   ▼
-FetcherRegistry.FetchAsync     按 ResourceId 子类型 switch 分发给对应 Fetcher → VInfo(分P列表/标题/封面…)
+FetcherRegistry.FetchAsync     按 ResourceId 子类型 switch 分发给对应 Fetcher → VInfo(分 P 列表/标题/封面…)
   │  (Ep 先番剧后回退 cheese；番剧可按 --api intl 走 IntlBangumiInfoFetcher；WatchLater 走 WatchLaterFetcher)
   ▼
 Parser.ExtractTracksAsync (编排，按 API 模式委派到 PlayUrl/*) → ParsedResult(视频轨/音频轨/FLV 分段/字幕/弹幕入口)
@@ -236,7 +236,7 @@ Parser.ExtractTracksAsync (编排，按 API 模式委派到 PlayUrl/*) → Parse
   ▼
 DownloadPipeline.RunAsync (BBDown.Core.Pipeline，三段下载主干，CLI 与 serve 共用)
   │  ① WorkSetup.Build      → RunConfig (进程级初始化、工具路径探测、优先级解析)
-  │  ② VideoInfo.FetchAsync → WorkContext (标题/分P/封面/弹幕入口)
+  │  ② VideoInfo.FetchAsync → WorkContext (标题/分 P /封面/弹幕入口)
   │  ③ PageQueue.RunAsync   → 逐分 P 编排（-iap 时先 PageSelect.ResolveInteractive 逐集交互确认；
   │                            --comments-count>0 时逐分 P 委托内先跑 CommentDownload，按 aid 去重；与视频下载互不干扰）
   │     └─ CommentDownload.RunAsync (WBI 分页抓评论 → 按 --comment-formats 落盘 json/txt)

@@ -37,7 +37,7 @@ public static partial class NormalInfoFetcher
         // 互动视频 1:是 0:否
         var isSteinGate = data.GetProperty("rights").GetProperty("is_stein_gate").GetInt16( );
 
-        // 分p信息
+        // 分 P 信息
         var aidStr = aid.ToString( );
         List<Page> pagesInfo = [];
         var pages = data.GetProperty("pages").EnumerateArray( ).ToList( );
@@ -52,7 +52,7 @@ public static partial class NormalInfoFetcher
                 Title = page.GetProperty("part").ToString( ).Trim( ),
                 Dur = page.GetProperty("duration").GetInt32( ),
                 Res = ReadDimension(page),
-                PubTime = pubTime, //分p视频没有发布时间
+                PubTime = pubTime, // 分 P 视频没有发布时间
                 Cover = "",
                 Desc = "",
                 OwnerName = ownerName,
@@ -61,7 +61,7 @@ public static partial class NormalInfoFetcher
             pagesInfo.Add(p);
         }
 
-        if (isSteinGate == 1) // 互动视频获取分P信息
+        if (isSteinGate == 1) // 互动视频获取分 P 信息
         {
             var playerSoApi = $"{BiliApi.PlayerSo}?bvid={bvid}&id=cid:{cid}";
             var playerSoText = await GetWebSourceAsync(playerSoApi, cfg, null, ct);
@@ -76,10 +76,10 @@ public static partial class NormalInfoFetcher
                 var graphVersion = interactionDoc.RootElement.GetProperty("graph_version").GetInt64( );
                 var edgeInfoApi = $"{BiliApi.EdgeInfo}?graph_version={graphVersion}&bvid={bvid}";
                 using var edgeInfoDoc = JsonDocument.Parse(await GetWebSourceAsync(edgeInfoApi, cfg, null, ct));
-                var edgeInfoData = GetApiData(edgeInfoDoc.RootElement, "互动视频分P信息");
+                var edgeInfoData = GetApiData(edgeInfoDoc.RootElement, "互动视频分 P 信息");
                 var questions = edgeInfoData.GetProperty("edges").GetProperty("questions").EnumerateArray( )
                     .ToList( );
-                var index = 2; // 互动视频分P索引从2开始
+                var index = 2; // 互动视频分 P 索引从 2 开始
                 foreach (var question in questions)
                 {
                     var choices = question.GetProperty("choices").EnumerateArray( ).ToList( );
@@ -94,7 +94,7 @@ public static partial class NormalInfoFetcher
                             Title = page.GetProperty("option").ToString( ).Trim( ),
                             Dur = 0,
                             Res = "",
-                            PubTime = pubTime, //分p视频没有发布时间
+                            PubTime = pubTime, //分 P 视频没有发布时间
                             Cover = "",
                             Desc = "",
                             OwnerName = ownerName,
@@ -106,7 +106,7 @@ public static partial class NormalInfoFetcher
             }
             else
             {
-                throw new InvalidOperationException("互动视频获取分P信息失败");
+                throw new InvalidOperationException("互动视频获取分 P 信息失败");
             }
         }
 
@@ -115,7 +115,7 @@ public static partial class NormalInfoFetcher
             && IsBangumiPlayPage(redirectUrl.GetString( ) ?? ""))
         {
             bangumi = true;
-            //番剧内容通常不会有分P，如果有分P则不需要epId参数
+            //番剧内容通常不会有分 P，如果有分 P 则不需要 epId 参数
             if (pages.Count == 1 && EpIdRegex( ).Match(redirectUrl.GetString( )!) is { Success: true } epMatch)
             {
                 pagesInfo.ForEach(p => p.EpId = epMatch.Groups[1].Value);

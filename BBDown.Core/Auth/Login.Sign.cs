@@ -23,8 +23,7 @@ public static partial class Login
         return (bflag ? ts.ToUnixTimeSeconds( ) : ts.ToUnixTimeMilliseconds( )).ToString( );
     }
 
-    //  https://stackoverflow.com/questions/1344221/how-can-i-generate-random-alphanumeric-strings
-
+    // https://stackoverflow.com/questions/1344221/how-can-i-generate-random-alphanumeric-strings
     public static string GetRandomString(int length)
     {
         const string Chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789";
