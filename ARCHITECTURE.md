@@ -80,10 +80,9 @@ BBDown/
 │   │   ├── CommentFormat.cs       # 评论格式信息（与弹幕各自独立，解析逻辑不共用）
 │   │   ├── MuxMode.cs             # 混流方式枚举（none / mpeg4 / mp4box / mkv）
 │   │   ├── LiveQuality.cs         # 直播清晰度档位枚举
-│   │   ├── DownloadUtil.cs        # 唯一下载入口（续传、CDN 策略）
+│   │   ├── DownloadUtil.cs        # 唯一下载入口（downloader 库、CDN 策略）
 │   │   ├── DownloadConfig.cs      # 下载配置类（DownloadUtil 拆分出）
-│   │   ├── PartDownloader.cs      # 分片续传执行层
-│   │   ├── PartFile.cs            # 断点续传状态 (.bbdown.part/.bbdown.json)
+│   │   ├── DownloaderAdapter.cs   # downloader 库适配层（并行控制 / 自动续传 / 完成信号映射）
 │   │   ├── CdnHost.cs             # CDN host 策略
 │   │   ├── BBDownAria2c.cs        # Aria2c 下载
 │   │   ├── SavePath.cs            # 文件名/路径格式化（含充电试看 [试看] 前缀）
@@ -247,7 +246,7 @@ PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分�
   │  │    └─ 下载完成后调用外部后处理（PostProcessClient.TryProcessAsync：调起 --post-process 指定进程，
   │  │       对所有 DASH 轨统一处理，是否加密由处理方判断；成功产物覆盖原轨参与混流，
   │  │       未配置 / 失败 / 超时一律静默保留原文件)
-  │  ├─ DownloadUtil.DownloadAsync (续传写入 .bbdown.part)
+  │  ├─ DownloadUtil.DownloadAsync (downloader 库：并行分片 + 自动续传)
   │  ├─ SubUtil / DanmakuUtil (字幕/弹幕)
   │  └─ MuxFinish.RunAsync (FFmpeg/MP4Box 混流 + 嵌入元数据/章节/字幕) — 统一 DASH/FLV 收尾
   ▼
@@ -275,7 +274,7 @@ LiveMuxer.MergeSegmentsAsync  Ctrl+Break 触发：分段 FLV → 单个 mp4（av
 落盘 <主播名>-<标题>-<yyyyMMdd_HHmmss>.mp4
 ```
 
-**取消令牌贯穿全链路**：全局 `CancellationTokenSource`，Ctrl+C 触发优雅取消，`OperationCanceledException` 被捕获后进程以 `130` 退出，已下载的 `.bbdown.part` 临时文件保留，重跑同一条命令即可续传。直播录制同样接入该令牌：`LiveSignal` 区分 `Ctrl+Break`（停录并合并，退出码 `0`）与 `Ctrl+C`（中断保留分段，退出码 `130`）。
+**取消令牌贯穿全链路**：全局 `CancellationTokenSource`，Ctrl+C 触发优雅取消，`OperationCanceledException` 被捕获后进程以 `130` 退出，已下载的 `.download` 临时文件保留，重跑同一条命令即可续传。直播录制同样接入该令牌：`LiveSignal` 区分 `Ctrl+Break`（停录并合并，退出码 `0`）与 `Ctrl+C`（中断保留分段，退出码 `130`）。
 
 ---
 
@@ -322,11 +321,11 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 
 ## 6. 断点续传
 
-续传由 `PartFile` + `PartManifest` 实现：
+下载统一走 [Downloader](https://www.nuget.org/packages/Downloader) 库（v5.9.5，`IsAotCompatible`），多线程分片与续传均由库实现（适配层 `DownloaderAdapter`）：
 
-- 每条流先写入 `<目标路径>.bbdown.part` 数据文件，并维护 `<目标路径>.bbdown.json` 清单（记录 URL 指纹、各分片已完成字节、服务器校验器）。
-- 清单以目标路径的 **SHA256 前 16 位**作为指纹（`PartFile.Fingerprint`），用于识别「同一资源」避免错续。
-- 分片大小 `DefaultChunkSize = 20MB`，支持分片并发写入；失败时临时文件保留。
+- 每条流先写入 `<目标路径>.download` 临时文件，续传元数据（`DownloadPackage` JSON：总大小 + 各块位置）周期性内嵌在文件末尾；下载完成截断元数据并改名收尾。
+- 重跑时 downloader 先探测服务端文件大小，与元数据一致则从各块断点续下；不一致（URL 指向的内容已变，如换画质）自动删除临时文件重下。
+- 并行控制：`ParallelCount` 默认 32 条连接；`--single-thread` 或 CMCC 域名强制单块；FLV 片段间并行（上限 4）× 片段内连接合计不超过 32。
 - **重跑同一条命令即可从断点继续**，粒度覆盖：单条流（视频轨下完、音频轨失败 → 只补音频轨）与合集 / 多 P（某分 P 失败仅补该分 P）。所有分片（含边下边混流的临时文件）都成功后才清理临时文件。
 - CDN 策略：CMCC 等特殊 CDN 强制单线程；`ReplaceUrl` 默认把 https→http（mcdn 域跳过）。
 

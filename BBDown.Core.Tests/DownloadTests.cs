@@ -36,16 +36,6 @@ public class DownloadTests
         return new Audio { Id = id, Dfn = "", BaseUrl = "", Codecs = codecs, Bandwidth = bandwidth, Dur = 100 };
     }
 
-    // 服务器不支持 Range 时不应该再退避重试，Parallel.ForEachAsync 会把分片异常裹一层
-    [Fact]
-    public void IsRangeUnsupported_SeesThroughAggregateException( )
-    {
-        Assert.True(PageDownload.IsRangeUnsupported(new NotSupportedException( )));
-        Assert.True(PageDownload.IsRangeUnsupported(new AggregateException(new IOException( ), new NotSupportedException( ))));
-        Assert.False(PageDownload.IsRangeUnsupported(new IOException( )));
-        Assert.False(PageDownload.IsRangeUnsupported(new AggregateException(new IOException( ))));
-    }
-
     // 充电权限不会因重试改变，若漏进排除列表用户会白等两轮退避
     [Fact]
     public void ShouldRetry_ChargedPreview_ReturnsFalse( )

@@ -25,7 +25,7 @@
 | **UP 主空间投稿列表** | 无 | 新增 `SpaceListFetcher` 与 space URL 解析，可下载某 UP 全部投稿 |
 | **充电专属试看识别** | 无专门处理（按普通失败或下载残缺片段） | `IsTruncatedPreview` 双条件判定，命中抛 `ChargedPreviewException`，退出码 2 表示全部为试看（可 `--allow-preview` 放行） |
 | **外部后处理** | 无 | `--post-process <exe>` 对所有 DASH 轨统一调起外部进程，是否加密由处理方自行判断（退出码 0 且无产物视为无需处理）；成功产物覆盖原轨参与混流，未配置 / 失败 / 超时静默保留原文件。主程序不解析任何加密特征（`widevine_pssh` / `bilidrm_uri`），密钥与加密信息由外部进程自行获取管理 |
-| **断点续传** | 基础续传 | 每条流维护 `<路径>.bbdown.part` 数据 + `<路径>.bbdown.json` **SHA256 指纹清单**，支持单流粒度与合集/多 P 粒度续传 |
+| **断点续传** | 基础续传 | 下载统一走 downloader 库（v5.9.5，AOT 兼容），自动续传元数据内嵌 `<路径>.download` 临时文件末尾，服务端内容变化自动重下；多线程分片（默认 32 连接）与 `--single-thread` 均由 downloader 实现 |
 | **文件名日期格式** | 固定 `yyyy-MM-dd_HH-mm-ss` | 支持自定义 `<publishDate:格式>` / `<videoDate:格式>`（任意 .NET `DateTime` 格式串） |
 | **文件名长度** | 无特殊处理，超长路径易写入失败 | 按 **UTF-8 字节数截断，上限 200 字节**，并清理非法字符 / 保留设备名 / 处理首尾点 |
 | **cheese 课程** | 仅 Web；存在冗余 `ss` 请求 | 消除冗余 `ss` 请求；`--api intl` 对其**自动回退 WEB**；**过滤锁定分集**（`BuildPages` status==2） |
@@ -119,8 +119,10 @@
 
 ### 2.8 断点续传
 
-- **机制**（`BBDown.Core/Download/PartFile.cs`：`PartFile` / `PartManifest` / `Fingerprint`）：每条流维护 `<路径>.bbdown.part` 数据文件与 `<路径>.bbdown.json` **SHA256 指纹清单**（含文件大小、分片范围、校验和），下载前比对指纹决定是否续传。
-- **粒度**：支持单流粒度续传，以及合集/多 P 粒度（每个分 P 独立清单）；中断后重跑命令可从上次进度继续。
+- **机制**（`BBDown.Core/Download/DownloaderAdapter.cs` / `DownloadUtil.cs`）：下载统一走 [Downloader](https://www.nuget.org/packages/Downloader) 库（v5.9.5，`IsAotCompatible`），多线程分片与断点续传均由库实现：续传元数据（`DownloadPackage` JSON）周期性内嵌在 `<路径>.download` 临时文件末尾，下载完成截断元数据并改名收尾。
+- **恢复判定**：重跑时 downloader 先探测服务端文件大小，与元数据一致则从各块断点续下；不一致（URL 指向的内容已变，如换画质）自动删除临时文件重下。
+- **并行控制**：`ParallelCount` 默认 32 条连接；`--single-thread` 或 CMCC 域名强制单块；FLV 片段间并行（上限 4）× 片段内连接合计不超过 32。
+- **粒度**：每条音视频轨 / 分 P 独立临时文件，支持单流与合集/多 P 粒度续传。
 
 ### 2.9 文件名与模板
 
@@ -196,7 +198,7 @@
 - **外部后处理**：`BBDown.Core/Download/PostProcessClient.cs`（`Configure` / `TryProcessAsync` / `PostProcessRequest`）、`BBDown.Core/Media/DashDownload.cs`（`TryPostProcessAsync`）。
 - **图形界面**：`BBDown.GUI/`（`MainWindow` / `QueueRunner` / `TaskParams` / `ConfigStore` / `UrlDetector`）、`.github/workflows/gui.yml`。
 - **充电试看**：`BBDown.Core/Download/ChargedPreviewException.cs`、`BBDown.Core/Media/PageDownload.cs`（`IsTruncatedPreview` / `ShouldRetry`）、`BBDown/Program.cs`（`IsChargedPreviewOnly` / `ApplyPreviewPrefix` 经 `SavePath.cs`）。
-- **断点续传**：`BBDown.Core/Download/PartFile.cs`（`PartFile` / `PartManifest` / `Fingerprint`）。
+- **断点续传**：`BBDown.Core/Download/DownloaderAdapter.cs`（`DownloadService` 适配 / 自动续传 / 并行控制）、`BBDown.Core/Download/DownloadUtil.cs`（入口与 CMCC 单线程判定）。
 - **文件名**：`BBDown.Core/Util/FileNameUtil.cs`（`MaxBytes = 200`）、`BBDown.Core/Download/SavePath.cs`（`Format` 的 `<publishDate:格式>` / `<videoDate:格式>`）。
 - **cheese 增强**：`BBDown.Core/Fetcher/CheeseInfoFetcher.cs`（`BuildPages`）、`BBDown.Core/Pipeline/VideoInfo.cs`（`NormalizeOptionsAfterFetch`）。
 - **封装/通道**：`BBDown.Core/PlayUrl/`（`DashTrackReader.Collect` / `FlvTrackReader.Collect` / `IntlTrackReader.Collect` / `AppTrackReader.FetchAsync`，请求由 `PlayUrlClient` 发出）；`Parser.ExtractTracksAsync` 负责编排；`ApiType` 枚举与解析在 `BBDown.Core/ApiType.cs`，`BBDown.Core/Config.cs`（`MaxQn`）。

@@ -5,6 +5,7 @@
         <IsAotCompatible>true</IsAotCompatible>
     </PropertyGroup>
     <ItemGroup>
+        <PackageReference Include="Downloader" />
         <PackageReference Include="Google.Protobuf" />
         <PackageReference Include="Grpc.Tools">
             <PrivateAssets>all</PrivateAssets>

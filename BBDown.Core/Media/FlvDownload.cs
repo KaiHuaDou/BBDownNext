@@ -110,7 +110,7 @@ public static class FlvDownload
                 foreach (var file in clipPaths)
                 {
                     SafeDelete(file);
-                    PartFile.Discard(file);
+                    Discard(file);
                 }
             }
 
@@ -125,8 +125,8 @@ public static class FlvDownload
         return video is { Codecs: "HEVC" or "AV1" };
     }
 
-    // 分片并行下载上限：片段间并行度。片段内多线程 Range 与片段间并行共用同一连接配额，
-    // 合计不超过 PartDownloader.MaxRangeConcurrency，避免 4 片段 x 32 Range 打出 128 条连接
+    // 分片并行下载上限：片段间并行度。片段内 downloader 并行连接与片段间并行合计不超过
+    // DownloaderAdapter.MaxRangeConcurrency，避免 4 片段 x 32 连接打出 128 条连接
     private const int MaxClipParallelism = 4;
 
     private static async Task<List<string>> DownloadClipsAsync(List<string> clips, PageContext pageCtx, DownloadConfig downloadConfig, CancellationToken ct = default)
@@ -134,9 +134,8 @@ public static class FlvDownload
         var p = pageCtx.Page;
         var pad = string.Empty.PadRight(clips.Count.ToString( ).Length, '0');
         var clipPaths = new string[clips.Count];
-        // 全部片段共享同一条连接配额：片段并行与片段内 Range 合计不超过 PartDownloader.MaxRangeConcurrency
-        using var gate = new SemaphoreSlim(PartDownloader.MaxRangeConcurrency);
-        downloadConfig.ConnectionGate = gate;
+        // 片段间并行与片段内 downloader 连接合计不超过 DownloaderAdapter.MaxRangeConcurrency
+        downloadConfig.ParallelCount = DownloaderAdapter.MaxRangeConcurrency / MaxClipParallelism;
         var options = new ParallelOptions { MaxDegreeOfParallelism = MaxClipParallelism, CancellationToken = ct };
         await Parallel.ForEachAsync(Enumerable.Range(0, clips.Count), options, async (i, token) =>
         {

@@ -104,7 +104,7 @@ nilaoda/BBDown 的全面重构 - 增强分支（上游已归档）。开源 · �
 | 图形界面        | 无                              | BBDown.GUI（Avalonia）                       |
 | 充电专属试看    | 无专门处理                      | 下载前识别，退出码 2 表示全部为试看                 |
 | 封面处理        | 独立封面下载                    | 独立封面 `c` + 嵌入 `C`（attached_pic）             |
-| 断点续传        | 基础续传                        | SHA256 指纹清单，支持单流与分 P 粒度                |
+| 断点续传        | 基础续传                        | downloader 库自动续传（元数据内嵌 .download），内容变化自动重下 |
 | 单元测试        | 较少                            | 950+，覆盖解析、混流、serve 安全等核心路径          |
 
 逐项对照与源码位置见 [docs/compared-to-upstream.md](./docs/compared-to-upstream.md)。

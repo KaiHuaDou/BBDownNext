@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 
 namespace BBDown.Core.Download;
 
@@ -14,9 +13,6 @@ public sealed class DownloadConfig
     // 进度采样回调（ratio, bytesDelta）。下载层不认识 serve 的任务模型，只回吐数字
     public Action<double, long>? OnSample { get; set; }
     public string Cookie { get; set; } = string.Empty;
-    // 多线程分片大小（字节）
-    public long ChunkSize { get; set; } = PartFile.DefaultChunkSize;
-    // 跨多次下载共享的连接配额：FLV 多片段并行时由调用方注入，各片段的分片 Range 合计不超过此上限；
-    // null 表示不限制（单文件下载由 Parallel 自身的并发上限约束）
-    public SemaphoreSlim? ConnectionGate { get; set; }
+    // downloader 并行连接数；FLV 多片段并行时由调用方下调（片段间并行 × 片段内并行合计不超过上限）
+    public int ParallelCount { get; set; } = DownloaderAdapter.MaxRangeConcurrency;
 }

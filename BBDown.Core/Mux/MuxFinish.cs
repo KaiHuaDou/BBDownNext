@@ -112,10 +112,10 @@ public static class MuxFinish
         Log("清理临时文件...");
         SafeDelete(videoPath);
         SafeDelete(audioPath);
-        // 续传状态清单随 track 一起清理：只在混流成功时走到这里，
-        // 失败/Ctrl+C 时 DownloadAsync 保留 .bbdown.part/.json，重跑即可续上
-        PartFile.Discard(videoPath);
-        PartFile.Discard(audioPath);
+        // 下载层临时文件随 track 一起清理：只在混流成功时走到这里，
+        // 失败/Ctrl+C 时 DownloadAsync 保留 .download，重跑即可续上
+        DownloadUtil.Discard(videoPath);
+        DownloadUtil.Discard(audioPath);
         var trackPath = string.IsNullOrEmpty(videoPath) ? audioPath : videoPath;
         if (pageCtx.Page.Points.Count != 0 && !string.IsNullOrEmpty(trackPath))
         {
@@ -125,7 +125,7 @@ public static class MuxFinish
         foreach (var a in audioMaterial)
         {
             SafeDelete(a.Path);
-            PartFile.Discard(a.Path);
+            DownloadUtil.Discard(a.Path);
         }
 
         if (pageCtx.DeleteCoverAfterMux)

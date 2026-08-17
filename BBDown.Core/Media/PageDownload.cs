@@ -111,14 +111,6 @@ public static class PageDownload
         return outcome;
     }
 
-    // 服务器不支持 Range 时重试多少次都是同样结果，直接放行让用户看到换单线程的提示
-    // Parallel.ForEachAsync 会把分片异常裹进 AggregateException
-    internal static bool IsRangeUnsupported(Exception ex)
-    {
-        return ex is NotSupportedException
-               || (ex is AggregateException agg && agg.InnerExceptions.Any(e => e is NotSupportedException));
-    }
-
     // 只有用户真的取消了（ct 已请求取消）才判定为取消；HttpClient 超时等瞬态故障被包装成
     // OperationCanceledException 但用户令牌并未取消，必须当作可重试的失败（§2.2）
     internal static bool IsCancellation(Exception ex, CancellationToken ct)
@@ -135,7 +127,7 @@ public static class PageDownload
     // 充电权限不会因为重试而改变，重试只会让用户白等两轮退避
     internal static bool ShouldRetry(Exception ex, CancellationToken ct)
     {
-        return !IsRangeUnsupported(ex) && !IsCancellation(ex, ct) && ex is not ChargedPreviewException;
+        return !IsCancellation(ex, ct) && ex is not ChargedPreviewException;
     }
 
     // 双条件：稿件确为充电专属（is_upower_exclusive 是稿件属性，与账号无关），且 playurl 下发时长明显短于 view 声称的完整时长。
