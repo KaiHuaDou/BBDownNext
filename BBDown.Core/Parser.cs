@@ -120,9 +120,10 @@ public static class Parser
 
         ViewPointUtil.Append(parsedResult, clipList.EnumerateArray( ).Select(clip => new ViewPoint( )
         {
-            Title = clip.GetProperty("toastText").ToString( ).Replace("即将跳过", ""),
-            Start = clip.GetProperty("start").GetInt32( ),
-            End = clip.GetProperty("end").GetInt32( )
+            // toastText / start / end 任一缺失都跳过该条：接口字段变更不该让整个分 P 解析失败
+            Title = clip.TryGetProperty("toastText", out var toast) ? toast.ToString( ).Replace("即将跳过", "") : "",
+            Start = clip.TryGetProperty("start", out var start) ? start.GetInt32( ) : 0,
+            End = clip.TryGetProperty("end", out var end) ? end.GetInt32( ) : 0
         }));
     }
 }

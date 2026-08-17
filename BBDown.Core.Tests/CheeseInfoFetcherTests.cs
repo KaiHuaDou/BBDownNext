@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Threading.Tasks;
 
 using BBDown.Core.Fetcher;
 
@@ -56,5 +57,30 @@ public class CheeseInfoFetcherTests
         var pages = CheeseInfoFetcher.BuildPages(doc.RootElement.GetProperty("episodes"), "up", "666");
 
         Assert.Empty(pages);
+    }
+
+    [Fact]
+    public async Task Fetch_MissingUpInfo_DefaultsToEmptyOwner( )
+    {
+        // up_info 缺失时不应抛 KeyNotFoundException，UP 主信息退化为空
+        const string json = """
+        {
+          "data": {
+            "cover": "http://cover/x.jpg",
+            "title": "课程",
+            "subtitle": "副标题",
+            "episodes": [
+              { "aid": 1, "cid": 11, "id": 101, "index": 1, "title": "第1集", "duration": 100, "release_date": 1, "status": 1 }
+            ]
+          }
+        }
+        """;
+        var info = await HttpStub.WithJsonResponse(json,
+            ( ) => CheeseInfoFetcher.FetchAsync(new ResourceId.CheeseEp(101), AppConfig.Empty));
+
+        Assert.Equal("课程", info.Title);
+        Assert.Equal("101", info.PagesInfo[0].EpId);
+        Assert.Equal("", info.PagesInfo[0].OwnerName);
+        Assert.Equal("", info.PagesInfo[0].OwnerMid);
     }
 }

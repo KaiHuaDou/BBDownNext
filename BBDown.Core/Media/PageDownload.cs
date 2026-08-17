@@ -153,7 +153,7 @@ public static class PageDownload
             VideoPath: Path.Combine(tempDir, $"{p.Aid}.P{p.Index}.{p.Cid}.mp4"),
             AudioPath: Path.Combine(tempDir, $"{p.Aid}.P{p.Index}.{p.Cid}.m4a"),
             CoverPath: Path.Combine(tempDir, $"{p.Aid}.jpg"),
-            CoverUrl: vInfo.Pic is { Length: 0 } ? p.Cover! : vInfo.Pic,
+            CoverUrl: vInfo.Pic is { Length: 0 } ? p.Cover ?? "" : vInfo.Pic,
             PubTime: vInfo.PubTime,
             PagesCount: selectedPagesCount,
             DeleteCoverAfterMux: ShouldDeleteCover(p, selectedPagesInfo));
@@ -197,6 +197,9 @@ public static class PageDownload
             return await FlvDownload.RunAsync(parsedResult, session, selection, ct);
         }
 
+        // 两个分支都不命中：响应正常但未解析出任何轨道（风控降级 / 接口变更等）。
+        // 此前静默返回 Done 会让整个任务以「成功」退出（退出码 0），脚本无法感知失败；改为抛异常，
+        // 由外层重试（瞬态限流可自愈）并在重试耗尽后上报为分 P 失败
         LogError("解析此分 P 失败（使用 --debug 以查看详细信息）");
         if (parsedResult.RawResponse.Length < 100)
         {
@@ -204,6 +207,6 @@ public static class PageDownload
         }
 
         LogDebug("{0}", parsedResult.RawResponse);
-        return PageOutcome.Done("", selection);
+        throw new InvalidOperationException($"P{session.PageCtx.Page.Index} 解析此分 P 失败（未解析到任何音视频轨道）");
     }
 }

@@ -353,9 +353,14 @@ public partial class MainWindow : Window
     private async Task<int> ExecuteTaskAsync(TaskState state, CancellationToken token)
     {
         // 调度循环在后台线程执行；日志经 Logger.Output 转发，AsyncLocal 为其标注任务序号
-        // 后处理进程按任务快照全局配置（与 CLI 的 --post-process 同源），留空即不启用
-        PostProcessClient.Configure(state.Params.PostProcessPath.Length == 0 ? null : state.Params.PostProcessPath);
+        // 后处理路径已随 TaskParams 落入 DownloadRequest（PostProcessPath），按任务生效，无需进程级配置
         var req = state.Params.ToDownloadRequest(state.Url);
+        // 调试日志是进程级开关（Config.DebugLog）：任一任务要求调试即开启，且只开不关，避免并发任务互相关闭
+        if (req.Debug)
+        {
+            Config.SetDebugLog(true);
+        }
+
         currentTask.Value = state.Index;
         try
         {

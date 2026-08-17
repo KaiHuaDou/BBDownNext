@@ -64,10 +64,23 @@ internal static class PageQueue
 
             // 评论区关闭也能立刻反馈，视频下载失败也不丢评论；放在视频下载之前。--info-only 仅解析不产出评论。
             // o/O 只是开关，评论数量走 --comments-count：两者都满足才真正抓取
+            // 评论抓取失败只告警，绝不连带中断本分 P 的视频下载（CommentFetcher 对站点侧错误已内部降级，
+            // 能抛到这里的只有网络层异常；兜底隔离以免「评论抖动 → 视频没下」）
             if (ctx.Run.Content.HasAny(DownloadContent.Comments | DownloadContent.FullComments)
                 && ctx.Run.CommentCount > 0 && !myOption.OnlyShowInfo && commentedAids.Add(p.Aid))
             {
-                await CommentDownload.RunAsync(ctx, PageDownload.BuildPageContext(p, ctx, pagesInfo), sink, token);
+                try
+                {
+                    await CommentDownload.RunAsync(ctx, PageDownload.BuildPageContext(p, ctx, pagesInfo), sink, token);
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    LogWarn($"评论下载失败（不影响视频下载）：{ex.Message}");
+                }
             }
 
             // --delay-per-page 是分 P 间隔：首个分 P 与评论下载都不参与等待

@@ -121,4 +121,28 @@ public class CredentialStoreTests
             }
         }
     }
+
+    [Fact]
+    public async Task LoadWebCookie_TrimsSurroundingWhitespace( )
+    {
+        // 用户从网页/终端粘贴凭据时带入的首尾空白与换行符必须被剥离，否则认证会静默失败
+        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_cred_" + Path.GetRandomFileName( ));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var raw = "  \r\n SESSDATA=abc \t\n ";
+            await File.WriteAllTextAsync(Path.Combine(dir, "BBDown.data"),
+                $"{{\"cookie\":{System.Text.Json.JsonSerializer.Serialize(raw)}}}", TestContext.Current.CancellationToken);
+
+            Assert.Equal("SESSDATA=abc", CredentialStore.LoadWebCookie(dir));
+            Assert.Equal("SESSDATA=abc", CredentialStore.LoadWebCredential(dir).cookie);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+    }
 }

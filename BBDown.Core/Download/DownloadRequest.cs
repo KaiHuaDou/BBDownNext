@@ -57,6 +57,8 @@ public sealed record DownloadRequest
     public string Cookie { get; init; } = "";
     public string AccessToken { get; init; } = "";
     public string Aria2cArgs { get; init; } = "";
+    /// <summary>外部后处理可执行文件路径；空串不启用。随请求透传而非进程级全局，GUI 并发任务互不覆盖。</summary>
+    public string PostProcessPath { get; init; } = "";
     public string WorkDir { get; init; } = "";
     public string FFmpegPath { get; init; } = "";
     public string Mp4boxPath { get; init; } = "";

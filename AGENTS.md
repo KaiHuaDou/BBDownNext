@@ -150,6 +150,8 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 ## WPF 要求
 
+- 注意：本节针对已废弃的 WPF 实现；`BBDown.GUI` 已迁移至 Avalonia（`.axaml`），以下规则不再适用，请勿套用。
+
 - 开发 WPF 遵守以下要求，与其他冲突以此为准
 
 - 界面设计
@@ -231,6 +233,17 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 **永远不要使用 `git -C`，先 `cd` 再 `commit`！**
 
+### 代码审查
+
+在审查代码时，你尤其应该注意：
+
+- HACK - 特判逻辑、不当的短路逻辑、破窗行为、不当的隐式 (implict) 行为
+- 函数职责 - 禁止转发函数，函数外包装是否应该内置，返回值设计
+- 异步 - 多余等待、缺少等待
+- 检查代码 - 检查过晚，检查在嵌套中过深等
+
+根本：维护代码的长期质量，在保持性能基线的情况保持极高的可维护性、可扩展性（但不要过度 OOP）。
+
 ## 其他内容
 
 AGENT 对此文档的修改只能添加在本节，在本节添加内容无需经过批准。
@@ -242,15 +255,6 @@ AGENT 对此文档的修改只能添加在本节，在本节添加内容无需�
 ### 判别联合特例
 
 `BBDown.Core/ResourceId.cs` 采用嵌套 `record`（`abstract record ResourceId` 内含 `Av` / `Ep` / `Season` / `CheeseEp` / `CheeseSeason` / `Fav` / `MediaList` / `Series` / `Space` / `WatchLater` 等 `sealed record` 子类型）实现判别联合，属「禁止嵌套类」规则的已确认例外：它以类型安全替代字符串前缀打标，且 `FetcherRegistry` 的 `switch` 据此分发、缺分支编译报错。其余场景仍遵守「禁止嵌套类」。注意直播录制走独立链路（`LiveInputResolver` → `LiveDownload`），不经 `ResourceId`，故无对应子类型。
-
-### GUI 已由 WPF 迁移至 Avalonia
-
-`BBDown.GUI` 已由 WPF 迁移至 Avalonia（`.axaml`，`net9.0`，`PublishAot`）。上文「WPF 要求」整节已与代码事实冲突（`ookii-dialogs-wpf` / `TaskDialog` / `VistaFolderBrowserDialog` / `DispatcherUnhandledException` / `using System.Windows.Forms` 禁令等均不再适用），该节只能由用户本人改写，本处仅记录事实供后续整理。Avalonia 下已知约定：
-
-- `null` 的 `Foreground` / `Brush` 一律渲染为黑色，深色主题下必须显式给笔刷（日志、状态文字两处曾踩坑）。
-- 文件/目录选择用 `TopLevel.StorageProvider`（`OpenFolderPickerAsync` / `OpenFilePickerAsync`）。
-- 日志区虚拟化用 `ListBox`（自带虚拟化与滚动），滚动到底用 `ScrollIntoView`；勿用「`ItemsControl` + 外层 `ScrollViewer` + `VirtualizingStackPanel`」组合（视口为 0、物化 0 个容器）。
-- 源生成 COM（`GeneratedComInterface` + `StrategyBasedComWrappers`）在 Avalonia + .NET9 AOT 组合下曾致启动栈溢出，任务栏进度类功能应改用「手动 vtable 函数指针」或 CsWin32，避免源生成 COM。
 
 ### FLV 交互选清晰度不生效（故意设计）
 

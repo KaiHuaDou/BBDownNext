@@ -31,7 +31,7 @@ public static class SpaceListFetcher
     // 只从 vlist 抽取需要的标量，避免长期持有整棵 JsonDocument
     private readonly record struct SpaceItem(
         string Aid, string Title, string Desc, string Pic, long Created,
-        string Author, string Mid, bool IsLesson, bool IsLivePlayback, bool IsCharging);
+        string Author, string Mid, bool IsLesson);
 
     public static async Task<VInfo> FetchAsync(long mid, AppConfig cfg, CancellationToken ct = default)
     {
@@ -232,8 +232,6 @@ public static class SpaceListFetcher
         Created: v.TryGetProperty("created", out var c) && c.ValueKind == JsonValueKind.Number ? c.GetInt64( ) : 0,
         Author: ReadStr(v, "author"),
         Mid: ReadStr(v, "mid"),
-        IsLesson: ReadFlag(v, "is_lesson_video"),
-        IsLivePlayback: ReadFlag(v, "is_live_playback"),
-        IsCharging: ReadFlag(v, "is_charging_arc"));
+        IsLesson: ReadFlag(v, "is_lesson_video"));
     }
 }

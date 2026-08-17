@@ -42,7 +42,7 @@ public static class QueueStore
     public static void Save(IEnumerable<QueuedTask> tasks)
     {
         Directory.CreateDirectory(ExeDirectory( ));
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(tasks.ToList( ), QueueJsonContext.Default.ListQueuedTask));
+        File.WriteAllText(FilePath, JsonSerializer.Serialize([.. tasks], QueueJsonContext.Default.ListQueuedTask));
     }
 
     private static string ExeDirectory( )

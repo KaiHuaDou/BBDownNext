@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -11,7 +12,8 @@ namespace BBDown.Core.Download;
 
 public static class BBDownAria2c
 {
-    internal static async Task<int> RunAsync(string command, List<string> args, CancellationToken ct = default)
+    // 退出码含可解读语义；非零必须显式抛出，调用方据此判定下载失败而非静默继续
+    internal static async Task RunAsync(string command, List<string> args, CancellationToken ct = default)
     {
         using Process p = new( );
         p.StartInfo.UseShellExecute = false;
@@ -29,8 +31,26 @@ public static class BBDownAria2c
             try { p.Kill( ); } catch { }
         });
         await p.WaitForExitAsync(ct);
-        return p.ExitCode;
+        if (p.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"aria2c 下载失败（退出码 {p.ExitCode}）：{DescribeExitCode(p.ExitCode)}");
+        }
     }
+
+    private static string DescribeExitCode(int code) => code switch
+    {
+        1 => "未知错误",
+        2 => "超时",
+        3 => "资源未找到",
+        4 => "网络/连接问题（如 DNS 解析失败）",
+        5 => "aria2c 参数错误",
+        6 => "被服务器拒绝（如 HTTP 403）",
+        9 => "分块哈希校验失败",
+        14 => "校验和验证失败",
+        16 => "磁盘空间不足",
+        18 => "下载未完成",
+        _ => "未知错误",
+    };
 
     internal static List<string> BuildArgs(string url, string path, string extraArgs, string cookie)
     {

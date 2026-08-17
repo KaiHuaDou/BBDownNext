@@ -153,7 +153,7 @@ public partial class MainWindow
     private string ReadContent( )
     {
         var builder = new StringBuilder( );
-        foreach (ContentOption item in ContentItems.Items)
+        foreach (var item in ContentItems.Items.Cast<ContentOption>( ))
         {
             if (item.IsChecked)
             {

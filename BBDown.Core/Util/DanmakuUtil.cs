@@ -120,10 +120,18 @@ public static class DanmakuUtil
                 effect += $"\\c&H{ToAssColor(danmaku.Color)}&";
             }
 
-            sb.AppendLine($"Dialogue: 2,{danmaku.StartTime},{danmaku.EndTime},BBDOWN_Style,,0000,0000,0000,,{{{effect}}}{danmaku.Content}");
+            sb.AppendLine($"Dialogue: 2,{danmaku.StartTime},{danmaku.EndTime},BBDOWN_Style,,0000,0000,0000,,{{{effect}}}{EscapeAssText(danmaku.Content)}");
         }
 
         await File.WriteAllTextAsync(outputPath, sb.ToString( ), Encoding.UTF8, ct);
+    }
+
+    // ASS 中 \ { } 是覆盖指令分隔符，弹幕正文若含这些字符会污染样式，必须转义；
+    // Dialogue 是单行记录，正文里的换行会拆出非法行，替换为空格
+    private static string EscapeAssText(string text)
+    {
+        return text.Replace("\\", "\\\\").Replace("{", "\\{").Replace("}", "\\}")
+            .Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
     }
 
     // B 站 XML 的颜色是整数 RGB，ASS 的 \c&H...& 却是 BGR 字节序，直接照搬会让红蓝对调（P0-5）

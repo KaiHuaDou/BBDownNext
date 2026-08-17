@@ -24,6 +24,10 @@ public static class LiveMuxer
     // 超大文件的 faststart 需要整体二次写盘，几十 GB 的录像上代价远大于收益
     private const long FaststartMaxBytes = 4L * 1024 * 1024 * 1024;
 
+    // copy 模式容器开销（FLV 标签 / TS 188 字节对齐 / MP4 moov）通常 < 2%，
+    // 留出余量以容忍长录像的容器差异；明显偏小说明有分段被静默丢弃
+    private const double MinMergeRatio = 0.9;
+
     /// <summary>
     /// 合并成功返回 true，并删除源分段；失败时保留全部分段供手工抢救。
     /// </summary>
@@ -45,11 +49,11 @@ public static class LiveMuxer
         }
 
         return inputs.Count == 1
-            ? await RemuxAsync(inputs[0], outPath, inputs, tools, ct)
+            ? await RemuxAsync(inputs[0], outPath, inputs, new FileInfo(inputs[0]).Length, tools, ct)
             : await ConcatAsync(inputs, outPath, codecName, tools, ct);
     }
 
-    private static async Task<bool> RemuxAsync(string input, string outPath, List<string> sources, ToolPaths tools, CancellationToken ct)
+    private static async Task<bool> RemuxAsync(string input, string outPath, List<string> sources, long expectedBytes, ToolPaths tools, CancellationToken ct)
     {
         var faststart = new FileInfo(input).Length <= FaststartMaxBytes;
         if (!faststart)
@@ -64,7 +68,31 @@ public static class LiveMuxer
             return false;
         }
 
+        if (!AcceptMergeIntegrity(outPath, expectedBytes))
+        {
+            return false;
+        }
+
         sources.ForEach(SafeDelete);
+        return true;
+    }
+
+    // 合并产物应接近各分段字节数之和；明显偏小说明有分段被静默丢弃，保留分段交由用户手工抢救
+    private static bool AcceptMergeIntegrity(string outPath, long expectedBytes)
+    {
+        if (!File.Exists(outPath) || expectedBytes <= 0)
+        {
+            LogError("合并产物缺失, 已保留分段文件");
+            return false;
+        }
+
+        var actual = new FileInfo(outPath).Length;
+        if (actual < expectedBytes * MinMergeRatio)
+        {
+            LogError($"合并产物大小 {actual} 远小于分段总和 {expectedBytes}, 疑似数据丢失, 已保留分段文件");
+            return false;
+        }
+
         return true;
     }
 
@@ -96,7 +124,9 @@ public static class LiveMuxer
             }
 
             CombineMultipleFilesIntoSingleFile([.. tsFiles], concatPath);
-            return await RemuxAsync(concatPath, outPath, inputs, tools, ct);
+            // 已转换并入的 ts 字节数之和才是真实预期，被跳过的损坏分段不计入
+            var expected = tsFiles.Sum(t => new FileInfo(t).Length);
+            return await RemuxAsync(concatPath, outPath, inputs, expected, tools, ct);
         }
         finally
         {

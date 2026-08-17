@@ -98,6 +98,7 @@ public static class TaskParamsMapper
             Cookie = options.Cookie,
             AccessToken = options.AccessToken,
             Aria2cArgs = options.Aria2cArgs,
+            PostProcessPath = options.PostProcessPath,
             WorkDir = options.WorkDir,
             FFmpegPath = options.FFmpegPath,
             Mp4boxPath = options.Mp4boxPath,

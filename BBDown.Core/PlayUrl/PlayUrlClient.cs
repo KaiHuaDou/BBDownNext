@@ -42,7 +42,13 @@ internal static partial class PlayUrlClient
             return webJson;
         }
 
-        //大会员专享限制时从网页源代码尝试解析
+        // 大会员专享限制时才从网页源码抠 window.__playinfo__；该兜底只适用于番剧/课程（播放页按 ep 构造），
+        // UGC 没有 ep_id，拼出 /bangumi/play/ep 只会 404，直接给可读错误而非请求不存在的页面
+        if (!req.IsBangumi)
+        {
+            throw new InvalidOperationException("该视频为大会员专享但无法从网页源码解析（非番剧/课程，缺少 ep 信息）");
+        }
+
         Log("此视频需要大会员，您大概率需要登录一个有大会员的账号才可以下载，尝试从网页源码解析。");
         return await FetchFromWebPageAsync(req, ct);
     }
@@ -52,6 +58,8 @@ internal static partial class PlayUrlClient
     // 匹配失败时抛明确异常(而非返回空串导致后续 JSON 解析报莫名其妙的错)。
     internal static async Task<string> FetchFromWebPageAsync(PlayUrlRequest req, CancellationToken ct = default)
     {
+        // 调用方 FetchAsync 已保证仅番剧/课程走此兜底（UGC 无 ep_id 会提前抛可读错误），
+        // 此处只负责按 ep 构造播放页地址并抠取 window.__playinfo__
         var pageUrl = req.IsCheese
             ? $"{BiliApi.CheesePlayPage}/ep{req.EpId}"
             : $"{BiliApi.BangumiPlayPage}/ep{req.EpId}";

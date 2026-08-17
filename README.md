@@ -39,7 +39,7 @@ nilaoda/BBDown 的全面重构 - 增强分支（上游已归档）。开源 · �
 
 面向追求 **稳定、安全、拿来即用** 的用户与开发者：
 
-- **下载可靠**：下载引擎统一由 Downloader 库实现多线程分片与断点续传，分片级重试、续传元数据自愈校验、下载请求头统一注入，配套 970+ 单元测试守护。
+- **下载可靠**：下载引擎统一由 Downloader 库实现多线程分片与断点续传，分片级重试、续传元数据自愈校验、下载请求头统一注入，配套 980+ 单元测试守护。
 - **serve 安全**：HTTP API 模式内置令牌鉴权、SSRF 防护（含 IPv4-mapped IPv6 归一化）、CORS 默认关闭、host 与工作目录服务端固定，取消令牌贯通全链路。
 - **工程规范**：下载能力集中 `BBDown.Core`、依赖单向无环（`check-deps` 守护）、`ResourceId` 判别联合缺分支编译报错、单文件 / 单方法行数上限、Microsoft Testing Platform 现代测试栈。
 - **拿来即用**：AOT 单文件发布免安装 .NET 运行时，Windows 7 兼容产物、musl 静态产物开箱即用；CLI 与 GUI 双形态共享同一套下载核心。
@@ -100,7 +100,7 @@ nilaoda/BBDown 的全面重构 - 增强分支（上游已归档）。开源 · �
     - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行（无需 Dockerfile）
 
 - 工程品质
-    - **970+ 单元测试**，覆盖解析、混流、serve 安全等全部核心路径
+    - **980+ 单元测试**，覆盖解析、混流、serve 安全等全部核心路径
     - **分层清晰** · 下载能力集中在 `BBDown.Core`（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`），CLI 与 serve 留在 `BBDown`（`Cli` / `Serve`）；依赖单向成树（`check-deps` 守护）
     - **代码规模约束** · 单文件 ≤ 384 行、单方法 ≤ 128 行（`just tokei` 守护），超出即拆分
     - **类型安全** · `ResourceId` 判别联合（10 个 sealed 子类型）取代字符串前缀打标，按类型分发、缺分支编译报错
@@ -133,7 +133,7 @@ nilaoda/BBDown 的全面重构 - 增强分支（上游已归档）。开源 · �
 | 充电专属试看    | 无专门处理                      | 下载前识别，退出码 2 表示全部为试看                                                                                   |
 | 封面处理        | 独立封面下载                    | 独立封面 `c` + 嵌入 `C`（attached_pic）                                                                               |
 | 断点续传        | 基础续传                        | downloader 库自动续传（元数据内嵌 .download，内容变化自愈重下）                                                       |
-| 单元测试        | 较少                            | 970+，覆盖解析、混流、serve 安全等核心路径                                                                            |
+| 单元测试        | 较少                            | 980+，覆盖解析、混流、serve 安全等核心路径                                                                            |
 
 逐项对照与源码位置见 [docs/compared-to-upstream.md](./docs/compared-to-upstream.md)。
 
@@ -341,7 +341,7 @@ BBDown "live12345" -lq 400
 | `--no-sub`              | `-W s`                                     |
 | `--no-cover`            | `-W C`（默认集不含独立封面，去掉封面混流） |
 | `--no-metadata`         | `-W m`                                     |
-| `--full-comment`        | `-g O`（另需 `--comments-count > 0`）      |
+| `--full-comment`        | `-w O`（另需 `--comments-count > 0`）      |
 | `--allow-ai`            | `-w S`（默认集含字幕，附加 AI 字幕）       |
 | `--no-images`           | `-W i`（专栏）                             |
 

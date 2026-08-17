@@ -105,7 +105,9 @@ public static partial class TrackSelect
         var index = 0;
         foreach (var v in parsedResult.VideoTracks)
         {
-            LogColor($"{index++}. [{v.Dfn}] [{v.Res}] [{v.Codecs}] [{v.Fps}] [~{v.Size / 1024 / v.Dur * 8:00} kbps] [{FormatFileSize(v.Size)}]".Replace("[] ", ""), false);
+            // Dur 为 0（接口未给时长）时跳过码率折算，否则除零得 Infinity 显示异常
+            var kbps = v.Dur > 0 ? $"[~{v.Size / 1024 / v.Dur * 8:00} kbps] " : "";
+            LogColor($"{index++}. [{v.Dfn}] [{v.Res}] [{v.Codecs}] [{v.Fps}] {kbps}[{FormatFileSize(v.Size)}]".Replace("[] ", ""), false);
             if (onlyShowInfo)
             {
                 clips.ForEach(Console.WriteLine);

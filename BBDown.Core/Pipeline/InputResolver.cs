@@ -39,14 +39,15 @@ public static partial class InputResolver
             input = tmp;
         }
 
-        if (input.Contains("video/av"))
+        // 前缀检查防误匹配（sav123 之类含 av+数字的串），正则 Success 防 Match 失败后取空组抛 FormatException
+        if (input.Contains("video/av") && AvRegex( ).Match(input) is { Success: true } avMatch)
         {
-            return new Av(long.Parse(AvRegex( ).Match(input).Groups[1].Value));
+            return new Av(long.Parse(avMatch.Groups[1].Value));
         }
 
-        if (input.Contains("video/bv", StringComparison.OrdinalIgnoreCase))
+        if (input.Contains("video/bv", StringComparison.OrdinalIgnoreCase) && BVRegex( ).Match(input) is { Success: true } bvMatch)
         {
-            return new Av(BilibiliBvConverter.Decode(BVRegex( ).Match(input).Groups[1].Value));
+            return new Av(BilibiliBvConverter.Decode(bvMatch.Groups[1].Value));
         }
 
         // 稍后再看页：/watchlater/、/watchlater/#/list、/list/watchlater 等形态。
@@ -60,22 +61,22 @@ public static partial class InputResolver
             }
 
             var oid = GetQueryString("oid", input);
-            return oid.Length > 0 ? new Av(long.Parse(oid)) : new WatchLater( );
+            return long.TryParse(oid, out var oidValue) ? new Av(oidValue) : new WatchLater( );
         }
 
         if (input.Contains("/cheese/"))
         {
-            return await ResolveCheeseAsync(input);
+            return ResolveCheeseAsync(input);
         }
 
-        if (input.Contains("/ep"))
+        if (EpRegex( ).Match(input) is { Success: true } epMatch)
         {
-            return new Ep(long.Parse(EpRegex( ).Match(input).Groups[1].Value));
+            return new Ep(long.Parse(epMatch.Groups[1].Value));
         }
 
-        if (input.Contains("/ss"))
+        if (SsRegex( ).Match(input) is { Success: true } ssMatch)
         {
-            return new Season(await GetSeasonIdBySSAsync(SsRegex( ).Match(input).Groups[1].Value, cfg, ct));
+            return new Season(await GetSeasonIdBySSAsync(ssMatch.Groups[1].Value, cfg, ct));
         }
 
         if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_collection")) // 列表类型是合集
@@ -116,9 +117,9 @@ public static partial class InputResolver
             return new Space(long.Parse(UidRegex( ).Match(input).Groups[1].Value));
         }
 
-        if (input.Contains("ep_id="))
+        if (long.TryParse(GetQueryString("ep_id", input), out var queryEpId))
         {
-            return new Ep(long.Parse(GetQueryString("ep_id", input)));
+            return new Ep(queryEpId);
         }
 
         if (GlobalEpRegex( ).Match(input) is { Success: true } globalEp)
@@ -141,34 +142,37 @@ public static partial class InputResolver
             return new WatchLater( );
         }
 
-        if (input.StartsWith("bv", StringComparison.OrdinalIgnoreCase))
+        // BV 号固定以 BV1 开头（BV2 等不以 1 开头的都不算 BV 号）；切片按 IdPrefix.Bv（"BV1"，长度 3）去掉前缀取主体。
+        // 短输入（如裸 "bv"）直接切片会越界，先校验长度；不足 9 位由 Decode 抛可读的长度错误
+        if (input.StartsWith("bv1", StringComparison.OrdinalIgnoreCase) && input.Length > IdPrefix.Bv.Length)
         {
             return new Av(BilibiliBvConverter.Decode(input[IdPrefix.Bv.Length..]));
         }
 
-        if (input.StartsWith(IdPrefix.Av, StringComparison.OrdinalIgnoreCase))
+        if (input.StartsWith(IdPrefix.Av, StringComparison.OrdinalIgnoreCase)
+            && long.TryParse(input[IdPrefix.Av.Length..], out var avId))
         {
-            return new Av(long.Parse(input[IdPrefix.Av.Length..]));
+            return new Av(avId);
         }
 
         if (input.StartsWith(IdPrefix.CheeseSlash)) // ^cheese/(ep|ss)\d+ 格式
         {
-            return await ResolveCheeseAsync(input);
+            return ResolveCheeseAsync(input);
         }
 
-        if (input.StartsWith(IdPrefix.Ep))
+        if (input.StartsWith(IdPrefix.Ep) && long.TryParse(input[IdPrefix.Ep.Length..], out var epId))
         {
-            return new Ep(long.Parse(input[IdPrefix.Ep.Length..]));
+            return new Ep(epId);
         }
 
-        if (input.StartsWith(IdPrefix.Ss))
+        if (input.StartsWith(IdPrefix.Ss) && input[IdPrefix.Ss.Length..] is { Length: > 0 } ssId && ssId.All(char.IsDigit))
         {
-            return new Season(await GetSeasonIdBySSAsync(input[IdPrefix.Ss.Length..], cfg, ct));
+            return new Season(await GetSeasonIdBySSAsync(ssId, cfg, ct));
         }
 
-        if (input.StartsWith(IdPrefix.Md))
+        if (MdRegex( ).Match(input) is { Success: true } mdMatch)
         {
-            return new Season(await GetSeasonIdByMDAsync(MdRegex( ).Match(input).Groups[1].Value, cfg, ct));
+            return new Season(await GetSeasonIdByMDAsync(mdMatch.Groups[1].Value, cfg, ct));
         }
 
         // space402787936：显式空间简写（先判 space 再判裸数字，避免裸数字分支误吞）
@@ -189,19 +193,19 @@ public static partial class InputResolver
     // 课程（cheese）解析：纯字符串，不触网。
     // ep 形式直接取 ep_id；ss 形式保留 season_id，交由 CheeseInfoFetcher 按 season_id 直接拉取整季，
     // 避免旧实现「先请求一次接口取首集 ep_id、再请求一次拉整季」的冗余往返（见 cheese-review 的 S1/C1）。
-    private static Task<ResourceId> ResolveCheeseAsync(string input)
+    private static ResourceId ResolveCheeseAsync(string input)
     {
         if (input.Contains("/ep"))
         {
-            return Task.FromResult<ResourceId>(new CheeseEp(long.Parse(EpRegex( ).Match(input).Groups[1].Value)));
+            return new CheeseEp(long.Parse(EpRegex( ).Match(input).Groups[1].Value));
         }
 
         if (input.Contains("/ss"))
         {
-            return Task.FromResult<ResourceId>(new CheeseSeason(long.Parse(SsRegex( ).Match(input).Groups[1].Value)));
+            return new CheeseSeason(long.Parse(SsRegex( ).Match(input).Groups[1].Value));
         }
 
-        return Task.FromResult<ResourceId>(new CheeseEp(long.Parse(EpRegex( ).Match(input).Groups[1].Value)));
+        return new CheeseEp(long.Parse(EpRegex( ).Match(input).Groups[1].Value));
     }
 
     // 新版个人空间合集/系列链接：
@@ -222,9 +226,25 @@ public static partial class InputResolver
     private static async Task<long> ScrapeFirstEpIdAsync(string input, Core.AppConfig cfg, CancellationToken ct = default)
     {
         var web = await GetWebSourceAsync(input, cfg, ct: ct);
-        var json = StateRegex( ).Match(web).Groups[1].Value;
-        using var jDoc = JsonDocument.Parse(json);
-        return jDoc.RootElement.GetProperty("epList").EnumerateArray( ).First( ).GetProperty("id").GetInt64( );
+        // 兜底路径：匹配不到 __INITIAL_STATE__ 或页面不含 epList 时给可读错误，而不是 JsonDocument/GetProperty 抛晦涩异常
+        if (StateRegex( ).Match(web) is not { Success: true } stateMatch)
+        {
+            throw new InvalidOperationException("无法从页面源码解析出番剧播放信息（epList 缺失），请使用 ep/ss 链接直接下载");
+        }
+
+        using var jDoc = JsonDocument.Parse(stateMatch.Groups[1].Value);
+        if (jDoc.RootElement.TryGetProperty("epList", out var epList) && epList.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var ep in epList.EnumerateArray( ))
+            {
+                if (ep.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number)
+                {
+                    return id.GetInt64( );
+                }
+            }
+        }
+
+        throw new InvalidOperationException("无法从页面源码解析出番剧播放信息（epList 为空），请使用 ep/ss 链接直接下载");
     }
 
     // 纯数字 av 号可能实际指向番剧（稿件被重定向到番剧播放页），HEAD 探测后转 Ep，否则保持 Av

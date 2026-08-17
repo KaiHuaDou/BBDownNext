@@ -30,8 +30,8 @@ public static class ArchiveLog
             archiveCache ??= LoadArchives( );
             if (archiveCache.TryGetValue((aid, cid), out var savePath))
             {
-                // 文件被删/移走 → 视为未下载，重新下
-                return string.IsNullOrEmpty(savePath) || File.Exists(savePath);
+                // 产物被删/移走或记录路径为空（旧格式/损坏行）→ 无法验证产物，视为未下载重新下
+                return !string.IsNullOrEmpty(savePath) && File.Exists(savePath);
             }
 
             return false;

@@ -31,7 +31,8 @@ public static class LiveInputResolver
 
         var s = input.Trim( );
 
-        if (s.StartsWith(IdPrefix.Live, StringComparison.OrdinalIgnoreCase)
+        if (s.Length > IdPrefix.Live.Length
+            && s.StartsWith(IdPrefix.Live, StringComparison.OrdinalIgnoreCase)
             && char.IsAsciiDigit(s[IdPrefix.Live.Length]))
         {
             return TryTakeRoomId(s[IdPrefix.Live.Length..], out target);

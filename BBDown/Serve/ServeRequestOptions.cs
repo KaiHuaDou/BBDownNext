@@ -77,6 +77,7 @@ internal sealed class ServeRequestOptions
             Mp4boxPath = "",
             Aria2cPath = "",
             Aria2cArgs = "",
+            PostProcessPath = "",
             WorkDir = "",
             FilePattern = "",
             MultiFilePattern = "",

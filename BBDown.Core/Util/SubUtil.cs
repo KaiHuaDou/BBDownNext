@@ -322,7 +322,7 @@ public static partial class SubUtil
             //有的没有内容
             if (line.TryGetProperty("content", out var content))
             {
-                lines.AppendLine(content.ToString( ));
+                lines.AppendLine(EscapeSrtText(content.ToString( )));
             }
 
             lines.AppendLine( );
@@ -334,5 +334,11 @@ public static partial class SubUtil
     private static string FormatTime(double sec) //64.13
     {
         return TimeSpan.FromSeconds(sec).ToString(@"hh\:mm\:ss\,fff");
+    }
+
+    // SRT 无原生转义；正文若恰为 "-->" 会被宽松解析器误判为时间轴分隔符，故替换为视觉等价的长横箭头
+    private static string EscapeSrtText(string text)
+    {
+        return text.Replace("-->", "—>");
     }
 }

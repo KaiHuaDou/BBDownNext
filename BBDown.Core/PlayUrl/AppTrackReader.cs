@@ -113,8 +113,8 @@ internal static class AppTrackReader
             result.BackgroundAudioTracks.AddRange(dubbing.BackgroundAudio.Audio.Select(item => BuildAudio(item, pDur, "M4A")));
         }
 
-        result.RoleAudioList.AddRange(dubbing.RoleAudioList
-            .SelectMany(role => role.AudioMaterialList)
+        result.RoleAudioList.AddRange((dubbing.RoleAudioList ?? [])
+            .SelectMany(role => role.AudioMaterialList ?? [])
             .Select(role => new AudioMaterialInfo( )
             {
                 // proto2 未设置的 optional string 读出的是 "" 而非 null, 不能用 ?? 兜底

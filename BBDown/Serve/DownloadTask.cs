@@ -24,7 +24,14 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
     public long? TaskFinishTime { get; set; }
     public double Progress { get; set; }
     public double DownloadSpeed { get; set; }
-    public double TotalDownloadedBytes { get; set; }
+    // FLV 多片段并行下载时多个采样器并发回调 ApplySample，累计必须原子（Interlocked），
+    // 否则 += 读改写会丢失更新；double 属性仅为 JSON 输出形态
+    private long totalBytes;
+    public double TotalDownloadedBytes
+    {
+        get => Interlocked.Read(ref totalBytes);
+        set => Interlocked.Exchange(ref totalBytes, (long) value);
+    }
     public bool IsSuccessful { get; set; }
     public DownloadStatus Status { get; set; }
 
@@ -47,7 +54,7 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
 
         // 按采样周期折算成每秒速率；TotalDownloadedBytes 累加原始增量，不做折算
         DownloadSpeed = bytesDelta / ProgressSampler.SampleInterval.TotalSeconds;
-        TotalDownloadedBytes += bytesDelta;
+        Interlocked.Add(ref totalBytes, bytesDelta);
     }
 }
 

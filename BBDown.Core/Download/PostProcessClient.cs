@@ -11,32 +11,22 @@ using static BBDown.Core.Logger;
 namespace BBDown.Core.Download;
 
 // 外部后处理进程的文件交换协议：请求 JSON 落盘 → 调起进程单次执行 → 产物文件即响应。
-// 未配置 --post-process 时整个路径不初始化：默认静默，原文件照常混流输出。
+// 未配置 --post-process 时整个路径不启用：默认静默，原文件照常混流输出。
 // 请求只携带轨道定位与本地路径，不携带任何加密特征与凭据——处理方自行获取所需信息。
+// 处理程序路径随 DownloadRequest.PostProcessPath 按任务透传（取代进程级全局，
+// 避免 GUI 并发任务互相覆盖配置）。
 public static class PostProcessClient
 {
     private const int ProcessTimeoutMs = 20000;
 
-    private static readonly Lock Gate = new( );
-    private static string? exePath;
-
-    public static bool Enabled => exePath is not null;
-
-    public static void Configure(string? path)
-    {
-        lock (Gate)
-        {
-            exePath = path;
-        }
-    }
-
     /// <summary>
     /// 通过请求文件调起外部进程处理已下载的轨道。任何失败（未配置 / 进程异常 / 超时 /
     /// 无产物）都返回 false，调用方据此静默保留原文件；仅当进程退出码为 0 且产物存在才视为成功。
+    /// <paramref name="postProcessExe"/> 为空表示未配置后处理。
     /// </summary>
-    public static async Task<bool> TryProcessAsync(string aid, string cid, string kind, string trackPath, string destPath, string ffmpeg, CancellationToken ct = default)
+    public static async Task<bool> TryProcessAsync(string postProcessExe, string aid, string cid, string kind, string trackPath, string destPath, string ffmpeg, CancellationToken ct = default)
     {
-        if (exePath is null)
+        if (string.IsNullOrEmpty(postProcessExe))
         {
             return false;
         }
@@ -45,7 +35,7 @@ public static class PostProcessClient
         try
         {
             await File.WriteAllTextAsync(requestPath, JsonSerializer.Serialize(new PostProcessRequest(aid, cid, kind, trackPath, destPath, ffmpeg), PostProcessJsonContext.Default.PostProcessRequest), ct);
-            using var process = Process.Start(new ProcessStartInfo(exePath, requestPath) { UseShellExecute = false })!;
+            using var process = Process.Start(new ProcessStartInfo(postProcessExe, requestPath) { UseShellExecute = false })!;
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(ProcessTimeoutMs);
             try

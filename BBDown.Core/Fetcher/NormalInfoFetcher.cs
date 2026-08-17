@@ -34,8 +34,11 @@ public static partial class NormalInfoFetcher
         var bvid = data.GetProperty("bvid").ToString( );
         var cid = data.GetProperty("cid").GetInt64( );
 
-        // 互动视频 1:是 0:否
-        var isSteinGate = data.GetProperty("rights").GetProperty("is_stein_gate").GetInt16( );
+        // 互动视频 1:是 0:否；rights 或 is_stein_gate 任一缺失都不是错误，按非互动视频处理
+        var isSteinGate = data.TryGetProperty("rights", out var rights)
+                          && rights.TryGetProperty("is_stein_gate", out var steinGate)
+            ? steinGate.GetInt16( )
+            : (short) 0;
 
         // 分 P 信息
         var aidStr = aid.ToString( );

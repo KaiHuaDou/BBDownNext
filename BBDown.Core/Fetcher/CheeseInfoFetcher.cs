@@ -34,8 +34,15 @@ public static class CheeseInfoFetcher
         var cover = data.GetProperty("cover").ToString( );
         var title = data.GetProperty("title").ToString( );
         var desc = data.GetProperty("subtitle").ToString( );
-        var ownerName = data.GetProperty("up_info").GetProperty("uname").ToString( );
-        var ownerMid = data.GetProperty("up_info").GetProperty("mid").ToString( );
+        // up_info 偶发缺失（接口异常），缺失时退化为空 UP 主信息而非抛 KeyNotFoundException。
+        // 缺失时 TryGetProperty 会把 out 置为默认 JsonElement，必须先用 ValueKind 短路，否则后续调用会抛异常。
+        data.TryGetProperty("up_info", out var upInfo);
+        var ownerName = upInfo.ValueKind == JsonValueKind.Object && upInfo.TryGetProperty("uname", out var uname)
+            ? uname.GetString( ) ?? ""
+            : "";
+        var ownerMid = upInfo.ValueKind == JsonValueKind.Object && upInfo.TryGetProperty("mid", out var mid)
+            ? mid.GetString( ) ?? ""
+            : "";
         var pagesInfo = BuildPages(data.GetProperty("episodes"), ownerName, ownerMid);
         if (pagesInfo.Count == 0)
         {

@@ -119,7 +119,7 @@ public static partial class ChapterMeta
     /// <summary>
     /// 检测 FFmpeg 是否识别杜比视界
     /// </summary>
-    public static bool CheckFFmpegDOVI(ToolPaths tools)
+    public static async Task<bool> CheckFFmpegDOVIAsync(ToolPaths tools, CancellationToken ct = default)
     {
         try
         {
@@ -136,18 +136,36 @@ public static partial class ChapterMeta
                 }
             };
             process.Start( );
-            var info = process.StandardOutput.ReadToEnd( ) + Environment.NewLine + process.StandardError.ReadToEnd( );
-            process.WaitForExit( );
-            var match = LibavutilRegex( ).Match(info);
-            if (!match.Success)
+
+            // 先挂异步读再等退出：同步 ReadToEnd 先于 WaitForExit 会让超时守卫形同虚设
+            // （进程挂起时 ReadToEnd 永久阻塞，永远走不到超时分支）。
+            // 读缓冲用 None：进程已退出后读取剩余输出是即时操作，不应被取消打断
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
+            var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
+
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(50));
+            try
             {
+                await process.WaitForExitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 超时或用户取消都必须杀掉进程，否则挂起的 ffmpeg 带着管道句柄成为孤儿进程
+                TryKill(process);
+                if (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+
+                LogDebug("探测 FFmpeg 杜比视界支持超时（50 秒），按不支持处理");
                 return false;
             }
 
-            if (Convert.ToInt32(match.Groups[1].Value) is (57 and >= 17) or > 57)
-            {
-                return true;
-            }
+            var info = await stdoutTask + Environment.NewLine + await stderrTask;
+            var match = LibavutilRegex( ).Match(info);
+            // 杜比视界探测需要 FFmpeg 5.0+（libavutil 57+）；正则只取主版本号即可
+            return match.Success && Convert.ToInt32(match.Groups[1].Value) >= 57;
         }
         catch (Exception ex)
         {
@@ -157,6 +175,16 @@ public static partial class ChapterMeta
         return false;
     }
 
-    [GeneratedRegex("libavutil\\s+(\\d+)\\. +(\\d+)\\.")]
+    private static void TryKill(Process process)
+    {
+        try
+        {
+            process.Kill( );
+            process.WaitForExit( );
+        }
+        catch { }
+    }
+
+    [GeneratedRegex("libavutil\\s+(\\d+)\\.")]
     private static partial Regex LibavutilRegex( );
 }

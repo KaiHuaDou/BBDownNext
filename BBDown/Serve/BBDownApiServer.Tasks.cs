@@ -74,6 +74,8 @@ public partial class BBDownApiServer
         var claimed = runningTasks.GetOrAdd(id, task);
         if (!ReferenceEquals(claimed, task))
         {
+            // 重复提交同资源：命中已有任务直接返回，新建任务的白费掉，其 linked CTS 必须释放，否则重复请求会累积泄漏
+            task.Cts.Dispose( );
             return claimed;
         }
 

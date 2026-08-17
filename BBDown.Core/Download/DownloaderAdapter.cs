@@ -53,7 +53,7 @@ public static class DownloaderAdapter
             CustomHttpClientFactory = ( ) => client,
         };
 
-        using var downloader = new DownloadService(options);
+        await using var downloader = new DownloadService(options);
         var tcs = new TaskCompletionSource<(Exception? Error, DownloadPackage Package)>(TaskCreationOptions.RunContinuationsAsynchronously);
         downloader.DownloadProgressChanged += (_, e) =>
             progress.Report(e.TotalBytesToReceive > 0 ? (double) e.ReceivedBytesSize / e.TotalBytesToReceive : 0, e.ReceivedBytesSize);
@@ -65,8 +65,9 @@ public static class DownloaderAdapter
             await downloader.DownloadFileTaskAsync(url, path, ct);
             var (error, package) = await tcs.Task;
 
-            // Completed 时文件已由 downloader 改名为最终路径；Stopped 分支是 FileExistPolicy 的兜底跳过
-            if (package.Status == DownloadStatus.Completed || File.Exists(path))
+            // 成功判定见 IsDownloadSuccess：Completed 即成功；库把「目标已存在即跳过」以 Failed 送达，
+            // 但文件保留，须视为成功，否则重跑误报失败
+            if (IsDownloadSuccess(package.Status, path))
             {
                 return;
             }
@@ -83,6 +84,15 @@ public static class DownloaderAdapter
         {
             client.Dispose( );
         }
+    }
+
+    // 下载成功判定：Completed 即为成功；downloader 的 FileExistPolicy.IgnoreDownload 把「目标已存在即跳过」
+    // 以 Failed 状态送达（库行为，实测验证）且保留原文件——该场景必须视为成功，否则重跑会误报失败；
+    // 文件不存在的 Failed 才是真实下载失败。此隐式契约抽成纯函数以便单测锁定，避免库升级后静默改判。
+    internal static bool IsDownloadSuccess(DownloadStatus status, string path)
+    {
+        return status == DownloadStatus.Completed
+               || (status == DownloadStatus.Failed && File.Exists(path));
     }
 
     // 下载客户端：请求头与 AddDownloadHeaders 一致（UA / Referer 按平台 / Cookie），

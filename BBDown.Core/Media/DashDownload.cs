@@ -154,7 +154,7 @@ public static class DashDownload
         if (hasVideo)
         {
             // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
-            if (selectedVideo!.Id == Config.DolbyVisionQn && mux == MuxMode.Mpeg4 && !ChapterMeta.CheckFFmpegDOVI(ctx.Run.Tools))
+            if (selectedVideo!.Id == Config.DolbyVisionQn && mux == MuxMode.Mpeg4 && !await ChapterMeta.CheckFFmpegDOVIAsync(ctx.Run.Tools, ct))
             {
                 LogWarn("您的 FFmpeg 版本小于 5.0，杜比视界将使用 MP4Box 混流...");
                 mux = MuxMode.Mp4box;
@@ -170,7 +170,7 @@ public static class DashDownload
             await DownloadAsync(selectedAudio!.BaseUrl, audioPath, downloadConfig, ct: ct);
         }
 
-        string backgroundPath = "";
+        var backgroundPath = "";
         if (hasBackgroundAudio)
         {
             backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.{p.Cid}.P{p.Index}.back_ground.m4a");
@@ -241,13 +241,8 @@ public static class DashDownload
     // 对每条轨发起外部后处理（加密与否由处理方判断）；产物校验通过后覆盖原轨，其余情况静默
     private static async Task TryPostProcessAsync(DownloadSession session, string path, string kind, string aid, string cid, CancellationToken ct)
     {
-        if (!PostProcessClient.Enabled)
-        {
-            return;
-        }
-
         var destPath = path + ".out.mp4";
-        if (await PostProcessClient.TryProcessAsync(aid, cid, kind, path, destPath, session.Ctx.Run.Tools.Ffmpeg, ct)
+        if (await PostProcessClient.TryProcessAsync(session.Options.PostProcessPath, aid, cid, kind, path, destPath, session.Ctx.Run.Tools.Ffmpeg, ct)
             && File.Exists(destPath) && new FileInfo(destPath).Length > 0)
         {
             File.Move(destPath, path, true);

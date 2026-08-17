@@ -99,7 +99,7 @@ public static class CredentialStore
 
         try
         {
-            return JsonSerializer.Deserialize(raw, CredentialJsonContext.Default.Credential) ?? Empty;
+            return TrimCredential(JsonSerializer.Deserialize(raw, CredentialJsonContext.Default.Credential) ?? Empty);
         }
         catch
         {
@@ -107,6 +107,15 @@ public static class CredentialStore
             return Empty;
         }
     }
+
+    // 用户从网页/终端粘贴的凭据常带入首尾空白与换行符，留着会让认证静默失败
+    private static Credential TrimCredential(Credential c) => c with
+    {
+        Cookie = c.Cookie?.Trim( ),
+        RefreshToken = c.RefreshToken?.Trim( ),
+        TvAccessToken = c.TvAccessToken?.Trim( ),
+        AppAccessToken = c.AppAccessToken?.Trim( ),
+    };
 
     private static async Task WriteCredential(string? dir, Credential c)
     {

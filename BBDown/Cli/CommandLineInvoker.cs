@@ -92,14 +92,12 @@ internal static class CommandLineInvoker
                 LogWarn(warning);
             }
 
-            // 外部后处理进程：进程级配置，未指定时整个后处理路径不启用
-            PostProcessClient.Configure(parseResult.GetValue(PostProcess));
-
             var option = new DownloadRequest
             {
                 Api = parseResult.GetValue(ApiOption),
                 Url = parseResult.GetValue(Url) ?? "",
                 Content = content,
+                PostProcessPath = parseResult.GetValue(PostProcess) ?? "",
                 EncodingPriority = parseResult.GetValue(EncodingPriority) ?? "",
                 DfnPriority = parseResult.GetValue(DfnPriority) ?? "",
                 EncodingFirst = ResolveEncodingFirst(parseResult),

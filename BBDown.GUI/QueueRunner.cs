@@ -285,10 +285,16 @@ public sealed class QueueRunner(Action<Action> dispatch)
             if (state is null)
             {
                 ReleaseSlot( );
+                var hasWaiting = false;
+                dispatch(( ) => hasWaiting = waiting.Count > 0);
+                if (hasWaiting)
+                {
+                    continue;
+                }
+
                 break;
             }
 
-            // 执行不阻塞调度循环，否则同一时刻只能跑一个任务；并发上限由槽控制
             _ = ExecuteAndReleaseAsync(state);
         }
 
