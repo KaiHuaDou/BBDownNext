@@ -112,78 +112,7 @@ public static class DashDownload
 
         var videoPath = pageCtx.VideoPath;
         var audioPath = pageCtx.AudioPath;
-        List<AudioMaterial> audioMaterial = [];
-        var mux = myOption.Mux;
-        var backgroundPath = "";
-        if (selectedVideo != null)
-        {
-            // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
-            if (selectedVideo.Id == Config.DolbyVisionQn && mux == MuxMode.Mpeg4 && !ChapterMeta.CheckFFmpegDOVI(ctx.Run.Tools))
-            {
-                LogWarn("您的 FFmpeg 版本小于 5.0，杜比视界将使用 MP4Box 混流...");
-                mux = MuxMode.Mp4box;
-            }
-
-            Log($"开始下载 P{p.Index} 视频...");
-            await DownloadAsync(selectedVideo.BaseUrl, videoPath, downloadConfig, ct: ct);
-        }
-
-        if (selectedAudio != null)
-        {
-            Log($"开始下载 P{p.Index} 音频...");
-            await DownloadAsync(selectedAudio.BaseUrl, audioPath, downloadConfig, ct: ct);
-        }
-
-        if (selectedBackgroundAudio != null)
-        {
-            backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.{p.Cid}.P{p.Index}.back_ground.m4a");
-            Log($"开始下载 P{p.Index} 背景配音...");
-            await DownloadAsync(selectedBackgroundAudio.BaseUrl, backgroundPath, downloadConfig, ct: ct);
-            audioMaterial.Add(new AudioMaterial { Title = "背景音频", PersonName = "", Path = backgroundPath });
-        }
-
-        foreach (var role in parsedResult.RoleAudioList)
-        {
-            // 配音流数可能少于主音频，序号越界时跳过该角色的配音
-            var roleAudio = role.Audio.ElementAtOrDefault(aIndex);
-            if (roleAudio == null)
-            {
-                LogWarn($"P{p.Index} 配音 [{role.Title}] 没有序号 {aIndex} 的音频流，已跳过");
-                continue;
-            }
-
-            role.Path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.Path));
-            Log($"开始下载 P{p.Index} 配音 [{role.Title}]...");
-            await DownloadAsync(roleAudio.BaseUrl, role.Path, downloadConfig, ct: ct);
-            audioMaterial.Add(new AudioMaterial { Title = role.Title, PersonName = role.PersonName, Path = role.Path });
-        }
-
-        Log($"P{p.Index} 下载完成");
-        // 外部后处理（可选）：配置了 --post-process 时对每条轨调用已配置的处理进程，
-        // 加密与否由处理方自行判断；成功产物覆盖原轨，未配置 / 失败 / 超时一律静默保留原文件
-        if (selectedVideo != null)
-        {
-            await TryPostProcessAsync(session, videoPath, "video", p.Aid, p.Cid, ct);
-        }
-
-        if (selectedAudio != null)
-        {
-            await TryPostProcessAsync(session, audioPath, "audio", p.Aid, p.Cid, ct);
-        }
-
-        if (selectedBackgroundAudio != null)
-        {
-            await TryPostProcessAsync(session, backgroundPath, "background", p.Aid, p.Cid, ct);
-        }
-
-        foreach (var role in parsedResult.RoleAudioList)
-        {
-            var roleAudio = role.Audio.ElementAtOrDefault(aIndex);
-            if (roleAudio != null)
-            {
-                await TryPostProcessAsync(session, role.Path, "role", p.Aid, p.Cid, ct);
-            }
-        }
+        var (audioMaterial, mux) = await DownloadTracksAsync(parsedResult, session, selection, pageCtx, videoPath, audioPath, ct);
 
         if (parsedResult.VideoTracks.Count == 0)
         {
@@ -197,6 +126,116 @@ public static class DashDownload
 
         var inputs = new MuxFinish.MuxInputs(savePath, videoPath, audioPath, audioMaterial, mux, selectedVideo?.Codecs == "HEVC");
         return await MuxFinish.RunAsync(session, inputs, selection, ct);
+    }
+
+    // 下载全部已选轨（视频 / 音频 / 背景配音 / 角色配音）并就地后处理；返回混流所需的配音素材与
+    // （可能因杜比视界调整的）封装模式。主媒体下载窗口（进度条显隐）与“实际下载哪些轨”共用同一组布尔，统一在此收口
+    private static async Task<(List<AudioMaterial> AudioMaterial, MuxMode Mux)> DownloadTracksAsync(
+        ParsedResult parsedResult, DownloadSession session, TrackSelection selection,
+        PageContext pageCtx, string videoPath, string audioPath, CancellationToken ct)
+    {
+        var (myOption, ctx, _, _, downloadConfig, sink) = session;
+        var p = pageCtx.Page;
+        var (_, vIndex, aIndex) = selection;
+        var selectedVideo = parsedResult.VideoTracks.ElementAtOrDefault(vIndex);
+        var selectedAudio = parsedResult.AudioTracks.ElementAtOrDefault(aIndex);
+        var selectedBackgroundAudio = parsedResult.BackgroundAudioTracks.ElementAtOrDefault(aIndex);
+        var mux = myOption.Mux;
+
+        var hasVideo = selectedVideo != null;
+        var hasAudio = selectedAudio != null;
+        var hasBackgroundAudio = selectedBackgroundAudio != null;
+        var hasRoleAudio = parsedResult.RoleAudioList.Count != 0;
+        if (hasVideo || hasAudio || hasBackgroundAudio || hasRoleAudio)
+        {
+            sink.Downloading?.Invoke(true);
+        }
+
+        if (hasVideo)
+        {
+            // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
+            if (selectedVideo!.Id == Config.DolbyVisionQn && mux == MuxMode.Mpeg4 && !ChapterMeta.CheckFFmpegDOVI(ctx.Run.Tools))
+            {
+                LogWarn("您的 FFmpeg 版本小于 5.0，杜比视界将使用 MP4Box 混流...");
+                mux = MuxMode.Mp4box;
+            }
+
+            Log($"开始下载 P{p.Index} 视频...");
+            await DownloadAsync(selectedVideo!.BaseUrl, videoPath, downloadConfig, ct: ct);
+        }
+
+        if (hasAudio)
+        {
+            Log($"开始下载 P{p.Index} 音频...");
+            await DownloadAsync(selectedAudio!.BaseUrl, audioPath, downloadConfig, ct: ct);
+        }
+
+        string backgroundPath = "";
+        if (hasBackgroundAudio)
+        {
+            backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.{p.Cid}.P{p.Index}.back_ground.m4a");
+            Log($"开始下载 P{p.Index} 背景配音...");
+            await DownloadAsync(selectedBackgroundAudio!.BaseUrl, backgroundPath, downloadConfig, ct: ct);
+        }
+
+        List<AudioMaterial> audioMaterial = [];
+        if (hasBackgroundAudio)
+        {
+            audioMaterial.Add(new AudioMaterial { Title = "背景音频", PersonName = "", Path = backgroundPath });
+        }
+
+        if (hasRoleAudio)
+        {
+            foreach (var role in parsedResult.RoleAudioList)
+            {
+                // 配音流数可能少于主音频，序号越界时跳过该角色的配音
+                var roleAudio = role.Audio.ElementAtOrDefault(aIndex);
+                if (roleAudio == null)
+                {
+                    LogWarn($"P{p.Index} 配音 [{role.Title}] 没有序号 {aIndex} 的音频流，已跳过");
+                    continue;
+                }
+
+                role.Path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.Path));
+                Log($"开始下载 P{p.Index} 配音 [{role.Title}]...");
+                await DownloadAsync(roleAudio.BaseUrl, role.Path, downloadConfig, ct: ct);
+                audioMaterial.Add(new AudioMaterial { Title = role.Title, PersonName = role.PersonName, Path = role.Path });
+            }
+        }
+
+        if (hasVideo || hasAudio || hasBackgroundAudio || hasRoleAudio)
+        {
+            sink.Downloading?.Invoke(false);
+        }
+
+        Log($"P{p.Index} 下载完成");
+        // 外部后处理（可选）：配置了 --post-process 时对每条轨调用已配置的处理进程，
+        // 加密与否由处理方自行判断；成功产物覆盖原轨，未配置 / 失败 / 超时一律静默保留原文件
+        if (hasVideo)
+        {
+            await TryPostProcessAsync(session, videoPath, "video", p.Aid, p.Cid, ct);
+        }
+
+        if (hasAudio)
+        {
+            await TryPostProcessAsync(session, audioPath, "audio", p.Aid, p.Cid, ct);
+        }
+
+        if (hasBackgroundAudio)
+        {
+            await TryPostProcessAsync(session, backgroundPath, "background", p.Aid, p.Cid, ct);
+        }
+
+        foreach (var role in parsedResult.RoleAudioList)
+        {
+            var roleAudio = role.Audio.ElementAtOrDefault(aIndex);
+            if (roleAudio != null)
+            {
+                await TryPostProcessAsync(session, role.Path, "role", p.Aid, p.Cid, ct);
+            }
+        }
+
+        return (audioMaterial, mux);
     }
 
     // 对每条轨发起外部后处理（加密与否由处理方判断）；产物校验通过后覆盖原轨，其余情况静默

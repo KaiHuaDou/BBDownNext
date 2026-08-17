@@ -534,7 +534,7 @@ public class BBDownApiServerTests
         Assert.Equal(2048, task.TotalDownloadedBytes);
     }
 
-    // CLI 走 default(PipelineSink)：三个回调全为 null，下层的 ?.Invoke 必须能安全跳过
+    // CLI 走 default(PipelineSink)：全部回调为 null，下层的 ?.Invoke 必须能安全跳过
     [Fact]
     public void DefaultSink_HasNoCallbacks( )
     {
@@ -543,6 +543,7 @@ public class BBDownApiServerTests
         Assert.Null(sink.Meta);
         Assert.Null(sink.Saved);
         Assert.Null(sink.Sample);
+        Assert.Null(sink.Downloading);
     }
 
     #endregion

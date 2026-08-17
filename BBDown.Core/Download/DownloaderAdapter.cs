@@ -102,11 +102,13 @@ public static class DownloaderAdapter
     }
 }
 
-// 按请求 URL 平台分支加下载头：android 平台地址带 Referer 会被拒
-internal sealed class DownloadHeaderHandler(SocketsHttpHandler inner, string cookie) : DelegatingHandler(inner)
+// 按请求 URL 平台分支加下载头（与 AddDownloadHeaders 一致）：android 平台地址带 Referer 会被拒
+internal sealed class DownloadHeaderHandler(HttpMessageHandler inner, string cookie) : DelegatingHandler(inner)
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        // 缺 UA 的请求会被 B 站 CDN 直接 403 拒绝
+        request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
         if (!HTTPUtil.IsAndroidPlatformUrl(request.RequestUri!.AbsoluteUri))
         {
             request.Headers.TryAddWithoutValidation("Referer", BiliApi.Site);

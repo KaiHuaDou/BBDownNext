@@ -15,6 +15,8 @@
 
 ### 修复
 
+- 修复下载进度条在混流阶段残留并改为只在下载时显示：进度条显隐由主媒体下载窗口信号驱动（进入音视频轨下载时显示，下载结束进入混流 / 封装时立即清行），封面 / 弹幕等附属下载不显示；采样空闲超时保留为兜底。
+- 修复下载 403：downloader 适配层的下载请求缺失 `User-Agent` 导致 B 站 CDN 直接拒绝（403 Forbidden），补回 `User-Agent: Mozilla/5.0`，与旧下载头保持一致。
 - 修复交互式输入被进度条覆盖：使用 `-iap` 逐集确认或手动选轨时，后台进度条持续重绘会覆盖 `[y/n/a/q]` 提示与用户输入；现交互读输入前暂停进度条渲染、读完后恢复（`Interaction` 新增 `BeforeRead` / `AfterRead` 钩子，CLI 的 `ProgressBar` 据此 `Suspend` / `Resume`）。
 - 修复下载进度条与日志互相污染：进度条按退格增量重绘，日志紧跟其后会把光标推离行尾，下一帧把 spinner 字符打到日志行首；现写日志前先擦除进度条行（`Logger.BeforeWrite` 钩子，与直播状态行同机制）。
 
@@ -51,6 +53,7 @@
 - 图形界面由 WPF 迁移至 Avalonia：界面文件由 xaml 改为 axaml（`MainWindow` / `App` / `Theme`），目标框架 `net9.0-windows` 改为 `net9.0`，移除 `Ookii.Dialogs.Wpf` 依赖、改用 Avalonia 原生 `StorageProvider` 与 `TaskDialog` 等价能力，启用 AOT 单文件发布（`PublishAot`、不变全球化、Fluent 主题裁剪根保护）；配套 BBDown.Core / Cli / Serve 做 AOT 友好调整（移除冗余 using、字符串比较改 `StringComparison.OrdinalIgnoreCase`）。界面修复：日志区改用 StackPanel 物化并修正普通行前景色（深色下不再黑字不可见）；内容复选项勾选态接入 `INotifyPropertyChanged` 以反映默认值变化；移除按钮移入任务项（运行中显示取消、其余显示 X）；状态文字全状态显式着色（修正等待中黑字不可见）；按钮放大、Expander 充满、日志与队列等宽。
 - 图形界面独立 CI（`gui.yml`）构建矩阵由仅 Windows 扩展为 Windows / macOS / Linux 三平台（各 x64 / arm64，Linux 仅 glibc 不产 musl）；因 AOT 强制自包含，移除框架依赖（fd）产物，统一发布自包含 AOT 单文件。
 - 弹幕 `.ass` 文件头的 `Script Updated By` 地址由 `nilaoda/BBDown` 改为 `KaiHuaDou/BBDownNext`。
+- 示例插件 `Plugins/BBDown.Sample` 测试迁移到 Microsoft Testing Platform（MTP）：测试项目由 VSTest 改为 MTP 原生运行器（`UseMicrosoftTestingPlatformRunner` + `TestingPlatformDotnetTestSupport`），包引用换为 `xunit.v3` 4.0.0 + `Microsoft.Testing.Extensions.CodeCoverage` 18.10.0 + `Microsoft.Testing.Extensions.TrxReport` 2.3.3，与主仓库测试栈版本一致。
 
 ## [v2.0.0-rc.1]
 

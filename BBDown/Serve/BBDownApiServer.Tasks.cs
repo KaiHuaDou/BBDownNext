@@ -130,7 +130,8 @@ public partial class BBDownApiServer
                 task.VideoPubTime = v.PubTime;
             },
             task.SavePaths.Add,
-            task.ApplySample);
+            task.ApplySample,
+            null);
     }
 
     // 任务的初始状态（是否排队）由服务端限流闸门决定，抽成方法便于单测观测

@@ -13,6 +13,8 @@ public sealed class ProgressBar : IDisposable
     private const int BarWidth = 40;
     private const string SpinnerFrames = @"|/-\";
     private static readonly TimeSpan RenderInterval = TimeSpan.FromSeconds(1.0 / 8);
+    // 采样间隔 200ms；超过 1 秒无新采样视为下载已结束（进入混流等阶段），清行停止渲染
+    private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(1);
 
     private readonly Lock gate = new( );
     private readonly Timer? renderTimer;
@@ -27,6 +29,9 @@ public sealed class ProgressBar : IDisposable
     private int spinnerIndex;
     private DateTime etaStart;
     private double lastRatio;
+    private long lastSampleTick;
+    private bool downloading;
+    private bool rendering;
     private bool disposed;
     private bool suspended;
 
@@ -105,12 +110,52 @@ public sealed class ProgressBar : IDisposable
         }
     }
 
-    // ProgressSampler 每秒回调一次，更新进度、速度与剩余时间显示
+    // 主媒体下载窗口：true 进入下载（恢复渲染），false 下载结束（清行停止渲染）。
+    // 解析 / 混流 / 封面弹幕等附属下载都不开窗，进度条只在明确下载音视频文件时出现
+    public void SetDownloading(bool value)
+    {
+        if (!drawToConsole)
+        {
+            return;
+        }
+
+        lock (gate)
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            downloading = value;
+            if (value)
+            {
+                // 标记本帧为“刚采样”，避免 Render 在首个真实采样到达前误判空闲而清行
+                lastSampleTick = Environment.TickCount64;
+                rendering = true;
+                renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
+            }
+            else
+            {
+                Draw(string.Empty);
+                renderTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                rendering = false;
+            }
+        }
+    }
+
+    // ProgressSampler 每 200ms 回调一次，更新进度、速度与剩余时间显示
     public void OnSample(double value, long delta)
     {
         lock (gate)
         {
+            // 窗口外（封面/弹幕等附属下载）不驱动进度条
+            if (!downloading)
+            {
+                return;
+            }
+
             ratio = value;
+            lastSampleTick = Environment.TickCount64;
             var now = DateTime.UtcNow;
             // 进度回退视为分 P 切换，重置 ETA 基准
             if (lastRatio == 0 || value < lastRatio)
@@ -126,6 +171,13 @@ public sealed class ProgressBar : IDisposable
             }
 
             etaText = Utils.FormatEta(value, now - etaStart) is { } eta ? $" ETA {eta}" : string.Empty;
+
+            // 有采样即视为下载进行中：若此前因空闲停过渲染，恢复定时器
+            if (!rendering)
+            {
+                rendering = true;
+                renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
+            }
         }
     }
 
@@ -135,6 +187,15 @@ public sealed class ProgressBar : IDisposable
         {
             if (disposed || cancelToken.IsCancellationRequested || suspended)
             {
+                return;
+            }
+
+            // 窗口外或下载结束（进入混流等阶段）后采样停止：擦掉残留的进度条并停掉渲染。
+            // 采样停止的空闲判定是兜底，正常路径由 SetDownloading(false) 即时清行
+            if (!downloading || Environment.TickCount64 - lastSampleTick > IdleTimeout.TotalMilliseconds)
+            {
+                Draw(string.Empty);
+                rendering = false;
                 return;
             }
 

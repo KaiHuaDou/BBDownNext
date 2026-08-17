@@ -19,7 +19,7 @@ public static class FlvDownload
 {
     internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, TrackSelection selection, CancellationToken ct = default)
     {
-        var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, _) = session;
+        var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, sink) = session;
         var p = pageCtx.Page;
         var (selected, _, _) = selection;
         List<AudioMaterial> audioMaterial = [];
@@ -96,7 +96,10 @@ public static class FlvDownload
                 return skipped;
             }
 
+            // 主媒体下载窗口：只有片段下载时进度条才显示
+            sink.Downloading?.Invoke(true);
             var clipPaths = await DownloadClipsAsync(clips, pageCtx, downloadConfig, ct);
+            sink.Downloading?.Invoke(false);
 
             Log($"下载 P{p.Index} 完毕");
             Log("开始合并分片...");

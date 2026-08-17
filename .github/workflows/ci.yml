@@ -58,9 +58,11 @@ jobs:
 
       - name: Run tests with coverage
         # 显式指定测试项目，排除 BBDown.GUI（WPF 无测试，且 slnx 会一并构建它）
+        # 走 Microsoft Testing Platform：dotnet test 的构建/主机参数（如 --configuration、--verbosity）在 -- 之前，
+        # 测试平台参数（--coverage、--report-trx）在 -- 之后
         run: |
-          dotnet test BBDown.Tests/BBDown.Tests.csproj --configuration ${{ env.BUILD_CONFIG }} --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx" --verbosity minimal
-          dotnet test BBDown.Core.Tests/BBDown.Core.Tests.csproj --configuration ${{ env.BUILD_CONFIG }} --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx" --verbosity minimal
+          dotnet test BBDown.Tests/BBDown.Tests.csproj --configuration ${{ env.BUILD_CONFIG }} --verbosity minimal -- --coverage --coverage-output-format cobertura --coverage-output coverage.cobertura.xml --report-trx --report-trx-filename test-results.trx
+          dotnet test BBDown.Core.Tests/BBDown.Core.Tests.csproj --configuration ${{ env.BUILD_CONFIG }} --verbosity minimal -- --coverage --coverage-output-format cobertura --coverage-output coverage.cobertura.xml --report-trx --report-trx-filename test-results.trx
 
       - name: Upload test results
         if: always()

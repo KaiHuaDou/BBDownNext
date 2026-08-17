@@ -377,7 +377,8 @@ public partial class MainWindow : Window
                     var sink = new PipelineSink(
                         Meta: info => SetTaskTitle(state, info.Title),
                         Saved: path => AppendProcessLog(state.Index, $"已保存：{path}", false),
-                        Sample: (ratio, delta) => SetTaskSample(state, ratio, delta));
+                        Sample: (ratio, delta) => SetTaskSample(state, ratio, delta),
+                        Downloading: null);
                     await DownloadPipeline.RunAsync(req, sink, token);
                     break;
                 }

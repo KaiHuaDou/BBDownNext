@@ -47,7 +47,7 @@ public class ResumeDownloadTests
         public bool RangeReturns206 { get; init; } = true;
         public HttpStatusCode? FailureStatus { get; init; }
 
-        public List<string?> Requests { get; } = [];
+        public List<(string? Range, string? UserAgent, string? Referer, string? Cookie)> Requests { get; } = [];
 
         public ServingHandler(int delayMs = 0)
         {
@@ -79,7 +79,11 @@ public class ResumeDownloadTests
         {
             lock (gate)
             {
-                Requests.Add(request.Headers.Range?.ToString( ));
+                Requests.Add((
+                    request.Headers.Range?.ToString( ),
+                    request.Headers.TryGetValues("User-Agent", out var ua) ? ua.FirstOrDefault( ) : null,
+                    request.Headers.TryGetValues("Referer", out var referer) ? referer.FirstOrDefault( ) : null,
+                    request.Headers.TryGetValues("Cookie", out var cookie) ? cookie.FirstOrDefault( ) : null));
             }
 
             if (FailureStatus is { } status)
@@ -158,10 +162,11 @@ public class ResumeDownloadTests
         }
     }
 
-    private static async Task WithStubClient(HttpMessageHandler handler, Func<Task> act)
+    private static async Task WithStubClient(HttpMessageHandler handler, Func<Task> act, string cookie = "")
     {
         var original = DownloaderAdapter.HttpClientFactory;
-        DownloaderAdapter.HttpClientFactory = _ => new HttpClient(handler, disposeHandler: false);
+        // 走真实请求头层（DownloadHeaderHandler）+ stub 网络层，验证的才是产品链路
+        DownloaderAdapter.HttpClientFactory = _ => new HttpClient(new DownloadHeaderHandler(handler, cookie), disposeHandler: false);
         try
         {
             await act( );
@@ -386,6 +391,56 @@ public class ResumeDownloadTests
 
             Assert.NotEmpty(samples);
             Assert.True(samples[^1] >= samples[0]);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    // 下载请求头与旧 AddDownloadHeaders 一致：UA、非 android 平台 Referer、Cookie 都带上
+    [Fact]
+    public async Task Download_SendsBrowserLikeHeaders( )
+    {
+        var dir = TempDir( );
+        try
+        {
+            var data = Enumerable.Range(0, 2048).Select(i => (byte) (i % 251)).ToArray( );
+            var dest = Path.Combine(dir, "video.mp4");
+
+            using var handler = new ServingHandler { Data = data };
+            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+                "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig { Cookie = "SESSDATA=abc" }, ct: CancellationToken.None), cookie: "SESSDATA=abc");
+
+            Assert.NotEmpty(handler.Requests);
+            Assert.All(handler.Requests, r => Assert.Equal("Mozilla/5.0", r.UserAgent));
+            // Referer 是受限头，.NET 会解析为 Uri 后发送规范形式（带尾斜杠），与旧 AddDownloadHeaders 一致
+            Assert.All(handler.Requests, r => Assert.Equal("https://www.bilibili.com/", r.Referer));
+            Assert.All(handler.Requests, r => Assert.Equal("SESSDATA=abc", r.Cookie));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    // android 平台地址带 Referer 会被 CDN 拒绝：验证该分支不带 Referer 但仍带 UA
+    [Fact]
+    public async Task Download_AndroidUrl_OmitsReferer( )
+    {
+        var dir = TempDir( );
+        try
+        {
+            var data = Enumerable.Range(0, 2048).Select(i => (byte) (i % 251)).ToArray( );
+            var dest = Path.Combine(dir, "video.mp4");
+
+            using var handler = new ServingHandler { Data = data };
+            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+                "https://upos-sz.bilivideo.com/x.m4s?platform=android_tv_yst&deadline=1", dest, new DownloadConfig( ), ct: CancellationToken.None));
+
+            Assert.NotEmpty(handler.Requests);
+            Assert.All(handler.Requests, r => Assert.Equal("Mozilla/5.0", r.UserAgent));
+            Assert.All(handler.Requests, r => Assert.Null(r.Referer));
         }
         finally
         {
