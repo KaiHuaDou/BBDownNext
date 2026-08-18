@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text.Json;
 
 using BBDown.Core.Entity;
+using BBDown.Core;
 
 using static BBDown.Core.PlayUrl.TrackFactory;
 using static BBDown.Core.Util.JsonUtil;
@@ -87,14 +88,16 @@ internal static class DashTrackReader
         // 即使 dash.Audio 为 null（杜比/Hi-Res-only 片源），也要从 root 收集 dolby/flac 音轨（§2.7）；
         // 旧实现在此提前 return，会连带丢掉杜比/FLAC
         var audio = ArrayAtPath(root, "dash", "audio") ?? [];
-        AppendDolbyAndHiRes(audio, root, tvApi);
         foreach (var node in audio)
         {
-            result.AudioTracks.Add(BuildAudio(node, pDur, NormalizeAudioCodec(node.GetProperty("codecs").ToString( ))));
+            var codecs = NormalizeAudioCodec(node.GetProperty("codecs").ToString( ));
+            var id = node.GetProperty("id").ToString( );
+            result.AudioTracks.Add(BuildAudio(node, pDur, codecs, Config.GetAudioQualityName(id)));
         }
+        AppendDolbyAndHiRes(result, root, pDur, tvApi);
     }
 
-    private static void AppendDolbyAndHiRes(List<JsonElement> audio, JsonElement root, bool tvApi)
+    private static void AppendDolbyAndHiRes(ParsedResult result, JsonElement root, int pDur, bool tvApi)
     {
         if (tvApi || root.ValueKind != JsonValueKind.Object)
         {
@@ -106,18 +109,26 @@ internal static class DashTrackReader
             return;
         }
 
-        //处理杜比音频
+        // 处理杜比音频：type 区分普通杜比音效(1)与全景杜比音效(2)，id 恒为 30250
         if (dash.TryGetProperty("dolby", out var dolby) && dolby.ValueKind == JsonValueKind.Object
             && dolby.TryGetProperty("audio", out var dolbyAudio) && dolbyAudio.ValueKind == JsonValueKind.Array)
         {
-            audio.AddRange(dolbyAudio.EnumerateArray( ));
+            var type = dolby.TryGetProperty("type", out var t) && t.TryGetInt32(out var ti) ? ti : 0;
+            foreach (var node in dolbyAudio.EnumerateArray( ))
+            {
+                var codecs = NormalizeAudioCodec(node.GetProperty("codecs").ToString( ));
+                var id = node.GetProperty("id").ToString( );
+                result.AudioTracks.Add(BuildAudio(node, pDur, codecs, Config.GetAudioQualityName(id, type)));
+            }
         }
 
-        //处理Hi-Res无损
+        // 处理 Hi-Res 无损：flac.audio 为单对象（非数组）
         if (dash.TryGetProperty("flac", out var hiRes) && hiRes.ValueKind == JsonValueKind.Object
             && hiRes.TryGetProperty("audio", out var hiResAudio) && hiResAudio.ValueKind != JsonValueKind.Null)
         {
-            audio.Add(hiResAudio);
+            var codecs = NormalizeAudioCodec(hiResAudio.GetProperty("codecs").ToString( ));
+            var id = hiResAudio.GetProperty("id").ToString( );
+            result.AudioTracks.Add(BuildAudio(hiResAudio, pDur, codecs, Config.GetAudioQualityName(id)));
         }
     }
 }

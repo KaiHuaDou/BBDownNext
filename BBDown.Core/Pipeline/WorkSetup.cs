@@ -25,6 +25,7 @@ public static class WorkSetup
         // 解析优先级
         var (encodingPriority, firstEncoding) = ParseEncodingPriority(myOption);
         var dfnPriority = ParseDfnPriority(myOption);
+        var audioDfnPriority = ParsePriorityList(myOption.AudioQuality);
 
         var downloadDanmakuFormats = ParseDownloadDanmakuFormats(myOption);
 
@@ -40,6 +41,7 @@ public static class WorkSetup
         return new RunConfig(
             EncodingPriority: encodingPriority,
             DfnPriority: dfnPriority,
+            AudioDfnPriority: audioDfnPriority,
             FirstEncoding: firstEncoding,
             EncodingFirst: myOption.EncodingFirst,
             Content: myOption.Content,
@@ -127,21 +129,30 @@ public static class WorkSetup
     /// </summary>
     internal static Dictionary<string, int> ParseDfnPriority(DownloadRequest myOption)
     {
-        var dfnPriority = new Dictionary<string, int>( );
-        if (myOption.DfnPriority != null)
-        {
-            var dfnPriorityTemp = myOption.DfnPriority.Replace("，", ",").Split(',').Select(s => s.ToUpper( ).Trim( )).Where(s => !string.IsNullOrEmpty(s));
-            var index = 0;
-            foreach (var dfn in dfnPriorityTemp)
-            {
-                if (dfnPriority.ContainsKey(dfn)) { continue; }
+        return ParsePriorityList(myOption.DfnPriority);
+    }
 
-                dfnPriority[dfn] = index;
-                index++;
-            }
+    // 解析逗号分隔的优先级列表（画质 / 音频音质通用）：去空白、去空项、去重，按下标赋权（越小越优先）。
+    // 音质名与 id 都可作为输入（如 "杜比全景声" 或 "30250"），排序时按 Dfn 与 Id 各查一次
+    internal static Dictionary<string, int> ParsePriorityList(string? value)
+    {
+        var dict = new Dictionary<string, int>( );
+        if (string.IsNullOrEmpty(value))
+        {
+            return dict;
         }
 
-        return dfnPriority;
+        var tokens = value.Replace("，", ",").Split(',').Select(s => s.ToUpper( ).Trim( )).Where(s => !string.IsNullOrEmpty(s));
+        var index = 0;
+        foreach (var token in tokens)
+        {
+            if (dict.ContainsKey(token)) { continue; }
+
+            dict[token] = index;
+            index++;
+        }
+
+        return dict;
     }
 
     /// <summary>

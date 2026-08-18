@@ -21,6 +21,7 @@ public sealed record DownloadRequest
     public MuxMode Mux { get; init; } = MuxMode.Mpeg4;
     public string? EncodingPriority { get; init; }
     public string? DfnPriority { get; init; }
+    public string? AudioQuality { get; init; }
     /// <summary>命令行上 --encoding-priority 写在 --dfn-priority 之前时为 true；serve 模式无书写顺序，恒为 false。</summary>
     public bool EncodingFirst { get; init; }
     public bool OnlyShowInfo { get; init; }

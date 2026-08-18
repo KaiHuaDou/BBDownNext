@@ -114,29 +114,41 @@ public class ResumeDownloadTests
         }
     }
 
-    // 观测并发峰值：延迟响应制造重叠窗口，统计同时在飞的请求数
-    private sealed class GatedServingHandler(byte[] data) : HttpMessageHandler
+    // 观测并发峰值：用信号在达到目标并发数时精确放行，确保重叠窗口确定存在，
+    // 不再依赖固定延时窗（旧实现固定 Delay(20) 在慢机上偶发 peak=1）。
+    // releaseAt=1：首请求立即放行（单连接场景）；releaseAt=2：需等到第二请求在飞才放行（多线程场景）
+    private sealed class GatedServingHandler(byte[] data, int releaseAt = 2) : HttpMessageHandler
     {
         private int inFlight;
         private int peak;
+        private bool released;
         private readonly Lock gate = new( );
+        private readonly TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public int PeakConcurrent => Volatile.Read(ref peak);
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            int current;
             lock (gate)
             {
                 inFlight++;
-                if (inFlight > peak)
+                current = inFlight;
+                if (current > peak)
                 {
-                    peak = inFlight;
+                    peak = current;
+                }
+
+                if (current >= releaseAt && !released)
+                {
+                    released = true;
+                    release.TrySetResult( );
                 }
             }
 
             try
             {
-                await Task.Delay(20, cancellationToken);
+                await release.Task;
                 var range = request.Headers.Range?.Ranges.FirstOrDefault( );
                 if (range is null || range.From is null)
                 {
@@ -335,7 +347,7 @@ public class ResumeDownloadTests
             var data = Enumerable.Range(0, 500).Select(i => (byte) (i % 251)).ToArray( );
             var dest = Path.Combine(dir, "video.mp4");
 
-            using var handler = new GatedServingHandler(data);
+            using var handler = new GatedServingHandler(data, releaseAt: 1);
             await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
                 "https://upos-sz-cmcc.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
 
@@ -359,7 +371,7 @@ public class ResumeDownloadTests
             var data = Enumerable.Range(0, 5_000_000).Select(i => (byte) (i % 251)).ToArray( );
             var dest = Path.Combine(dir, "video.mp4");
 
-            using var handler = new GatedServingHandler(data);
+            using var handler = new GatedServingHandler(data, releaseAt: 2);
             await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
                 "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
 

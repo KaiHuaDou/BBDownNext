@@ -30,6 +30,7 @@ internal sealed class ServeRequestOptions
     public MuxMode Mux { get; set; } = MuxMode.Mpeg4;
     public string? EncodingPriority { get; set; }
     public string? DfnPriority { get; set; }
+    public string? AudioQuality { get; set; }
     public bool EncodingFirst { get; set; }
     public bool OnlyShowInfo { get; set; }
     public bool ShowAll { get; set; }

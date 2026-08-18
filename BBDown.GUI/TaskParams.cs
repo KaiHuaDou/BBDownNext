@@ -25,6 +25,7 @@ public sealed record TaskParams
     public string Mux { get; init; } = "mpeg4";
     public string EncodingPriority { get; init; } = "";
     public string DfnPriority { get; init; } = "";
+    public string AudioQuality { get; init; } = "";
     public string Pages { get; init; } = "";
     public string DanmakuFormats { get; init; } = "xml,ass";
     public string CommentsCount { get; init; } = "0";
@@ -70,6 +71,7 @@ public static class TaskParamsMapper
             Mux = MuxModeUtil.TryParse(options.Mux) ?? MuxMode.Mpeg4,
             EncodingPriority = NullIfEmpty(options.EncodingPriority),
             DfnPriority = NullIfEmpty(options.DfnPriority),
+            AudioQuality = NullIfEmpty(options.AudioQuality),
             EncodingFirst = false,
             OnlyShowInfo = options.InfoOnly,
             ShowAll = options.ShowAll,

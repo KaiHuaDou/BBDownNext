@@ -7,7 +7,7 @@ namespace BBDown.Tests;
 
 public class CommandLineInvokerTests
 {
-    private static readonly string SampleUrl = TestVideos.PickRandom( );
+    private const string SampleUrl = "https://www.bilibili.com/video/BV133411X769/";
 
     private static async Task<DownloadRequest> ParseAsync(params string[] args)
     {

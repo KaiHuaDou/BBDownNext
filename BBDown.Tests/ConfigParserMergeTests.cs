@@ -7,7 +7,7 @@ namespace BBDown.Tests;
 // P0-3: 配置文件此前完全失效（选项名反向拼装出 "----debug" 之类的无效 token）。
 public sealed class ConfigParserMergeTests : IDisposable
 {
-    private static readonly string SampleUrl = TestVideos.PickRandom( );
+    private const string SampleUrl = "https://www.bilibili.com/video/BV133411X769/";
 
     private readonly string configPath = Path.Combine(Path.GetTempPath( ), $"BBDown.{Guid.NewGuid( ):N}.config");
 

@@ -70,6 +70,14 @@ internal static class CliOptions
         例：8K 超高清, 1080P 高码率, HDR 真彩, 杜比视界
         """
     };
+    internal static readonly Option<string> AudioQuality = new("--audio-quality", ["-aq"])
+    {
+        Description = """
+        音频音质优先级，用逗号分隔。
+        例：杜比全景声, Hi-Res 无损, 192K
+        也支持音质 id，例：30250, 30251, 30280
+        """
+    };
     internal static readonly Option<bool> VideoAscending = new("--video-ascending", ["-va"]) { Description = "视频升序（最小体积优先）" };
     internal static readonly Option<bool> AudioAscending = new("--audio-ascending", ["-aa"]) { Description = "音频升序（最小体积优先）" };
     internal static readonly Option<bool> InteractiveQuality = new("--interactive-quality", ["-iaq"]) { Description = "交互式选择清晰度" };

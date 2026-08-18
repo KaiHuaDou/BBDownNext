@@ -280,6 +280,7 @@ BBDown "live12345" -lq 400
 | ----------------------- | ------ | -------------------------------------------------------- |
 | `--encoding-priority`   | `-e`   | 视频及音频编码选择优先级（详见脚注 [^encodingpriority]） |
 | `--dfn-priority`        | `-q`   | 画质优先级（详见脚注 [^dfnpriority]）                    |
+| `--audio-quality`       | `-aq`  | 音频档位优先级（详见脚注 [^audioquality]）              |
 | `--video-ascending`     | `-va`  | 视频升序（最小体积优先）                                 |
 | `--audio-ascending`     | `-aa`  | 音频升序（最小体积优先）                                 |
 | `--interactive-quality` | `-iaq` | 交互式选择清晰度                                         |
@@ -668,6 +669,8 @@ _BBDown 2.0 · 仅供个人学习与研究使用，请遵守 B 站相关服务�
 [^encodingpriority]: 视频及音频编码的选择优先级，逗号分隔。例：`hevc,avc,flac,eac3,m4a`
 
 [^dfnpriority]: 画质优先级，逗号分隔。例：`8K 超高清, 1080P 高码率, HDR 真彩, 杜比视界`
+
+[^audioquality]: 音频档位优先级，逗号分隔。可填音质名或音质 id，匹配不分先后、去重后按下标赋权（写在前优先）。例：`杜比全景声, Hi-Res 无损, 192K` 或 `30250, 30251, 30280`。杜比全景声 / 杜比音效 / Hi-Res 无损需登录大会员 Cookie，否则接口不下发对应轨道；未指定时取各通道默认最高音质。
 
 [^danmakuformats]: 指定需下载的弹幕格式，逗号分隔，默认全部下载（如 `xml,ass`）。
 

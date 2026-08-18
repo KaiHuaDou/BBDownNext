@@ -75,6 +75,7 @@ public partial class MainWindow
             Mux = ReadMux( ),
             EncodingPriority = EncodingPriorityBox.Text.Trim( ),
             DfnPriority = DfnPriorityBox.Text.Trim( ),
+            AudioQuality = AudioQualityBox.Text.Trim( ),
             Pages = PagesBox.Text.Trim( ),
             DanmakuFormats = ReadDanmakuFormats( ),
             CommentsCount = CommentsCountBox.Text.Trim( ),
@@ -183,6 +184,7 @@ public partial class MainWindow
         ApplyMux(options.Mux);
         EncodingPriorityBox.Text = options.EncodingPriority;
         DfnPriorityBox.Text = options.DfnPriority;
+        AudioQualityBox.Text = options.AudioQuality;
         PagesBox.Text = options.Pages;
         ApplyDanmakuFormats(options.DanmakuFormats);
         CommentsCountBox.Text = options.CommentsCount;

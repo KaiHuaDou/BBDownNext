@@ -591,6 +591,7 @@ public class BBDownApiServerTests
         var running = 0;
         var peak = 0;
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var tasks = Enumerable.Range(0, total).Select(i => server.CreateTask(new ResourceId.Av(i), "u")).ToList( );
         var runs = tasks.Select(t => server.RunGatedAsync(t, async ( ) =>
         {
@@ -598,16 +599,13 @@ public class BBDownApiServerTests
             int old;
             while ((old = Volatile.Read(ref peak)) < now && Interlocked.CompareExchange(ref peak, now, old) != old) { }
 
+            // 第 cap 个任务进入并发即精确放行，无需自旋轮询等待
+            if (now == cap) ready.TrySetResult( );
             await release.Task;
             Interlocked.Decrement(ref running);
         }, TestContext.Current.CancellationToken)).ToList( );
 
-        var sw = System.Diagnostics.Stopwatch.StartNew( );
-        while (Volatile.Read(ref running) < cap && sw.Elapsed < TimeSpan.FromSeconds(5))
-        {
-            await Task.Delay(10, TestContext.Current.CancellationToken);
-        }
-
+        await ready.Task;
         await Task.Delay(200, TestContext.Current.CancellationToken);
         Assert.Equal(cap, Volatile.Read(ref running));
         Assert.Equal(cap, Volatile.Read(ref peak));
@@ -626,17 +624,18 @@ public class BBDownApiServerTests
         var server = new BBDownApiServer( );
         server.SetUpServer( );
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var running = 0;
         var runs = Enumerable.Range(0, 4).Select(i => server.RunGatedAsync(server.CreateTask(new ResourceId.Av(i), "u"),
-            async ( ) => { Interlocked.Increment(ref running); await release.Task; },
+            async ( ) =>
+            {
+                var now = Interlocked.Increment(ref running);
+                if (now == 4) ready.TrySetResult( );
+                await release.Task;
+            },
             TestContext.Current.CancellationToken)).ToList( );
 
-        var sw = System.Diagnostics.Stopwatch.StartNew( );
-        while (Volatile.Read(ref running) < 4 && sw.Elapsed < TimeSpan.FromSeconds(5))
-        {
-            await Task.Delay(10, TestContext.Current.CancellationToken);
-        }
-
+        await ready.Task;
         Assert.Equal(4, Volatile.Read(ref running));
         release.SetResult( );
         await Task.WhenAll(runs);

@@ -75,7 +75,7 @@ public class LiveCommandTests
     [Fact]
     public async Task RootCommand_VideoUrl_IsNotRecognizedAsLive( )
     {
-        var opt = await ParseAsync(TestVideos.PickRandom( ));
+        var opt = await ParseAsync("https://www.bilibili.com/video/BV133411X769/");
         Assert.False(LiveInputResolver.TryParse(opt.Url, out _));
     }
 

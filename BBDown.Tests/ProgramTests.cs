@@ -194,19 +194,32 @@ public class ProgramTests
         Assert.Null(WorkSetup.ResolveToolPaths(o).Aria2c);
     }
 
+    // 不混流时根本不碰 ffmpeg，无论机器上有没有装都不应抛
     [Fact]
-    public void ResolveToolPaths_MissingFFmpegThrowsUnlessMuxNone( )
+    public void ResolveToolPaths_MuxNone_DoesNotRequireFfmpeg( )
     {
-        var o = new DownloadRequest { FFmpegPath = Path.Combine(Path.GetTempPath( ), "bbdown-not-here-" + Guid.NewGuid( ).ToString("N")) };
-
-        // 不混流时不需要 ffmpeg；需要混流却找不到必须立刻炸，而不是下载完才失败
-        o = o with { Mux = MuxMode.None };
+        var o = new DownloadRequest { Mux = MuxMode.None };
         WorkSetup.ResolveToolPaths(o);
+    }
 
-        o = o with { Mux = MuxMode.Mpeg4 };
-        if (Utils.FindExecutable("ffmpeg") == null)
+    // 需要混流却探测不到 ffmpeg 必须立刻炸，而不是下载完才失败。
+    // 临时清空 PATH，使 FindExecutable 只在 AppDir 找（测试产物目录无 ffmpeg），无论本机是否安装都确定性触发
+    [Fact]
+    public void ResolveToolPaths_MuxRequiresFfmpeg_ThrowsWhenMissing( )
+    {
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        var sandbox = Path.Combine(Path.GetTempPath( ), "bbdown-pathless-" + Guid.NewGuid( ).ToString("N"));
+        Directory.CreateDirectory(sandbox);
+        try
         {
+            Environment.SetEnvironmentVariable("PATH", sandbox);
+            var o = new DownloadRequest { Mux = MuxMode.Mpeg4 };
             Assert.Throws<InvalidOperationException>(( ) => WorkSetup.ResolveToolPaths(o));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            Directory.Delete(sandbox, recursive: true);
         }
     }
 

@@ -15,11 +15,11 @@ public static partial class TrackSelect
     internal static void SortDashTracks(ParsedResult parsedResult, WorkContext ctx, DownloadRequest myOption)
     {
         parsedResult.VideoTracks = SortTracks(parsedResult.VideoTracks, ctx.Run.DfnPriority, ctx.Run.EncodingPriority, myOption.VideoAscending, ctx.Run.EncodingFirst);
-        parsedResult.AudioTracks = SortTracks(parsedResult.AudioTracks, ctx.Run.EncodingPriority, myOption.AudioAscending);
-        parsedResult.BackgroundAudioTracks = SortTracks(parsedResult.BackgroundAudioTracks, ctx.Run.EncodingPriority, myOption.AudioAscending);
+        parsedResult.AudioTracks = SortTracks(parsedResult.AudioTracks, ctx.Run.EncodingPriority, myOption.AudioAscending, ctx.Run.AudioDfnPriority);
+        parsedResult.BackgroundAudioTracks = SortTracks(parsedResult.BackgroundAudioTracks, ctx.Run.EncodingPriority, myOption.AudioAscending, ctx.Run.AudioDfnPriority);
         foreach (var role in parsedResult.RoleAudioList)
         {
-            role.Audio = SortTracks(role.Audio, ctx.Run.EncodingPriority, myOption.AudioAscending);
+            role.Audio = SortTracks(role.Audio, ctx.Run.EncodingPriority, myOption.AudioAscending, ctx.Run.AudioDfnPriority);
         }
     }
 
@@ -39,8 +39,17 @@ public static partial class TrackSelect
                 .ThenBy(v => videoAscending ? v.Bandwidth : -v.Bandwidth)];
     }
 
-    internal static List<Audio> SortTracks(List<Audio> audioTracks, Dictionary<string, byte> encodingPriority, bool audioAscending)
+    internal static List<Audio> SortTracks(List<Audio> audioTracks, Dictionary<string, byte> encodingPriority, bool audioAscending, Dictionary<string, int>? audioDfnPriority = null)
     {
+        if (audioDfnPriority is { Count: > 0 })
+        {
+            // 按音质名（或 id）优先级排序：先查 Dfn，再查 Id，均未命中则排末尾。
+            // 键与轨道名都转大写，使 "Hi-Res 无损" 等含小写字母的音质名与 --audio-quality 输入大小写无关
+            return [.. audioTracks
+                .OrderBy(a => audioDfnPriority.GetValueOrDefault(a.Dfn.ToUpper( ), audioDfnPriority.GetValueOrDefault(a.Id.ToUpper( ), 100)))
+                .ThenBy(a => audioAscending ? a.Bandwidth : -a.Bandwidth)];
+        }
+
         return [.. audioTracks
             .OrderBy(a => encodingPriority.GetValueOrDefault(a.ShortCodecs, (byte)100))
             .ThenBy(a => audioAscending ? a.Bandwidth : -a.Bandwidth)];
@@ -90,7 +99,7 @@ public static partial class TrackSelect
             foreach (var a in parsedResult.AudioTracks)
             {
                 var pDur = pageDur == 0 ? a.Dur : pageDur;
-                LogColor($"{index++}. [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(pDur * a.Bandwidth * 1024 / 8)}]", false);
+                LogColor($"{index++}. [{a.Dfn}] [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(pDur * a.Bandwidth * 1024 / 8)}]", false);
                 if (onlyShowInfo)
                 {
                     Console.WriteLine(a.BaseUrl);
@@ -127,7 +136,7 @@ public static partial class TrackSelect
         if (selectedAudio != null)
         {
             var pDur = pageDur == 0 ? selectedAudio.Dur : pageDur;
-            LogColor($"[音频] [{selectedAudio.Codecs}] [{selectedAudio.Bandwidth} kbps] [~{FormatFileSize(pDur * selectedAudio.Bandwidth * 1024 / 8)}]", false);
+            LogColor($"[音频] [{selectedAudio.Dfn}] [{selectedAudio.Codecs}] [{selectedAudio.Bandwidth} kbps] [~{FormatFileSize(pDur * selectedAudio.Bandwidth * 1024 / 8)}]", false);
         }
     }
 

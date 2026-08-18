@@ -211,6 +211,7 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Grid.Column="0"
                                                Classes="FieldLabel"
@@ -228,8 +229,15 @@
                                              ToolTip.Tip="逗号分隔，如 8K 超高清,1080P 高码率,HDR 真彩,杜比视界" />
                                     <TextBlock Grid.Row="2" Grid.Column="0"
                                                Classes="FieldLabel"
+                                               Text="音频档位" />
+                                    <TextBox x:Name="AudioQualityBox"
+                                             Grid.Row="2" Grid.Column="1"
+                                             Classes="FieldInput"
+                                             ToolTip.Tip="逗号分隔，如 杜比全景声,Hi-Res 无损,192K" />
+                                    <TextBlock Grid.Row="3" Grid.Column="0"
+                                               Classes="FieldLabel"
                                                Text="登录" />
-                                    <StackPanel Grid.Row="2" Grid.Column="1"
+                                    <StackPanel Grid.Row="3" Grid.Column="1"
                                                 Margin="0,3,5,3"
                                                 Orientation="Horizontal">
                                         <Button x:Name="LoginButton"
@@ -240,16 +248,16 @@
                                                    VerticalAlignment="Center"
                                                    Text="未登录" />
                                     </StackPanel>
-                                    <TextBlock Grid.Row="3" Grid.Column="0"
+                                    <TextBlock Grid.Row="4" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="User-Agent" />
                                     <TextBox x:Name="UserAgentBox"
-                                             Grid.Row="3" Grid.Column="1"
+                                             Grid.Row="4" Grid.Column="1"
                                              Classes="FieldInput" />
-                                    <TextBlock Grid.Row="4" Grid.Column="0"
+                                    <TextBlock Grid.Row="5" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="工作目录" />
-                                    <DockPanel Grid.Row="4" Grid.Column="1" Margin="0,3,5,3">
+                                    <DockPanel Grid.Row="5" Grid.Column="1" Margin="0,3,5,3">
                                         <Button x:Name="BrowseDirButton"
                                                 DockPanel.Dock="Right"
                                                 Margin="5,0,0,0" Padding="8,2"
@@ -257,10 +265,10 @@
                                         <TextBox x:Name="WorkDirBox"
                                                  ToolTip.Tip="程序的工作目录，也是下载输出位置" />
                                     </DockPanel>
-                                    <TextBlock Grid.Row="5" Grid.Column="0"
+                                    <TextBlock Grid.Row="6" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="FFmpeg 路径" />
-                                    <DockPanel Grid.Row="5" Grid.Column="1" Margin="0,3,5,3">
+                                    <DockPanel Grid.Row="6" Grid.Column="1" Margin="0,3,5,3">
                                         <Button x:Name="BrowseFfmpegButton"
                                                 DockPanel.Dock="Right"
                                                 Margin="5,0,0,0" Padding="8,2"
@@ -268,10 +276,10 @@
                                                 Click="BrowseFileButtonClicked" Content="..." />
                                         <TextBox x:Name="FFmpegPathBox" />
                                     </DockPanel>
-                                    <TextBlock Grid.Row="6" Grid.Column="0"
+                                    <TextBlock Grid.Row="7" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="MP4Box 路径" />
-                                    <DockPanel Grid.Row="6" Grid.Column="1" Margin="0,3,5,3">
+                                    <DockPanel Grid.Row="7" Grid.Column="1" Margin="0,3,5,3">
                                         <Button x:Name="BrowseMp4boxButton"
                                                 DockPanel.Dock="Right"
                                                 Margin="5,0,0,0" Padding="8,2"
@@ -279,10 +287,10 @@
                                                 Click="BrowseFileButtonClicked" Content="..." />
                                         <TextBox x:Name="Mp4boxPathBox" />
                                     </DockPanel>
-                                    <TextBlock Grid.Row="7" Grid.Column="0"
+                                    <TextBlock Grid.Row="8" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="aria2c 路径" />
-                                    <DockPanel Grid.Row="7" Grid.Column="1" Margin="0,3,5,3">
+                                    <DockPanel Grid.Row="8" Grid.Column="1" Margin="0,3,5,3">
                                         <Button x:Name="BrowseAria2cButton"
                                                 DockPanel.Dock="Right"
                                                 Margin="5,0,0,0" Padding="8,2"
@@ -290,10 +298,10 @@
                                                 Click="BrowseFileButtonClicked" Content="..." />
                                         <TextBox x:Name="Aria2cPathBox" />
                                     </DockPanel>
-                                    <TextBlock Grid.Row="8" Grid.Column="0"
+                                    <TextBlock Grid.Row="9" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="后处理程序" />
-                                    <DockPanel Grid.Row="8" Grid.Column="1" Margin="0,3,5,3">
+                                    <DockPanel Grid.Row="9" Grid.Column="1" Margin="0,3,5,3">
                                         <Button x:Name="BrowsePostProcessButton"
                                                 DockPanel.Dock="Right"
                                                 Margin="5,0,0,0" Padding="8,2"
@@ -302,18 +310,18 @@
                                         <TextBox x:Name="PostProcessPathBox"
                                                  ToolTip.Tip="下载完成后由外部进程处理后缀为 .out 的轨道文件；留空则不启用" />
                                     </DockPanel>
-                                    <TextBlock Grid.Row="9" Grid.Column="0"
+                                    <TextBlock Grid.Row="10" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="文件命名模式" />
                                     <TextBox x:Name="FilePatternBox"
-                                             Grid.Row="9" Grid.Column="1"
+                                             Grid.Row="10" Grid.Column="1"
                                              Classes="FieldInput"
                                              ToolTip.Tip="单 P 文件名模板，内置变量见 BBDown --help" />
-                                    <TextBlock Grid.Row="10" Grid.Column="0"
+                                    <TextBlock Grid.Row="11" Grid.Column="0"
                                                Classes="FieldLabel"
                                                Text="多 P 文件命名" />
                                     <TextBox x:Name="MultiFilePatternBox"
-                                             Grid.Row="10" Grid.Column="1"
+                                             Grid.Row="11" Grid.Column="1"
                                              Classes="FieldInput"
                                              ToolTip.Tip="多 P 文件名模板，内置变量见 BBDown --help" />
                                 </Grid>

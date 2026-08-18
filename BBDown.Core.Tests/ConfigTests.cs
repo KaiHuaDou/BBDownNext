@@ -29,6 +29,37 @@ public class ConfigTests
         Assert.Equal("127", Config.MaxQn);
     }
 
+    [Theory]
+    [InlineData("30251", 0, "Hi-Res 无损")]
+    [InlineData("30250", 2, "杜比全景声")]
+    [InlineData("30250", 1, "杜比音效")]
+    [InlineData("30280", 0, "192K")]
+    [InlineData("30232", 0, "132K")]
+    [InlineData("30216", 0, "64K")]
+    public void GetAudioQualityName_MapsKnownId(string id, int dolbyType, string expected)
+    {
+        Assert.Equal(expected, Config.GetAudioQualityName(id, dolbyType));
+    }
+
+    // dolby.type 缺失（0）或音质非杜比时回落音质名本身，不应被当作杜比全景声
+    [Theory]
+    [InlineData("30250", 0, "杜比音效")]
+    [InlineData("30280", 2, "192K")]
+    public void GetAudioQualityName_DolbyTypeZeroFallsBackToBaseName(string id, int dolbyType, string expected)
+    {
+        Assert.Equal(expected, Config.GetAudioQualityName(id, dolbyType));
+    }
+
+    // 音质表未知 id 时降级为提示原始值，不抛异常
+    [Theory]
+    [InlineData("999")]
+    [InlineData("")]
+    [InlineData("abc")]
+    public void GetAudioQualityName_UnknownIdDoesNotThrow(string id)
+    {
+        Assert.Equal($"未知音质(id={id})", Config.GetAudioQualityName(id));
+    }
+
     // 智能修复(qn=100)排在原生 1080P(qn=80)之后：默认不抢占原生画质
     [Fact]
     public void QualityRank_Native1080PIsPreferredOverAiRepair( )

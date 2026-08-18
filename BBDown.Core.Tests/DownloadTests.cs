@@ -484,6 +484,26 @@ public class DownloadTests
         Assert.Equal(64, sorted[0].Bandwidth);
     }
 
+    // --audio-quality 覆盖默认带宽排序：按音质名优先级重排，且输入大小写无关。
+    // 优先级刻意与带宽相反（192K 带宽最低却排最前），以真正触发音频档位排序而非回落带宽序
+    [Fact]
+    public void SortAudioTracks_ByAudioQualityPriorityCaseInsensitive( )
+    {
+        List<Audio> tracks =
+        [
+            new Audio { Id = "30280", Dfn = "192K", BaseUrl = "", Codecs = "mp4a.40.2", Bandwidth = 320, Dur = 100 },
+            new Audio { Id = "30251", Dfn = "Hi-Res 无损", BaseUrl = "", Codecs = "FLAC", Bandwidth = 900, Dur = 100 },
+            new Audio { Id = "30250", Dfn = "杜比全景声", BaseUrl = "", Codecs = "E-AC-3", Bandwidth = 640, Dur = 100 },
+        ];
+        // 经真实解析路径：小写 "hi-res 无损" 应命中 Dfn "Hi-Res 无损"
+        var audioQuality = WorkSetup.ParsePriorityList("192K, hi-res 无损, 杜比全景声");
+        var sorted = TrackSelect.SortTracks(tracks, [], audioAscending: false, audioQuality);
+
+        Assert.Equal("30280", sorted[0].Id);
+        Assert.Equal("30251", sorted[1].Id);
+        Assert.Equal("30250", sorted[2].Id);
+    }
+
     [Fact]
     public void SortVideoTracks_EncodingFirst_WhenRequested( )
     {

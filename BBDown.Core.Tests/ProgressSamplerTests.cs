@@ -50,7 +50,12 @@ public class ProgressSamplerTests
         sampler.Dispose( );
         var afterDispose = Volatile.Read(ref count);
 
-        await Task.Delay(TimeSpan.FromSeconds(1.5), ct);
-        Assert.Equal(afterDispose, Volatile.Read(ref count));
+        // 跨多个采样周期观测：定时器已停，计数不应再增长。
+        // 逐周期断言以便真有额外采样时立即暴露（fail-fast），不再依赖固定延时窗
+        for (var i = 0; i < 6; i++)
+        {
+            await Task.Delay(ProgressSampler.SampleInterval, ct);
+            Assert.Equal(afterDispose, Volatile.Read(ref count));
+        }
     }
 }

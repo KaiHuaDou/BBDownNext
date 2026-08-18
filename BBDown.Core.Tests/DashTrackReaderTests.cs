@@ -124,4 +124,56 @@ public class DashTrackReaderTests
         var result = new ParsedResult( );
         Assert.False(DashTrackReader.DeclaredButMissing(root, result, "100"));
     }
+
+    // dolby.type=2 标为「杜比全景声」，不再只标杜比音效
+    [Fact]
+    public void Collect_DolbyType2LabelsAtmos( )
+    {
+        var root = Root("""{"timelength":100000,"dash":{"video":[{"id":"80","base_url":"http://v","bandwidth":1,"codecid":"7","size":1,"width":1920,"height":1080,"frame_rate":"30"}],"dolby":{"type":2,"audio":[{"id":"30250","base_url":"http://dolby","bandwidth":200000,"codecs":"ec-3","size":800}]}}}""");
+
+        var result = new ParsedResult( );
+        DashTrackReader.Collect(result, root, tvApi: false);
+
+        var dolby = Assert.Single(result.AudioTracks, a => a.Id == "30250");
+        Assert.Equal("杜比全景声", dolby.Dfn);
+    }
+
+    // dolby.type=1 标为「杜比音效」
+    [Fact]
+    public void Collect_DolbyType1LabelsDolbyAudio( )
+    {
+        var root = Root("""{"timelength":100000,"dash":{"video":[{"id":"80","base_url":"http://v","bandwidth":1,"codecid":"7","size":1,"width":1920,"height":1080,"frame_rate":"30"}],"dolby":{"type":1,"audio":[{"id":"30250","base_url":"http://dolby","bandwidth":200000,"codecs":"ec-3","size":800}]}}}""");
+
+        var result = new ParsedResult( );
+        DashTrackReader.Collect(result, root, tvApi: false);
+
+        var dolby = Assert.Single(result.AudioTracks, a => a.Id == "30250");
+        Assert.Equal("杜比音效", dolby.Dfn);
+    }
+
+    // flac.audio 标为「Hi-Res 无损」
+    [Fact]
+    public void Collect_FlacLabelsHiRes( )
+    {
+        var root = Root("""{"timelength":100000,"dash":{"video":[{"id":"80","base_url":"http://v","bandwidth":1,"codecid":"7","size":1,"width":1920,"height":1080,"frame_rate":"30"}],"flac":{"audio":{"id":"30251","base_url":"http://flac","bandwidth":900000,"codecs":"flac","size":9000}}}}""");
+
+        var result = new ParsedResult( );
+        DashTrackReader.Collect(result, root, tvApi: false);
+
+        var hiRes = Assert.Single(result.AudioTracks, a => a.Id == "30251");
+        Assert.Equal("Hi-Res 无损", hiRes.Dfn);
+    }
+
+    // 普通音轨按 id 标为「192K」，不受 dolby/flac 影响
+    [Fact]
+    public void Collect_PlainAudioLabelsByBitrate( )
+    {
+        var root = Root("""{"timelength":100000,"dash":{"video":[{"id":"80","base_url":"http://v","bandwidth":1,"codecid":"7","size":1,"width":1920,"height":1080,"frame_rate":"30"}],"audio":[{"id":"30280","base_url":"http://au","bandwidth":192000,"codecs":"mp4a.40.2","size":300}]}}""");
+
+        var result = new ParsedResult( );
+        DashTrackReader.Collect(result, root, tvApi: false);
+
+        var audio = Assert.Single(result.AudioTracks, a => a.Id == "30280");
+        Assert.Equal("192K", audio.Dfn);
+    }
 }

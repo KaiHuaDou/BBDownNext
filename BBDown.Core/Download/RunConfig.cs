@@ -11,6 +11,7 @@ namespace BBDown.Core.Download;
 public sealed record RunConfig(
     Dictionary<string, byte> EncodingPriority,
     Dictionary<string, int> DfnPriority,
+    Dictionary<string, int> AudioDfnPriority,
     string FirstEncoding,
     bool EncodingFirst,
     DownloadContent Content,

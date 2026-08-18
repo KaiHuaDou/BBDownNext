@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BBDown.Core.Entity;
 using BBDown.Core.Protobuf;
 using BBDown.Core.Util;
+using BBDown.Core;
 
 using static BBDown.Core.Logger;
 
@@ -97,7 +98,7 @@ internal static class AppTrackReader
 
         if (info.Dolby?.Audio != null)
         {
-            result.AudioTracks.Add(BuildAudio(info.Dolby.Audio, pDur, "E-AC-3"));
+            result.AudioTracks.Add(BuildAudio(info.Dolby.Audio, pDur, "E-AC-3", info.Dolby.Type));
         }
     }
 
@@ -125,13 +126,13 @@ internal static class AppTrackReader
             }));
     }
 
-    private static Audio BuildAudio(DashItem item, int pDur, string codecs)
+    private static Audio BuildAudio(DashItem item, int pDur, string codecs, int dolbyType = 0)
     {
         var id = item.Id.ToString( );
         return new Audio( )
         {
             Id = id,
-            Dfn = id,
+            Dfn = Config.GetAudioQualityName(id, dolbyType),
             Dur = pDur,
             Bandwidth = item.Bandwidth / 1000,
             BaseUrl = PickBaseUrl(item.BaseUrl, item.BackupUrl),

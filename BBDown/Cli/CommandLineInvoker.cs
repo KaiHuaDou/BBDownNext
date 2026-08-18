@@ -28,6 +28,7 @@ internal static class CommandLineInvoker
             // 清晰度与编码
             EncodingPriority,
             DfnPriority,
+            AudioQuality,
             VideoAscending,
             AudioAscending,
             InteractiveQuality,
@@ -100,6 +101,7 @@ internal static class CommandLineInvoker
                 PostProcessPath = parseResult.GetValue(PostProcess) ?? "",
                 EncodingPriority = parseResult.GetValue(EncodingPriority) ?? "",
                 DfnPriority = parseResult.GetValue(DfnPriority) ?? "",
+                AudioQuality = parseResult.GetValue(AudioQuality) ?? "",
                 EncodingFirst = ResolveEncodingFirst(parseResult),
                 OnlyShowInfo = parseResult.GetValue(InfoOnly)!,
                 ShowAll = parseResult.GetValue(ShowAll)!,

@@ -32,13 +32,13 @@ internal static partial class TrackFactory
         };
     }
 
-    internal static Audio BuildAudio(JsonElement node, int dur, string? codecs = null)
+    internal static Audio BuildAudio(JsonElement node, int dur, string? codecs = null, string? dfn = null)
     {
         var id = node.GetProperty("id").ToString( );
         return new Audio( )
         {
             Id = id,
-            Dfn = id,
+            Dfn = dfn ?? id,
             Dur = dur,
             Bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
             BaseUrl = PickBaseUrl(BuildUrlList(node)),

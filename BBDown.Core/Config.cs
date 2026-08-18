@@ -47,8 +47,21 @@ public static class Config
         ("5", "144P 流畅"),
     ];
 
+    // 音频音质（按码率从高到低，与播放页排序一致）。
+    // 30250 由 GetAudioQualityName 按 dolby.type 区分「杜比音效 / 杜比全景声」，不在此表登记，故不会进入 AudioQualityNames
+    private static readonly (string Id, string Name)[] AudioQualities =
+    [
+        ("30251", "Hi-Res 无损"),
+        ("30280", "192K"),
+        ("30232", "132K"),
+        ("30216", "64K"),
+    ];
+
     private static readonly FrozenDictionary<string, string> QualityNames =
         Qualities.ToFrozenDictionary(q => q.Qn, q => q.Name);
+
+    private static readonly FrozenDictionary<string, string> AudioQualityNames =
+        AudioQualities.ToFrozenDictionary(q => q.Id, q => q.Name);
 
     // Qualities 的 qn 顺序缓存为数组，供 QualityRank 在每次轨道排序比较时 O(1) 查下标，
     // 避免对每对比较都重新投影一次 Qualities
@@ -60,6 +73,18 @@ public static class Config
     public static string GetQualityName(string qn)
     {
         return QualityNames.TryGetValue(qn, out var name) ? name : $"未知清晰度(qn={qn})";
+    }
+
+    // dolby.type：1=普通杜比音效，2=全景杜比音效；仅 id 30250 需要区分，其余按 id 直接映射。
+    // 未知 id 回落到原始值，避免抛 KeyNotFoundException
+    public static string GetAudioQualityName(string id, int dolbyType = 0)
+    {
+        if (id == "30250")
+        {
+            return dolbyType == 2 ? "杜比全景声" : "杜比音效";
+        }
+
+        return AudioQualityNames.TryGetValue(id, out var name) ? name : $"未知音质(id={id})";
     }
 
     // 轨道排序权重（越小越优先），以 Qualities 的排列为准；取代原先隐式的 qn 数值降序。
