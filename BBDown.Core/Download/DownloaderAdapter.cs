@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Util;
+using BBDown.Core.Workflow;
 
 using Downloader;
 
@@ -35,7 +36,12 @@ public static class DownloaderAdapter
 
     internal static async Task RunAsync(string url, string path, DownloadConfig config, bool singleThread, bool resumable, CancellationToken ct)
     {
-        using var progress = new ProgressSampler(config.OnSample);
+        // 采样回调统一走 ProgressBus：scope 由宿主任务作用域携带，阶段外（封面/弹幕等附属下载）静默忽略；
+        // 传字节增量即可，阶段内累计由总线按 scope 维护（同任务多轨并发不互相覆盖）
+        using var progress = new ProgressSampler((ratio, delta) =>
+        {
+            ProgressBus.Publish(ratio, delta, delta / ProgressSampler.SampleInterval.TotalSeconds);
+        });
         var client = HttpClientFactory(config.Cookie);
         var options = new DownloadConfiguration
         {
@@ -67,7 +73,7 @@ public static class DownloaderAdapter
 
             // 成功判定见 IsDownloadSuccess：Completed 即成功；库把「目标已存在即跳过」以 Failed 送达，
             // 但文件保留，须视为成功，否则重跑误报失败
-            if (IsDownloadSuccess(package.Status, path))
+            if (IsDownloadSuccess(package.Status, File.Exists(path)))
             {
                 return;
             }
@@ -89,10 +95,10 @@ public static class DownloaderAdapter
     // 下载成功判定：Completed 即为成功；downloader 的 FileExistPolicy.IgnoreDownload 把「目标已存在即跳过」
     // 以 Failed 状态送达（库行为，实测验证）且保留原文件——该场景必须视为成功，否则重跑会误报失败；
     // 文件不存在的 Failed 才是真实下载失败。此隐式契约抽成纯函数以便单测锁定，避免库升级后静默改判。
-    internal static bool IsDownloadSuccess(DownloadStatus status, string path)
+    internal static bool IsDownloadSuccess(DownloadStatus status, bool fileExists)
     {
         return status == DownloadStatus.Completed
-               || (status == DownloadStatus.Failed && File.Exists(path));
+               || (status == DownloadStatus.Failed && fileExists);
     }
 
     // 下载客户端：请求头与 AddDownloadHeaders 一致（UA / Referer 按平台 / Cookie），

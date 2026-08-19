@@ -110,6 +110,7 @@ public class UtilsTests
     }
 
     // 仅 Unix 生效：Windows 上 FindExecutable 不检查执行位，直接跳过
+    // 目录序列显式传入 FindExecutableIn，不再改进程级 PATH——并行测试下改 PATH 会互相踩踏
     [Fact]
     public void FindExecutable_SkipsNonExecutableOnUnix( )
     {
@@ -121,20 +122,16 @@ public class UtilsTests
         var dir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath( ), "bbdown-exec-test-" + Guid.NewGuid( )));
         var file = Path.Combine(dir.FullName, "dummy-tool");
         File.WriteAllText(file, string.Empty);
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
-            // 原有 PATH 仍保留，避免影响并行测试对其它工具的查找
-            Environment.SetEnvironmentVariable("PATH", dir.FullName + Path.PathSeparator + originalPath);
             File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            Assert.Null(Utils.FindExecutable("dummy-tool"));
+            Assert.Null(Utils.FindExecutableIn([dir.FullName], "dummy-tool"));
 
             File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            Assert.Equal(file, Utils.FindExecutable("dummy-tool"));
+            Assert.Equal(file, Utils.FindExecutableIn([dir.FullName], "dummy-tool"));
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
             dir.Delete(true);
         }
     }

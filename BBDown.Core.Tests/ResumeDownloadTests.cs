@@ -8,6 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Download;
+using BBDown.Core.Logging;
+using BBDown.Core.Workflow;
 
 namespace BBDown.Core.Tests;
 
@@ -189,21 +191,35 @@ public class ResumeDownloadTests
         }
     }
 
-    private static string TempDir( )
+    private sealed class TempDir : IDisposable
     {
-        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_resume_" + Path.GetRandomFileName( ));
-        Directory.CreateDirectory(dir);
-        return dir;
+        private readonly string fullPath = Path.Combine(Path.GetTempPath( ), "bbdown_resume_" + Path.GetRandomFileName( ));
+        public string FullPath => fullPath;
+
+        public TempDir( )
+        {
+            Directory.CreateDirectory(fullPath);
+        }
+
+        public void Dispose( )
+        {
+            try
+            {
+                Directory.Delete(fullPath, true);
+            }
+            catch (IOException)
+            {
+            }
+        }
     }
 
     // 目标文件已完整产出过：不发任何请求直接跳过
     [Fact]
     public async Task Download_ExistingFile_Skips( )
     {
-        var dir = TempDir( );
-        try
+        using var dir = new TempDir( );
         {
-            var dest = Path.Combine(dir, "video.mp4");
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
             File.WriteAllBytes(dest, [1, 2, 3]);
 
             using var handler = new ServingHandler { Data = [4, 5, 6, 7] };
@@ -213,21 +229,16 @@ public class ResumeDownloadTests
             Assert.Empty(handler.Requests);
             Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(dest));
         }
-        finally
-        {
-            Directory.Delete(dir, true);
-        }
     }
 
     // 多线程分片下载：stub 按 Range 切片，最终文件内容完整
     [Fact]
     public async Task Download_MultiThread_ProducesCompleteFile( )
     {
-        var dir = TempDir( );
-        try
+        using var dir = new TempDir( );
         {
             var data = Enumerable.Range(0, 1000).Select(i => (byte) (i % 251)).ToArray( );
-            var dest = Path.Combine(dir, "video.mp4");
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
 
             using var handler = new ServingHandler { Data = data };
             await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
@@ -236,21 +247,16 @@ public class ResumeDownloadTests
             Assert.True(File.Exists(dest));
             Assert.True(File.ReadAllBytes(dest).SequenceEqual(data));
         }
-        finally
-        {
-            Directory.Delete(dir, true);
-        }
     }
 
     // 服务器不给 Content-Length 也不支持 Range：退化为单块全量下载，仍产出完整文件
     [Fact]
     public async Task Download_NoContentLength_FallsBackToSingleChunkAndCompletes( )
     {
-        var dir = TempDir( );
-        try
+        using var dir = new TempDir( );
         {
             var data = Enumerable.Range(0, 73).Select(i => (byte) (i % 251)).ToArray( );
-            var dest = Path.Combine(dir, "video.mp4");
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
 
             using var handler = new ServingHandler
             {
@@ -264,21 +270,16 @@ public class ResumeDownloadTests
 
             Assert.True(File.ReadAllBytes(dest).SequenceEqual(data));
         }
-        finally
-        {
-            Directory.Delete(dir, true);
-        }
     }
 
     // 预置的 .download 残留与当前地址不符（无有效续传元数据）：downloader 校验失败删除重下，产出正确内容
     [Fact]
     public async Task Download_StaleDownloadFile_RedownloadsFresh( )
     {
-        var dir = TempDir( );
-        try
+        using var dir = new TempDir( );
         {
             var data = Enumerable.Range(0, 120).Select(i => (byte) (i % 251)).ToArray( );
-            var dest = Path.Combine(dir, "video.mp4");
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
             // 塞满错误字节的残留临时文件，无元数据 → 续传校验必失败
             File.WriteAllBytes(dest + ".download", new byte[120]);
 
@@ -289,28 +290,19 @@ public class ResumeDownloadTests
             Assert.True(File.ReadAllBytes(dest).SequenceEqual(data));
             Assert.False(File.Exists(dest + ".download"));
         }
-        finally
-        {
-            Directory.Delete(dir, true);
-        }
     }
 
     // 服务器持续回 5xx：下载失败向上抛，不静默产出文件
     [Fact]
     public async Task Download_ServerError_Throws( )
     {
-        var dir = TempDir( );
-        try
+        using var dir = new TempDir( );
         {
-            var dest = Path.Combine(dir, "video.mp4");
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
             using var handler = new ServingHandler { FailureStatus = HttpStatusCode.InternalServerError };
             await Assert.ThrowsAsync<HttpRequestException>(( ) =>
                 WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
                     "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None)));
-        }
-        finally
-        {
-            Directory.Delete(dir, true);
         }
     }
 
@@ -318,11 +310,10 @@ public class ResumeDownloadTests
     [Fact]
     public async Task Download_Cancelled_ThrowsOperationCanceled( )
     {
-        var dir = TempDir( );
-        try
+        using var dir = new TempDir( );
         {
             var data = Enumerable.Range(0, 4096).Select(i => (byte) (i % 251)).ToArray( );
-            var dest = Path.Combine(dir, "video.mp4");
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
 
             using var handler = new ServingHandler(50) { Data = data };
             using var cts = new CancellationTokenSource( );
@@ -331,21 +322,16 @@ public class ResumeDownloadTests
                 WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
                     "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: cts.Token)));
         }
-        finally
-        {
-            Directory.Delete(dir, true);
-        }
     }
 
     // CMCC 域名强制单线程：即使没开 SingleThread，并发峰值也不超过 1
     [Fact]
     public async Task CmccHost_ForcesSingleConnection( )
     {
-        var dir = TempDir( );
-        try
+        using var dir = new TempDir( );
         {
             var data = Enumerable.Range(0, 500).Select(i => (byte) (i % 251)).ToArray( );
-            var dest = Path.Combine(dir, "video.mp4");
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
 
             using var handler = new GatedServingHandler(data, releaseAt: 1);
             await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
@@ -354,35 +340,48 @@ public class ResumeDownloadTests
             Assert.True(handler.PeakConcurrent <= 1, $"并发峰值 {handler.PeakConcurrent} 超过 1");
             Assert.True(File.ReadAllBytes(dest).SequenceEqual(data));
         }
-        finally
-        {
-            Directory.Delete(dir, true);
-        }
     }
 
-    // 进度采样回调：下载超过采样周期（200ms）后 onSample 至少被调用一次，ratio 单调不减
+    // 进度采样回调：下载超过采样周期（200ms）后 ProgressBus 至少收到一次样本，ratio 单调不减
     [Fact]
-    public async Task Download_ReportsProgressToOnSample( )
+    public async Task Download_ReportsProgressToProgressBus( )
     {
-        var dir = TempDir( );
-        try
+        using var dir = new TempDir( );
         {
             var data = Enumerable.Range(0, 2048).Select(i => (byte) (i % 251)).ToArray( );
-            var dest = Path.Combine(dir, "video.mp4");
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
             var samples = new List<double>( );
-            var config = new DownloadConfig { OnSample = (ratio, _) => { lock (samples) { samples.Add(ratio); } } };
+            Action<WorkflowEvent> onProgress = evt =>
+            {
+                if (evt is ProgressSampleEvent sample)
+                {
+                    lock (samples)
+                    {
+                        samples.Add(sample.Ratio);
+                    }
+                }
+            };
+            ProgressBus.Subscribe(onProgress);
+            try
+            {
+                // 每请求延迟 150ms（探测 + 分片并行各一次），总时长超过采样周期；阶段内样本才被采集
+                using var handler = new ServingHandler(150) { Data = data };
+                using (MessageBus.BeginScope("test-download"))
+                {
+                    using (ProgressBus.BeginStage("下载"))
+                    {
+                        await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+                            "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
+                    }
+                }
 
-            // 每请求延迟 150ms（探测 + 分片并行各一次），总时长超过采样周期
-            using var handler = new ServingHandler(150) { Data = data };
-            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
-                "https://upos-sz.bilivideo.com/x.m4s", dest, config, ct: CancellationToken.None));
-
-            Assert.NotEmpty(samples);
-            Assert.True(samples[^1] >= samples[0]);
-        }
-        finally
-        {
-            Directory.Delete(dir, true);
+                Assert.NotEmpty(samples);
+                Assert.True(samples[^1] >= samples[0]);
+            }
+            finally
+            {
+                ProgressBus.Unsubscribe(onProgress);
+            }
         }
     }
 
@@ -390,11 +389,10 @@ public class ResumeDownloadTests
     [Fact]
     public async Task Download_SendsBrowserLikeHeaders( )
     {
-        var dir = TempDir( );
-        try
+        using var dir = new TempDir( );
         {
             var data = Enumerable.Range(0, 2048).Select(i => (byte) (i % 251)).ToArray( );
-            var dest = Path.Combine(dir, "video.mp4");
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
 
             using var handler = new ServingHandler { Data = data };
             await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
@@ -406,21 +404,16 @@ public class ResumeDownloadTests
             Assert.All(handler.Requests, r => Assert.Equal("https://www.bilibili.com/", r.Referer));
             Assert.All(handler.Requests, r => Assert.Equal("SESSDATA=abc", r.Cookie));
         }
-        finally
-        {
-            Directory.Delete(dir, true);
-        }
     }
 
     // android 平台地址带 Referer 会被 CDN 拒绝：验证该分支不带 Referer 但仍带 UA
     [Fact]
     public async Task Download_AndroidUrl_OmitsReferer( )
     {
-        var dir = TempDir( );
-        try
+        using var dir = new TempDir( );
         {
             var data = Enumerable.Range(0, 2048).Select(i => (byte) (i % 251)).ToArray( );
-            var dest = Path.Combine(dir, "video.mp4");
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
 
             using var handler = new ServingHandler { Data = data };
             await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
@@ -429,10 +422,6 @@ public class ResumeDownloadTests
             Assert.NotEmpty(handler.Requests);
             Assert.All(handler.Requests, r => Assert.Equal("Mozilla/5.0", r.UserAgent));
             Assert.All(handler.Requests, r => Assert.Null(r.Referer));
-        }
-        finally
-        {
-            Directory.Delete(dir, true);
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
 
+using BBDown.Core.Logging;
 using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;
@@ -44,7 +45,7 @@ public sealed class LiveProgress : IDisposable
         {
             renderTimer = new Timer(_ => Render( ));
             renderTimer.Change(RenderInterval, Timeout.InfiniteTimeSpan);
-            Logger.BeforeWrite = ClearLine;
+            ConsoleHost.BeforeWrite = ClearLine;
         }
 
         sampler = new ProgressSampler((_, delta) => OnSample(delta));
@@ -151,7 +152,7 @@ public sealed class LiveProgress : IDisposable
 
     public void Dispose( )
     {
-        Logger.BeforeWrite = null;
+        ConsoleHost.BeforeWrite = null;
         lock (gate)
         {
             if (disposed)

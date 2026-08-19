@@ -23,9 +23,6 @@
         <!-- Win7 兼容构建专用：YY-Thunks 链接期补旧系统缺失 API；VC-LTL 静态消除 api-ms-win-crt（仅 win-x64/x86 支持） -->
         <PackageReference Include="YY-Thunks" Condition="'$(Win7Compatitable)' == 'true'" />
         <PackageReference Include="VC-LTL" Condition="'$(Win7Compatitable)' == 'true'" />
-        <!-- 仅 Windows 宿主生效（targets 内有 IsOSPlatform 判断，且垫片是 clang.cmd），需本机装 zig；
-             用于本地交叉 publish Linux 目标，CI 的 musl 构建走 Alpine 容器不依赖它 -->
-        <PackageReference Include="PublishAotCross" PrivateAssets="all" />
         <PackageReference Include="System.CommandLine" />
     </ItemGroup>
     <ItemGroup>

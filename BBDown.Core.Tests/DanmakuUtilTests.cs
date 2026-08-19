@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Text;
 
@@ -79,7 +78,7 @@ public class DanmakuUtilTests
         </i>
         """;
 
-        var danmakus = WithTempXml(xml, DanmakuUtil.ParseXml);
+        var danmakus = ParseInlineXml(xml);
 
         Assert.NotNull(danmakus);
         Assert.Equal(3, danmakus.Length);
@@ -107,31 +106,20 @@ public class DanmakuUtilTests
     [Fact]
     public void ParseXml_ReturnsNullOnMalformedDocument( )
     {
-        Assert.Null(WithTempXml("这不是 xml", DanmakuUtil.ParseXml));
+        Assert.Null(ParseInlineXml("这不是 xml"));
     }
 
     [Fact]
     public void ParseXml_ReturnsEmptyWhenNoDanmakuNode( )
     {
-        var danmakus = WithTempXml("<i></i>", DanmakuUtil.ParseXml);
+        var danmakus = ParseInlineXml("<i></i>");
 
         Assert.NotNull(danmakus);
         Assert.Empty(danmakus);
     }
 
-    private static T WithTempXml<T>(string content, Func<string, T> action)
-    {
-        var path = Path.Combine(Path.GetTempPath( ), $"bbdown-danmaku-{Guid.NewGuid( ):N}.xml");
-        File.WriteAllText(path, content, Encoding.UTF8);
-        try
-        {
-            return action(path);
-        }
-        finally
-        {
-            File.Delete(path);
-        }
-    }
+    private static DanmakuUtil.DanmakuItem[]? ParseInlineXml(string content)
+        => DanmakuUtil.ParseXml(new MemoryStream(Encoding.UTF8.GetBytes(content)));
 
     // B 站 XML 颜色是整数 RGB，ASS 的 \c&H...& 却是 BGR 字节序，直接照搬会让红蓝对调 (P0-5)
     [Theory]

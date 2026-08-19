@@ -67,7 +67,7 @@ public static class PageDownload
                 }
 
                 // 先以空字幕占位建好 session（此时 pageCtx 已含最终 IsPreview 标记），再交给 PrepareAsync 填充字幕
-                var session = new DownloadSession(myOption, ctx, pageCtx, [], BuildDownloadConfig(myOption, ctx.Fetch.Cfg, ctx.Run.Tools, sink), sink);
+                var session = new DownloadSession(myOption, ctx, pageCtx, [], BuildDownloadConfig(myOption, ctx.Fetch.Cfg, ctx.Run.Tools), sink);
                 if (!myOption.OnlyShowInfo)
                 {
                     subtitleInfo = await PageAssets.PrepareAsync(session, ct);
@@ -171,7 +171,7 @@ public static class PageDownload
             || p.Aid != selectedPagesInfo[^1].Aid;
     }
 
-    internal static DownloadConfig BuildDownloadConfig(DownloadRequest myOption, AppConfig cfg, ToolPaths tools, PipelineSink sink = default)
+    internal static DownloadConfig BuildDownloadConfig(DownloadRequest myOption, AppConfig cfg, ToolPaths tools)
     {
         return new DownloadConfig
         {
@@ -180,7 +180,6 @@ public static class PageDownload
             NoForceHttp = myOption.NoForceHttp,
             SingleThread = myOption.SingleThread,
             Aria2cPath = tools.Aria2c,
-            OnSample = sink.Sample,
             Cookie = cfg.Cookie,
         };
     }

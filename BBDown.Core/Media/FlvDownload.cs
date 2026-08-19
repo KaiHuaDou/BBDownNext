@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BBDown.Core.Download;
 using BBDown.Core.Entity;
 using BBDown.Core.Mux;
+using BBDown.Core.Workflow;
 
 using static BBDown.Core.Download.DownloadUtil;
 using static BBDown.Core.Logger;
@@ -96,10 +97,12 @@ public static class FlvDownload
                 return skipped;
             }
 
-            // 主媒体下载窗口：只有片段下载时进度条才显示
-            sink.Downloading?.Invoke(true);
-            var clipPaths = await DownloadClipsAsync(clips, pageCtx, downloadConfig, ct);
-            sink.Downloading?.Invoke(false);
+            // 主媒体下载窗口：只有片段下载时进度条才显示（阶段内采样经 ProgressBus 上报）
+            List<string> clipPaths;
+            using (var stage = ProgressBus.BeginStage("下载"))
+            {
+                clipPaths = await DownloadClipsAsync(clips, pageCtx, downloadConfig, ct);
+            }
 
             Log($"下载 P{p.Index} 完毕");
             Log("开始合并分片...");

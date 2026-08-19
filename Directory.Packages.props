@@ -1,31 +1,26 @@
 <Project>
-
-    <PropertyGroup>
-        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-        <!-- NU1507 要求配置单一包源或 source mapping；这里不塞仓库级 NuGet.config，以免覆盖使用者自己的镜像源 -->
-        <NoWarn>$(NoWarn);NU1507</NoWarn>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <PackageVersion Include="Avalonia.Desktop" Version="12.1.1" />
-        <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.1" />
-        <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.1" />
-        <PackageVersion Include="Avalonia" Version="12.1.1" />
-        <PackageVersion Include="Downloader" Version="5.9.5" />
-        <PackageVersion Include="Google.Protobuf" Version="3.35.1" />
-        <PackageVersion Include="Grpc.Tools" Version="2.83.0" />
-        <PackageVersion Include="PublishAotCross" Version="1.0.0" />
-        <PackageVersion Include="QRCoder" Version="1.8.0" />
-        <PackageVersion Include="System.CommandLine" Version="2.0.10" />
-        <!-- Win7 兼容构建（Win7Compatitable=true）专用：链接期补旧系统缺失 API + 静态消除 UCRT 依赖 -->
-        <PackageVersion Include="YY-Thunks" Version="1.2.2" />
-        <PackageVersion Include="VC-LTL" Version="5.3.1" />
-    </ItemGroup>
-
-    <ItemGroup Label="Test">
-        <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
-        <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.3.3" />
-        <PackageVersion Include="xunit.v3" Version="4.0.0" />
-    </ItemGroup>
-
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- NU1507 要求配置单一包源或 source mapping；这里不塞仓库级 NuGet.config，以免覆盖使用者自己的镜像源 -->
+    <NoWarn>$(NoWarn);NU1507</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageVersion Include="Avalonia" Version="12.1.1" />
+    <PackageVersion Include="Downloader" Version="5.9.5" />
+    <PackageVersion Include="Google.Protobuf" Version="3.35.1" />
+    <PackageVersion Include="Grpc.Tools" Version="2.83.0" />
+    <PackageVersion Include="QRCoder" Version="1.8.0" />
+    <PackageVersion Include="System.CommandLine" Version="2.0.11" />
+    <!-- Win7 兼容构建（Win7Compatitable=true）专用：链接期补旧系统缺失 API + 静态消除 UCRT 依赖 -->
+    <PackageVersion Include="YY-Thunks" Version="1.2.2" />
+    <PackageVersion Include="VC-LTL" Version="5.3.1" />
+  </ItemGroup>
+  <ItemGroup Label="Test">
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.3.3" />
+    <PackageVersion Include="xunit.v3" Version="4.0.0" />
+  </ItemGroup>
 </Project>

@@ -4,7 +4,6 @@ using System.Text.Json.Serialization;
 using System.Threading;
 
 using BBDown.Core;
-using BBDown.Core.Util;
 
 namespace BBDown.Serve;
 
@@ -24,13 +23,14 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
     public long? TaskFinishTime { get; set; }
     public double Progress { get; set; }
     public double DownloadSpeed { get; set; }
-    // FLV 多片段并行下载时多个采样器并发回调 ApplySample，累计必须原子（Interlocked），
-    // 否则 += 读改写会丢失更新；double 属性仅为 JSON 输出形态
+    /// <summary>失败原因（路径已脱敏）；成功或未失败为 null。</summary>
+    public string? ErrorMessage { get; set; }
+    // 进度字段由 TaskWorker 订阅 ProgressBus 更新（Interlocked 原子读写，多线程采样安全）
     private long totalBytes;
-    public double TotalDownloadedBytes
+    public long TotalDownloadedBytes
     {
         get => Interlocked.Read(ref totalBytes);
-        set => Interlocked.Exchange(ref totalBytes, (long) value);
+        set => Interlocked.Exchange(ref totalBytes, value);
     }
     public bool IsSuccessful { get; set; }
     public DownloadStatus Status { get; set; }
@@ -41,21 +41,6 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
     public CancellationTokenSource Cts { get; } = CancellationTokenSource.CreateLinkedTokenSource(AppEnv.CancellationToken);
 
     public Collection<string> SavePaths { get; } = [];
-
-    /// <summary>进度条的采样回调：<paramref name="bytesDelta"/> 是本采样周期新增的字节数。</summary>
-    public void ApplySample(double ratio, long bytesDelta)
-    {
-        Progress = ratio;
-        // 一个周期一个字节都没到（卡住或已下完）时保留上一次的速度，不要显示成 0
-        if (bytesDelta <= 0)
-        {
-            return;
-        }
-
-        // 按采样周期折算成每秒速率；TotalDownloadedBytes 累加原始增量，不做折算
-        DownloadSpeed = bytesDelta / ProgressSampler.SampleInterval.TotalSeconds;
-        Interlocked.Add(ref totalBytes, bytesDelta);
-    }
 }
 
 public record DownloadTaskSnapshot(IReadOnlyList<DownloadTask> Running, IReadOnlyList<DownloadTask> Finished);

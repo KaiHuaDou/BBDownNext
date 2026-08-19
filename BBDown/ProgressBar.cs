@@ -3,11 +3,13 @@ using System.Text;
 using System.Threading;
 
 using BBDown.Core;
+using BBDown.Core.Logging;
 using BBDown.Core.Util;
+using BBDown.Core.Workflow;
 
 namespace BBDown;
 
-// 控制台进度条渲染器：接收 ProgressSampler 每 200 毫秒的采样回调，按 1/8 秒刷新一帧。
+// 控制台进度条渲染器：订阅 ProgressBus 的进度事件（阶段开始/样本/结束），按 1/8 秒刷新一帧。
 public sealed class ProgressBar : IDisposable
 {
     private const int BarWidth = 40;
@@ -38,16 +40,34 @@ public sealed class ProgressBar : IDisposable
     public ProgressBar(CancellationToken ct = default)
     {
         cancelToken = ct;
+        ProgressBus.Subscribe(OnProgress);
         if (drawToConsole)
         {
             renderTimer = new Timer(_ => Render( ));
             renderTimer.Change(RenderInterval, Timeout.InfiniteTimeSpan);
             // 退格重绘假定光标停在本行末尾，日志若直接跟在进度条后面会把光标推走，下一帧就把 spinner 打到日志行首。
             // 注册日志前置钩子：写日志前先擦掉进度条行，让日志从行首开始（与 LiveProgress 同一机制）。
-            Logger.BeforeWrite = ClearLine;
+            ConsoleHost.BeforeWrite = ClearLine;
             // 逐集确认 / 选轨等交互读输入前暂停渲染，避免进度条覆盖提示与用户输入
             Interaction.BeforeRead = Suspend;
             Interaction.AfterRead = Resume;
+        }
+    }
+
+    // 进度事件分发：阶段开始/结束驱动进度条显隐，样本驱动更新
+    private void OnProgress(WorkflowEvent evt)
+    {
+        switch (evt)
+        {
+            case ProgressRangeStartEvent:
+                SetDownloading(true);
+                break;
+            case ProgressSampleEvent sample:
+                OnSample(sample);
+                break;
+            case ProgressRangeEndEvent:
+                SetDownloading(false);
+                break;
         }
     }
 
@@ -112,7 +132,7 @@ public sealed class ProgressBar : IDisposable
 
     // 主媒体下载窗口：true 进入下载（恢复渲染），false 下载结束（清行停止渲染）。
     // 解析 / 混流 / 封面弹幕等附属下载都不开窗，进度条只在明确下载音视频文件时出现
-    public void SetDownloading(bool value)
+    private void SetDownloading(bool value)
     {
         if (!drawToConsole)
         {
@@ -143,8 +163,8 @@ public sealed class ProgressBar : IDisposable
         }
     }
 
-    // ProgressSampler 每 200ms 回调一次，更新进度、速度与剩余时间显示
-    public void OnSample(double value, long delta)
+    // 阶段内样本每 200ms 到达一次，更新进度、速度与剩余时间显示（speed 由链路折算好）
+    private void OnSample(ProgressSampleEvent sample)
     {
         lock (gate)
         {
@@ -154,23 +174,23 @@ public sealed class ProgressBar : IDisposable
                 return;
             }
 
-            ratio = value;
+            ratio = sample.Ratio;
             lastSampleTick = Environment.TickCount64;
             var now = DateTime.UtcNow;
             // 进度回退视为分 P 切换，重置 ETA 基准
-            if (lastRatio == 0 || value < lastRatio)
+            if (lastRatio == 0 || sample.Ratio < lastRatio)
             {
                 etaStart = now;
             }
 
-            lastRatio = value;
+            lastRatio = sample.Ratio;
 
-            if (delta > 0)
+            if (sample.Speed > 0)
             {
-                speedText = $" - {Utils.FormatSpeed(delta, ProgressSampler.SampleInterval.TotalSeconds)}";
+                speedText = $" - {Utils.FormatSpeed((long) sample.Speed, 1)}";
             }
 
-            etaText = Utils.FormatEta(value, now - etaStart) is { } eta ? $" ETA {eta}" : string.Empty;
+            etaText = Utils.FormatEta(sample.Ratio, now - etaStart) is { } eta ? $" ETA {eta}" : string.Empty;
 
             // 有采样即视为下载进行中：若此前因空闲停过渲染，恢复定时器
             if (!rendering)
@@ -239,8 +259,9 @@ public sealed class ProgressBar : IDisposable
 
     public void Dispose( )
     {
-        // 先摘钩再拿 gate：Logger 持自身锁回调 ClearLine 拿本 gate，反向持 gate 去改 Logger 状态会死锁
-        Logger.BeforeWrite = null;
+        // 先摘钩再拿 gate：渲染器持自身锁回调 ClearLine 拿本 gate，反向持 gate 去改渲染器状态会死锁
+        ProgressBus.Unsubscribe(OnProgress);
+        ConsoleHost.BeforeWrite = null;
         Interaction.BeforeRead = null;
         Interaction.AfterRead = null;
         lock (gate)

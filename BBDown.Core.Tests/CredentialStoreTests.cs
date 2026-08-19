@@ -1,12 +1,11 @@
 using System.IO;
 using System.Threading.Tasks;
 
-using BBDown.Core;
-
 namespace BBDown.Core.Tests;
 
 public class CredentialStoreTests
 {
+    // 唯一保留的真实落盘往返：锁定「序列化 → 写入 → 读回」整链，其余用例均为纯函数测试
     [Fact]
     public async Task SaveAndLoadWebCookie_RoundTrips( )
     {
@@ -27,122 +26,72 @@ public class CredentialStoreTests
         }
     }
 
+    // 用户从网页/终端粘贴凭据时带入的首尾空白与换行符必须被剥离，否则认证会静默失败
     [Fact]
-    public async Task LoadAll_PrefersCliOverFile( )
+    public void LoadWebCookie_TrimsSurroundingWhitespace( )
     {
-        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_cred_" + Path.GetRandomFileName( ));
-        Directory.CreateDirectory(dir);
-        try
-        {
-            await CredentialStore.SaveTvToken("fromfile", null, dir);
-            // LoadAll 有意不剥离 access_token= 前缀：调用方须传入纯令牌（前缀剥离已移除）。
-            var (cookie, token) = CredentialStore.LoadAll("cliCookie", "cli", ApiType.App, dir);
-            Assert.Equal("cliCookie", cookie);
-            Assert.Equal("cli", token);
-        }
-        finally
-        {
-            if (Directory.Exists(dir))
-            {
-                Directory.Delete(dir, true);
-            }
-        }
+        var raw = "  \r\n SESSDATA=abc \t\n ";
+        var json = "{\"cookie\":" + System.Text.Json.JsonSerializer.Serialize(raw) + "}";
+
+        Assert.Equal("SESSDATA=abc", CredentialStore.ParseCredentialJson(json).Cookie);
+    }
+
+    // 损坏 / 旧格式（access_token= 前缀）文件一律视为无效，不污染新模型
+    [Fact]
+    public void ParseCredentialJson_RejectsLegacyFormat( )
+    {
+        Assert.Null(CredentialStore.ParseCredentialJson("access_token=legacy").Cookie);
+        Assert.Null(CredentialStore.ParseCredentialJson("access_token=legacy").TvAccessToken);
+    }
+
+    // LoadAll 有意不剥离 access_token= 前缀：调用方须传入纯令牌（前缀剥离已移除）
+    [Fact]
+    public void LoadAll_PrefersCliOverFile( )
+    {
+        var file = new CredentialStore.Credential("filecookie", null, null, null, null, null, null);
+
+        var (cookie, token) = CredentialStore.Resolve("cliCookie", "cli", ApiType.App, file);
+
+        Assert.Equal("cliCookie", cookie);
+        Assert.Equal("cli", token);
     }
 
     [Fact]
-    public async Task WebAndTvMergeIntoSingleFile( )
+    public void LoadAll_ReadsFileWhenCliEmpty( )
     {
-        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_cred_" + Path.GetRandomFileName( ));
-        Directory.CreateDirectory(dir);
-        try
-        {
-            // 先存 Web
-            await CredentialStore.SaveWebCookie("web-cookie", dir, "rt", 1700000000);
-            Assert.Equal("web-cookie", CredentialStore.LoadWebCookie(dir));
-            Assert.Equal("rt", CredentialStore.LoadWebCredential(dir).refreshToken);
-            Assert.Equal("", CredentialStore.LoadTvToken(dir));
+        var file = new CredentialStore.Credential("filecookie", null, null, null, null, null, null);
 
-            // 再存 TV，应合并进同一文件、保留 Web 字段
-            await CredentialStore.SaveTvToken("tv-tok", 1700000001, dir);
-            Assert.Equal("web-cookie", CredentialStore.LoadWebCookie(dir));
-            Assert.Equal("tv-tok", CredentialStore.LoadTvToken(dir));
+        var (cookie, token) = CredentialStore.Resolve(null, null, ApiType.Web, file);
 
-            // 损坏 / 旧格式文件视为无效
-            await File.WriteAllTextAsync(Path.Combine(dir, "BBDown.data"), "access_token=legacy", TestContext.Current.CancellationToken);
-            Assert.Equal("", CredentialStore.LoadWebCookie(dir));
-            Assert.Equal("", CredentialStore.LoadTvToken(dir));
-        }
-        finally
-        {
-            if (Directory.Exists(dir))
-            {
-                Directory.Delete(dir, true);
-            }
-        }
+        Assert.Equal("filecookie", cookie);
+        Assert.Equal("", token);
     }
 
+    // TV token 仅在 TV 模式下回退，Web 模式不读
     [Fact]
-    public async Task LoadAll_ReadsFileWhenCliEmpty( )
+    public void LoadAll_TvTokenGatedByApi( )
     {
-        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_cred_" + Path.GetRandomFileName( ));
-        Directory.CreateDirectory(dir);
-        try
-        {
-            await CredentialStore.SaveWebCookie("filecookie", dir);
-            var (cookie, token) = CredentialStore.LoadAll(null, null, ApiType.Web, dir);
-            Assert.Equal("filecookie", cookie);
-            Assert.Equal("", token);
-        }
-        finally
-        {
-            if (Directory.Exists(dir))
-            {
-                Directory.Delete(dir, true);
-            }
-        }
+        var file = new CredentialStore.Credential(null, null, null, "fromfile", null, null, null);
+
+        var (_, webToken) = CredentialStore.Resolve(null, null, ApiType.Web, file);
+        Assert.Equal("", webToken);
+
+        var (_, tvToken) = CredentialStore.Resolve(null, null, ApiType.Tv, file);
+        Assert.Equal("fromfile", tvToken);
     }
 
+    // Web 与 TV 合并进同一 JSON 对象：先存 Web 再存 TV，Web 字段保留
     [Fact]
-    public async Task LoadAll_TvTokenGatedByUseTvApi( )
+    public void WebAndTvMergeIntoSingleFile( )
     {
-        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_cred_" + Path.GetRandomFileName( ));
-        Directory.CreateDirectory(dir);
-        try
-        {
-            await CredentialStore.SaveTvToken("fromfile", dir: dir);
-            var (_, token) = CredentialStore.LoadAll(null, null, ApiType.Web, dir);
-            Assert.Equal("", token);
-        }
-        finally
-        {
-            if (Directory.Exists(dir))
-            {
-                Directory.Delete(dir, true);
-            }
-        }
-    }
+        var web = new CredentialStore.Credential("web-cookie", null, 1700000000, null, null, null, null);
+        Assert.Equal("web-cookie", web.Cookie);
+        Assert.Null(web.TvAccessToken);
 
-    [Fact]
-    public async Task LoadWebCookie_TrimsSurroundingWhitespace( )
-    {
-        // 用户从网页/终端粘贴凭据时带入的首尾空白与换行符必须被剥离，否则认证会静默失败
-        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_cred_" + Path.GetRandomFileName( ));
-        Directory.CreateDirectory(dir);
-        try
-        {
-            var raw = "  \r\n SESSDATA=abc \t\n ";
-            await File.WriteAllTextAsync(Path.Combine(dir, "BBDown.data"),
-                $"{{\"cookie\":{System.Text.Json.JsonSerializer.Serialize(raw)}}}", TestContext.Current.CancellationToken);
+        var json = "{\"cookie\":\"web-cookie\",\"tv_access_token\":\"tv-tok\",\"tv_ts\":1700000001}";
+        var back = CredentialStore.ParseCredentialJson(json);
 
-            Assert.Equal("SESSDATA=abc", CredentialStore.LoadWebCookie(dir));
-            Assert.Equal("SESSDATA=abc", CredentialStore.LoadWebCredential(dir).cookie);
-        }
-        finally
-        {
-            if (Directory.Exists(dir))
-            {
-                Directory.Delete(dir, true);
-            }
-        }
+        Assert.Equal("web-cookie", back.Cookie);
+        Assert.Equal("tv-tok", back.TvAccessToken);
     }
 }

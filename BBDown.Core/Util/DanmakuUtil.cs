@@ -23,14 +23,20 @@ public static class DanmakuUtil
 
     public static DanmakuItem[]? ParseXml(string xmlPath)
     {
-        // 解析xml文件
+        using var stream = File.OpenRead(xmlPath);
+        return ParseXml(stream);
+    }
+
+    public static DanmakuItem[]? ParseXml(Stream xml)
+    {
+        // 解析xml
         XmlDocument xmlFile = new( );
         XmlReaderSettings settings = new( )
         {
             IgnoreComments = true//忽略文档里面的注释
         };
         List<DanmakuItem> danmakus = [];
-        using (var reader = XmlReader.Create(xmlPath, settings))
+        using (var reader = XmlReader.Create(xml, settings))
         {
             try
             {

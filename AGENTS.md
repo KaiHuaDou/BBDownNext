@@ -259,3 +259,11 @@ AGENT 对此文档的修改只能添加在本节，在本节添加内容无需�
 ### FLV 交互选清晰度不生效（故意设计）
 
 `FlvDownload` 交互式清晰度选择（`PickDfn` → 按所选 dfn 重解析）对最终产物**没有影响**：`Parser` 对 WEB 通道一律按 `Config.MaxQn` 请求，FLV 强制最高清晰度，所选 dfn 不会改变下载的分片。该行为是既定设计，**不要**“修复”成让所选 dfn 真正生效。`Parser.ExtractTracksAsync` 的 `qn` 参数对 WEB 通道被刻意忽略（INTL 通道除外），改 `Parser` 时须保持这一点。
+
+### dotnet 命令执行方式（沙箱与进程清理）
+
+所有 `dotnet` 命令（build / test 等）必须在**沙箱外**运行，且运行前先执行 `taskkill -f -im dotnet.exe`（Git Bash 下用 `-` 前缀，`//` 前缀无效）清理残留进程，必要时连带 `testhost.exe` / `BBDown.Tests.exe`。
+
+**测试范围约定**：只测静态 / 纯函数；涉及耗时复杂操作（真实服务器、WebSocket、网络请求、文件 IO、解析等）一律不测。测试过不了直接删除该测试，不反复调试。
+
+原因：沙箱会拦截测试宿主的 Recent 目录写入导致 test host 异常退出；WebSocket / Kestrel 测试在部分环境会长时间挂起（历史记录：>8 分钟未完成；单个 WebSocket 测试 Stop 时因连接未关等 30s 优雅关闭超时），残留 dotnet / testhost 进程会互相干扰后续运行并锁死构建输出。Core.Tests 全绿为准，BBDown.Tests 只跑纯函数子集（跑前先 taskkill）。

@@ -40,7 +40,9 @@ nilaoda/BBDown 的全面重构 - 增强分支（上游已归档）。开源 · �
 面向追求 **稳定、安全、拿来即用** 的用户与开发者：
 
 - **下载可靠**：下载引擎统一由 Downloader 库实现多线程分片与断点续传，分片级重试、续传元数据自愈校验、下载请求头统一注入，配套 980+ 单元测试守护。
-- **serve 安全**：HTTP API 模式内置令牌鉴权、SSRF 防护（含 IPv4-mapped IPv6 归一化）、CORS 默认关闭、host 与工作目录服务端固定，取消令牌贯通全链路。
+- **serve 任务管线**：REST API 规范化（`/api/v1/tasks`，202 受理 / 200 重复 / 400 非法 / 429 限流的完整语义）、任务队列 + 并发闸门（`--max-concurrent` 真正限并发、排队任务可取消）、WebSocket 事件流（`--interactive` 推送消息 / 进度快照 / 选项请求，选项可远程应答）。
+- **serve 安全**：令牌鉴权（恒定时间比较）、SSRF 防护（含 IPv4-mapped IPv6 归一化）、CORS 默认关闭、host 与工作目录服务端固定、全局限流 + 任务提交限流、认证失败滑动窗口、写端点 Origin 校验、WebSocket 连接上限、错误消息路径脱敏、取消令牌贯通全链路。
+- **日志与进度总线化**：Core 只产生消息与进度事件，CLI 控制台 / GUI 窗口日志区 / serve 事件流各自决定展示——CLI、GUI、serve 三形态共享同一下载链路。
 - **工程规范**：下载能力集中 `BBDown.Core`、依赖单向无环（`check-deps` 守护）、`ResourceId` 判别联合缺分支编译报错、单文件 / 单方法行数上限、Microsoft Testing Platform 现代测试栈。
 - **拿来即用**：AOT 单文件发布免安装 .NET 运行时，Windows 7 兼容产物、musl 静态产物开箱即用；CLI 与 GUI 双形态共享同一套下载核心。
 
@@ -93,13 +95,16 @@ nilaoda/BBDown 的全面重构 - 增强分支（上游已归档）。开源 · �
 
 - 扩展与集成
     - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./API.md)
-    - **serve 安全加固** · SSRF 防护（拒绝内网 / 回环，IPv4-mapped IPv6 先归一化再判定，连接前二次校验）、CORS 默认关闭、host 与工作目录由服务端启动参数固定（请求体无法覆盖）、非回环地址强制令牌、取消令牌沿触网路径贯通（Ctrl+C 可中断排队任务解析）
+    - **任务事件流** · `--interactive` 开启 WebSocket `/hubs/tasks`，任务消息 / 进度快照 / 选项请求实时推送，`submitChoice` 帧远程应答选项
+    - **任务队列与并发** · 受理即入队（`Status=Queued`），`--max-concurrent` 限制同时下载数，排队任务可取消；REST 端点 `/api/v1/tasks`（GET 快照 / POST 创建 / DELETE 清理 / POST stop）
+    - **serve 安全加固** · SSRF 防护（拒绝内网 / 回环，IPv4-mapped IPv6 先归一化再判定，连接前二次校验）、CORS 默认关闭、host 与工作目录由服务端启动参数固定（请求体无法覆盖）、非回环地址强制令牌、取消令牌沿触网路径贯通（Ctrl+C 可中断排队任务解析）、全局限流（60 次 / 分钟 / IP）+ 任务提交限流（10 次 / 分钟 / IP）、认证失败滑动窗口（超限 429）、写端点 Origin 校验（CSRF）、WebSocket 每 IP 连接上限、请求体 1 MB / 请求头超时 15 秒、健康检查 `/healthz`、错误消息路径脱敏
     - **后处理插件协议** · `--post-process` 对所有 DASH 轨调起外部进程，是否加密由处理方自行判断，主程序不内置解密能力，密钥与加密信息由外部进程自行获取管理 → [PROTOCOL.md](./PROTOCOL.md)
     - **内置示例插件** · `Plugins/BBDown.Sample` 提供协议最小实现与模板，自带独立构建配置与契约测试
     - **Windows 7 兼容** · `win-x64` 产物内置 YY-Thunks 与 VC-LTL，在 Windows 7 上可直接运行（无需安装 .NET 运行时）
     - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行（无需 Dockerfile）
 
 - 工程品质
+    - **消息与进度总线** · 日志（`MessageBus`）与进度（`ProgressBus`）统一总线：Core 只产生值对象消息，CLI / GUI / serve 宿主订阅展示；进度按阶段划分（阶段边界低频语义事件 + 阶段内高频快照），高频样本不进事件队列、低频事件不丢失
     - **980+ 单元测试**，覆盖解析、混流、serve 安全等全部核心路径
     - **分层清晰** · 下载能力集中在 `BBDown.Core`（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`），CLI 与 serve 留在 `BBDown`（`Cli` / `Serve`）；依赖单向成树（`check-deps` 守护）
     - **代码规模约束** · 单文件 ≤ 384 行、单方法 ≤ 128 行（`just tokei` 守护），超出即拆分
@@ -120,7 +125,8 @@ nilaoda/BBDown 的全面重构 - 增强分支（上游已归档）。开源 · �
 | AOT 原生发布    | 无                              | 默认 AOT，单文件原生二进制，8 个 RID                                                                                  |
 | 下载引擎        | 自研分片下载器 + 清单文件       | Downloader 库：分片级重试、自愈式断点续传、并发 32                                                                    |
 | 下载头注入      | 手动拼接                        | `DownloadHeaderHandler` 统一注入（UA / 平台 Referer / Cookie）                                                        |
-| serve 安全      | 基础令牌                        | SSRF 防护（含 IPv4-mapped IPv6）、CORS 默认关闭、host 与工作目录服务端固定、取消令牌贯通、ResourceId 任务标识天然去重 |
+| serve 安全      | 基础令牌                        | SSRF 防护（含 IPv4-mapped IPv6）、CORS 默认关闭、host 与工作目录服务端固定、取消令牌贯通、ResourceId 任务标识天然去重、全局限流 + 任务提交限流 + 认证失败滑动窗口、写端点 Origin 校验、错误消息路径脱敏 |
+| serve API       | `/add-task` 等散点端点          | `/api/v1/tasks` 规范 REST（202 受理 / 200 重复 / 400 非法 / 429 限流）+ WebSocket 事件流（`--interactive`：消息 / 进度快照 / 选项远程应答） |
 | 测试运行器      | VSTest                          | Microsoft Testing Platform（xunit.v3）                                                                                |
 | 工程约束        | 无                              | 单文件 / 单方法行数上限，依赖单向无环（`check-deps` 守护）                                                            |
 | 日志安全        | 明文                            | `Redactor` 脱敏（Cookie / access_token / 密钥）                                                                       |
@@ -444,7 +450,7 @@ BBDown "BV1xx" -M "<publishDate:yyyy>/<publishDate:MMdd> <pageTitle>"
 | 子命令  | 说明                                                                                          |
 | ------- | --------------------------------------------------------------------------------------------- |
 | `login` | 通过 APP 扫描二维码登录账号（默认 WEB；加 `--tv` 登录 TV，加 `--app` 登录 APP），凭据自动保存 |
-| `serve` | 以服务器模式运行，提供带鉴权令牌的 HTTP JSON API（详见 [API.md](./API.md)）                   |
+| `serve` | 以服务器模式运行，提供带鉴权令牌的 REST JSON API 与可选 WebSocket 任务事件流（详见 [API.md](./API.md)） |
 
 ### 专栏 / 图文导出
 
@@ -467,13 +473,14 @@ BBDown cv51908655 -W i -W M
 | 参数               | 简写 | 说明                                                                                                          |
 | ------------------ | ---- | ------------------------------------------------------------------------------------------------------------- |
 | `--listen`         | `-l` | 监听地址，默认 `http://127.0.0.1:23333`                                                                       |
-| `--serve-token`    |      | serve 鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 `X-BBDown-Token` 头或 `?token=` 查询参数 |
+| `--serve-token`    |      | serve 鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 `X-BBDown-Token` 头（WebSocket 握手经 `?token=` 查询参数） |
 | `--work-dir`       |      | 所有任务的工作目录，请求中的同名字段会被忽略                                                                  |
 | `--host`           |      | API 请求 Host，所有任务统一使用此值；请求体不再能指定 host（防止凭据被导向外部服务器）                        |
 | `--ep-host`        |      | 番剧 / 影视 API 请求 Host，所有任务统一使用此值                                                               |
 | `--tv-host`        |      | TV 端 API 请求 Host，所有任务统一使用此值                                                                     |
 | `--cors-origin`    |      | 仅允许该单一来源跨域调用 serve（CORS）                                                                        |
-| `--max-concurrent` |      | 同时下载的任务数上限，默认 0（不限制）。                                                                      |
+| `--max-concurrent` |      | 同时下载的任务数上限，默认 0（不限制）；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队（`Status=Queued`） |
+| `--interactive`    |      | 开启任务事件流（WebSocket `/hubs/tasks` 推送消息 / 进度 / 选项请求），选项可远程应答；默认关闭，任务不产生事件流 |
 
 ```bash
 # 以默认地址启动服务器（本地回环，免令牌）
@@ -640,7 +647,6 @@ B 站 web 接口要求 WBI 签名，未签名的请求更容易触发风控。BB
 - [aria2](https://github.com/aria2/aria2) 用于 aria2c 多线程下载。
 - [YY-Thunks](https://github.com/Chuyu-Team/YY-Thunks) 用于 Win7 兼容构建时在链接期补齐旧系统缺失的 API。
 - [VC-LTL](https://github.com/Chuyu-Team/VC-LTL) 用于 Win7 兼容构建时静态消除 api-ms-win-crt 依赖。
-- [PublishAotCross](https://github.com/MichalStrehovsky/PublishAotCross) 用于在 Windows 上本地交叉发布 Linux 目标。
 
 ## 许可证
 

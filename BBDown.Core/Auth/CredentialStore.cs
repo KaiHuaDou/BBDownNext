@@ -91,7 +91,12 @@ public static class CredentialStore
 
     private static Credential LoadCredential(string? dir)
     {
-        var raw = TryRead(dir, DataFile);
+        return ParseCredentialJson(TryRead(dir, DataFile));
+    }
+
+    // 解析凭据 JSON + 去首尾空白 + 非法 / 空 → Empty。纯函数以便单测锁定旧格式拒绝与裁剪行为
+    internal static Credential ParseCredentialJson(string? raw)
+    {
         if (string.IsNullOrWhiteSpace(raw))
         {
             return Empty;
@@ -148,25 +153,46 @@ public static class CredentialStore
     public static (string cookie, string token) LoadAll(
         string? cliCookie, string? cliToken, ApiType api, string? dir = null)
     {
+        var file = LoadCredential(dir);
+        var result = Resolve(cliCookie, cliToken, api, file);
+        // 恢复本地凭据加载提示（Resolve 为纯函数不输出）：来源条件与 Resolve 分支对应
+        if (string.IsNullOrEmpty(cliCookie) && !string.IsNullOrEmpty(file.Cookie))
+        {
+            Log("加载本地 cookie...");
+        }
+
+        if (string.IsNullOrEmpty(cliToken) && api == ApiType.Tv && !string.IsNullOrEmpty(file.TvAccessToken))
+        {
+            Log("加载本地 token...");
+        }
+        else if (string.IsNullOrEmpty(cliToken) && api == ApiType.App && !string.IsNullOrEmpty(file.AppAccessToken))
+        {
+            Log("加载本地 token...");
+        }
+
+        return result;
+    }
+
+    // CLI 优先，缺失回退本地文件；TV / APP 按 api 类型门控。纯函数以便单测锁定合并优先级
+    internal static (string cookie, string token) Resolve(
+        string? cliCookie, string? cliToken, ApiType api, Credential file)
+    {
         var cookie = cliCookie ?? "";
         var token = cliToken ?? "";
 
-        if (string.IsNullOrEmpty(cookie) && LoadWebCookie(dir) is { Length: > 0 } localCookie)
+        if (string.IsNullOrEmpty(cookie) && (file.Cookie?.Length ?? 0) > 0)
         {
-            Log("加载本地 cookie...");
-            cookie = localCookie;
+            cookie = file.Cookie!;
         }
 
-        if (string.IsNullOrEmpty(token) && api == ApiType.Tv && LoadTvToken(dir) is { Length: > 0 } tvToken)
+        if (string.IsNullOrEmpty(token) && api == ApiType.Tv && (file.TvAccessToken?.Length ?? 0) > 0)
         {
-            Log("加载本地 token...");
-            token = tvToken;
+            token = file.TvAccessToken!;
         }
 
-        if (string.IsNullOrEmpty(token) && api == ApiType.App && LoadAppToken(dir) is { Length: > 0 } appToken)
+        if (string.IsNullOrEmpty(token) && api == ApiType.App && (file.AppAccessToken?.Length ?? 0) > 0)
         {
-            Log("加载本地 token...");
-            token = appToken;
+            token = file.AppAccessToken!;
         }
 
         return (cookie, token);

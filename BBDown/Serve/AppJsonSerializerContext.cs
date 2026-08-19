@@ -15,4 +15,5 @@ namespace BBDown.Serve;
 [JsonSerializable(typeof(List<DownloadTask>))]
 [JsonSerializable(typeof(DownloadTaskSnapshot))]
 [JsonSerializable(typeof(ResourceId))]
+[JsonSerializable(typeof(HealthStatus))]
 public partial class AppJsonSerializerContext : JsonSerializerContext;

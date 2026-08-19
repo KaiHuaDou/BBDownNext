@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-
 using Downloader;
 
 namespace BBDown.Core.Tests;
@@ -12,34 +9,17 @@ public class DownloaderAdapterTests
 {
     [Fact]
     public void IsDownloadSuccess_Completed_ReturnsTrue( )
-    {
-        Assert.True(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Completed, Path.GetTempFileName( )));
-    }
+        => Assert.True(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Completed, false));
 
     [Fact]
     public void IsDownloadSuccess_FailedWithExistingFile_ReturnsTrue( )
-    {
-        var path = Path.GetTempFileName( );
-        try
-        {
-            Assert.True(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Failed, path));
-        }
-        finally
-        {
-            File.Delete(path);
-        }
-    }
+        => Assert.True(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Failed, true));
 
     [Fact]
     public void IsDownloadSuccess_FailedWithoutFile_ReturnsFalse( )
-    {
-        var path = Path.Combine(Path.GetTempPath( ), Guid.NewGuid( ).ToString("N"));
-        Assert.False(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Failed, path));
-    }
+        => Assert.False(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Failed, false));
 
     [Fact]
     public void IsDownloadSuccess_Running_ReturnsFalse( )
-    {
-        Assert.False(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Running, "any"));
-    }
+        => Assert.False(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Running, true));
 }

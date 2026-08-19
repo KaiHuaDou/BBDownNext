@@ -11,7 +11,7 @@
         <File Path="global.json" />
         <File Path="justfile" />
         <File Path="LICENSE" />
-        <File Path="PROTOCOL.json" />
+        <File Path="PROTOCOL.md" />
         <File Path="README.md" />
         <File Path="TODO.md" />
     </Folder>

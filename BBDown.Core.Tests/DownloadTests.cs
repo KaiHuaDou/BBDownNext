@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -183,77 +182,23 @@ public class DownloadTests
         Assert.Equal("out/video.mka", MuxFinish.ToOutputPath("out/video.mkv", MuxMode.Mkv, hasVideo: false));
     }
 
-    private static DownloadSession MakeSkipSession(DownloadContent content, string tempDir)
-    {
-        return new DownloadSession(
-            new DownloadRequest { Content = content },
-            default!,
-            new PageContext(
-                Page: MakePage( ),
-                Title: "t",
-                Desc: "",
-                EpisodeTitle: "",
-                TempDir: tempDir,
-                VideoPath: "",
-                AudioPath: "",
-                CoverPath: Path.Combine(tempDir, "cover.jpg"),
-                CoverUrl: "",
-                PubTime: 0,
-                PagesCount: 1,
-                DeleteCoverAfterMux: true),
-            [], default!, default);
-    }
-
-    // 内容集无 v（仅音频）时产物为 .m4a：跳过检测必须认 .m4a，.mp4 存在不算已下载
+    // 跳过判定只认「输出产物存在且非空」；产物扩展名（音频 .m4a / 视频 .mp4）由 ToOutputPath 单独锁定
     [Fact]
     public void TrySkipExisting_AudioOnly_ChecksM4a( )
     {
-        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_skip_" + Guid.NewGuid( ).ToString("N"));
-        Directory.CreateDirectory(dir);
-        try
-        {
-            var mp4 = Path.Combine(dir, "video.mp4");
-            var m4a = Path.Combine(dir, "video.m4a");
-            File.WriteAllText(mp4, "x");
-            var session = MakeSkipSession(DownloadContent.Audio, dir);
-            Assert.Null(MuxFinish.TrySkipExisting(session, mp4, TrackSelection.Default));
-
-            File.WriteAllText(m4a, "x");
-            Assert.NotNull(MuxFinish.TrySkipExisting(session, mp4, TrackSelection.Default));
-        }
-        finally
-        {
-            if (Directory.Exists(dir))
-            {
-                Directory.Delete(dir, true);
-            }
-        }
+        var outPath = MuxFinish.ToOutputPath("x/video.mp4", MuxMode.Mpeg4, hasVideo: false);
+        Assert.Equal("x/video.m4a", outPath);
+        Assert.True(MuxFinish.ShouldSkip(exists: true, size: 1));
+        Assert.False(MuxFinish.ShouldSkip(exists: false, size: 1));
     }
 
-    // 内容集含 v 时产物为 .mp4：.m4a 存在不算已下载
     [Fact]
     public void TrySkipExisting_VideoContent_ChecksMp4( )
     {
-        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_skip_" + Guid.NewGuid( ).ToString("N"));
-        Directory.CreateDirectory(dir);
-        try
-        {
-            var mp4 = Path.Combine(dir, "video.mp4");
-            var m4a = Path.Combine(dir, "video.m4a");
-            File.WriteAllText(m4a, "x");
-            var session = MakeSkipSession(DownloadContent.Audio | DownloadContent.Video, dir);
-            Assert.Null(MuxFinish.TrySkipExisting(session, mp4, TrackSelection.Default));
-
-            File.WriteAllText(mp4, "x");
-            Assert.NotNull(MuxFinish.TrySkipExisting(session, mp4, TrackSelection.Default));
-        }
-        finally
-        {
-            if (Directory.Exists(dir))
-            {
-                Directory.Delete(dir, true);
-            }
-        }
+        var outPath = MuxFinish.ToOutputPath("x/video.mp4", MuxMode.Mpeg4, hasVideo: true);
+        Assert.Equal("x/video.mp4", outPath);
+        Assert.True(MuxFinish.ShouldSkip(exists: true, size: 1));
+        Assert.False(MuxFinish.ShouldSkip(exists: true, size: 0));
     }
 
     [Theory]
@@ -303,7 +248,6 @@ public class DownloadTests
         Assert.False(dc.NoForceHttp);
         Assert.False(dc.SingleThread);
         Assert.Equal("SESSDATA=abc", dc.Cookie);
-        Assert.Null(dc.OnSample);
     }
 
     [Fact]

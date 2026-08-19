@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BBDown.Core.Download;
 using BBDown.Core.Entity;
 using BBDown.Core.Mux;
+using BBDown.Core.Workflow;
 
 using static BBDown.Core.Download.DownloadUtil;
 using static BBDown.Core.Logger;
@@ -146,66 +147,61 @@ public static class DashDownload
         var hasAudio = selectedAudio != null;
         var hasBackgroundAudio = selectedBackgroundAudio != null;
         var hasRoleAudio = parsedResult.RoleAudioList.Count != 0;
+        var backgroundPath = "";
+        List<AudioMaterial> audioMaterial = [];
+        // 主媒体下载窗口：只有音视频轨下载时进度条才显示（阶段内采样经 ProgressBus 上报）
         if (hasVideo || hasAudio || hasBackgroundAudio || hasRoleAudio)
         {
-            sink.Downloading?.Invoke(true);
-        }
-
-        if (hasVideo)
-        {
-            // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
-            if (selectedVideo!.Id == Config.DolbyVisionQn && mux == MuxMode.Mpeg4 && !await ChapterMeta.CheckFFmpegDOVIAsync(ctx.Run.Tools, ct))
+            using var stage = ProgressBus.BeginStage("下载");
+            if (hasVideo)
             {
-                LogWarn("您的 FFmpeg 版本小于 5.0，杜比视界将使用 MP4Box 混流...");
-                mux = MuxMode.Mp4box;
-            }
-
-            Log($"开始下载 P{p.Index} 视频...");
-            await DownloadAsync(selectedVideo!.BaseUrl, videoPath, downloadConfig, ct: ct);
-        }
-
-        if (hasAudio)
-        {
-            Log($"开始下载 P{p.Index} 音频...");
-            await DownloadAsync(selectedAudio!.BaseUrl, audioPath, downloadConfig, ct: ct);
-        }
-
-        var backgroundPath = "";
-        if (hasBackgroundAudio)
-        {
-            backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.{p.Cid}.P{p.Index}.back_ground.m4a");
-            Log($"开始下载 P{p.Index} 背景配音...");
-            await DownloadAsync(selectedBackgroundAudio!.BaseUrl, backgroundPath, downloadConfig, ct: ct);
-        }
-
-        List<AudioMaterial> audioMaterial = [];
-        if (hasBackgroundAudio)
-        {
-            audioMaterial.Add(new AudioMaterial { Title = "背景音频", PersonName = "", Path = backgroundPath });
-        }
-
-        if (hasRoleAudio)
-        {
-            foreach (var role in parsedResult.RoleAudioList)
-            {
-                // 配音流数可能少于主音频，序号越界时跳过该角色的配音
-                var roleAudio = role.Audio.ElementAtOrDefault(aIndex);
-                if (roleAudio == null)
+                // 杜比视界 (id=126), 若 FFmpeg 版本小于 5.0, 使用 mp4box 封装
+                if (selectedVideo!.Id == Config.DolbyVisionQn && mux == MuxMode.Mpeg4 && !await ChapterMeta.CheckFFmpegDOVIAsync(ctx.Run.Tools, ct))
                 {
-                    LogWarn($"P{p.Index} 配音 [{role.Title}] 没有序号 {aIndex} 的音频流，已跳过");
-                    continue;
+                    LogWarn("您的 FFmpeg 版本小于 5.0，杜比视界将使用 MP4Box 混流...");
+                    mux = MuxMode.Mp4box;
                 }
 
-                role.Path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.Path));
-                Log($"开始下载 P{p.Index} 配音 [{role.Title}]...");
-                await DownloadAsync(roleAudio.BaseUrl, role.Path, downloadConfig, ct: ct);
-                audioMaterial.Add(new AudioMaterial { Title = role.Title, PersonName = role.PersonName, Path = role.Path });
+                Log($"开始下载 P{p.Index} 视频...");
+                await DownloadAsync(selectedVideo!.BaseUrl, videoPath, downloadConfig, ct: ct);
             }
-        }
 
-        if (hasVideo || hasAudio || hasBackgroundAudio || hasRoleAudio)
-        {
-            sink.Downloading?.Invoke(false);
+            if (hasAudio)
+            {
+                Log($"开始下载 P{p.Index} 音频...");
+                await DownloadAsync(selectedAudio!.BaseUrl, audioPath, downloadConfig, ct: ct);
+            }
+
+            if (hasBackgroundAudio)
+            {
+                backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.{p.Cid}.P{p.Index}.back_ground.m4a");
+                Log($"开始下载 P{p.Index} 背景配音...");
+                await DownloadAsync(selectedBackgroundAudio!.BaseUrl, backgroundPath, downloadConfig, ct: ct);
+            }
+
+            if (hasBackgroundAudio)
+            {
+                audioMaterial.Add(new AudioMaterial { Title = "背景音频", PersonName = "", Path = backgroundPath });
+            }
+
+            if (hasRoleAudio)
+            {
+                foreach (var role in parsedResult.RoleAudioList)
+                {
+                    // 配音流数可能少于主音频，序号越界时跳过该角色的配音
+                    var roleAudio = role.Audio.ElementAtOrDefault(aIndex);
+                    if (roleAudio == null)
+                    {
+                        LogWarn($"P{p.Index} 配音 [{role.Title}] 没有序号 {aIndex} 的音频流，已跳过");
+                        continue;
+                    }
+
+                    role.Path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.Path));
+                    Log($"开始下载 P{p.Index} 配音 [{role.Title}]...");
+                    await DownloadAsync(roleAudio.BaseUrl, role.Path, downloadConfig, ct: ct);
+                    audioMaterial.Add(new AudioMaterial { Title = role.Title, PersonName = role.PersonName, Path = role.Path });
+                }
+            }
         }
 
         Log($"P{p.Index} 下载完成");

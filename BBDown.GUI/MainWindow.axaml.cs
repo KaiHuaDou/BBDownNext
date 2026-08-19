@@ -18,6 +18,8 @@ using Avalonia.Threading;
 using BBDown.Core;
 using BBDown.Core.Download;
 using BBDown.Core.Live;
+using BBDown.Core.Logging;
+using BBDown.Core.Workflow;
 using BBDown.Core.Pipeline;
 using BBDown.Core.Util;
 
@@ -35,9 +37,6 @@ public partial class MainWindow : Window
 
     // 窗口非最小化时的最近边界，最小化状态下关闭时回退到该值
     private double lastLeft, lastTop, lastWidth = 1120, lastHeight = 820;
-
-    // 当前任务序号（异步流内传播），日志区据此加 [任务 N] 前缀；0 表示非任务日志
-    private static readonly AsyncLocal<int> currentTask = new( );
 
     public MainWindow( )
     {
@@ -58,17 +57,10 @@ public partial class MainWindow : Window
 
         MuxBox.SelectedIndex = 0;
 
-        // 下载核心的日志直接进窗口日志区（替代原解析子进程 stdout），按级别着色
-        Logger.Output = (level, text) =>
-        {
-            var index = currentTask.Value;
-            var line = index > 0 ? $"[任务{index}] {text}" : text;
-            var isError = level == LogLevel.Error;
-            if (!closed)
-            {
-                Dispatcher.UIThread.Post(( ) => AppendLog(line.TrimEnd('\n'), isError));
-            }
-        };
+        // 下载核心的日志直接进窗口日志区（替代原解析子进程 stdout），按级别着色；Scope 标注任务序号
+        MessageBus.Subscribe(OnLogMessage);
+        // 下载进度样本按 Scope（任务序号）回投到对应任务行
+        ProgressBus.Subscribe(OnProgress);
 
         queue = new QueueRunner(Dispatch);
         queue.Changed += OnQueueChanged;
@@ -86,8 +78,36 @@ public partial class MainWindow : Window
         DragDrop.AddDropHandler(this, WindowDrop);
     }
 
+    // 日志区渲染：MessageBus 消息按 Scope（任务序号）加前缀，Error 级标红；窗口关闭后退订
+    private void OnLogMessage(LogMessage message)
+    {
+        var line = message.Scope is { } scope ? $"[任务{scope}] {message.Text}" : message.Text;
+        var isError = message.Level == LogLevel.Error;
+        if (!closed)
+        {
+            Dispatcher.UIThread.Post(( ) => AppendLog(line.TrimEnd('\n'), isError));
+        }
+    }
+
+    // 进度样本回投任务行：按 Scope（任务序号）定位任务状态，UI 线程更新
+    private void OnProgress(WorkflowEvent evt)
+    {
+        if (evt is not ProgressSampleEvent sample)
+        {
+            return;
+        }
+
+        var state = tasks.FirstOrDefault(t => t.Index.ToString( ) == sample.Scope);
+        if (state is not null)
+        {
+            SetTaskSample(state, sample.Ratio, sample.Speed);
+        }
+    }
+
     private void WindowClosed(object? o, EventArgs e)
     {
+        MessageBus.Unsubscribe(OnLogMessage);
+        ProgressBus.Unsubscribe(OnProgress);
         closed = true;
         queue.CancelRunning( );
         try
@@ -314,8 +334,8 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Invoke(action);
     }
 
-    /// <summary>后台采样线程回投进度与速度 / 剩余时间到 UI 线程。</summary>
-    private void SetTaskSample(TaskState state, double ratio, long delta)
+    /// <summary>进度总线采样回投进度与速度 / 剩余时间到 UI 线程（speed 由链路折算为每秒速率）。</summary>
+    private void SetTaskSample(TaskState state, double ratio, double speed)
     {
         if (closed)
         {
@@ -339,8 +359,8 @@ public partial class MainWindow : Window
 
             state.lastRatio = ratio;
 
-            // 采样周期 200 毫秒，delta 为本周期新增字节数，折算成每秒速率
-            var detail = delta > 0 ? Utils.FormatSpeed(delta, ProgressSampler.SampleInterval.TotalSeconds) : "";
+            // speed 为链路折算的每秒速率
+            var detail = speed > 0 ? Utils.FormatSpeed((long) speed, 1) : "";
             if (Utils.FormatEta(ratio, now - state.etaStart) is { } eta)
             {
                 detail = detail.Length == 0 ? $"剩余 {eta}" : $"{detail} · 剩余 {eta}";
@@ -352,7 +372,7 @@ public partial class MainWindow : Window
 
     private async Task<int> ExecuteTaskAsync(TaskState state, CancellationToken token)
     {
-        // 调度循环在后台线程执行；日志经 Logger.Output 转发，AsyncLocal 为其标注任务序号
+        // 调度循环在后台线程执行；日志经 MessageBus 转发，BeginScope 标注任务序号供日志区加 [任务 N] 前缀
         // 后处理路径已随 TaskParams 落入 DownloadRequest（PostProcessPath），按任务生效，无需进程级配置
         var req = state.Params.ToDownloadRequest(state.Url);
         // 调试日志是进程级开关（Config.DebugLog）：任一任务要求调试即开启，且只开不关，避免并发任务互相关闭
@@ -361,30 +381,29 @@ public partial class MainWindow : Window
             Config.SetDebugLog(true);
         }
 
-        currentTask.Value = state.Index;
-        try
+        using (MessageBus.BeginScope(state.Index.ToString( )))
         {
-            switch (state.Kind)
+            try
             {
-                case TaskKind.Opus:
-                    await OpusDownload.RunAsync(req, token);
-                    break;
-                case TaskKind.Live:
-                    if (!LiveInputResolver.TryParse(state.Url, out var live))
-                    {
-                        throw new InvalidOperationException("直播地址解析失败");
-                    }
-
-                    await LiveDownload.RunAsync(req, live, token);
-                    break;
-                default:
+                switch (state.Kind)
                 {
-                    var sink = new PipelineSink(
+                    case TaskKind.Opus:
+                        await OpusDownload.RunAsync(req, token);
+                        break;
+                    case TaskKind.Live:
+                        if (!LiveInputResolver.TryParse(state.Url, out var live))
+                        {
+                            throw new InvalidOperationException("直播地址解析失败");
+                        }
+
+                        await LiveDownload.RunAsync(req, live, token);
+                        break;
+                    default:
+                    {
+                        var sink = new PipelineSink(
                         Meta: info => SetTaskTitle(state, info.Title),
-                        Saved: path => AppendProcessLog(state.Index, $"已保存：{path}", false),
-                        Sample: (ratio, delta) => SetTaskSample(state, ratio, delta),
-                        Downloading: null);
-                    await DownloadPipeline.RunAsync(req, sink, token);
+                        Saved: path => AppendProcessLog(state.Index, $"已保存：{path}", false));
+                    await DownloadPipeline.RunAsync(req, sink, null, token);
                     break;
                 }
             }
@@ -401,9 +420,6 @@ public partial class MainWindow : Window
             AppendProcessLog(state.Index, $"失败：{e.Message}", true);
             return 1;
         }
-        finally
-        {
-            currentTask.Value = 0;
         }
     }
 

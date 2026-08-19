@@ -21,6 +21,9 @@ public static class MuxFinish
         MuxMode Mux,
         bool IsHevc);
 
+    // 输出产物已存在且非空即可跳过：存在性与尺寸的纯判定，与 ToOutputPath 的扩展名映射解耦以便单测
+    internal static bool ShouldSkip(bool exists, long size) => exists && size > 0;
+
     /// <summary>
     /// 目标文件已存在且非空时登记路径、清掉临时产物并返回中止结果；需要下载则返回 null。
     /// 产物扩展名随混流方式修正（mkv 视频 .mkv / 纯音频 .mka，其余 .mp4 / .m4a），
@@ -30,7 +33,8 @@ public static class MuxFinish
     {
         savePath = ToOutputPath(savePath, session.Options.Mux, session.Options.Content.Has(DownloadContent.Video));
 
-        if (!File.Exists(savePath) || new FileInfo(savePath).Length == 0)
+        var exists = File.Exists(savePath);
+        if (!exists || !ShouldSkip(exists, new FileInfo(savePath).Length))
         {
             return null;
         }

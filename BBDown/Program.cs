@@ -59,6 +59,8 @@ internal sealed class Program
     public static async Task<int> Main(params string[] args)
     {
         Console.CancelKeyPress += Console_CancelKeyPress;
+        // 业务消息渲染（CLI 展示）：Core 只产生消息，本渲染器决定控制台如何展示
+        using var messageRenderer = new ConsoleMessageRenderer( );
 
         var rootCommand = CommandLineInvoker.GetRootCommand(RunApp);
         rootCommand.Description = "BBDown 是一个哔哩哔哩视频下载 / 解析命令行工具。";
@@ -168,6 +170,10 @@ internal sealed class Program
             {
                 Description = "同时下载的任务数上限，默认 0 表示不限制；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队，单个任务内部的下载并行度由多线程下载器自行决定",
                 DefaultValueFactory = _ => 0,
+            },
+            new Option<bool>("--interactive")
+            {
+                Description = "开启任务事件流（WebSocket /hubs/tasks 推送消息 / 进度 / 选项请求）。默认关闭，此时任务不产生事件流，无额外开销"
             }
         };
         command.SetAction(result => StartServer(new ServeConfig(
@@ -178,7 +184,8 @@ internal sealed class Program
             result.GetValue<string>("--ep-host"),
             result.GetValue<string>("--tv-host"),
             result.GetValue<string>("--cors-origin"),
-            result.GetValue<int>("--max-concurrent"))));
+            result.GetValue<int>("--max-concurrent"),
+            result.GetValue<bool>("--interactive"))));
         return command;
     }
 
@@ -262,7 +269,7 @@ internal sealed class Program
             }
 
             using var progressBar = new ProgressBar(AppEnv.CancellationToken);
-            await DownloadPipeline.RunAsync(myOption, new PipelineSink(null, null, progressBar.OnSample, progressBar.SetDownloading), AppEnv.CancellationToken);
+            await DownloadPipeline.RunAsync(myOption, new PipelineSink(null, null), null, AppEnv.CancellationToken);
             return 0;
         }
         catch (Exception e)
@@ -307,11 +314,11 @@ internal sealed class Program
 
     private static void StartServer(ServeConfig config)
     {
-        const string DefaultListenUrl = "http://127.0.0.1:23333";
+        // 渲染器已由 Main 顶层装配并覆盖 serve 生命周期，此处不再创建，避免双订阅导致日志双打印
         var server = new BBDownApiServer( );
-        server.SetUpServer(config.WorkDir, serveToken: config.ServeToken, host: config.Host, epHost: config.EpHost, tvHost: config.TvHost, corsOrigin: config.CorsOrigin, maxConcurrent: config.MaxConcurrent);
+        server.SetUpServer(config);
 #pragma warning disable CA2234 // 保留 Run(string) 内的 URL 合法性校验与友好退出
-        server.Run(string.IsNullOrEmpty(config.ListenUrl) ? DefaultListenUrl : config.ListenUrl);
+        server.Run(string.IsNullOrEmpty(config.ListenUrl) ? BBDownApiServer.DefaultListenUrl : config.ListenUrl);
 #pragma warning restore CA2234
     }
 }

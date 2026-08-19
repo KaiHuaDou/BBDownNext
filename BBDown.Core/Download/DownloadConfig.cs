@@ -1,5 +1,3 @@
-using System;
-
 namespace BBDown.Core.Download;
 
 public sealed class DownloadConfig
@@ -10,8 +8,6 @@ public sealed class DownloadConfig
     public bool SingleThread { get; set; }
     // aria2c 可执行文件路径（来自 ToolPaths 快照），避免用进程级可变静态字段
     public string? Aria2cPath { get; set; }
-    // 进度采样回调（ratio, bytesDelta）。下载层不认识 serve 的任务模型，只回吐数字
-    public Action<double, long>? OnSample { get; set; }
     public string Cookie { get; set; } = string.Empty;
     // downloader 并行连接数；FLV 多片段并行时由调用方下调（片段间并行 × 片段内并行合计不超过上限）
     public int ParallelCount { get; set; } = DownloaderAdapter.MaxRangeConcurrency;

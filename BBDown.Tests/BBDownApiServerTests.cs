@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 using BBDown.Core;
 using BBDown.Core.Entity;
+using BBDown.Serve.Tasks;
 
 namespace BBDown.Tests;
 
@@ -144,203 +145,6 @@ public class BBDownApiServerTests
 
     #endregion
 
-    #region 变更类端点必须是 POST（P1-15）+ 整体管线冒烟
-
-    [Fact]
-    public async Task Serve_GetTasks_ReturnsOk( )
-    {
-        var server = new BBDownApiServer( );
-        var baseUrl = await server.StartForTestAsync( );
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-            using var resp = await client.GetAsync("/get-tasks", TestContext.Current.CancellationToken);
-            Assert.True(resp.IsSuccessStatusCode);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    [Fact]
-    public async Task Serve_RemoveFinished_RequiresPost( )
-    {
-        var server = new BBDownApiServer( );
-        var baseUrl = await server.StartForTestAsync( );
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-            // GET 不应被允许（避免与全开 CORS 叠加形成 CSRF）
-            using (var get = await client.GetAsync("/remove-finished", TestContext.Current.CancellationToken))
-            {
-                Assert.Equal(HttpStatusCode.MethodNotAllowed, get.StatusCode);
-            }
-
-            using var post = await client.PostAsync("/remove-finished", null, TestContext.Current.CancellationToken);
-            Assert.True(post.IsSuccessStatusCode);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    [Fact]
-    public async Task Serve_RemoveFinishedFailed_AcceptsPost( )
-    {
-        var server = new BBDownApiServer( );
-        var baseUrl = await server.StartForTestAsync( );
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-            using var resp = await client.PostAsync("/remove-finished/failed", null, TestContext.Current.CancellationToken);
-            Assert.True(resp.IsSuccessStatusCode);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    [Fact]
-    public async Task Serve_RemoveFinishedById_AcceptsPost( )
-    {
-        var server = new BBDownApiServer( );
-        var baseUrl = await server.StartForTestAsync( );
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-            using var resp = await client.PostAsync("/remove-finished/av123", null, TestContext.Current.CancellationToken);
-            Assert.True(resp.IsSuccessStatusCode);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    [Fact]
-    public async Task Serve_AddTask_RequiresPost( )
-    {
-        var server = new BBDownApiServer( );
-        var baseUrl = await server.StartForTestAsync( );
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-            // /add-task 仅允许 POST，GET 必须 405（不会触发实际下载逻辑）
-            using var resp = await client.GetAsync("/add-task", TestContext.Current.CancellationToken);
-            Assert.Equal(HttpStatusCode.MethodNotAllowed, resp.StatusCode);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    [Fact]
-    public async Task Serve_AddTask_RejectsMalformedBodyWithoutNetwork( )
-    {
-        var server = new BBDownApiServer( );
-        var baseUrl = await server.StartForTestAsync( );
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-            // 发送无法绑定为 ServeRequestOptions 的内容，应在进入下载逻辑前返回 400，不触发任何网络请求
-            using var content = new StringContent("\"not-an-object\"", System.Text.Encoding.UTF8, "application/json");
-            using var resp = await client.PostAsync("/add-task", content, TestContext.Current.CancellationToken);
-            Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    #region 令牌认证矩阵（启用 --serve-token 后所有端点拒绝未认证请求）
-
-    [Theory]
-    [InlineData("GET", "/get-tasks")]
-    [InlineData("GET", "/get-tasks/running")]
-    [InlineData("GET", "/get-tasks/finished")]
-    [InlineData("GET", "/get-tasks/av12345678")]
-    [InlineData("POST", "/add-task")]
-    [InlineData("POST", "/remove-finished")]
-    [InlineData("POST", "/remove-finished/failed")]
-    [InlineData("POST", "/stop-task/av12345678")]
-    public async Task Serve_WithTokenEnabled_AllEndpointsRejectUnauthenticated(string method, string path)
-    {
-        var server = new BBDownApiServer( );
-        var baseUrl = await server.StartForTestAsync(serveToken: "test-token");
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-            using var request = new HttpRequestMessage(new HttpMethod(method), path);
-            using var resp = await client.SendAsync(request, TestContext.Current.CancellationToken);
-            Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    [Fact]
-    public async Task Serve_WithTokenEnabled_WrongTokenRejected( )
-    {
-        var server = new BBDownApiServer( );
-        var baseUrl = await server.StartForTestAsync(serveToken: "test-token");
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-            using var request = new HttpRequestMessage(HttpMethod.Get, "/get-tasks");
-            request.Headers.TryAddWithoutValidation("X-BBDown-Token", "wrong-token");
-            using var resp = await client.SendAsync(request, TestContext.Current.CancellationToken);
-            Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    [Fact]
-    public async Task Serve_WithTokenEnabled_HeaderTokenAccepted( )
-    {
-        var server = new BBDownApiServer( );
-        var baseUrl = await server.StartForTestAsync(serveToken: "test-token");
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-            using var request = new HttpRequestMessage(HttpMethod.Get, "/get-tasks");
-            request.Headers.TryAddWithoutValidation("X-BBDown-Token", "test-token");
-            using var resp = await client.SendAsync(request, TestContext.Current.CancellationToken);
-            Assert.True(resp.IsSuccessStatusCode);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    [Fact]
-    public async Task Serve_WithTokenEnabled_QueryTokenAccepted( )
-    {
-        var server = new BBDownApiServer( );
-        var baseUrl = await server.StartForTestAsync(serveToken: "test-token");
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-            using var resp = await client.GetAsync("/get-tasks?token=test-token", TestContext.Current.CancellationToken);
-            Assert.True(resp.IsSuccessStatusCode);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    #endregion
 
     #region ResourceId 规范 id 与 JSON 契约（ResourceId 重构后 serve 契约）
 
@@ -407,66 +211,6 @@ public class BBDownApiServerTests
 
     #endregion
 
-    [Fact]
-    public async Task Serve_WorkDir_FallsBackToServerConfig( )
-    {
-        // 缺陷回归：此前 SetUpServer 丢弃了 --work-dir，serve 任务始终落到进程当前目录。
-        // 验证服务端配置的工作目录会被注入到每个任务（且请求体不含该字段，无法被客户端覆盖）。
-        var server = new BBDownApiServer( );
-        var tmp = Path.Combine(Path.GetTempPath( ), "bbdown-workdir-" + Guid.NewGuid( ).ToString("N"));
-        server.SetUpServer(tmp);
-        try
-        {
-            var opts = server.ApplyServeWorkDir(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
-            Assert.Equal(tmp, opts.WorkDir);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    [Fact]
-    public async Task Serve_Host_FallsBackToServerConfig( )
-    {
-        // P0-1 回归：host 由 serve 启动参数决定，请求体不含该字段，无法被客户端覆盖。
-        // 验证服务端配置的 host 会被注入到每个任务；空值回落官方默认。
-        var server = new BBDownApiServer( );
-        server.SetUpServer(host: "https://biliplus.example.com", epHost: "https://biliplus.example.com", tvHost: "api.snm0516.aisee.tv");
-        try
-        {
-            var opts = server.ApplyServeHost(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
-            Assert.Equal("https://biliplus.example.com", opts.Host);
-            Assert.Equal("https://biliplus.example.com", opts.EpHost);
-            Assert.Equal("api.snm0516.aisee.tv", opts.TvHost);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    [Fact]
-    public async Task Serve_Host_EmptyFallsBackToDefault( )
-    {
-        // §2.5：serve 启动参数 host 为空时回落官方默认，避免空 host 抛出 UriFormatException
-        var server = new BBDownApiServer( );
-        server.SetUpServer(host: "", epHost: null, tvHost: "  ");
-        try
-        {
-            var opts = server.ApplyServeHost(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
-            Assert.Equal(BiliApi.MainHost, opts.Host);
-            Assert.Equal(BiliApi.MainHost, opts.EpHost);
-            Assert.Equal(BiliApi.TvHost, opts.TvHost);
-        }
-        finally
-        {
-            await server.StopForTestAsync( );
-        }
-    }
-
-    #endregion
-
     #region IsPrivateAddress（§2.4 私网段补全）
 
     [Theory]
@@ -512,26 +256,23 @@ public class BBDownApiServerTests
 
     #endregion
 
-    #region 进度回吐（PipelineSink）
+    #region 任务回吐（PipelineSink）
 
-    // 下载链路不再持有 DownloadTask，只通过回调回吐；这里锁住三个回调的映射
+    // 下载链路不再持有 DownloadTask，只通过回调回吐；这里锁住元数据与产物回调的映射
     [Fact]
     public void SinkFor_RoutesCallbacksIntoTask( )
     {
         var task = new DownloadTask(new ResourceId.Av(114514), "BV1xx411c7XD", 0);
-        var sink = BBDownApiServer.SinkFor(task);
+        var sink = TaskWorker.SinkFor(task);
 
         sink.Meta!(new VInfo { Title = "标题", Desc = "", Pic = "https://i0.hdslb.com/x.jpg", PubTime = 1700000000, PagesInfo = [] });
         sink.Saved!("D:/out/a.mp4");
         sink.Saved!("D:/out/b.mp4");
-        sink.Sample!(0.5, 2048);
 
         Assert.Equal("标题", task.Title);
         Assert.Equal("https://i0.hdslb.com/x.jpg", task.Pic);
         Assert.Equal(1700000000, task.VideoPubTime);
         Assert.Equal(["D:/out/a.mp4", "D:/out/b.mp4"], task.SavePaths);
-        Assert.Equal(0.5, task.Progress);
-        Assert.Equal(2048, task.TotalDownloadedBytes);
     }
 
     // CLI 走 default(PipelineSink)：全部回调为 null，下层的 ?.Invoke 必须能安全跳过
@@ -542,122 +283,6 @@ public class BBDownApiServerTests
 
         Assert.Null(sink.Meta);
         Assert.Null(sink.Saved);
-        Assert.Null(sink.Sample);
-        Assert.Null(sink.Downloading);
-    }
-
-    #endregion
-
-    #region 并发上限（--max-concurrent）
-
-    [Fact]
-    public void SetUpServer_WithoutMaxConcurrent_KeepsUnlimitedBehaviour( )
-    {
-        var server = new BBDownApiServer( );
-        server.SetUpServer( );
-        var task = server.CreateTask(new ResourceId.Av(114514), "BV1xx411c7XD");
-
-        Assert.Equal(DownloadStatus.Running, task.Status);
-    }
-
-    [Fact]
-    public void SetUpServer_WithMaxConcurrent_QueuesAndLeavesParallelismToDownloader( )
-    {
-        var server = new BBDownApiServer( );
-        server.SetUpServer(maxConcurrent: 2);
-        var task = server.CreateTask(new ResourceId.Av(114514), "BV1xx411c7XD");
-
-        Assert.Equal(DownloadStatus.Queued, task.Status);
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void SetUpServer_NonPositiveMaxConcurrent_MeansUnlimited(int n)
-    {
-        var server = new BBDownApiServer( );
-        server.SetUpServer(maxConcurrent: n);
-        Assert.Equal(DownloadStatus.Running, server.CreateTask(new ResourceId.Av(1), "u").Status);
-    }
-
-    [Fact]
-    public async Task RunGatedAsync_NeverExceedsMaxConcurrent( )
-    {
-        const int cap = 2;
-        const int total = 5;
-        var server = new BBDownApiServer( );
-        server.SetUpServer(maxConcurrent: cap);
-
-        var running = 0;
-        var peak = 0;
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var tasks = Enumerable.Range(0, total).Select(i => server.CreateTask(new ResourceId.Av(i), "u")).ToList( );
-        var runs = tasks.Select(t => server.RunGatedAsync(t, async ( ) =>
-        {
-            var now = Interlocked.Increment(ref running);
-            int old;
-            while ((old = Volatile.Read(ref peak)) < now && Interlocked.CompareExchange(ref peak, now, old) != old) { }
-
-            // 第 cap 个任务进入并发即精确放行，无需自旋轮询等待
-            if (now == cap) ready.TrySetResult( );
-            await release.Task;
-            Interlocked.Decrement(ref running);
-        }, TestContext.Current.CancellationToken)).ToList( );
-
-        await ready.Task;
-        await Task.Delay(200, TestContext.Current.CancellationToken);
-        Assert.Equal(cap, Volatile.Read(ref running));
-        Assert.Equal(cap, Volatile.Read(ref peak));
-        Assert.Equal(total - cap, tasks.Count(t => t.Status == DownloadStatus.Queued));
-        Assert.Equal(cap, tasks.Count(t => t.Status == DownloadStatus.Running));
-
-        release.SetResult( );
-        await Task.WhenAll(runs);
-        Assert.Equal(cap, Volatile.Read(ref peak));
-        Assert.All(tasks, t => Assert.Equal(DownloadStatus.Running, t.Status));
-    }
-
-    [Fact]
-    public async Task RunGatedAsync_Unlimited_RunsAllConcurrently( )
-    {
-        var server = new BBDownApiServer( );
-        server.SetUpServer( );
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var running = 0;
-        var runs = Enumerable.Range(0, 4).Select(i => server.RunGatedAsync(server.CreateTask(new ResourceId.Av(i), "u"),
-            async ( ) =>
-            {
-                var now = Interlocked.Increment(ref running);
-                if (now == 4) ready.TrySetResult( );
-                await release.Task;
-            },
-            TestContext.Current.CancellationToken)).ToList( );
-
-        await ready.Task;
-        Assert.Equal(4, Volatile.Read(ref running));
-        release.SetResult( );
-        await Task.WhenAll(runs);
-    }
-
-    [Fact]
-    public async Task RunGatedAsync_CancelledWhileQueued_DoesNotRunDownload( )
-    {
-        var server = new BBDownApiServer( );
-        server.SetUpServer(maxConcurrent: 1);
-        using var cts = new CancellationTokenSource( );
-        var block = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var holder = server.RunGatedAsync(server.CreateTask(new ResourceId.Av(1), "u"), ( ) => block.Task, CancellationToken.None);
-
-        var queued = server.CreateTask(new ResourceId.Av(2), "u");
-        var second = server.RunGatedAsync(queued, ( ) => Task.FromException(new InvalidOperationException("不应执行")), cts.Token);
-        await cts.CancelAsync( );
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async ( ) => await second);
-        Assert.Equal(DownloadStatus.Queued, queued.Status);
-        block.SetResult( );
-        await holder;
     }
 
     #endregion

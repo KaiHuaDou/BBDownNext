@@ -57,10 +57,15 @@ public static partial class Utils
     /// </summary>
     public static string? FindExecutable(params string[] names)
     {
-        var fileExt = OperatingSystem.IsWindows( ) ? ".exe" : "";
         var envPath = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? [];
-        return new[] { AppEnv.AppDir }.Concat(envPath)
-            .Where(dir => !string.IsNullOrWhiteSpace(dir))
+        return FindExecutableIn(new[] { AppEnv.AppDir }.Concat(envPath), names);
+    }
+
+    // 在指定目录序列中找第一个存在且可执行的文件；目录序列由调用方决定，纯函数便于单测
+    internal static string? FindExecutableIn(IEnumerable<string> dirs, params string[] names)
+    {
+        var fileExt = OperatingSystem.IsWindows( ) ? ".exe" : "";
+        return dirs.Where(dir => !string.IsNullOrWhiteSpace(dir))
             .SelectMany(dir => names.Select(name => Path.Combine(dir, name + fileExt)))
             .Where(path => File.Exists(path) && HasExecutableBit(path))
             .FirstOrDefault( );
