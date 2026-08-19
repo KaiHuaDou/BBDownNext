@@ -32,6 +32,12 @@
 - 修复 serve 并发问题：重复提交同资源时释放新建任务的取消令牌避免泄漏；FLV 多片段并行采样时下载字节累计改用原子操作，避免进度丢失。
 - 修复 GUI 队列调度提前退出：无运行任务但仍有等待任务时继续调度，不再误 break。
 - 修复 README 选项对照错误：`--full-comment` 对应 `-w O`（原误写为 `-g O`）。
+- aria2c 6h 进程级兜底超时：防止子进程僵死长期占住并发槽，硬超时触发时杀进程并抛 `TimeoutException`，与用户取消（调用方 `ct`）区分语义。
+- 加固 gRPC POST 容错：`GetPostResponseAsync` 改为最多 3 次指数退避重试，仅对 `PlayView` / 弹幕视图等幂等只读查询生效；HttpClient 超时与 5xx 触发重试，非用户取消不再静默挂起。
+- player.so 异常返回降级：风控页 / 网络异常返回 HTML 而非 XML 时，`LoadXml` 抛 `XmlException` 被包成可读错误（可能触发风控），不再裸异常冒泡。
+- 调试日志凭据脱敏：`AppHelper` 的 App 端 gRPC 请求头经 `Redactor.Headers` 打码，authorization 等凭据不再明文进日志。
+- 文件名安全兜底：`GetValidFileName` 对纯点 / 空格串裁剪后为空时回退为 `_`，避免空文件名或以点结尾的非法产物。
+- Unix 可执行位校验：`FindExecutable` 在 Unix 上仅选择任意执行位置位的文件，避免 PATH 中同名但不可执行的文件被误选。
 
 ### 变更
 
@@ -175,7 +181,7 @@
 - 稍后再看列表下载：输入 `https://www.bilibili.com/watchlater/`、`https://www.bilibili.com/watchlater/#/list`、`https://www.bilibili.com/list/watchlater` 等地址时，把整个稍后再看列表按添加顺序当作一个大列表下载，多 P 视频自动展开分 P，支持 `-p` / `-iap`；接口私有，需要登录 Cookie（未登录时提示通过 `--cookie` 或配置文件提供 SESSDATA）。分享链接携带 `bvid` / `oid` 参数时只下载该单个视频（`bvid` 优先，本地解码）。
 - 交互式逐集选择分 P：新增 `--interactive-pages` / `-iap`，下载前列出全部分 P 逐个确认是否下载（`[y]` 要，`[n]` 不要，`[a]` 剩余全部要，`[q]` 剩余全部不要，直接回车表示不要）；与 `--pages` 同时给出时以交互选择为准。
 - Web 登录成功后自动校验凭据并打印账号名（best-effort，校验失败仅告警，不阻断登录）。
-- Windows 7 兼容：`win-x64` 产物接入 YY-Thunks 与 VC-LTL（构建时 `-p:WindowsWin7Compat=true`），可在 Windows 7 上直接运行，无需安装 .NET 运行时；Windows 7 用户需先安装 [KB3140245](https://support.microsoft.com/help/3140245)（TLS 1.1 / 1.2 支持）。
+- Windows 7 兼容：`win-x64` 产物接入 YY-Thunks 与 VC-LTL（构建时 `-p:Win7Compatitable=true`），可在 Windows 7 上直接运行，无需安装 .NET 运行时；Windows 7 用户需先安装 [KB3140245](https://support.microsoft.com/help/3140245)（TLS 1.1 / 1.2 支持）。
 - 纯图文动态导出：`opus` 子命令现支持非专栏的图文动态（`item.type == 0`），按其 `MODULE_TYPE_CONTENT` 正文导出 Markdown（此前会误判为专栏导致下载失败）。
 - 顶部相册下载：专栏 / 图文动态的顶部相册（opus/detail 的 `MODULE_TYPE_TOP` 模块，前端样式 `.opus-module-top__album`）图片随正文一并下载，并置于 Markdown 文档最前。
 

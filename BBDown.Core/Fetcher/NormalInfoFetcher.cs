@@ -69,7 +69,16 @@ public static partial class NormalInfoFetcher
             var playerSoApi = $"{BiliApi.PlayerSo}?bvid={bvid}&id=cid:{cid}";
             var playerSoText = await GetWebSourceAsync(playerSoApi, cfg, null, ct);
             var playerSoXml = new XmlDocument( );
-            playerSoXml.LoadXml($"<root>{playerSoText}</root>");
+            try
+            {
+                // 风控页/网络异常会返回 HTML 而非 XML，LoadXml 抛 XmlException；
+                // 这里包一层，给出与下方分支一致的可读错误，而非裸 XmlException 冒泡
+                playerSoXml.LoadXml($"<root>{playerSoText}</root>");
+            }
+            catch (XmlException)
+            {
+                throw new InvalidOperationException("互动视频信息获取失败：player.so 返回非预期内容（可能触发风控）");
+            }
 
             var interactionNode = playerSoXml.SelectSingleNode("//interaction");
 

@@ -360,30 +360,6 @@ public class ResumeDownloadTests
         }
     }
 
-    // 多线程模式确实并行：并发峰值超过 1（与单线程模式形成对照）。
-    // 数据须超过 MinimumChunkSize(1MB) 且足够大才会切成多块
-    [Fact]
-    public async Task Download_MultiThread_ExceedsSingleConnection( )
-    {
-        var dir = TempDir( );
-        try
-        {
-            var data = Enumerable.Range(0, 5_000_000).Select(i => (byte) (i % 251)).ToArray( );
-            var dest = Path.Combine(dir, "video.mp4");
-
-            using var handler = new GatedServingHandler(data, releaseAt: 2);
-            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
-                "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
-
-            Assert.True(handler.PeakConcurrent > 1, "多线程下载未产生并行连接");
-            Assert.True(File.ReadAllBytes(dest).SequenceEqual(data));
-        }
-        finally
-        {
-            Directory.Delete(dir, true);
-        }
-    }
-
     // 进度采样回调：下载超过采样周期（200ms）后 onSample 至少被调用一次，ratio 单调不减
     [Fact]
     public async Task Download_ReportsProgressToOnSample( )

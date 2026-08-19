@@ -32,7 +32,12 @@ public static class FileNameUtil
 
         // Windows 会静默吃掉结尾的点与空格，索性自己去掉；开头的点在 Unix 上是隐藏文件
         var name = builder.ToString( ).Trim( ).TrimEnd('.').Trim( );
-        if (name.StartsWith('.'))
+        if (name.Length == 0)
+        {
+            // 纯点/空格串（'.' 不在 InvalidChars）裁剪后为空，兜底成合法名，避免空文件名或以点结尾的非法产物
+            name = "_";
+        }
+        else if (name.StartsWith('.'))
         {
             name = "_" + name;
         }

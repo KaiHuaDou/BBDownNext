@@ -145,7 +145,7 @@ jobs:
 
       - name: Publish (Win7 compatible)
         if: matrix.buildWin7
-        run: dotnet publish BBDown -r win-x64 -c ${{ env.BUILD_CONFIG }} -o artifact-win7 -p:WindowsWin7Compat=true
+        run: dotnet publish BBDown -r win-x64 -c ${{ env.BUILD_CONFIG }} -o artifact-win7 -p:Win7Compatitable=true
 
       - name: Stage artifact (Win7 compatible)
         if: matrix.buildWin7

@@ -25,12 +25,23 @@ public static class BBDownAria2c
         }
 
         p.Start( );
-        // 取消时杀掉子进程, 避免 aria2c 在 WaitForExitAsync 已取消后仍挂起
-        await using var _ = ct.Register(( ) =>
+        // 6h 进程级兜底：防 aria2c 僵死长期占住并发槽。硬超时触发时杀进程并抛 TimeoutException，
+        // 与用户取消（ct 由调用方触发）区分语义
+        using var hardStop = new CancellationTokenSource(TimeSpan.FromHours(6));
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, hardStop.Token);
+        await using var _ = linked.Token.Register(( ) =>
         {
             try { p.Kill( ); } catch { }
         });
-        await p.WaitForExitAsync(ct);
+        try
+        {
+            await p.WaitForExitAsync(linked.Token);
+        }
+        catch (OperationCanceledException) when (hardStop.IsCancellationRequested)
+        {
+            throw new TimeoutException("aria2c 下载超时（6h 兜底），已终止");
+        }
+
         if (p.ExitCode != 0)
         {
             throw new InvalidOperationException($"aria2c 下载失败（退出码 {p.ExitCode}）：{DescribeExitCode(p.ExitCode)}");

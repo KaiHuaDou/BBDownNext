@@ -90,4 +90,23 @@ public class FileNameUtilTests
         var once = FileNameUtil.GetValidFileName(input);
         Assert.Equal(once, FileNameUtil.GetValidFileName(once));
     }
+
+    [Theory]
+    [InlineData(".", "_")]
+    [InlineData(" ", "_")]
+    [InlineData("..", "_")]
+    [InlineData(" .", "_")]
+    [InlineData(". ", "_")]
+    [InlineData("  ", "_")]
+    [InlineData("a.", "a")]
+    [InlineData("a ", "a")]
+    public void GetValidFileName_PureDotOrSpaceFallsBackToUnderscore(string input, string expected)
+    {
+        var result = FileNameUtil.GetValidFileName(input);
+
+        Assert.Equal(expected, result);
+        Assert.False(result.EndsWith('.'), "文件名不得以点结尾");
+        Assert.False(result.EndsWith(' '), "文件名不得以空格结尾");
+        Assert.NotEqual("", result);
+    }
 }

@@ -62,7 +62,20 @@ public static partial class Utils
         return new[] { AppEnv.AppDir }.Concat(envPath)
             .Where(dir => !string.IsNullOrWhiteSpace(dir))
             .SelectMany(dir => names.Select(name => Path.Combine(dir, name + fileExt)))
-            .FirstOrDefault(File.Exists);
+            .Where(path => File.Exists(path) && HasExecutableBit(path))
+            .FirstOrDefault( );
+    }
+
+    // Unix 上仅当任意执行位（user/group/other）置位才视为可用，避免 PATH 中同名但不可执行的文件被误选
+    private static bool HasExecutableBit(string path)
+    {
+        if (OperatingSystem.IsWindows( ))
+        {
+            return true;
+        }
+
+        var mode = File.GetUnixFileMode(path);
+        return (mode & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0;
     }
 
     public static string FormatFileSize(double fileSize)

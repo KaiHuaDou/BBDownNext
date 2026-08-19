@@ -376,7 +376,7 @@ playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）�
 - 全局 `TreatWarningsAsErrors=true`、`Nullable enable`、`LangVersion latest`、集中式包版本（`Directory.Packages.props`）。
 - 发布 AOT：`dotnet publish -c Release -r <RID> /p:PublishAot=true`。注意 AOT 下 `BBDown.data` 等 JSON 必须走源生成器，否则会被裁剪导致反序列化失败。
 - **图形界面发布**（`BBDown.GUI`）：`PublishAot` + `PublishSingleFile`，由独立 CI（`.github/workflows/gui.yml`）在 Windows / macOS / Linux（各 x64 / arm64，Linux 仅 glibc）上发布自包含单文件，并将整个发布目录打包为 zip 上传产物，可手动触发追加到最新 Release；主 CI（`ci.yml`）不构建 GUI。
-- **Win7 兼容构建**（CLI，`win-x64`）：`-p:WindowsWin7Compat=true` 接入 YY-Thunks 与 VC-LTL，产物可在 Windows 7 直接运行（需先装 KB3140245 提供 TLS 1.1/1.2）。
+- **Win7 兼容构建**（CLI，`win-x64`）：`-p:Win7Compatitable=true` 接入 YY-Thunks 与 VC-LTL，产物可在 Windows 7 直接运行（需先装 KB3140245 提供 TLS 1.1/1.2）。
 
 > 调试构建（`dotnet build -c Debug`）不受 AOT 限制，可正常用运行时反射；仅发布 AOT 时需遵守上述约束。
 

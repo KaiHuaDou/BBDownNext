@@ -53,7 +53,8 @@ internal static class AppHelper
     {
         var api = bangumi ? BiliApi.GrpcPgcPlayView : BiliApi.GrpcPlayView;
         var headers = GetHeader(cfg, new Uri(api).Host);
-        LogDebug("App-Req-Headers: {0}", JsonSerializer.Serialize(headers, JsonContext.Default.DictionaryStringString));
+        // header 含 authorization(identify_v1 <token>) 等凭据，落盘前打码，避免明文 token 进调试日志
+        LogDebug("App-Req-Headers: {0}", Redactor.Headers(headers));
         byte[] data;
         // 只有pgc接口才有配音和片头尾信息
         if (bangumi)

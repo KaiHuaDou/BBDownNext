@@ -180,7 +180,7 @@ dotnet publish BBDown -r <RID> -c Release -o <DEST>
 ### Windows 7 兼容
 
 ```bash
-dotnet publish BBDown -r win-x64 -c Release -o <DEST> -p:WindowsWin7Compat=true
+dotnet publish BBDown -r win-x64 -c Release -o <DEST> -p:Win7Compatitable=true
 ```
 
 特定平台细节可参考 [ci.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/ci.yml)

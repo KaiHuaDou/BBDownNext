@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 
 namespace BBDown.Core.Tests;
 
@@ -106,5 +107,35 @@ public class UtilsTests
         const long ts = 1700000000L;
         var expected = DateTimeOffset.FromUnixTimeSeconds(ts).ToLocalTime( ).ToString("yyyy-MM-dd HH:mm:ss");
         Assert.Equal(expected, Utils.FormatTimeStamp(ts, "yyyy-MM-dd HH:mm:ss"));
+    }
+
+    // 仅 Unix 生效：Windows 上 FindExecutable 不检查执行位，直接跳过
+    [Fact]
+    public void FindExecutable_SkipsNonExecutableOnUnix( )
+    {
+        if (OperatingSystem.IsWindows( ))
+        {
+            return;
+        }
+
+        var dir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath( ), "bbdown-exec-test-" + Guid.NewGuid( )));
+        var file = Path.Combine(dir.FullName, "dummy-tool");
+        File.WriteAllText(file, string.Empty);
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            // 原有 PATH 仍保留，避免影响并行测试对其它工具的查找
+            Environment.SetEnvironmentVariable("PATH", dir.FullName + Path.PathSeparator + originalPath);
+            File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            Assert.Null(Utils.FindExecutable("dummy-tool"));
+
+            File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Assert.Equal(file, Utils.FindExecutable("dummy-tool"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            dir.Delete(true);
+        }
     }
 }

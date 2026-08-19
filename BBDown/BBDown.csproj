@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <StartupObject></StartupObject>
+        <StartupObject />
     </PropertyGroup>
-    <!-- Win7 兼容构建：dotnet publish -r win-x64 -p:WindowsWin7Compat=true。
+    <!-- Win7 兼容构建：dotnet publish -r win-x64 -p:Win7Compatitable=true。
          net9.0-windows 是 YY-Thunks/VC-LTL 资产的前置 TFM，常规构建不受影响 -->
-    <PropertyGroup Condition="'$(WindowsWin7Compat)' == 'true'">
+    <PropertyGroup Condition="'$(Win7Compatitable)' == 'true'">
         <TargetFramework>net9.0-windows</TargetFramework>
         <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
     </PropertyGroup>
@@ -21,8 +21,8 @@
     <ItemGroup>
         <PackageReference Include="QRCoder" />
         <!-- Win7 兼容构建专用：YY-Thunks 链接期补旧系统缺失 API；VC-LTL 静态消除 api-ms-win-crt（仅 win-x64/x86 支持） -->
-        <PackageReference Include="YY-Thunks" Condition="'$(WindowsWin7Compat)' == 'true'" />
-        <PackageReference Include="VC-LTL" Condition="'$(WindowsWin7Compat)' == 'true'" />
+        <PackageReference Include="YY-Thunks" Condition="'$(Win7Compatitable)' == 'true'" />
+        <PackageReference Include="VC-LTL" Condition="'$(Win7Compatitable)' == 'true'" />
         <!-- 仅 Windows 宿主生效（targets 内有 IsOSPlatform 判断，且垫片是 clang.cmd），需本机装 zig；
              用于本地交叉 publish Linux 目标，CI 的 musl 构建走 Alpine 容器不依赖它 -->
         <PackageReference Include="PublishAotCross" PrivateAssets="all" />

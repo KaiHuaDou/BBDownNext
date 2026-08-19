@@ -289,46 +289,76 @@ public static partial class HTTPUtil
     public static async Task<byte[]> GetPostResponseAsync(string Url, byte[] postData, Dictionary<string, string>? headers = null, CancellationToken ct = default)
     {
         LogDebug("Post to: {0}, data: {1}", Redactor.Text(Url), Convert.ToBase64String(postData));
-
-        ByteArrayContent content = new(postData);
-        content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/grpc");
-
-        using HttpRequestMessage request = new( )
+        // 仅对已知幂等的 gRPC 只读查询做有界重试：PlayView / 弹幕视图均不修改服务端状态；
+        // Widevine 走独立 client 不经此方法。非幂等写操作切勿复用此方法
+        const int maxAttempts = 3;
+        var delay = TimeSpan.FromMilliseconds(500);
+        for (var attempt = 1; ; attempt++)
         {
-            RequestUri = new Uri(Url),
-            Method = HttpMethod.Post,
-            Content = content,
-        };
-
-        if (headers != null)
-        {
-            foreach (var header in headers)
+            ByteArrayContent content = new(postData);
+            content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/grpc");
+            using HttpRequestMessage request = new( )
             {
-                request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                RequestUri = new Uri(Url),
+                Method = HttpMethod.Post,
+                Content = content,
+            };
+            if (headers != null)
+            {
+                foreach (var header in headers)
+                {
+                    request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                }
             }
-        }
-        else
-        {
-            request.Headers.TryAddWithoutValidation("User-Agent", "Dalvik/2.1.0 (Linux; U; Android 6.0.1; oneplus a5010 Build/V417IR) 6.10.0 os/android model/oneplus a5010 mobi_app/android build/6100500 channel/bili innerVer/6100500 osVer/6.0.1 network/2");
-            request.Headers.TryAddWithoutValidation("grpc-encoding", "gzip");
-        }
+            else
+            {
+                request.Headers.TryAddWithoutValidation("User-Agent", "Dalvik/2.1.0 (Linux; U; Android 6.0.1; oneplus a5010 Build/V417IR) 6.10.0 os/android model/oneplus a5010 mobi_app/android build/6100500 channel/bili innerVer/6100500 osVer/6.0.1 network/2");
+                request.Headers.TryAddWithoutValidation("grpc-encoding", "gzip");
+            }
 
-        using var response = await AppHttpClient.SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new HttpRequestException($"gRPC 请求失败：HTTP {(int) response.StatusCode} {response.ReasonPhrase}", null, response.StatusCode);
+            HttpResponseMessage response;
+            try
+            {
+                response = await AppHttpClient.SendAsync(request, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw; // 真取消
+            }
+            catch (OperationCanceledException)
+            {
+                // 仅 HttpClient.Timeout 触发、非用户取消
+                if (attempt >= maxAttempts) throw new TimeoutException($"POST 超时：{Url}");
+                await Task.Delay(delay, ct); delay *= 2; continue;
+            }
+            catch (HttpRequestException ex) when (ex.InnerException is TimeoutException or TaskCanceledException)
+            {
+                if (attempt >= maxAttempts) throw;
+                await Task.Delay(delay, ct); delay *= 2; continue;
+            }
+
+            if ((int) response.StatusCode >= 500 && attempt < maxAttempts)
+            {
+                response.Dispose( );
+                await Task.Delay(delay, ct); delay *= 2; continue;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException($"gRPC 请求失败：HTTP {(int) response.StatusCode} {response.ReasonPhrase}", null, response.StatusCode);
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+
+            // grpc-status 可能出现在响应头，也可能出现在读完 body 后的 trailer 中
+            var status = ReadGrpcMeta(response, "grpc-status");
+            if (status is not (null or "0"))
+            {
+                throw new HttpRequestException($"gRPC 返回错误 status={status}: {ReadGrpcMeta(response, "grpc-message") ?? "无错误描述"}");
+            }
+
+            return bytes;
         }
-
-        var bytes = await response.Content.ReadAsByteArrayAsync(ct);
-
-        // grpc-status 可能出现在响应头，也可能出现在读完 body 后的 trailer 中
-        var status = ReadGrpcMeta(response, "grpc-status");
-        if (status is not (null or "0"))
-        {
-            throw new HttpRequestException($"gRPC 返回错误 status={status}: {ReadGrpcMeta(response, "grpc-message") ?? "无错误描述"}");
-        }
-
-        return bytes;
     }
 
     private static string? ReadGrpcMeta(HttpResponseMessage response, string name)

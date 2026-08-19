@@ -31,6 +31,26 @@ public static partial class Redactor
         return string.Join("; ", parts);
     }
 
+    // 同 Headers(HttpHeaders)，但接收已构造好的字典（如 App 端 gRPC 请求头），同样对凭据键打码
+    public static string Headers(IReadOnlyDictionary<string, string>? headers)
+    {
+        if (headers is null)
+        {
+            return "";
+        }
+
+        var parts = new List<string>(headers.Count);
+        foreach (var header in headers)
+        {
+            var value = SecretHeaderNames.Contains(header.Key, StringComparer.OrdinalIgnoreCase)
+                ? "[redacted]"
+                : header.Value;
+            parts.Add($"{header.Key}: {value}");
+        }
+
+        return string.Join("; ", parts);
+    }
+
     // 自由文本（URL / 响应体）里的凭据键值对打码
     [GeneratedRegex(@"(SESSDATA|bili_jct|access_token|refresh_token|csrf)(""?:|"":\s*""?|=)([^&\s""'<>,]+)")]
     private static partial Regex SecretTextRegex( );
