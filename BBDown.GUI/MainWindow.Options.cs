@@ -69,6 +69,8 @@ public partial class MainWindow
             Debug = DebugCheckBox.IsChecked == true,
             VideoAscending = VideoAscendingCheckBox.IsChecked == true,
             AudioAscending = AudioAscendingCheckBox.IsChecked == true,
+            InteractivePages = InteractivePagesCheckBox.IsChecked == true,
+            InteractiveQuality = InteractiveQualityCheckBox.IsChecked == true,
             AllowPcdn = AllowPcdnCheckBox.IsChecked == true,
             NoForceHost = NoForceHostCheckBox.IsChecked == true,
             NoForceHttp = NoForceHttpCheckBox.IsChecked == true,
@@ -178,6 +180,8 @@ public partial class MainWindow
         DebugCheckBox.IsChecked = options.Debug;
         VideoAscendingCheckBox.IsChecked = options.VideoAscending;
         AudioAscendingCheckBox.IsChecked = options.AudioAscending;
+        InteractivePagesCheckBox.IsChecked = options.InteractivePages;
+        InteractiveQualityCheckBox.IsChecked = options.InteractiveQuality;
         AllowPcdnCheckBox.IsChecked = options.AllowPcdn;
         NoForceHostCheckBox.IsChecked = options.NoForceHost;
         NoForceHttpCheckBox.IsChecked = options.NoForceHttp;

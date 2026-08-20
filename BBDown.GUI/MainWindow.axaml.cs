@@ -61,6 +61,8 @@ public partial class MainWindow : Window
         MessageBus.Subscribe(OnLogMessage);
         // 下载进度样本按 Scope（任务序号）回投到对应任务行
         ProgressBus.Subscribe(OnProgress);
+        // 交互选项请求（逐集确认 / 选轨）回投 UI 线程弹窗应答
+        AskBus.Subscribe(OnAsk);
 
         queue = new QueueRunner(Dispatch);
         queue.Changed += OnQueueChanged;
@@ -101,7 +103,7 @@ public partial class MainWindow : Window
             case ProgressSampleEvent sample:
                 if (tasks.FirstOrDefault(t => t.Index.ToString( ) == sample.Scope) is { } state)
                 {
-                    SetTaskSample(state, sample.Ratio, sample.Speed);
+                    SetTaskSample(state, sample.Ratio, sample.Speed, sample.Detail);
                 }
 
                 break;
@@ -135,6 +137,13 @@ public partial class MainWindow : Window
     {
         MessageBus.Unsubscribe(OnLogMessage);
         ProgressBus.Unsubscribe(OnProgress);
+        AskBus.Unsubscribe(OnAsk);
+        // 关闭窗口时取消全部挂起的交互提问，避免下载链路挂起 5 分钟超时
+        foreach (var task in tasks)
+        {
+            AskBus.CancelPending(task.Index.ToString( ));
+        }
+
         closed = true;
         queue.CancelRunning( );
         try
@@ -361,8 +370,8 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Invoke(action);
     }
 
-    /// <summary>进度总线采样回投进度与速度 / 剩余时间到 UI 线程（speed 由链路折算为每秒速率）。</summary>
-    private void SetTaskSample(TaskState state, double ratio, double speed)
+    /// <summary>进度总线采样回投进度与速度 / 剩余时间到 UI 线程；stageDetail 为总线阶段文本（直播时长 / 分段 / 清晰度），优先显示。</summary>
+    private void SetTaskSample(TaskState state, double ratio, double speed, string? stageDetail)
     {
         if (closed)
         {
@@ -377,6 +386,13 @@ public partial class MainWindow : Window
             }
 
             state.Progress = Math.Clamp(ratio, 0, 1);
+            // 直播等阶段文本（时长 / 分段 / 清晰度）直接展示并附速度；视频无阶段文本，走速度 + ETA 折算
+            if (stageDetail is not null)
+            {
+                state.Detail = speed > 0 ? $"{stageDetail} | {Utils.FormatSpeed((long) speed, 1)}" : stageDetail;
+                return;
+            }
+
             var now = DateTime.UtcNow;
             // 进度回退视为分 P 切换，重置 ETA 基准
             if (state.lastRatio == 0 || ratio < state.lastRatio)

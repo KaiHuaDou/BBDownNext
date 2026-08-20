@@ -192,6 +192,8 @@
                                               Content="调试日志" />
                                     <CheckBox x:Name="VideoAscendingCheckBox" Classes="CheckBoxItem" Content="视频升序（体积小优先）" />
                                     <CheckBox x:Name="AudioAscendingCheckBox" Classes="CheckBoxItem" Content="音频升序（体积小优先）" />
+                                    <CheckBox x:Name="InteractivePagesCheckBox" Classes="CheckBoxItem" Content="逐集确认（每集询问是否下载）" />
+                                    <CheckBox x:Name="InteractiveQualityCheckBox" Classes="CheckBoxItem" Content="交互选清晰度 / 轨道" />
                                 </StackPanel>
                                 <Grid Grid.Column="1">
                                     <Grid.ColumnDefinitions>
@@ -440,6 +442,7 @@
                             <Grid>
                                 <ProgressBar Classes="TaskProgress"
                                              Value="{Binding Progress}"
+                                             IsIndeterminate="{Binding, Converter={StaticResource LiveIndeterminate}}"
                                              IsVisible="{Binding Status, Converter={StaticResource StatusCancel}}" />
                                 <DockPanel Margin="12,9,12,12">
                                     <Button x:Name="StopRecordButton"

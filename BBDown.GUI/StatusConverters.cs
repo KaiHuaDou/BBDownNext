@@ -65,3 +65,17 @@ public sealed class LiveStopVisibilityConverter : IValueConverter
         throw new NotSupportedException( );
     }
 }
+
+/// <summary>直播任务运行中 → 进度条不确定（无总量，滚动动画）；其余确定进度。</summary>
+public sealed class LiveIndeterminateConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value is TaskState { Kind: TaskKind.Live, Status: TaskStatus.Running };
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException( );
+    }
+}

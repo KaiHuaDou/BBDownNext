@@ -11,5 +11,6 @@
         <gui:StatusToBrushConverter x:Key="StatusBrush" />
         <gui:StatusToVisibilityConverter x:Key="StatusCancel" />
         <gui:LiveStopVisibilityConverter x:Key="LiveStop" />
+        <gui:LiveIndeterminateConverter x:Key="LiveIndeterminate" />
     </Application.Resources>
 </Application>

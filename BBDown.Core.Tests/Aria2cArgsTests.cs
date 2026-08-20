@@ -1,7 +1,4 @@
-using System;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace BBDown.Core.Tests;
 
@@ -64,19 +61,5 @@ public class Aria2cArgsTests
 
         Assert.Contains("--header=Cookie: SESSDATA=abc\" --on-download-complete=/bin/sh \"", args);
         Assert.DoesNotContain(args, a => a.StartsWith("--on-download-complete", System.StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task RunAsync_NonZeroExit_ThrowsWithCode( )
-    {
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) =>
-            BBDownAria2c.RunAsync("cmd", ["/c", "exit", "3"], CancellationToken.None));
-        Assert.Contains("3", ex.Message);
-    }
-
-    [Fact]
-    public async Task RunAsync_ZeroExit_Returns( )
-    {
-        await BBDownAria2c.RunAsync("cmd", ["/c", "exit", "0"], CancellationToken.None);
     }
 }

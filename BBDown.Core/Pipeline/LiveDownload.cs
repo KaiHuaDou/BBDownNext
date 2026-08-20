@@ -1,10 +1,13 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Download;
 using BBDown.Core.Live;
+using BBDown.Core.Util;
+using BBDown.Core.Workflow;
 
 using static BBDown.Core.Logger;
 
@@ -62,13 +65,22 @@ public static class LiveDownload
         using var signalScope = LiveSignal.Register(stopCts);
         using var recordCts = CancellationTokenSource.CreateLinkedTokenSource(ct, stopCts.Token);
 
+        // 直播无总量：Ratio 恒 0，detail 承载时长 / 分段 / 清晰度，体积与速度由样本字段携带
+        var qualityText = $"{LiveQuality.Describe(probe.ActualQn)}({codec})";
+        var totalBytes = 0L;
+        var segmentIndex = 0;
+        var elapsed = Stopwatch.StartNew( );
         LiveRecordResult result;
-        using (var progress = new LiveProgress($"{LiveQuality.Describe(probe.ActualQn)}({codec})"))
+        using (ProgressBus.BeginStage("录制"))
+        using (var sampler = new ProgressSampler((_, delta) =>
+            ProgressBus.Publish(0, delta, delta / ProgressSampler.SampleInterval.TotalSeconds,
+                $"录制中 {elapsed.Elapsed:hh\\:mm\\:ss} | 分段 {segmentIndex} | {qualityText}")))
         {
             var recorder = new LiveRecorder(
                 (qn, token) => LiveFetcher.FetchPlayInfoAsync(room.RoomId, qn, cfg, token),
-                (candidate, partPath, token) => LiveSegmentWriter.WriteAsync(candidate.Url, partPath, cfg.Cookie, progress.Add, token),
-                onSegmentStart: progress.StartSegment);
+                (candidate, partPath, token) => LiveSegmentWriter.WriteAsync(candidate.Url, partPath, cfg.Cookie,
+                    bytes => sampler.Report(Interlocked.Add(ref totalBytes, bytes)), token),
+                onSegmentStart: index => segmentIndex = index);
 
             result = await recorder.RunAsync(destPathWithoutExtension, myOption.LiveQuality, recordCts.Token, ct);
         }

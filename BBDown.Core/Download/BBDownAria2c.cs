@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -24,7 +25,15 @@ public static class BBDownAria2c
             p.StartInfo.ArgumentList.Add(arg);
         }
 
-        p.Start( );
+        try
+        {
+            p.Start( );
+        }
+        catch (Win32Exception ex)
+        {
+            // 启动失败（未安装 / 路径错误）与退出码非零是两种独立失败，调用方统一按 InvalidOperationException 判定下载失败
+            throw new InvalidOperationException($"无法启动 {command}：请确认已安装 aria2c，或用 --aria2c-path 指定路径", ex);
+        }
         // 6h 进程级兜底：防 aria2c 僵死长期占住并发槽。硬超时触发时杀进程并抛 TimeoutException，
         // 与用户取消（ct 由调用方触发）区分语义
         using var hardStop = new CancellationTokenSource(TimeSpan.FromHours(6));

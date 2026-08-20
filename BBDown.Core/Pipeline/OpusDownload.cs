@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using BBDown.Core.Download;
 using BBDown.Core.Opus;
 using BBDown.Core.Util;
+using BBDown.Core.Workflow;
 
 using static BBDown.Core.Download.DownloadUtil;
 using static BBDown.Core.Logger;
@@ -122,6 +123,8 @@ public static class OpusDownload
         // 原图 CDN 用 https 即可，NoForceHttp 避免被 DownloadUtil 降成 http
         var config = new DownloadConfig { Cookie = cfg.Cookie, NoForceHttp = true };
 
+        // 图片下载有明确总量（urls.Count），按张数上报进度；CLI 无进度条装配，事件服务 GUI 任务行
+        using var stage = ProgressBus.BeginStage("下载图片");
         for (var i = 0; i < urls.Count; i++)
         {
             ct.ThrowIfCancellationRequested( );
@@ -136,6 +139,7 @@ public static class OpusDownload
                 }
 
                 map[urls[i]] = $"{relativeDir}/{fileName}";
+                ProgressBus.Publish((i + 1) / (double) urls.Count, 0, 0, $"图片 {i + 1}/{urls.Count}");
             }
             catch (OperationCanceledException)
             {

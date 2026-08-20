@@ -16,6 +16,9 @@
 - serve 限流与加固：全局限流（60 次 / 分钟 / IP）、任务提交限流（10 次 / 分钟 / IP）、认证失败滑动窗口（每分钟超 5 次失败改返 429）、写端点（POST / DELETE）Origin 校验（CSRF）、WebSocket 每 IP 连接上限 5、请求体上限 1 MB / 请求头超时 15 秒、错误消息路径脱敏。
 - 交互总线化：逐集确认（`--interactive-pages`）/ 选轨（`--interactive-quality`）统一经 `AskBus` 发布——CLI 控制台读输入应答，serve 经 WebSocket `optionRequest` / `submitChoice` 帧远程应答（`--interactive`）；交互选项结构化（`id` / `label`），静态 `Interaction` 类退役。
 - GUI 任务进度阶段化：进度条消费阶段边界事件（分 P 切换 / 重下时重置剩余时间基准），任务行进度随下载阶段显隐。
+- GUI 弹窗交互：选项区新增「逐集确认」「交互选清晰度 / 轨道」开关，交互请求在窗口内弹窗应答（多任务并发弹窗叠加），配置随队列持久化。
+- 直播录制进度接入总线：录制期间经进度总线发布样本（时长 / 分段 / 清晰度 / 速度），GUI 任务行以不确定进度条 + 详情文本展示，CLI 状态行改订阅总线渲染。
+- 专栏图片下载进度：图片下载按张数上报进度，GUI 任务行进度条推进并显示图片进度。
 
 ### 修复
 
@@ -23,6 +26,7 @@
 - 修复 serve 日志双打印：启动路径装配了两个控制台渲染器，业务日志输出两遍；现仅保留一个。
 - 修复 serve 任务已下载字节数多轨并发回退：进度样本累计改由总线按任务维护，音视频轨并行下载时 `TotalDownloadedBytes` 不再来回跳动。
 - 修复 CI 测试结果上传缺日志：失败排查依赖 Testing Platform 的 `TestResults/*.log`，上传 artifact 补 log 文件（原仅 trx）。
+- 修复 aria2c 启动失败静默无提示：未安装 / 路径错误时 `Process.Start` 抛 `Win32Exception` 裸异常，现包装为含指引的可读错误。
 
 ### 变更
 
@@ -32,6 +36,7 @@
 - 进度阶段句柄收窄：`ProgressBus.BeginStage` 返回 `IDisposable`，删除单实现接口 `IProgressScope` 与其无效 `Report` 成员。
 - 工作流事件收窄：`IWorkflowContext` 删除，任务事件队列统一为具体类 `ChannelWorkflowContext`（交互能力并入 `AskBus`）。
 - WebSocket `optionRequest` 帧演进：`options` 由字符串数组改为 `{ id, label }` 对象数组，并携带任务 `scope` 与回落选项 `defaultOptionId`；`submitChoice` 的 `choice` 即选项 `id`。
+- 直播状态行迁移：`LiveProgress` 由 Core 迁至 CLI 并改订阅进度总线（`BBDown.Core` 不再含控制台渲染组件）；直播进度样本 `Ratio` 恒 0，`Detail` 承载时长 / 分段 / 清晰度。
 
 ## [v2.0.1]
 

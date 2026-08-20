@@ -258,6 +258,7 @@ internal sealed class Program
 
                 try
                 {
+                    using var liveProgress = new LiveProgress( );
                     await LiveDownload.RunAsync(myOption, liveTarget, AppEnv.CancellationToken);
                     return 0;
                 }

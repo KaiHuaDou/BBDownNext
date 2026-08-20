@@ -20,6 +20,8 @@ public sealed record TaskParams
     public bool Debug { get; init; }
     public bool VideoAscending { get; init; }
     public bool AudioAscending { get; init; }
+    public bool InteractivePages { get; init; }
+    public bool InteractiveQuality { get; init; }
 
     // 常用输入选项，空串表示未设置（走 Core 默认值）
     public string Mux { get; init; } = "mpeg4";
@@ -86,6 +88,8 @@ public static class TaskParamsMapper
             CommentFormats = options.CommentsFormats,
             VideoAscending = options.VideoAscending,
             AudioAscending = options.AudioAscending,
+            InteractivePages = options.InteractivePages,
+            InteractiveQuality = options.InteractiveQuality,
             AllowPcdn = options.AllowPcdn,
             AllowPreview = options.AllowPreview,
             LiveQuality = int.TryParse(options.LiveQuality, out var quality) ? quality : LiveQuality.Original,
