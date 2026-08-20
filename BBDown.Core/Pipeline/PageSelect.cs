@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 using BBDown.Core.Download;
 using BBDown.Core.Entity;
+using BBDown.Core.Workflow;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.Utils;
@@ -115,31 +118,31 @@ public static class PageSelect
 
     /// <summary>
     /// 交互式逐集选择：对每个分 P 询问是否下载，[y] 要，[n] 不要，[a] 剩余全部要，[q] 剩余全部不要，回车=不要。
-    /// 返回空列表表示一集都没选（一个都不下）。
+    /// 返回空列表表示一集都没选（一个都不下）。无宿主应答（不交互）时同样返回空列表。
     /// </summary>
-    internal static List<string> ResolveInteractive(VInfo vInfo)
+    internal static async Task<List<string>> ResolveInteractiveAsync(VInfo vInfo, CancellationToken token)
     {
         Log("逐集选择要下载的分 P：[y] 要，[n] 不要，[a] 剩余全部要，[q] 剩余全部不要，直接回车表示不要");
         var selected = new List<string>(vInfo.PagesInfo.Count);
         for (var i = 0; i < vInfo.PagesInfo.Count; i++)
         {
             var p = vInfo.PagesInfo[i];
-            var input = Interaction.AskLine($"[{p.Index}] {p.Title}（{FormatTime(p.Dur)}）是否下载？[y/n/a/q]");
-            var choice = string.IsNullOrWhiteSpace(input) ? "N" : input.Trim( ).ToUpperInvariant( );
-            if (choice is "Y" or "YES")
+            var answer = await AskBus.Ask(
+                $"[{p.Index}] {p.Title}（{FormatTime(p.Dur)}）是否下载？[y/n/a/q]",
+                [new AskOption("y", "y"), new AskOption("n", "n"), new AskOption("a", "a"), new AskOption("q", "q")],
+                "n", token);
+            switch (answer?.OptionId)
             {
-                selected.Add(p.Index.ToString( ));
+                case "y":
+                    selected.Add(p.Index.ToString( ));
+                    break;
+                case "a":
+                    selected.AddRange(vInfo.PagesInfo[i..].Select(rest => rest.Index.ToString( )));
+                    break;
+                case "q":
+                    return [.. selected.OrderBy(int.Parse)];
+                    // n / 无应答（不交互 / 超时）：跳过本集
             }
-            else if (choice is "A" or "ALL")
-            {
-                selected.AddRange(vInfo.PagesInfo[i..].Select(rest => rest.Index.ToString( )));
-                break;
-            }
-            else if (choice is "Q" or "QUIT")
-            {
-                break;
-            }
-            // n / no / 其他 / 回车：跳过本集
         }
 
         return selected.Count == 0 ? [] : [.. selected.OrderBy(int.Parse)];

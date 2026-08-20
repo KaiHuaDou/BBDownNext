@@ -39,5 +39,6 @@ public sealed record ProgressRangeEndEvent(string Scope) : WorkflowEvent;
 
 /// <summary>
 /// 选项请求：工作流在此挂起，外部经 RequestId 应答；Deadline 为服务端超时时刻，超时按调用方策略处理。
+/// DefaultOptionId 为宿主无法解析输入时的回落选项（CLI 回车 / 非法输入），须属于 Options。
 /// </summary>
-public sealed record OptionRequestEvent(Guid RequestId, string Prompt, IReadOnlyList<string> Options, DateTimeOffset Deadline) : WorkflowEvent;
+public sealed record OptionRequestEvent(Guid RequestId, string Scope, string Prompt, IReadOnlyList<AskOption> Options, DateTimeOffset Deadline, string? DefaultOptionId = null) : WorkflowEvent;

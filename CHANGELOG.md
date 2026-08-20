@@ -14,18 +14,24 @@
 - serve 任务队列：任务受理即入队（`Status=Queued`），按提交顺序执行，`--max-concurrent` 限制同时下载数，排队中的任务可被停止端点取消。
 - serve 健康检查：新增 `GET /healthz`（进程存活状态与运行中任务数，匿名放行）。
 - serve 限流与加固：全局限流（60 次 / 分钟 / IP）、任务提交限流（10 次 / 分钟 / IP）、认证失败滑动窗口（每分钟超 5 次失败改返 429）、写端点（POST / DELETE）Origin 校验（CSRF）、WebSocket 每 IP 连接上限 5、请求体上限 1 MB / 请求头超时 15 秒、错误消息路径脱敏。
+- 交互总线化：逐集确认（`--interactive-pages`）/ 选轨（`--interactive-quality`）统一经 `AskBus` 发布——CLI 控制台读输入应答，serve 经 WebSocket `optionRequest` / `submitChoice` 帧远程应答（`--interactive`）；交互选项结构化（`id` / `label`），静态 `Interaction` 类退役。
+- GUI 任务进度阶段化：进度条消费阶段边界事件（分 P 切换 / 重下时重置剩余时间基准），任务行进度随下载阶段显隐。
 
 ### 修复
 
 - 修复 serve 任务实际串行下载：任务队列消费循环逐个等待完成，`--max-concurrent` 不生效（无论配置多少实际并发恒为 1）；现按配置并发执行。
 - 修复 serve 日志双打印：启动路径装配了两个控制台渲染器，业务日志输出两遍；现仅保留一个。
 - 修复 serve 任务已下载字节数多轨并发回退：进度样本累计改由总线按任务维护，音视频轨并行下载时 `TotalDownloadedBytes` 不再来回跳动。
+- 修复 CI 测试结果上传缺日志：失败排查依赖 Testing Platform 的 `TestResults/*.log`，上传 artifact 补 log 文件（原仅 trx）。
 
 ### 变更
 
 - serve REST API 路径与方法重排：`/get-tasks*` 改为 `/api/v1/tasks*`；新增任务由 `POST /add-task`（恒 200）改为 `POST /api/v1/tasks`（202 受理 / 200 命中已有 / 400 输入非法 / 429 队列满）；删除已完成任务由 POST 改为 DELETE（`/finished`、`/finished/failed`、`/{id}`）；停止任务由 `/stop-task/{id}` 改为 `POST /api/v1/tasks/{id}/stop`。
 - serve 鉴权收紧：HTTP API 不再接受 `?token=` 查询参数传令牌（防令牌进访问日志 / 历史），query 令牌仅限 WebSocket 握手路径。
 - serve 凭据加载提示恢复：从本地文件回退加载 cookie / token 时重新输出「加载本地 cookie / token...」日志。
+- 进度阶段句柄收窄：`ProgressBus.BeginStage` 返回 `IDisposable`，删除单实现接口 `IProgressScope` 与其无效 `Report` 成员。
+- 工作流事件收窄：`IWorkflowContext` 删除，任务事件队列统一为具体类 `ChannelWorkflowContext`（交互能力并入 `AskBus`）。
+- WebSocket `optionRequest` 帧演进：`options` 由字符串数组改为 `{ id, label }` 对象数组，并携带任务 `scope` 与回落选项 `defaultOptionId`；`submitChoice` 的 `choice` 即选项 `id`。
 
 ## [v2.0.1]
 

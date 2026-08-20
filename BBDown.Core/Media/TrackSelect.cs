@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 using BBDown.Core.Download;
 using BBDown.Core.Entity;
+using BBDown.Core.Workflow;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.Utils;
@@ -141,25 +144,37 @@ public static partial class TrackSelect
     }
 
     /// <summary>
-    /// 引导用户进行手动选择轨道
+    /// 引导用户进行手动选择轨道；无应答（不交互）时回落默认序号 0。
     /// </summary>
-    internal static void PickTracks(ParsedResult parsedResult, ref int vIndex, ref int aIndex)
+    internal static async Task<(int VIndex, int AIndex)> PickTracksAsync(ParsedResult parsedResult, CancellationToken token)
     {
+        var vIndex = 0;
+        var aIndex = 0;
         if (parsedResult.VideoTracks.Count != 0)
         {
-            vIndex = Interaction.AskIndex("请选择一条视频流（输入序号）：", parsedResult.VideoTracks.Count);
+            vIndex = await PickIndexAsync("请选择一条视频流（输入序号）：", parsedResult.VideoTracks.Count, token);
         }
 
         if (parsedResult.AudioTracks.Count != 0)
         {
-            aIndex = Interaction.AskIndex("请选择一条音频流（输入序号）：", parsedResult.AudioTracks.Count);
+            aIndex = await PickIndexAsync("请选择一条音频流（输入序号）：", parsedResult.AudioTracks.Count, token);
         }
+
+        return (vIndex, aIndex);
     }
 
-    internal static int PickDfn(List<string> dfns)
+    internal static async Task<int> PickDfnAsync(List<string> dfns, CancellationToken token)
     {
         var i = 0;
         dfns.ForEach(key => LogColor($"{i++}.{Config.GetQualityName(key)}"));
-        return Interaction.AskIndex("请选择清晰度（输入序号）：", dfns.Count);
+        return await PickIndexAsync("请选择清晰度（输入序号）：", dfns.Count, token);
+    }
+
+    // 序号选择：选项 Id 即序号字符串；无应答（不交互）回落 0，同现状非法输入回落 0
+    private static async Task<int> PickIndexAsync(string prompt, int count, CancellationToken token)
+    {
+        var options = Enumerable.Range(0, count).Select(i => new AskOption(i.ToString( ), i.ToString( ))).ToArray( );
+        var answer = await AskBus.Ask(prompt, options, "0", token);
+        return int.TryParse(answer?.OptionId, out var index) && index >= 0 && index < count ? index : 0;
     }
 }

@@ -30,7 +30,7 @@ public static class ProgressBus
     /// 进入进度阶段：发射开始事件（Scope 取当前任务作用域），返回的阶段句柄 Dispose 时发射结束事件。
     /// 同任务重入时先结束旧阶段；阶段句柄非线程安全，仅限单任务执行流持有。
     /// </summary>
-    public static IProgressScope BeginStage(string stageName)
+    public static IDisposable BeginStage(string stageName)
     {
         var scope = MessageBus.CurrentScope ?? "";
         EndActive(scope);
@@ -106,13 +106,8 @@ public sealed class ProgressState
     }
 }
 
-internal sealed class ProgressStage(string scope) : IProgressScope
+internal sealed class ProgressStage(string scope) : IDisposable
 {
-    public void Report(double ratio, long bytesDelta, double speed, string? detail = null)
-    {
-        ProgressBus.Publish(ratio, bytesDelta, speed, detail);
-    }
-
     public void Dispose( )
     {
         ProgressBus.EndStage(scope);

@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using BBDown.Core.Entity;
 using BBDown.Core.Protobuf;
 using BBDown.Core.Util;
-using BBDown.Core;
 
 using static BBDown.Core.Logger;
 

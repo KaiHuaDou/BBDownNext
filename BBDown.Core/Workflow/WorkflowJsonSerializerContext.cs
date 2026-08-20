@@ -11,4 +11,5 @@ namespace BBDown.Core.Workflow;
 [JsonSerializable(typeof(ProgressSampleEvent))]
 [JsonSerializable(typeof(ProgressRangeEndEvent))]
 [JsonSerializable(typeof(OptionRequestEvent))]
+[JsonSerializable(typeof(AskOption))]
 public partial class WorkflowJsonSerializerContext : JsonSerializerContext;

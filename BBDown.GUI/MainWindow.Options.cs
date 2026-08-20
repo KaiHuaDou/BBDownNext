@@ -258,7 +258,7 @@ public partial class MainWindow
 
     private void ApplyContent(string content)
     {
-        foreach (ContentOption item in ContentItems.Items)
+        foreach (var item in ContentItems.Items.Cast<ContentOption>( ))
         {
             item.IsChecked = content.Contains(item.Key, StringComparison.Ordinal);
         }

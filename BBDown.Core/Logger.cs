@@ -1,5 +1,3 @@
-using System;
-
 using BBDown.Core.Logging;
 
 namespace BBDown.Core;

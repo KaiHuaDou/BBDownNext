@@ -5,7 +5,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 
-using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;

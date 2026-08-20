@@ -13,8 +13,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BBDown.Serve;
@@ -159,11 +157,11 @@ public class BBDownApiServer
         // 安全响应头：所有响应（含 4xx）统一携带
         app.Use(async (context, next) =>
         {
-            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-            context.Response.Headers["X-Frame-Options"] = "DENY";
+            context.Response.Headers.XContentTypeOptions = "nosniff";
+            context.Response.Headers.XFrameOptions = "DENY";
             context.Response.Headers["Referrer-Policy"] = "no-referrer";
             context.Response.Headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
-            context.Response.Headers["Content-Security-Policy"] = "default-src 'none'";
+            context.Response.Headers.ContentSecurityPolicy = "default-src 'none'";
             await next( );
         });
         if (!string.IsNullOrWhiteSpace(config.CorsOrigin))
@@ -233,27 +231,6 @@ public class BBDownApiServer
         }
 
         app.Run(url);
-    }
-
-    /// <summary>
-    /// 仅供集成测试：在随机端口启动服务并返回可访问的 base URL。
-    /// 与阻塞的 <see cref="Run(Uri)"/> 不同，这里用 StartAsync 以便在测试结束时 <see cref="StopForTestAsync"/>。
-    /// </summary>
-    internal async Task<string> StartForTestAsync(string listenUrl = "http://127.0.0.1:0", string? serveToken = null)
-    {
-        SetUpServer(new ServeConfig(ListenUrl: listenUrl, ServeToken: serveToken));
-        if (app is null)
-        {
-            throw new InvalidOperationException("WebApplication 未创建");
-        }
-
-        await app.StartAsync( );
-        return app.Urls.First(u => u.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase));
-    }
-
-    internal Task StopForTestAsync( )
-    {
-        return app is null ? Task.CompletedTask : app.StopAsync( );
     }
 
     private bool ExceedsAuthFailureLimit(string ip)

@@ -328,12 +328,20 @@ public static partial class HTTPUtil
             catch (OperationCanceledException)
             {
                 // 仅 HttpClient.Timeout 触发、非用户取消
-                if (attempt >= maxAttempts) throw new TimeoutException($"POST 超时：{Url}");
+                if (attempt >= maxAttempts)
+                {
+                    throw new TimeoutException($"POST 超时：{Url}");
+                }
+
                 await Task.Delay(delay, ct); delay *= 2; continue;
             }
             catch (HttpRequestException ex) when (ex.InnerException is TimeoutException or TaskCanceledException)
             {
-                if (attempt >= maxAttempts) throw;
+                if (attempt >= maxAttempts)
+                {
+                    throw;
+                }
+
                 await Task.Delay(delay, ct); delay *= 2; continue;
             }
 

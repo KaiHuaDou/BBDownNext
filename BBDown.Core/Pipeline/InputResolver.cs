@@ -66,7 +66,7 @@ public static partial class InputResolver
 
         if (input.Contains("/cheese/"))
         {
-            return ResolveCheeseAsync(input);
+            return ResolveCheese(input);
         }
 
         if (EpRegex( ).Match(input) is { Success: true } epMatch)
@@ -157,7 +157,7 @@ public static partial class InputResolver
 
         if (input.StartsWith(IdPrefix.CheeseSlash)) // ^cheese/(ep|ss)\d+ 格式
         {
-            return ResolveCheeseAsync(input);
+            return ResolveCheese(input);
         }
 
         if (input.StartsWith(IdPrefix.Ep) && long.TryParse(input[IdPrefix.Ep.Length..], out var epId))
@@ -193,7 +193,7 @@ public static partial class InputResolver
     // 课程（cheese）解析：纯字符串，不触网。
     // ep 形式直接取 ep_id；ss 形式保留 season_id，交由 CheeseInfoFetcher 按 season_id 直接拉取整季，
     // 避免旧实现「先请求一次接口取首集 ep_id、再请求一次拉整季」的冗余往返（见 cheese-review 的 S1/C1）。
-    private static ResourceId ResolveCheeseAsync(string input)
+    private static ResourceId ResolveCheese(string input)
     {
         if (input.Contains("/ep"))
         {

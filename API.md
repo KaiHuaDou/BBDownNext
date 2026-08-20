@@ -160,7 +160,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | ------ | ---- | ---- |
 | `subscribe` | `taskId` | 订阅任务（规范 id，如 `av170001`）；订阅后立即收到一次当前进度快照 |
 | `unsubscribe` | `taskId` | 退订任务 |
-| `submitChoice` | `taskId`、`requestId`、`choice` | 应答任务抛出的选项请求；`choice` 必须属于选项集合 |
+| `submitChoice` | `taskId`、`requestId`、`choice` | 应答任务抛出的选项请求；`choice` 为选项 Id，必须属于选项集合 |
 | `ping` | — | 保活探测（可选） |
 
 **服务端 → 客户端：**
@@ -174,8 +174,8 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 ### 选项交互流程
 
-1. 下载链路遇到交互点时抛出 `optionRequest` 事件（含 `requestId`、`prompt`、`options`、`deadline`），工作流挂起等待应答。
-2. 客户端向该任务回 `submitChoice` 帧（`choice` 必须是 `options` 中的一项）。
+1. 下载链路遇到交互点时抛出 `optionRequest` 事件（含 `requestId`、`scope`、`prompt`、`options`（`{id, label}` 对象数组）、`deadline`、`defaultOptionId?`），工作流挂起等待应答。
+2. 客户端向该任务回 `submitChoice` 帧（`choice` 必须是 `options` 中某项的 `id`）。
 3. 服务端校验后恢复工作流，回 `choiceResult` 帧。
 4. 超时（`deadline`，默认 5 分钟）或任务被停止时，挂起的选项转为取消，任务按取消路径收尾。
 

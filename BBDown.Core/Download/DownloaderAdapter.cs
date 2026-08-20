@@ -38,10 +38,7 @@ public static class DownloaderAdapter
     {
         // 采样回调统一走 ProgressBus：scope 由宿主任务作用域携带，阶段外（封面/弹幕等附属下载）静默忽略；
         // 传字节增量即可，阶段内累计由总线按 scope 维护（同任务多轨并发不互相覆盖）
-        using var progress = new ProgressSampler((ratio, delta) =>
-        {
-            ProgressBus.Publish(ratio, delta, delta / ProgressSampler.SampleInterval.TotalSeconds);
-        });
+        using var progress = new ProgressSampler((ratio, delta) => ProgressBus.Publish(ratio, delta, delta / ProgressSampler.SampleInterval.TotalSeconds));
         var client = HttpClientFactory(config.Cookie);
         var options = new DownloadConfiguration
         {

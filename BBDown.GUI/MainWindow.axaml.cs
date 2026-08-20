@@ -19,9 +19,9 @@ using BBDown.Core;
 using BBDown.Core.Download;
 using BBDown.Core.Live;
 using BBDown.Core.Logging;
-using BBDown.Core.Workflow;
 using BBDown.Core.Pipeline;
 using BBDown.Core.Util;
+using BBDown.Core.Workflow;
 
 namespace BBDown.GUI;
 
@@ -89,19 +89,46 @@ public partial class MainWindow : Window
         }
     }
 
-    // 进度样本回投任务行：按 Scope（任务序号）定位任务状态，UI 线程更新
+    // 进度事件回投任务行：按 Scope（任务序号）定位任务状态，UI 线程更新
     private void OnProgress(WorkflowEvent evt)
     {
-        if (evt is not ProgressSampleEvent sample)
+        switch (evt)
+        {
+            case ProgressRangeStartEvent start:
+                // 新阶段（分 P 切换 / 重下）：重置 ETA 基准，覆盖首帧样本到达前的旧剩余时间残留
+                ResetTaskEta(tasks.FirstOrDefault(t => t.Index.ToString( ) == start.Scope));
+                break;
+            case ProgressSampleEvent sample:
+                if (tasks.FirstOrDefault(t => t.Index.ToString( ) == sample.Scope) is { } state)
+                {
+                    SetTaskSample(state, sample.Ratio, sample.Speed);
+                }
+
+                break;
+            case ProgressRangeEndEvent:
+                // 任务进入混流等无进度阶段：进度条停在满条，任务收尾时随 Status 隐藏，无需额外动作
+                break;
+        }
+    }
+
+    // 阶段开始即重置 ETA 基准（lastRatio / etaStart 仅 UI 线程读写，回投 UI 线程执行）
+    private void ResetTaskEta(TaskState? state)
+    {
+        if (closed || state is null)
         {
             return;
         }
 
-        var state = tasks.FirstOrDefault(t => t.Index.ToString( ) == sample.Scope);
-        if (state is not null)
+        Dispatcher.UIThread.Post(( ) =>
         {
-            SetTaskSample(state, sample.Ratio, sample.Speed);
-        }
+            if (closed)
+            {
+                return;
+            }
+
+            state.lastRatio = 0;
+            state.etaStart = DateTime.UtcNow;
+        });
     }
 
     private void WindowClosed(object? o, EventArgs e)
@@ -403,23 +430,23 @@ public partial class MainWindow : Window
                         var sink = new PipelineSink(
                         Meta: info => SetTaskTitle(state, info.Title),
                         Saved: path => AppendProcessLog(state.Index, $"已保存：{path}", false));
-                    await DownloadPipeline.RunAsync(req, sink, null, token);
-                    break;
+                        await DownloadPipeline.RunAsync(req, sink, null, token);
+                        break;
+                    }
                 }
-            }
 
-            return 0;
-        }
-        catch (OperationCanceledException)
-        {
-            AppendProcessLog(state.Index, "已取消", false);
-            throw;
-        }
-        catch (Exception e)
-        {
-            AppendProcessLog(state.Index, $"失败：{e.Message}", true);
-            return 1;
-        }
+                return 0;
+            }
+            catch (OperationCanceledException)
+            {
+                AppendProcessLog(state.Index, "已取消", false);
+                throw;
+            }
+            catch (Exception e)
+            {
+                AppendProcessLog(state.Index, $"失败：{e.Message}", true);
+                return 1;
+            }
         }
     }
 

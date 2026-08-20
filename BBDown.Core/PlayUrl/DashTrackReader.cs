@@ -1,9 +1,7 @@
-using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 
 using BBDown.Core.Entity;
-using BBDown.Core;
 
 using static BBDown.Core.PlayUrl.TrackFactory;
 using static BBDown.Core.Util.JsonUtil;
@@ -94,6 +92,7 @@ internal static class DashTrackReader
             var id = node.GetProperty("id").ToString( );
             result.AudioTracks.Add(BuildAudio(node, pDur, codecs, Config.GetAudioQualityName(id)));
         }
+
         AppendDolbyAndHiRes(result, root, pDur, tvApi);
     }
 

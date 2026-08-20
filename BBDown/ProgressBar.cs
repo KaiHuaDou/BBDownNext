@@ -2,7 +2,7 @@ using System;
 using System.Text;
 using System.Threading;
 
-using BBDown.Core;
+using BBDown.Cli;
 using BBDown.Core.Logging;
 using BBDown.Core.Util;
 using BBDown.Core.Workflow;
@@ -49,8 +49,8 @@ public sealed class ProgressBar : IDisposable
             // 注册日志前置钩子：写日志前先擦掉进度条行，让日志从行首开始（与 LiveProgress 同一机制）。
             ConsoleHost.BeforeWrite = ClearLine;
             // 逐集确认 / 选轨等交互读输入前暂停渲染，避免进度条覆盖提示与用户输入
-            Interaction.BeforeRead = Suspend;
-            Interaction.AfterRead = Resume;
+            CliInteraction.BeforeRead = Suspend;
+            CliInteraction.AfterRead = Resume;
         }
     }
 
@@ -262,8 +262,8 @@ public sealed class ProgressBar : IDisposable
         // 先摘钩再拿 gate：渲染器持自身锁回调 ClearLine 拿本 gate，反向持 gate 去改渲染器状态会死锁
         ProgressBus.Unsubscribe(OnProgress);
         ConsoleHost.BeforeWrite = null;
-        Interaction.BeforeRead = null;
-        Interaction.AfterRead = null;
+        CliInteraction.BeforeRead = null;
+        CliInteraction.AfterRead = null;
         lock (gate)
         {
             if (disposed)

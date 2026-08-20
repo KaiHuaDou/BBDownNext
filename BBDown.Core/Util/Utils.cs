@@ -67,8 +67,7 @@ public static partial class Utils
         var fileExt = OperatingSystem.IsWindows( ) ? ".exe" : "";
         return dirs.Where(dir => !string.IsNullOrWhiteSpace(dir))
             .SelectMany(dir => names.Select(name => Path.Combine(dir, name + fileExt)))
-            .Where(path => File.Exists(path) && HasExecutableBit(path))
-            .FirstOrDefault( );
+            .FirstOrDefault(path => File.Exists(path) && HasExecutableBit(path));
     }
 
     // Unix 上仅当任意执行位（user/group/other）置位才视为可用，避免 PATH 中同名但不可执行的文件被误选

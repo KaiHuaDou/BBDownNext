@@ -16,29 +16,19 @@ namespace BBDown.Serve.Tasks;
 /// 任务状态容器与受理入口：running / finished 两表、按 ResourceId 去重、完成后裁剪。
 /// host 三兄弟与工作目录由服务端启动参数固定，经 ApplyServe* 注入每个任务（P0-1 / P0-2）。
 /// </summary>
-internal sealed class TaskStore
+internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
 {
     private const int MaxFinishedTasks = 200;
 
     private readonly ConcurrentDictionary<ResourceId, DownloadTask> running = new( );
     private readonly ConcurrentDictionary<ResourceId, DownloadTask> finished = new( );
     private readonly ConcurrentDictionary<ResourceId, ChannelWorkflowContext> contexts = new( );
-    private readonly string? workDir;
-    private readonly string? host;
-    private readonly string? epHost;
-    private readonly string? tvHost;
-    private readonly TaskQueue queue;
-    private readonly bool interactive;
-
-    public TaskStore(ServeConfig config, TaskQueue queue)
-    {
-        workDir = config.WorkDir;
-        host = config.Host;
-        epHost = config.EpHost;
-        tvHost = config.TvHost;
-        interactive = config.Interactive;
-        this.queue = queue;
-    }
+    private readonly string? workDir = config.WorkDir;
+    private readonly string? host = config.Host;
+    private readonly string? epHost = config.EpHost;
+    private readonly string? tvHost = config.TvHost;
+    private readonly TaskQueue queue = queue;
+    private readonly bool interactive = config.Interactive;
 
     /// <summary>
     /// 受理任务：解析 URL → 去重 → 入队。命中已有任务返回 Duplicate（携带已有任务），
@@ -93,7 +83,7 @@ internal sealed class TaskStore
     }
 
     /// <summary>
-    /// 任务结束收尾：移除事件上下文并取消全部挂起选项，返回被移除的上下文。
+    /// 任务结束收尾：移除事件上下文并取消该任务的挂起提问，返回被移除的上下文。
     /// </summary>
     public ChannelWorkflowContext? ReleaseContext(ResourceId id)
     {
@@ -102,7 +92,7 @@ internal sealed class TaskStore
             return null;
         }
 
-        ctx.CancelPendingChoices( );
+        AskBus.CancelPending(id.ToString( ));
         return ctx;
     }
 

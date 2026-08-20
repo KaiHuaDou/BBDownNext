@@ -28,7 +28,7 @@ internal static class PageQueue
                 LogWarn("已同时指定 --interactive-pages 与 --pages，以交互选择为准。");
             }
 
-            selectedPages = PageSelect.ResolveInteractive(vInfo);
+            selectedPages = await PageSelect.ResolveInteractiveAsync(vInfo, ct);
         }
         else
         {

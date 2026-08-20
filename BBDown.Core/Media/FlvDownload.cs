@@ -44,7 +44,7 @@ public static class FlvDownload
                     }
                     else
                     {
-                        selection = selection with { Selected = true, VIndex = TrackSelect.PickDfn(dfns) };
+                        selection = selection with { Selected = true, VIndex = await TrackSelect.PickDfnAsync(dfns, ct) };
                     }
                 }
 

@@ -268,6 +268,8 @@ internal sealed class Program
                 }
             }
 
+            // 交互消费端先于进度条装配：AskBus 订阅在解析期即可能触发（逐集确认），进度条钩子由 CliInteraction 静态属性承载
+            using var interaction = new CliInteraction( );
             using var progressBar = new ProgressBar(AppEnv.CancellationToken);
             await DownloadPipeline.RunAsync(myOption, new PipelineSink(null, null), null, AppEnv.CancellationToken);
             return 0;

@@ -66,7 +66,7 @@ public static class DashDownload
 
         if (myOption.InteractiveQuality && !selected)
         {
-            TrackSelect.PickTracks(parsedResult, ref vIndex, ref aIndex);
+            (vIndex, aIndex) = await TrackSelect.PickTracksAsync(parsedResult, ct);
             selection = selection with { Selected = true, VIndex = vIndex, AIndex = aIndex };
         }
 

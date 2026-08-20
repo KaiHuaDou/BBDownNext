@@ -48,20 +48,23 @@ public static class BBDownAria2c
         }
     }
 
-    private static string DescribeExitCode(int code) => code switch
+    private static string DescribeExitCode(int code)
     {
-        1 => "未知错误",
-        2 => "超时",
-        3 => "资源未找到",
-        4 => "网络/连接问题（如 DNS 解析失败）",
-        5 => "aria2c 参数错误",
-        6 => "被服务器拒绝（如 HTTP 403）",
-        9 => "分块哈希校验失败",
-        14 => "校验和验证失败",
-        16 => "磁盘空间不足",
-        18 => "下载未完成",
-        _ => "未知错误",
-    };
+        return code switch
+        {
+            1 => "未知错误",
+            2 => "超时",
+            3 => "资源未找到",
+            4 => "网络/连接问题（如 DNS 解析失败）",
+            5 => "aria2c 参数错误",
+            6 => "被服务器拒绝（如 HTTP 403）",
+            9 => "分块哈希校验失败",
+            14 => "校验和验证失败",
+            16 => "磁盘空间不足",
+            18 => "下载未完成",
+            _ => "未知错误",
+        };
+    }
 
     internal static List<string> BuildArgs(string url, string path, string extraArgs, string cookie)
     {

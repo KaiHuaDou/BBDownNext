@@ -13,15 +13,13 @@ using BBDown.Core;
 using BBDown.Core.Workflow;
 using BBDown.Serve.Tasks;
 
-using Microsoft.AspNetCore.Http;
-
 namespace BBDown.Serve.Http;
 
 /// <summary>
 /// 任务事件 WebSocket 通道（/hubs/tasks）：订阅任务后接收消息 / 进度快照 / 选项请求，
 /// 经 submitChoice 帧应答选项。帧协议见 API.md「WebSocket 事件流」。
 /// </summary>
-internal sealed class TaskSocketHub
+internal sealed class TaskSocketHub(TaskStore store)
 {
     private const int MaxConnectionsPerIp = 5;
     private const int MaxFrameBytes = 64 * 1024;
@@ -33,12 +31,7 @@ internal sealed class TaskSocketHub
     // 每连接发送锁：广播与回执帧可能并发写同一连接，WebSocket 不保证并发写安全
     private readonly ConcurrentDictionary<WebSocket, SemaphoreSlim> socketGates = new( );
     private readonly ConcurrentDictionary<string, int> connections = new( );
-    private readonly TaskStore store;
-
-    public TaskSocketHub(TaskStore store)
-    {
-        this.store = store;
-    }
+    private readonly TaskStore store = store;
 
     /// <summary>
     /// 每 IP 并发连接上限判定（升级前调用，超限返回 false 由端点回 429）。
@@ -126,7 +119,7 @@ internal sealed class TaskSocketHub
     // 读一帧：分片累加，超 MaxFrameBytes 判非法关闭；Close 帧返回 null
     private static async Task<string?> ReceiveFrameAsync(WebSocket socket, byte[] buffer, CancellationToken token)
     {
-        using var memory = new MemoryStream( );
+        await using var memory = new MemoryStream( );
         WebSocketReceiveResult result;
         do
         {
@@ -274,13 +267,13 @@ internal sealed class TaskSocketHub
     private async Task SubmitChoiceAsync(WebSocket socket, ClientFrame frame, CancellationToken token)
     {
         if (frame.TaskId is null || frame.RequestId is null || frame.Choice is null
-            || !ResourceId.TryParse(frame.TaskId, out var id) || store.GetContext(id) is not { } ctx)
+            || !ResourceId.TryParse(frame.TaskId, out var id) || store.GetContext(id) is not { })
         {
             await SendAsync(socket, new EventFrame("choiceResult", RequestId: frame.RequestId, Ok: false, Error: "任务不存在或未启用交互"), token);
             return;
         }
 
-        var ok = ctx.SubmitChoice(frame.RequestId.Value, frame.Choice);
+        var ok = AskBus.Answer(frame.RequestId.Value, new AskAnswer(frame.Choice));
         await SendAsync(socket, new EventFrame("choiceResult", RequestId: frame.RequestId, Ok: ok, Error: ok ? null : "选项非法或已应答"), token);
     }
 
@@ -349,7 +342,7 @@ internal sealed class TaskSocketHub
 
         return Uri.TryCreate(origin, UriKind.Absolute, out var uri)
                && (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-                   || IPAddress.TryParse(uri.Host, out var ip) && IPAddress.IsLoopback(ip));
+                   || (IPAddress.TryParse(uri.Host, out var ip) && IPAddress.IsLoopback(ip)));
     }
 }
 
