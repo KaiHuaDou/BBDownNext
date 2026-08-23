@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -52,7 +53,8 @@ public static partial class IntlBangumiInfoFetcher
         }
 
         var pubTimeStr = result.GetProperty("publish").GetProperty("pub_time").ToString( );
-        var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", null).ToUnixTimeSeconds( );
+        // 同 BangumiInfoFetcher：pub_time 格式固定为公历，非公历 locale 下必须用 InvariantCulture 解析
+        var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture).ToUnixTimeSeconds( );
         TryGetArray(result, "episodes", out var pages);
 
         //目标 ep 可能不在主 episodes 里，而在某个 module 的分组下

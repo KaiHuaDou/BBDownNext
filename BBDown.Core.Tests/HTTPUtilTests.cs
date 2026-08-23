@@ -61,4 +61,40 @@ public class HTTPUtilTests
         var cookie = request.Headers.GetValues("Cookie").Single( );
         Assert.DoesNotContain("CURRENT_FNVAL", cookie);
     }
+
+    [Theory]
+    [InlineData("api.bilibili.com", true)]
+    [InlineData("passport.bilibili.com", true)]
+    [InlineData("api.snm0516.aisee.tv", true)]
+    [InlineData("api.bilibili.tv", true)]
+    [InlineData("api.biliintl.com", true)]
+    [InlineData("api.live.bilibili.com", true)]
+    [InlineData("www.bilibili.com", true)]
+    [InlineData("space.bilibili.com", true)]
+    [InlineData("bangumi.bilibili.com", true)]
+    [InlineData("comment.bilibili.com", true)]
+    [InlineData("live.bilibili.com", true)]
+    [InlineData("passport.snm0516.aisee.tv", true)]
+    [InlineData("evil.example.com", false)]
+    [InlineData("api.bilibili.com.evil.com", false)]
+    public void IsTrustedCookieHost_AcceptsOfficialDomainsOnly(string host, bool expected)
+    {
+        Assert.Equal(expected, HTTPUtil.IsTrustedCookieHost(host, AppConfig.Empty));
+    }
+
+    // 用户自定义 host（--host / --ep-host / --tv-host 指向镜像站）属用户显式授权，必须放行
+    [Fact]
+    public void IsTrustedCookieHost_AcceptsConfiguredCustomHost( )
+    {
+        var cfg = AppConfig.Empty with { EpHost = "mirror.example.com" };
+        Assert.True(HTTPUtil.IsTrustedCookieHost("mirror.example.com", cfg));
+    }
+
+    // 凭据门必须在附加任何头之前生效，拒绝携带操作者 Cookie 的请求发往不可信主机
+    [Fact]
+    public void ApplyStandardGetHeaders_RejectsUntrustedHost( )
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://evil.example.com/page");
+        Assert.Throws<InvalidOperationException>(() => HTTPUtil.ApplyStandardGetHeaders(request, "https://evil.example.com/page", AppConfig.Empty));
+    }
 }

@@ -21,9 +21,13 @@
 - 专栏图片下载进度：图片下载按张数上报进度，GUI 任务行进度条推进并显示图片进度。
 - GUI 选项区重组：登录独立成区；新增「内容选项」（分 P 选择 / 评论 / 弹幕 / 逐集确认 / 展示全部分 P / 试看）；原「选项」拆为「下载选项」（下载相关复选框、分 P 间隔、混流方式 / 语言、aria2c 参数）；原「高级选项」更名「解析选项」（仅解析不下载、视频 / 音频升序、交互选清晰度 / 轨道、API 通道、直播清晰度、编码 / 画质 / 音频优先级、User-Agent 与各 host）；「仅解析不下载」时同步禁用下载选项区。
 - 交互选项携带完整描述：选清晰度 / 选轨选项文本展示 Dfn / 分辨率 / 编码 / 帧率 / 码率 / 估算体积（体积按分 P 时长折算），逐集确认选项标注 y / n / a / q 含义。
+- BBDown.WebUI 前端项目脚手架：Vue 3 + Vite + TypeScript + Vitest（pnpm workspace，oxlint / oxfmt 静态检查、vue-tsc 类型检查），初始模板不含业务功能。
+- 请求凭据门：携带操作者 Cookie 的请求仅允许发往 B 站官方域或用户显式配置的 host（`--host` / `--ep-host` / `--tv-host`），`ApplyStandardGetHeaders` 在附加任何头之前校验，防 b23.tv 短链展开等用户可控 URL 将 Cookie 外发第三方。
+- mp4box 混流配音轨：`BuildMp4boxArgs` 在视频、主音频之后编入配音 / 背景音轨（与 ffmpeg 分支同序，字幕之前），Title 缺失回落 PersonName，PersonName 与 Title 相同时不再重复写 artist 标签。
 
 ### 修复
 
+- 修复番剧发布时间解析在非公历 locale 下中断：`pub_time` 格式固定为公历 `yyyy-MM-dd HH:mm:ss`，`ParseExact` 改以 `InvariantCulture` 解析，不再受 CurrentCulture 默认历法（fa-IR / ar-SA 等）影响。
 - 修复 serve 任务实际串行下载：任务队列消费循环逐个等待完成，`--max-concurrent` 不生效（无论配置多少实际并发恒为 1）；现按配置并发执行。
 - 修复 serve 日志双打印：启动路径装配了两个控制台渲染器，业务日志输出两遍；现仅保留一个。
 - 修复 serve 任务已下载字节数多轨并发回退：进度样本累计改由总线按任务维护，音视频轨并行下载时 `TotalDownloadedBytes` 不再来回跳动。

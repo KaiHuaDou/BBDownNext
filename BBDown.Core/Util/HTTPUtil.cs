@@ -90,10 +90,27 @@ public static partial class HTTPUtil
     [GeneratedRegex(@"^(ep|ss)\d+$")]
     private static partial Regex BangumiSegmentRegex( );
 
+    // 凭据门：携带操作者 Cookie 的请求只允许发往 B 站官方域或用户显式配置的 host（--host / --ep-host / --tv-host）。
+    // b23.tv 短链展开后的目标不可信，拦截可防用户可控 URL 把 Cookie 外发给第三方
+    internal static bool IsTrustedCookieHost(string host, AppConfig cfg)
+    {
+        return host is BiliApi.MainHost or BiliApi.PassportHost or BiliApi.TvHost or BiliApi.IntlAppHost
+                   or BiliApi.IntlWebHost or BiliApi.LiveApiHost or "www.bilibili.com" or "space.bilibili.com"
+                   or "bangumi.bilibili.com" or "comment.bilibili.com" or "live.bilibili.com"
+                   or "passport.snm0516.aisee.tv"
+               || host == cfg.Host || host == cfg.EpHost || host == cfg.TvHost;
+    }
+
     // UA 请求级化：显式参数 > AppConfig.UserAgent > 进程级默认。CLI 的 --user-agent 由 WorkSetup.ResolveConfig
     // 落入 AppConfig，serve 契约不含该字段，故不会出现跨任务互相覆盖全局 UA 的踩踏
     internal static void ApplyStandardGetHeaders(HttpRequestMessage request, string url, AppConfig cfg, string? userAgent = null)
     {
+        // 在附加任何头之前拒绝，避免把操作者 Cookie 发往不可信主机
+        if (Uri.TryCreate(url, UriKind.Absolute, out var gateUri) && !IsTrustedCookieHost(gateUri.Host, cfg))
+        {
+            throw new InvalidOperationException($"拒绝向不可信主机发送携带 Cookie 的请求：{gateUri.Host}");
+        }
+
         var effectiveUserAgent = userAgent ?? (string.IsNullOrEmpty(cfg.UserAgent) ? UserAgent : cfg.UserAgent);
         request.Headers.TryAddWithoutValidation("User-Agent", effectiveUserAgent);
         request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");

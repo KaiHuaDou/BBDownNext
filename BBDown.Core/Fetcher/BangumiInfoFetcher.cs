@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -47,7 +48,9 @@ public static class BangumiInfoFetcher
         var title = result.GetProperty("title").ToString( );
         var desc = result.GetProperty("evaluate").ToString( );
         var pubTimeStr = result.GetProperty("publish").GetProperty("pub_time").ToString( );
-        var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", null).ToUnixTimeSeconds( );
+        // 服务端格式固定为公历 yyyy-MM-dd HH:mm:ss，必须用 InvariantCulture：CurrentCulture 在非公历默认历法
+        // locale（fa-IR / ar-SA 等）下解析失败，番剧发布时间会中断整个信息获取
+        var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture).ToUnixTimeSeconds( );
         TryGetArray(result, "episodes", out var pages);
 
         // 整季形态无需定位，跳过 section 扫描

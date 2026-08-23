@@ -260,7 +260,28 @@ public class MuxerArgsTests
         Assert.Contains("/tmp/a.m4a:lang=zh", args);
         Assert.Equal("/tmp/chapters", ValueAfter(args, "-chap"));
         Assert.Contains("/tmp/s0.srt#trackID=1:name=:hdlr=sbtl:lang=chi", args);
-        Assert.Equal("3:type=name:str=中文（简体）", ValueAfter(args, "-udta"));
+        Assert.Equal("4:type=name:str=中文（简体）", ValueAfter(args, "-udta"));
+    }
+
+    [Fact]
+    public void BuildMp4boxArgs_AddsAudioMaterialWithUdtaNames( )
+    {
+        List<AudioMaterial> material =
+        [
+            new( ) { Title = "配音", PersonName = "甲", Path = "/tmp/m1.m4a" },
+            new( ) { Title = "", PersonName = "乙", Path = "/tmp/m2.m4a" }
+        ];
+
+        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", audioMaterial: material, outPath: "/out/x.mp4", title: "t");
+        var args = Muxer.BuildMp4boxArgs(req, null, false);
+
+        Assert.Contains("/tmp/m1.m4a:lang=und", args);
+        Assert.Contains("/tmp/m2.m4a:lang=und", args);
+        // 视频 1 / 音频 2，配音轨 3、4；title 缺失回落 personName，personName 与 name 相同不再重复写 artist
+        Assert.Equal("3:type=name:str=配音", ValueAfter(args, "-udta"));
+        Assert.Contains("3:type=artist:str=甲", args);
+        Assert.Contains("4:type=name:str=乙", args);
+        Assert.DoesNotContain("4:type=artist", args);
     }
 
     [Fact]

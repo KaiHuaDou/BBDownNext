@@ -69,6 +69,23 @@ public static class Muxer
             trackId++;
         }
 
+        // 配音/背景音轨与 ffmpeg 分支同序编入：track 编号在视频、主音频之后，字幕之前
+        foreach (var audio in req.AudioMaterial)
+        {
+            trackId++;
+            args.AddRange(["-add", $"{audio.Path}:lang=und"]);
+            var name = string.IsNullOrWhiteSpace(audio.Title) ? audio.PersonName : audio.Title;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                args.AddRange(["-udta", $"{trackId}:type=name:str={name}"]);
+            }
+
+            if (!string.IsNullOrWhiteSpace(audio.PersonName) && audio.PersonName != name)
+            {
+                args.AddRange(["-udta", $"{trackId}:type=artist:str={audio.PersonName}"]);
+            }
+        }
+
         if (chapterFile != null)
         {
             args.AddRange(["-chap", chapterFile]);
