@@ -636,17 +636,22 @@ B 站 web 接口要求 WBI 签名，未签名的请求更容易触发风控。BB
 ## 致谢
 
 - [nilaoda/BBDown](https://github.com/nilaoda/BBDown) 用于原版 BBDown：本项目由其衍生，登录、接口解析等核心设计沿袭自原作者 nilaoda。
-- [QRCoder](https://github.com/codebude/QRCoder) 用于生成扫码登录二维码。
-- [protobuf](https://github.com/protocolbuffers/protobuf) 用于 APP 端 gRPC 消息序列化。
-- [gRPC](https://github.com/grpc/grpc) 用于 APP 端接口协议。
-- [System.CommandLine](https://github.com/dotnet/command-line-api) 用于命令行解析。
+- [aria2](https://github.com/aria2/aria2) 用于 aria2c 多线程下载。
+- [Avalonia](https://github.com/AvaloniaUI/Avalonia) 用于 GUI 跨平台 UI 框架（含 Avalonia.Desktop、Avalonia.Fonts.Inter、Avalonia.Themes.Fluent）。
 - [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect) 用于 B 站接口文档参考（随仓库以子目录形式附带）。
 - [bilibili-grpc-api](https://github.com/SeeFlowerX/bilibili-grpc-api) 用于 APP 端 gRPC 协议定义。
+- [Downloader](https://github.com/bezzad/Downloader) 用于多线程分片下载。
 - [FFmpeg](https://github.com/FFmpeg/FFmpeg) 用于音视频下载与混流。
 - [GPAC](https://github.com/gpac/gpac) 用于 MP4Box 混流。
-- [aria2](https://github.com/aria2/aria2) 用于 aria2c 多线程下载。
-- [YY-Thunks](https://github.com/Chuyu-Team/YY-Thunks) 用于 Win7 兼容构建时在链接期补齐旧系统缺失的 API。
+- [gRPC](https://github.com/grpc/grpc) 用于 APP 端接口协议。
+- [Microsoft.Testing.Extensions.CodeCoverage](https://github.com/microsoft/testfx) 用于测试覆盖率统计。
+- [Microsoft.Testing.Extensions.TrxReport](https://github.com/microsoft/testfx) 用于测试结果 TRX 报告。
+- [protobuf](https://github.com/protocolbuffers/protobuf) 用于 APP 端 gRPC 消息序列化。
+- [QRCoder](https://github.com/codebude/QRCoder) 用于生成扫码登录二维码。
+- [System.CommandLine](https://github.com/dotnet/command-line-api) 用于命令行解析。
 - [VC-LTL](https://github.com/Chuyu-Team/VC-LTL) 用于 Win7 兼容构建时静态消除 api-ms-win-crt 依赖。
+- [xunit.v3](https://github.com/xunit/xunit) 用于单元测试。
+- [YY-Thunks](https://github.com/Chuyu-Team/YY-Thunks) 用于 Win7 兼容构建时在链接期补齐旧系统缺失的 API。
 
 ## 许可证
 

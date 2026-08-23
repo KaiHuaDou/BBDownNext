@@ -85,9 +85,7 @@ public static partial class TrackSelect
             var index = 0;
             foreach (var v in parsedResult.VideoTracks)
             {
-                var pDur = pageDur == 0 ? v.Dur : pageDur;
-                var size = v.Size > 0 ? v.Size : pDur * v.Bandwidth * 1024 / 8;
-                LogColor($"{index++}. [{v.Dfn}] [{v.Res}] [{v.Codecs}] [{v.Fps}] [{v.Bandwidth} kbps] [~{FormatFileSize(size)}]".Replace("[] ", ""), false);
+                LogColor($"{index++}. {DescribeVideo(v, pageDur)}", false);
                 if (onlyShowInfo)
                 {
                     Console.WriteLine(v.BaseUrl);
@@ -101,14 +99,27 @@ public static partial class TrackSelect
             var index = 0;
             foreach (var a in parsedResult.AudioTracks)
             {
-                var pDur = pageDur == 0 ? a.Dur : pageDur;
-                LogColor($"{index++}. [{a.Dfn}] [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(pDur * a.Bandwidth * 1024 / 8)}]", false);
+                LogColor($"{index++}. {DescribeAudio(a, pageDur)}", false);
                 if (onlyShowInfo)
                 {
                     Console.WriteLine(a.BaseUrl);
                 }
             }
         }
+    }
+
+    // 音视频流描述（Dfn / 分辨率 / 编码 / 帧率 / 码率 / 估算体积），日志列表与交互选项共用同一格式化来源
+    private static string DescribeVideo(Video v, int pageDur)
+    {
+        var pDur = pageDur == 0 ? v.Dur : pageDur;
+        var size = v.Size > 0 ? v.Size : pDur * v.Bandwidth * 1024 / 8;
+        return $"[{v.Dfn}] [{v.Res}] [{v.Codecs}] [{v.Fps}] [{v.Bandwidth} kbps] [~{FormatFileSize(size)}]".Replace("[] ", "");
+    }
+
+    private static string DescribeAudio(Audio a, int pageDur)
+    {
+        var pDur = pageDur == 0 ? a.Dur : pageDur;
+        return $"[{a.Dfn}] [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(pDur * a.Bandwidth * 1024 / 8)}]";
     }
 
     internal static void PrintFlvTracksInfo(ParsedResult parsedResult, List<string> clips, bool onlyShowInfo)
@@ -131,33 +142,34 @@ public static partial class TrackSelect
     {
         if (selectedVideo != null)
         {
-            var pDur = pageDur == 0 ? selectedVideo.Dur : pageDur;
-            var size = selectedVideo.Size > 0 ? selectedVideo.Size : pDur * selectedVideo.Bandwidth * 1024 / 8;
-            LogColor($"[视频] [{selectedVideo.Dfn}] [{selectedVideo.Res}] [{selectedVideo.Codecs}] [{selectedVideo.Fps}] [{selectedVideo.Bandwidth} kbps] [~{FormatFileSize(size)}]".Replace("[] ", ""), false);
+            LogColor($"[视频] {DescribeVideo(selectedVideo, pageDur)}", false);
         }
 
         if (selectedAudio != null)
         {
-            var pDur = pageDur == 0 ? selectedAudio.Dur : pageDur;
-            LogColor($"[音频] [{selectedAudio.Dfn}] [{selectedAudio.Codecs}] [{selectedAudio.Bandwidth} kbps] [~{FormatFileSize(pDur * selectedAudio.Bandwidth * 1024 / 8)}]", false);
+            LogColor($"[音频] {DescribeAudio(selectedAudio, pageDur)}", false);
         }
     }
 
     /// <summary>
     /// 引导用户进行手动选择轨道；无应答（不交互）时回落默认序号 0。
     /// </summary>
-    internal static async Task<(int VIndex, int AIndex)> PickTracksAsync(ParsedResult parsedResult, CancellationToken token)
+    internal static async Task<(int VIndex, int AIndex)> PickTracksAsync(ParsedResult parsedResult, int pageDur, CancellationToken token)
     {
         var vIndex = 0;
         var aIndex = 0;
         if (parsedResult.VideoTracks.Count != 0)
         {
-            vIndex = await PickIndexAsync("请选择一条视频流（输入序号）：", parsedResult.VideoTracks.Count, token);
+            var options = parsedResult.VideoTracks
+                .Select((v, i) => new AskOption(i.ToString( ), $"{i}. {DescribeVideo(v, pageDur)}")).ToArray( );
+            vIndex = await PickIndexAsync("请选择一条视频流（输入序号）：", options, token);
         }
 
         if (parsedResult.AudioTracks.Count != 0)
         {
-            aIndex = await PickIndexAsync("请选择一条音频流（输入序号）：", parsedResult.AudioTracks.Count, token);
+            var options = parsedResult.AudioTracks
+                .Select((a, i) => new AskOption(i.ToString( ), $"{i}. {DescribeAudio(a, pageDur)}")).ToArray( );
+            aIndex = await PickIndexAsync("请选择一条音频流（输入序号）：", options, token);
         }
 
         return (vIndex, aIndex);
@@ -167,14 +179,15 @@ public static partial class TrackSelect
     {
         var i = 0;
         dfns.ForEach(key => LogColor($"{i++}.{Config.GetQualityName(key)}"));
-        return await PickIndexAsync("请选择清晰度（输入序号）：", dfns.Count, token);
+        var options = dfns
+            .Select((key, n) => new AskOption(n.ToString( ), $"{n}. {Config.GetQualityName(key)}")).ToArray( );
+        return await PickIndexAsync("请选择清晰度（输入序号）：", options, token);
     }
 
     // 序号选择：选项 Id 即序号字符串；无应答（不交互）回落 0，同现状非法输入回落 0
-    private static async Task<int> PickIndexAsync(string prompt, int count, CancellationToken token)
+    private static async Task<int> PickIndexAsync(string prompt, AskOption[] options, CancellationToken token)
     {
-        var options = Enumerable.Range(0, count).Select(i => new AskOption(i.ToString( ), i.ToString( ))).ToArray( );
         var answer = await AskBus.Ask(prompt, options, "0", token);
-        return int.TryParse(answer?.OptionId, out var index) && index >= 0 && index < count ? index : 0;
+        return int.TryParse(answer?.OptionId, out var index) && index >= 0 && index < options.Length ? index : 0;
     }
 }

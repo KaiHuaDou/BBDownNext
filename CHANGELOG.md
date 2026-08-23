@@ -19,6 +19,8 @@
 - GUI 弹窗交互：选项区新增「逐集确认」「交互选清晰度 / 轨道」开关，交互请求在窗口内弹窗应答（多任务并发弹窗叠加），配置随队列持久化。
 - 直播录制进度接入总线：录制期间经进度总线发布样本（时长 / 分段 / 清晰度 / 速度），GUI 任务行以不确定进度条 + 详情文本展示，CLI 状态行改订阅总线渲染。
 - 专栏图片下载进度：图片下载按张数上报进度，GUI 任务行进度条推进并显示图片进度。
+- GUI 选项区重组：登录独立成区；新增「内容选项」（分 P 选择 / 评论 / 弹幕 / 逐集确认 / 展示全部分 P / 试看）；原「选项」拆为「下载选项」（下载相关复选框、分 P 间隔、混流方式 / 语言、aria2c 参数）；原「高级选项」更名「解析选项」（仅解析不下载、视频 / 音频升序、交互选清晰度 / 轨道、API 通道、直播清晰度、编码 / 画质 / 音频优先级、User-Agent 与各 host）；「仅解析不下载」时同步禁用下载选项区。
+- 交互选项携带完整描述：选清晰度 / 选轨选项文本展示 Dfn / 分辨率 / 编码 / 帧率 / 码率 / 估算体积（体积按分 P 时长折算），逐集确认选项标注 y / n / a / q 含义。
 
 ### 修复
 
@@ -37,6 +39,9 @@
 - 工作流事件收窄：`IWorkflowContext` 删除，任务事件队列统一为具体类 `ChannelWorkflowContext`（交互能力并入 `AskBus`）。
 - WebSocket `optionRequest` 帧演进：`options` 由字符串数组改为 `{ id, label }` 对象数组，并携带任务 `scope` 与回落选项 `defaultOptionId`；`submitChoice` 的 `choice` 即选项 `id`。
 - 直播状态行迁移：`LiveProgress` 由 Core 迁至 CLI 并改订阅进度总线（`BBDown.Core` 不再含控制台渲染组件）；直播进度样本 `Ratio` 恒 0，`Detail` 承载时长 / 分段 / 清晰度。
+- 交互选项描述统一来源：`TrackSelect` 提取 `DescribeVideo` / `DescribeAudio`，日志列表与交互选项共用同一格式化文本。
+- GUI 构建矩阵调整：win-x64 额外产出 Win7 兼容包（YY-Thunks / VC-LTL 静态消除 CRT 依赖，`SupportedOSPlatformVersion=7.0`），win-arm64 不构建 Win7 兼容版。
+- README 致谢列表按字母序重排并补齐依赖项。
 
 ## [v2.0.1]
 

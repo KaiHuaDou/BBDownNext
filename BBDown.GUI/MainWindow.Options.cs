@@ -268,13 +268,14 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>仅解析不下载时禁用下载内容相关复选框（含弹幕/评论格式），避免无效选项误导。</summary>
+    /// <summary>仅解析不下载时禁用下载相关选项（下载选项整块与内容选择），避免无效选项误导。</summary>
     private void InfoOnlyCheckBoxChanged(object? o, RoutedEventArgs e)
     {
         var enabled = InfoOnlyCheckBox.IsChecked != true;
         ContentGrid.IsEnabled = enabled;
         DanmakuFormatPanel.IsEnabled = enabled;
         CommentFormatPanel.IsEnabled = enabled;
+        DownloadExpander.IsEnabled = enabled;
     }
 
     private void DebugCheckBoxChecked(object? o, RoutedEventArgs e)

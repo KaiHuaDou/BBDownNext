@@ -129,7 +129,12 @@ public static class PageSelect
             var p = vInfo.PagesInfo[i];
             var answer = await AskBus.Ask(
                 $"[{p.Index}] {p.Title}（{FormatTime(p.Dur)}）是否下载？[y/n/a/q]",
-                [new AskOption("y", "y"), new AskOption("n", "n"), new AskOption("a", "a"), new AskOption("q", "q")],
+                [
+                    new AskOption("y", "y（要）"),
+                    new AskOption("n", "n（不要）"),
+                    new AskOption("a", "a（剩余全部要）"),
+                    new AskOption("q", "q（剩余全部不要）"),
+                ],
                 "n", token);
             switch (answer?.OptionId)
             {

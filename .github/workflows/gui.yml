@@ -32,7 +32,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rid: [win-x64, win-arm64]
+        include:
+          - rid: win-x64
+            buildWin7: true
+          - rid: win-arm64
+            buildWin7: false
     steps:
       - uses: actions/checkout@v7
 
@@ -46,8 +50,6 @@ jobs:
       - name: Publish (AOT)
         run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} -o artifact
 
-      # AOT 单文件发布仍会伴随无法嵌入的原生库（如 libSkiaSharp，具体文件名随依赖变化），
-      # 故打包整个发布目录为 zip，避免漏掉这些伴随文件。
       - name: Package artifact
         shell: pwsh
         run: Compress-Archive -Path artifact\* -DestinationPath BBDown.GUI-${{ matrix.rid }}.zip
@@ -57,6 +59,23 @@ jobs:
         with:
           name: BBDown_GUI_${{ matrix.rid }}
           path: BBDown.GUI-${{ matrix.rid }}.zip
+          retention-days: 7
+
+      - name: Publish (Win7 compatible)
+        if: matrix.buildWin7
+        run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r win-x64 -o artifact-win7 -p:Win7Compatitable=true
+
+      - name: Package artifact (Win7 compatible)
+        if: matrix.buildWin7
+        shell: pwsh
+        run: Compress-Archive -Path artifact-win7\* -DestinationPath BBDown.GUI-win7-x64.zip
+
+      - name: Upload artifact (Win7 compatible)
+        if: matrix.buildWin7
+        uses: actions/upload-artifact@v7
+        with:
+          name: BBDown_GUI_win7_x64
+          path: BBDown.GUI-win7-x64.zip
           retention-days: 7
 
   build-macos:
@@ -80,8 +99,6 @@ jobs:
       - name: Publish (AOT)
         run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} -o artifact
 
-      # AOT 单文件发布仍会伴随无法嵌入的原生库（如 libSkiaSharp，具体文件名随依赖变化），
-      # 故打包整个发布目录为 zip，避免漏掉这些伴随文件。
       - name: Package artifact
         run: cd artifact && zip -r "../BBDown.GUI-${{ matrix.rid }}.zip" .
 
@@ -134,8 +151,6 @@ jobs:
       - name: Publish (AOT)
         run: dotnet publish BBDown.GUI -c ${{ env.BUILD_CONFIG }} -r ${{ matrix.rid }} -o artifact
 
-      # AOT 单文件发布仍会伴随无法嵌入的原生库（如 libSkiaSharp，具体文件名随依赖变化），
-      # 故打包整个发布目录为 zip，避免漏掉这些伴随文件。
       - name: Package artifact
         run: cd artifact && zip -r "../BBDown.GUI-${{ matrix.rid }}.zip" .
 

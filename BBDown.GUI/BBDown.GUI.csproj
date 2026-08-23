@@ -5,6 +5,10 @@
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Win7Compatitable)' == 'true'">
+        <TargetFramework>net9.0-windows</TargetFramework>
+        <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
+    </PropertyGroup>
     <PropertyGroup>
         <StartupObject>BBDown.GUI.App.Program</StartupObject>
         <AnalysisLevel>latest-all</AnalysisLevel>
@@ -37,6 +41,8 @@
         <PackageReference Include="Avalonia.Desktop" />
         <PackageReference Include="Avalonia.Fonts.Inter" />
         <PackageReference Include="Avalonia.Themes.Fluent" />
+        <PackageReference Include="YY-Thunks" Condition="'$(Win7Compatitable)' == 'true'" />
+        <PackageReference Include="VC-LTL" Condition="'$(Win7Compatitable)' == 'true'" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\BBDown.Core\BBDown.Core.csproj" />
