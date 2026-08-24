@@ -1,0 +1,39 @@
+import { describe, expect, it } from 'vitest'
+
+import { describeTarget } from '../lib/urlDetector'
+
+describe('describeTarget', () => {
+  it('识别各类 ID 前缀', () => {
+    expect(describeTarget('av170001')).toBe('视频（av 号）')
+    expect(describeTarget('BV1xx411c7mD')).toBe('视频（BV 号）')
+    expect(describeTarget('ep2539')).toBe('番剧（ep 号）')
+    expect(describeTarget('ss2539')).toBe('番剧（ss 号）')
+    expect(describeTarget('md123')).toBe('番剧（md 号）')
+    expect(describeTarget('opus123')).toBe('专栏（opus 号）')
+    expect(describeTarget('cv123')).toBe('专栏（cv 号）')
+    expect(describeTarget('space402787936')).toBe('用户空间')
+  })
+
+  it('裸数字视为 av 号', () => {
+    expect(describeTarget('170001')).toBe('视频（av 号）')
+  })
+
+  it('识别 URL', () => {
+    expect(describeTarget('https://www.bilibili.com/video/BV1xx411c7mD')).toBe(
+      '视频（BV1xx411c7mD）'
+    )
+    expect(describeTarget('https://www.bilibili.com/video/av170001')).toBe('视频（av 号）')
+    expect(describeTarget('https://www.bilibili.com/bangumi/play/ep2539')).toBe('番剧（ep 号）')
+    expect(describeTarget('https://www.bilibili.com/read/cv123456')).toBe('专栏（cv 号）')
+    expect(describeTarget('https://live.bilibili.com/12345')).toBe('直播地址')
+    expect(describeTarget('https://www.bilibili.com/watchlater')).toBe('稍后再看列表')
+  })
+
+  it('无法识别时返回 null', () => {
+    expect(describeTarget('')).toBeNull()
+    expect(describeTarget('   ')).toBeNull()
+    expect(describeTarget('随便什么')).toBeNull()
+    expect(describeTarget('av')).toBeNull()
+    expect(describeTarget('ep')).toBeNull()
+  })
+})

@@ -1,0 +1,106 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "promise", "vitest", "vue"],
+  "env": {
+    "browser": true,
+    "vue": true,
+    "vitest": true
+  },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "pedantic": "off",
+    "perf": "warn",
+    "style": "warn",
+    "restriction": "warn"
+  },
+  "options": {
+    "typeAware": true,
+    "typeCheck": true
+  },
+  "rules": {
+    // 中文注释为主，规则只对英文注释有意义
+    "capitalized-comments": "off",
+    // catch 参数统一短名 e（AGENTS 禁缩写清单未含 e，异常惯例短名）
+    "catch-error-name": "off",
+    // 内部函数依赖闭包捕获（ref / socket），上提模块作用域会破坏语义
+    "consistent-function-scoping": "off",
+    // TS 判别联合 switch 依赖穷尽性检查，补 default 会弱化类型保障
+    "default-case": "off",
+    // 所有导出函数已显式标注参数与返回类型，规则冗余
+    "explicit-module-boundary-types": "off",
+    // export function 是 ES 模块导出惯用法，全库统一函数声明
+    "func-style": "off",
+    // AGENTS 约定命名偏好简短直接，id 等规范短名
+    "id-length": "off",
+    // 声明后按分支赋值是合法模式（如 let url 后 if/else 赋值）
+    "init-declarations": "off",
+    // 无项目依据的武断上限
+    "max-params": "off",
+    "max-statements": "off",
+    // oxc restriction 激进规则，async/await 是现代 TS 标配
+    "no-async-await": "off",
+    // request<void> 的 Promise<void> 泛型参数是合法 TS 用法
+    "no-invalid-void-type": "off",
+    // HTTP 状态码 / 格式化阈值（1024、0.02）等字面量自解释，提常量反损可读性
+    "no-magic-numbers": "off",
+    // Vue/TS 生态 null 是标准哨兵值（如 connectionError: string | null）
+    "no-null": "off",
+    // ES2020 标准，与 Vue 模板 / TS 生态一致
+    "no-optional-chaining": "off",
+    // 对象展开（{ ...init }）是 ES2018 惯用法
+    "no-rest-spread-properties": "off",
+    // 表达式上下文三元是标准惯用法（如计算属性返回值），强拆降低可读性
+    "no-ternary": "off",
+    // ?? undefined 把 null 归一化为可选字段的「无值」语义
+    "no-undefined": "off",
+    // JSON 反序列化（JSON.parse / response.json）的类型断言是 TS 边界标准模式，无法避免
+    "no-unsafe-type-assertion": "off",
+    // function 声明提升是合法 JS/TS 语义
+    "no-use-before-define": "off",
+    // void 表达式是 fire-and-forget 惯用法，避免未处理 Promise 告警
+    "no-void": "off",
+    // 与 Core 数据表（LiveQuality.Levels）数字格式保持一致
+    "numeric-separators-style": "off",
+    // 逐条声明可读性更高（每条可独立注释），合并反损可维护性
+    "one-var": "off",
+    // WebSocket handler 属性赋值是标准 API 用法；Vue 模板事件不经此规则
+    "prefer-add-event-listener": "off",
+    // 对「赋值给已声明变量」场景规则误报（eslint 已知局限）
+    "prefer-destructuring": "off",
+    // 与 no-async-await 意见相反（oxc vs typescript 插件），非 async 返回 Promise 合法
+    "promise-function-async": "off",
+    // import 排序由 oxfmt 统一管理，避免双工具冲突
+    "sort-imports": "off",
+    // 对象键按语义顺序排列（如 { task, duplicate }），字母序打乱概念分组
+    "sort-keys": "off",
+    // Vue 生态命名：组件 PascalCase、组合式函数 / 模块 camelCase
+    "unicorn/filename-case": ["warn", { "cases": { "camelCase": true, "pascalCase": true } }],
+    // 项目统一 *.spec.ts 后缀
+    "vitest/consistent-test-filename": "off",
+    // 布局渲染断言需多个 toContain，拆碎反损可读性
+    "vitest/max-expects": "off",
+    // 清理全局 mock 必须用 afterEach hook
+    "vitest/no-hooks": "off",
+    // 项目显式 import 测试 API（未开 vitest globals），可读性更好
+    "vitest/no-importing-vitest-globals": "off",
+    // describe 标题描述行为而非函数名
+    "vitest/prefer-describe-function-title": "off",
+    // 断言计数声明是样板噪音，测试本身自描述
+    "vitest/prefer-expect-assertions": "off",
+    // 中文标题不受大小写约束
+    "vitest/prefer-lowercase-title": "off",
+    // toBe / toEqual 是等价断言 API，风格无实质差异
+    "vitest/prefer-strict-equal": "off",
+    "vitest/prefer-to-be-falsy": "off",
+    "vitest/prefer-to-be-truthy": "off",
+    // Vue defineProps 在 script setup 顶层调用被误判为需要 hook
+    "vitest/require-hook": "off",
+    // 超时由 vitest 全局默认控制，逐测试标注是噪音
+    "vitest/require-test-timeout": "off",
+    // script setup 不解构 props 是长期稳定写法（Vue 3.5 前解构非响应式）
+    "vue/define-props-destructuring": "off",
+    // 组件 props 上限 5（默认 1 过严）：props 数量反映组件职责面，与武断上限无关
+    "vue/max-props": ["warn", { "maxProps": 5 }]
+  }
+}

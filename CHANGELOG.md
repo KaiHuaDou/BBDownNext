@@ -24,6 +24,7 @@
 - BBDown.WebUI 前端项目脚手架：Vue 3 + Vite + TypeScript + Vitest（pnpm workspace，oxlint / oxfmt 静态检查、vue-tsc 类型检查），初始模板不含业务功能。
 - 请求凭据门：携带操作者 Cookie 的请求仅允许发往 B 站官方域或用户显式配置的 host（`--host` / `--ep-host` / `--tv-host`），`ApplyStandardGetHeaders` 在附加任何头之前校验，防 b23.tv 短链展开等用户可控 URL 将 Cookie 外发第三方。
 - mp4box 混流配音轨：`BuildMp4boxArgs` 在视频、主音频之后编入配音 / 背景音轨（与 ffmpeg 分支同序，字幕之前），Title 缺失回落 PersonName，PersonName 与 Title 相同时不再重复写 artist 标签。
+- BBDown.WebUI 复刻 GUI 业务功能（WIP）：对接 serve REST 快照轮询与 WebSocket `/hubs/tasks` 事件流（`--interactive`）——任务队列五态展示（进度 / 日志 / 选项请求弹窗应答）、下载目标识别、内容 / 下载 / 解析选项面板（serve 请求契约排除的字段禁用并标注原因）、任务提交 / 取消 / 移除 / 清空 / 继续、连接设置（地址与令牌 localStorage 持久化）；serve 未开 `--interactive` 时事件流降级为禁用、任务状态仍由轮询提供，界面区分 REST 连接与事件流两个独立状态；登录端点预留（serve 未提供登录接口，仅凭据配置随任务提交）。
 
 ### 修复
 
@@ -33,6 +34,7 @@
 - 修复 serve 任务已下载字节数多轨并发回退：进度样本累计改由总线按任务维护，音视频轨并行下载时 `TotalDownloadedBytes` 不再来回跳动。
 - 修复 CI 测试结果上传缺日志：失败排查依赖 Testing Platform 的 `TestResults/*.log`，上传 artifact 补 log 文件（原仅 trx）。
 - 修复 aria2c 启动失败静默无提示：未安装 / 路径错误时 `Process.Start` 抛 `Win32Exception` 裸异常，现包装为含指引的可读错误。
+- 修复 serve 回环免令牌模式每个请求的认证失败日志噪音：期望令牌为空（回环且未指定 `--serve-token`）时认证 handler 返回 `NoResult` 而非 `Fail`，不再输出「无效或缺失令牌」，放行语义不变。
 
 ### 变更
 
@@ -45,6 +47,7 @@
 - 直播状态行迁移：`LiveProgress` 由 Core 迁至 CLI 并改订阅进度总线（`BBDown.Core` 不再含控制台渲染组件）；直播进度样本 `Ratio` 恒 0，`Detail` 承载时长 / 分段 / 清晰度。
 - 交互选项描述统一来源：`TrackSelect` 提取 `DescribeVideo` / `DescribeAudio`，日志列表与交互选项共用同一格式化文本。
 - GUI 构建矩阵调整：win-x64 额外产出 Win7 兼容包（YY-Thunks / VC-LTL 静态消除 CRT 依赖，`SupportedOSPlatformVersion=7.0`），win-arm64 不构建 Win7 兼容版。
+- BBDown.WebUI lint 配置迁移 `.oxlintrc.json` → `.oxlintrc.jsonc`：保留的禁用规则逐条注明原因（与 AGENTS 约定 / 技术现实冲突），恢复代码已满足的规则（`switch-case-braces`、`prefer-template` 等 10 条）并补齐对应代码。
 - README 致谢列表按字母序重排并补齐依赖项。
 
 ## [v2.0.1]
