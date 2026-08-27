@@ -1,6 +1,6 @@
 import { errorMessage } from '../lib/errors'
 import type { ClientFrame, EventFrame, WorkflowEvent } from '../lib/types'
-import type { ServeConfig } from './client'
+import { resolveBaseUrl, type ServeConfig } from './client'
 
 /**
  * 任务事件 WebSocket 通道（/hubs/tasks）：订阅任务后接收消息 / 进度快照 / 选项请求，
@@ -162,7 +162,8 @@ export function connectTaskSocket(config: ServeConfig, handlers: SocketHandlers)
 }
 
 function toWsUrl(config: ServeConfig): string {
-  const url = new URL(config.baseUrl)
+  // 始终按 baseUrl（留空归一为本机 serve 默认地址）直连，不依赖 dev server 代理
+  const url = new URL(resolveBaseUrl(config.baseUrl))
   const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
   const path = `${url.pathname.replace(/\/+$/, '')}/hubs/tasks`
   const token = config.token ? `?token=${encodeURIComponent(config.token)}` : ''

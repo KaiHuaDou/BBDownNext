@@ -143,27 +143,44 @@ internal sealed class TaskSocketHub(TaskStore store)
 
     private async Task SubscribeAsync(WebSocket socket, string? taskId, CancellationToken token)
     {
-        if (taskId is null || !ResourceId.TryParse(taskId, out var id) || store.GetContext(id) is not { } ctx)
+        // taskId 兼容两种形态：规范 id（/get-tasks 返回，经 TryParse 还原）与 record ToString
+        // （事件帧 TaskId 回发，字符串直配），统一转 scope 后按字符串匹配
+        var scope = ResolveScope(taskId);
+        // 任务已结束（含收尾窗口内）不提供订阅：事件流只覆盖任务执行期间，结束后的残留事件无意义
+        if (scope is null || store.GetByScope(scope) is not { } task
+            || task.Status == DownloadStatus.Finished || store.GetContext(scope) is not { } ctx)
         {
-            await SendAsync(socket, new EventFrame("error", Error: "任务不存在或未启用交互"), token);
+            await SendAsync(socket, new EventFrame("error", Error: "任务不存在、已结束或未启用交互"), token);
             return;
         }
 
-        var set = subscriptions.GetOrAdd(id, _ => new ConcurrentDictionary<WebSocket, byte>( ));
+        var set = subscriptions.GetOrAdd(task.Id, _ => new ConcurrentDictionary<WebSocket, byte>( ));
         set[socket] = 0;
-        StartForwarder(id, ctx);
+        StartForwarder(task.Id, ctx);
         // 快照恢复：订阅时先推一次当前进度样本
-        if (ProgressBus.Latest(id.ToString( ))?.Sample is { } snapshot)
+        if (ProgressBus.Latest(scope)?.Sample is { } snapshot)
         {
-            await SendAsync(socket, new EventFrame("snapshot", TaskId: taskId, Snapshot: snapshot), token);
+            await SendAsync(socket, new EventFrame("snapshot", TaskId: task.Id.ToString( ), Snapshot: snapshot), token);
         }
+    }
+
+    // 任务标识 → scope（record ToString）：规范 id 经 TryParse 还原后取 ToString，record 形态原样
+    private static string? ResolveScope(string? taskId)
+    {
+        if (taskId is null)
+        {
+            return null;
+        }
+
+        return ResourceId.TryParse(taskId, out var id) ? id.ToString( ) : taskId;
     }
 
     private void Unsubscribe(WebSocket socket, string? taskId)
     {
-        if (taskId is not null && ResourceId.TryParse(taskId, out var id))
+        // 与订阅同源解析：规范 id 或 record ToString 统一转 scope 后按字符串查任务
+        if (ResolveScope(taskId) is { } scope && store.GetByScope(scope) is { } task)
         {
-            RemoveSubscription(socket, id);
+            RemoveSubscription(socket, task.Id);
         }
     }
 
@@ -217,20 +234,19 @@ internal sealed class TaskSocketHub(TaskStore store)
         }
     }
 
+    // 快照轮询：仅阶段内样本引用变化时推帧（ProgressBus 阶段内复用同一 ProgressState 实例，
+    // 每次 Publish 生成新 ProgressSampleEvent；按样本引用比较才能捕捉变化，按 state 比较会漏推）
     private static async Task ForwardSnapshotsAsync(ResourceId id, ChannelWriter<EventFrame> writer, CancellationToken token)
     {
-        ProgressState? last = null;
+        ProgressSampleEvent? last = null;
         while (!token.IsCancellationRequested)
         {
             await Task.Delay(SnapshotInterval, token);
             var state = ProgressBus.Latest(id.ToString( ));
-            if (!ReferenceEquals(state, last))
+            if (state?.Sample is { } sample && !ReferenceEquals(sample, last))
             {
-                last = state;
-                if (state?.Sample is { } sample)
-                {
-                    await writer.WriteAsync(new EventFrame("snapshot", TaskId: id.ToString( ), Snapshot: sample), token);
-                }
+                last = sample;
+                await writer.WriteAsync(new EventFrame("snapshot", TaskId: id.ToString( ), Snapshot: sample), token);
             }
         }
     }
@@ -267,7 +283,7 @@ internal sealed class TaskSocketHub(TaskStore store)
     private async Task SubmitChoiceAsync(WebSocket socket, ClientFrame frame, CancellationToken token)
     {
         if (frame.TaskId is null || frame.RequestId is null || frame.Choice is null
-            || !ResourceId.TryParse(frame.TaskId, out var id) || store.GetContext(id) is not { })
+            || ResolveScope(frame.TaskId) is not { } scope || store.GetContext(scope) is not { })
         {
             await SendAsync(socket, new EventFrame("choiceResult", RequestId: frame.RequestId, Ok: false, Error: "任务不存在或未启用交互"), token);
             return;

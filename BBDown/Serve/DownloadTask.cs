@@ -21,11 +21,23 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
     public string? Pic { get; set; }
     public long? VideoPubTime { get; set; }
     public long? TaskFinishTime { get; set; }
-    public double Progress { get; set; }
-    public double DownloadSpeed { get; set; }
+    public double Progress
+    {
+        get => Volatile.Read(ref progress);
+        set => Volatile.Write(ref progress, value);
+    }
+
+    public double DownloadSpeed
+    {
+        get => Volatile.Read(ref downloadSpeed);
+        set => Volatile.Write(ref downloadSpeed, value);
+    }
+
     /// <summary>失败原因（路径已脱敏）；成功或未失败为 null。</summary>
     public string? ErrorMessage { get; set; }
-    // 进度字段由 TaskWorker 订阅 ProgressBus 更新（Interlocked 原子读写，多线程采样安全）
+    // 进度字段由 TaskWorker 订阅 ProgressBus 更新（原子读写，多线程采样安全）
+    private double progress;
+    private double downloadSpeed;
     private long totalBytes;
     public long TotalDownloadedBytes
     {

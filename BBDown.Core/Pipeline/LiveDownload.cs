@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Download;
+using BBDown.Core.Entity;
 using BBDown.Core.Live;
 using BBDown.Core.Util;
 using BBDown.Core.Workflow;
@@ -19,7 +20,7 @@ namespace BBDown.Core.Pipeline;
 /// </summary>
 public static class LiveDownload
 {
-    public static async Task RunAsync(DownloadRequest myOption, LiveTarget target, CancellationToken ct = default)
+    public static async Task RunAsync(DownloadRequest myOption, LiveTarget target, string sessionId, PipelineSink sink = default, CancellationToken ct = default)
     {
         // 录了几小时才发现没有 ffmpeg 是不可接受的，开录前就要探测
         var tools = WorkSetup.ResolveToolPaths(myOption);
@@ -32,6 +33,15 @@ public static class LiveDownload
         Log($"直播间：{room.RoomId}{(string.IsNullOrEmpty(room.ShortId) || room.ShortId == "0" ? "" : $"（短号 {room.ShortId}）")}");
         Log($"主播：{room.Uname}");
         Log($"标题：{room.Title}");
+        // serve 等宿主的任务契约回填（标题 / 保存路径），CLI 传 default 无回调
+        sink.Meta?.Invoke(new VInfo
+        {
+            Title = room.Title,
+            Desc = "",
+            Pic = "",
+            PubTime = 0,
+            PagesInfo = [],
+        });
 
         if (room.Encrypted && !room.PwdVerified)
         {
@@ -62,7 +72,7 @@ public static class LiveDownload
         LogColor("开始录制。按 Ctrl+Break 停止录制并合并；按 Ctrl+C 直接中断（保留分段，不合并）");
 
         using var stopCts = new CancellationTokenSource( );
-        using var signalScope = LiveSignal.Register(stopCts);
+        using var signalScope = LiveSignal.Register(sessionId, stopCts);
         using var recordCts = CancellationTokenSource.CreateLinkedTokenSource(ct, stopCts.Token);
 
         // 直播无总量：Ratio 恒 0，detail 承载时长 / 分段 / 清晰度，体积与速度由样本字段携带
@@ -93,6 +103,7 @@ public static class LiveDownload
         }
 
         Log($"已保存：{outPath}");
+        sink.Saved?.Invoke(outPath);
     }
 
     private static string Describe(LiveStopReason reason)

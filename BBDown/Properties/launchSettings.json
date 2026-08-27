@@ -1,19 +1,12 @@
 {
     "profiles": {
-        "BBDown": {
-            "commandName": "Project",
-            "environmentVariables": {
-                "ASPNETCORE_ENVIRONMENT": "Development"
-            },
-            "applicationUrl": "http://localhost:58682"
-        },
         "BBDown.Server": {
             "commandName": "Project",
-            "commandLineArgs": "serve",
+            "commandLineArgs": "serve --interactive",
             "environmentVariables": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
             },
-            "applicationUrl": "http://localhost:58682"
+            "applicationUrl": "http://127.0.0.1:23333"
         }
     }
 }

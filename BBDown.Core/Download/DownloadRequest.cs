@@ -46,6 +46,8 @@ public sealed record DownloadRequest
     public int LiveQuality { get; init; } = BBDown.Core.Download.LiveQuality.Original;
     public bool NoForceHost { get; init; }
     public bool SaveArchivesToFile { get; init; }
+    /// <summary>每个下载项（字幕 / 封面 / 弹幕 / 音视频 / 混流等）独立重试次数（首次尝试外的额外重试）。默认 3。</summary>
+    public int MaxRetry { get; init; } = 3;
     public bool StopOnError { get; init; }
     public string FilePattern { get; init; } = "";
     public string MultiFilePattern { get; init; } = "";

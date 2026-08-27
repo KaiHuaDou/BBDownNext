@@ -15,6 +15,21 @@ public static class JsonUtil
                && child.ValueKind == JsonValueKind.Object;
     }
 
+    /// <summary>
+    /// 安全下钻：TryGetProperty 对非 Object 元素（如属性值为 null）抛 InvalidOperationException，只在属性缺失时返回 false；
+    /// 此包装先验父节点为 Object、目标属性为 Object，缺失或类型不符一律 false，供解析链下钻使用。
+    /// </summary>
+    public static bool TryGetObject(JsonElement parent, string name, out JsonElement value)
+    {
+        if (parent.ValueKind == JsonValueKind.Object && parent.TryGetProperty(name, out value))
+        {
+            return value.ValueKind == JsonValueKind.Object;
+        }
+
+        value = default;
+        return false;
+    }
+
     public static bool TryGetArray(JsonElement parent, string name, out JsonElement array)
     {
         if (parent.ValueKind == JsonValueKind.Object

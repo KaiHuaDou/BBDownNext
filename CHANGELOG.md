@@ -10,78 +10,90 @@
 
 ### 新增
 
-- serve 任务事件流：`--interactive` 开启 WebSocket `/hubs/tasks`，任务消息 / 进度快照（200 ms 周期帧）/ 选项请求实时推送，`submitChoice` 帧可远程应答选项；HTTP API 的 `?token=` 查询参数仅限 WebSocket 握手路径使用。
-- serve 任务队列：任务受理即入队（`Status=Queued`），按提交顺序执行，`--max-concurrent` 限制同时下载数，排队中的任务可被停止端点取消。
-- serve 健康检查：新增 `GET /healthz`（进程存活状态与运行中任务数，匿名放行）。
-- serve 限流与加固：全局限流（60 次 / 分钟 / IP）、任务提交限流（10 次 / 分钟 / IP）、认证失败滑动窗口（每分钟超 5 次失败改返 429）、写端点（POST / DELETE）Origin 校验（CSRF）、WebSocket 每 IP 连接上限 5、请求体上限 1 MB / 请求头超时 15 秒、错误消息路径脱敏。
-- 交互总线化：逐集确认（`--interactive-pages`）/ 选轨（`--interactive-quality`）统一经 `AskBus` 发布——CLI 控制台读输入应答，serve 经 WebSocket `optionRequest` / `submitChoice` 帧远程应答（`--interactive`）；交互选项结构化（`id` / `label`），静态 `Interaction` 类退役。
-- GUI 任务进度阶段化：进度条消费阶段边界事件（分 P 切换 / 重下时重置剩余时间基准），任务行进度随下载阶段显隐。
-- GUI 弹窗交互：选项区新增「逐集确认」「交互选清晰度 / 轨道」开关，交互请求在窗口内弹窗应答（多任务并发弹窗叠加），配置随队列持久化。
-- 直播录制进度接入总线：录制期间经进度总线发布样本（时长 / 分段 / 清晰度 / 速度），GUI 任务行以不确定进度条 + 详情文本展示，CLI 状态行改订阅总线渲染。
-- 专栏图片下载进度：图片下载按张数上报进度，GUI 任务行进度条推进并显示图片进度。
-- GUI 选项区重组：登录独立成区；新增「内容选项」（分 P 选择 / 评论 / 弹幕 / 逐集确认 / 展示全部分 P / 试看）；原「选项」拆为「下载选项」（下载相关复选框、分 P 间隔、混流方式 / 语言、aria2c 参数）；原「高级选项」更名「解析选项」（仅解析不下载、视频 / 音频升序、交互选清晰度 / 轨道、API 通道、直播清晰度、编码 / 画质 / 音频优先级、User-Agent 与各 host）；「仅解析不下载」时同步禁用下载选项区。
-- 交互选项携带完整描述：选清晰度 / 选轨选项文本展示 Dfn / 分辨率 / 编码 / 帧率 / 码率 / 估算体积（体积按分 P 时长折算），逐集确认选项标注 y / n / a / q 含义。
-- BBDown.WebUI 前端项目脚手架：Vue 3 + Vite + TypeScript + Vitest（pnpm workspace，oxlint / oxfmt 静态检查、vue-tsc 类型检查），初始模板不含业务功能。
-- 请求凭据门：携带操作者 Cookie 的请求仅允许发往 B 站官方域或用户显式配置的 host（`--host` / `--ep-host` / `--tv-host`），`ApplyStandardGetHeaders` 在附加任何头之前校验，防 b23.tv 短链展开等用户可控 URL 将 Cookie 外发第三方。
-- mp4box 混流配音轨：`BuildMp4boxArgs` 在视频、主音频之后编入配音 / 背景音轨（与 ffmpeg 分支同序，字幕之前），Title 缺失回落 PersonName，PersonName 与 Title 相同时不再重复写 artist 标签。
-- BBDown.WebUI 复刻 GUI 业务功能（WIP）：对接 serve REST 快照轮询与 WebSocket `/hubs/tasks` 事件流（`--interactive`）——任务队列五态展示（进度 / 日志 / 选项请求弹窗应答）、下载目标识别、内容 / 下载 / 解析选项面板（serve 请求契约排除的字段禁用并标注原因）、任务提交 / 取消 / 移除 / 清空 / 继续、连接设置（地址与令牌 localStorage 持久化）；serve 未开 `--interactive` 时事件流降级为禁用、任务状态仍由轮询提供，界面区分 REST 连接与事件流两个独立状态；登录端点预留（serve 未提供登录接口，仅凭据配置随任务提交）。
+- **serve 远程下载服务**
+    - 任务队列化：任务受理即入队（`Status=Queued`），按提交顺序执行，`--max-concurrent` 控制真正并发的下载数（非串行），排队中任务可被停止端点取消。
+    - 任务事件流：开启 `--interactive` 后经 WebSocket `/hubs/tasks` 实时推送任务消息、进度快照（200 ms 周期帧）与选项请求；`submitChoice` 帧可远程应答交互选项；HTTP API 的 `?token=` 查询参数仅限 WebSocket 握手路径使用。
+    - 健康检查：新增 `GET /healthz`（进程存活与运行中任务数，匿名放行）。
+    - 限流与加固：全局限流（60 次 / 分钟 / IP）、任务提交限流（10 次 / 分钟 / IP）、认证失败滑动窗口（每分钟超 5 次改返 429）、写端点 Origin 校验（CSRF）、WebSocket 每 IP 连接上限 5、请求体上限 1 MB / 请求头超时 15 秒、错误消息路径脱敏。
+    - 任务类型扩展：支持直播（`LiveRoom`）与专栏（`OpusArticle`）任务提交，与音视频任务共用队列与并发闸门。
+- **图形界面（GUI）**
+    - 交互总线化：逐集确认 / 选轨经 `AskBus` 统一发布，CLI 控制台读输入应答、serve 经 WebSocket 远程应答，交互选项结构化（`id` / `label`），静态 `Interaction` 类退役。
+    - 弹窗交互：选项区新增「逐集确认」「交互选清晰度 / 轨道」开关，交互请求在窗口内弹窗应答（多任务并发弹窗叠加），配置随队列持久化。
+    - 进度阶段化：进度条消费阶段边界事件（分 P 切换 / 重下时重置剩余时间基准），任务行进度随下载阶段显隐。
+    - 直播 / 专栏进度接入总线：直播录制经进度总线发布样本（时长 / 分段 / 清晰度 / 速度），GUI 以不确定进度条 + 详情文本展示；专栏图片按张数上报进度。
+    - 选项区重组：登录独立成区；新增「内容选项」（分 P 选择 / 评论 / 弹幕 / 逐集确认 / 展示全部分 P / 试看）；原「选项」拆为「下载选项」、「高级选项」更名「解析选项」；「仅解析不下载」时禁用下载选项区。
+    - 交互选项完整描述：选清晰度 / 选轨展示 Dfn / 分辨率 / 编码 / 帧率 / 码率 / 估算体积（按分 P 时长折算），逐集确认标注 y / n / a / q 含义。
+- **下载与解析**
+    - 请求凭据门：携带 Cookie 的请求仅允许发往 B 站官方域或用户显式配置的 host（`--host` / `--ep-host` / `--tv-host`），防止用户可控 URL（如 b23.tv 短链展开）将 Cookie 外泄第三方。
+    - 每项独立重试：`--max-retry` 控制每个下载项首次尝试之外的额外重试次数（默认 3）；非必要项（字幕 / 封面 / 弹幕 / 背景配音 / 角色配音 / 评论）耗尽仅跳过该项，视频 / 音频 / 混流等必要项耗尽则该分 P 失败（分 P 互不影响）；三入口均暴露该选项。
+    - mp4box 混流配音轨：`BuildMp4boxArgs` 在视频、主音频之后编入配音 / 背景音轨（与 ffmpeg 同序、字幕之前），Title 缺失回落 PersonName，二者相同不再重复写 artist 标签。
+    - 并发直播录制：`LiveSignal` 改为按 `sessionId` 键控的注册表，同一进程内可并发录制多个直播间互不影响（CLI 房间号 / GUI 任务序号 / serve 任务 id 各自用同一标识停止对应录制）。
+- **BBDown.WebUI（新前端，WIP）**
+    - 前端脚手架：Vue 3 + Vite + TypeScript + Vitest（pnpm workspace，oxlint / oxfmt 静态检查、vue-tsc 类型检查），目标复刻 GUI 业务功能，尚未生产可用。
+    - 业务复刻：对接 serve REST 快照轮询与 WebSocket `/hubs/tasks` 事件流（`--interactive`）——任务队列五态展示、下载目标识别、内容 / 下载 / 解析选项面板（serve 请求契约排除的字段禁用并标注原因）、任务提交 / 取消 / 移除 / 清空 / 继续、连接设置（地址与令牌 localStorage 持久化）；serve 未开 `--interactive` 时事件流降级禁用、状态仍由轮询提供。
 
 ### 修复
 
-- 修复番剧发布时间解析在非公历 locale 下中断：`pub_time` 格式固定为公历 `yyyy-MM-dd HH:mm:ss`，`ParseExact` 改以 `InvariantCulture` 解析，不再受 CurrentCulture 默认历法（fa-IR / ar-SA 等）影响。
-- 修复 serve 任务实际串行下载：任务队列消费循环逐个等待完成，`--max-concurrent` 不生效（无论配置多少实际并发恒为 1）；现按配置并发执行。
-- 修复 serve 日志双打印：启动路径装配了两个控制台渲染器，业务日志输出两遍；现仅保留一个。
-- 修复 serve 任务已下载字节数多轨并发回退：进度样本累计改由总线按任务维护，音视频轨并行下载时 `TotalDownloadedBytes` 不再来回跳动。
-- 修复 CI 测试结果上传缺日志：失败排查依赖 Testing Platform 的 `TestResults/*.log`，上传 artifact 补 log 文件（原仅 trx）。
-- 修复 aria2c 启动失败静默无提示：未安装 / 路径错误时 `Process.Start` 抛 `Win32Exception` 裸异常，现包装为含指引的可读错误。
-- 修复 serve 回环免令牌模式每个请求的认证失败日志噪音：期望令牌为空（回环且未指定 `--serve-token`）时认证 handler 返回 `NoResult` 而非 `Fail`，不再输出「无效或缺失令牌」，放行语义不变。
+- 番剧发布时间解析在非公历 locale 下中断：`pub_time` 格式固定为公历 `yyyy-MM-dd HH:mm:ss`，`ParseExact` 改以 `InvariantCulture` 解析，不再受 CurrentCulture 默认历法（fa-IR / ar-SA 等）影响。
+- serve 日志双打印：启动路径装配了两个控制台渲染器，业务日志输出两遍；现仅保留一个。
+- serve 任务已下载字节数多轨并发回退：进度样本累计改由总线按任务维护，音视频轨并行下载时 `TotalDownloadedBytes` 不再来回跳动。
+- aria2c 启动失败静默无提示：未安装 / 路径错误时 `Process.Start` 抛 `Win32Exception` 裸异常，现包装为含指引的可读错误。
+- CI 测试结果上传缺日志：失败排查依赖 Testing Platform 的 `TestResults/*.log`，上传 artifact 补 log 文件（原仅 trx）。
 
 ### 变更
 
-- serve REST API 路径与方法重排：`/get-tasks*` 改为 `/api/v1/tasks*`；新增任务由 `POST /add-task`（恒 200）改为 `POST /api/v1/tasks`（202 受理 / 200 命中已有 / 400 输入非法 / 429 队列满）；删除已完成任务由 POST 改为 DELETE（`/finished`、`/finished/failed`、`/{id}`）；停止任务由 `/stop-task/{id}` 改为 `POST /api/v1/tasks/{id}/stop`。
-- serve 鉴权收紧：HTTP API 不再接受 `?token=` 查询参数传令牌（防令牌进访问日志 / 历史），query 令牌仅限 WebSocket 握手路径。
-- serve 凭据加载提示恢复：从本地文件回退加载 cookie / token 时重新输出「加载本地 cookie / token...」日志。
-- 进度阶段句柄收窄：`ProgressBus.BeginStage` 返回 `IDisposable`，删除单实现接口 `IProgressScope` 与其无效 `Report` 成员。
-- 工作流事件收窄：`IWorkflowContext` 删除，任务事件队列统一为具体类 `ChannelWorkflowContext`（交互能力并入 `AskBus`）。
-- WebSocket `optionRequest` 帧演进：`options` 由字符串数组改为 `{ id, label }` 对象数组，并携带任务 `scope` 与回落选项 `defaultOptionId`；`submitChoice` 的 `choice` 即选项 `id`。
-- 直播状态行迁移：`LiveProgress` 由 Core 迁至 CLI 并改订阅进度总线（`BBDown.Core` 不再含控制台渲染组件）；直播进度样本 `Ratio` 恒 0，`Detail` 承载时长 / 分段 / 清晰度。
-- 交互选项描述统一来源：`TrackSelect` 提取 `DescribeVideo` / `DescribeAudio`，日志列表与交互选项共用同一格式化文本。
-- GUI 构建矩阵调整：win-x64 额外产出 Win7 兼容包（YY-Thunks / VC-LTL 静态消除 CRT 依赖，`SupportedOSPlatformVersion=7.0`），win-arm64 不构建 Win7 兼容版。
-- BBDown.WebUI lint 配置迁移 `.oxlintrc.json` → `.oxlintrc.jsonc`：保留的禁用规则逐条注明原因（与 AGENTS 约定 / 技术现实冲突），恢复代码已满足的规则（`switch-case-braces`、`prefer-template` 等 10 条）并补齐对应代码。
-- README 致谢列表按字母序重排并补齐依赖项。
+- **serve**
+    - REST API 路径与方法重排：`/get-tasks*` 改为 `/api/v1/tasks*`；新增任务由 `POST /add-task`（恒 200）改为 `POST /api/v1/tasks`（202 受理 / 200 命中已有 / 400 输入非法 / 429 队列满）；删除已完成任务由 POST 改为 DELETE（`/finished`、`/finished/failed`、`/{id}`）；停止任务由 `/stop-task/{id}` 改为 `POST /api/v1/tasks/{id}/stop`。
+    - 鉴权模型重构：默认免令牌即可调用，`--serve-token` 显式传入才启用强制鉴权（所有访问须带 `X-BBDown-Token` 头或 `?token=` 查询参数，缺失 / 错误返回 401）；HTTP API 不再接受 `?token=` 查询参数传令牌（防令牌进访问日志 / 历史，query 令牌仅限 WebSocket 握手路径）；未传入令牌时即使绑定非回环地址也仅打印警告、不再自动生成令牌；免令牌模式下认证 handler 返回 `NoResult` 而非 `Fail`，不再为每个请求输出「无效或缺失令牌」。
+    - 请求契约加回交互式选项（`InteractivePages` / `InteractiveQuality`）与直播清晰度（`LiveQuality`），CORS 改为默认放行回环来源（非回环 `Origin` 仍被拦截）；凭据加载提示恢复（回退加载 cookie / token 时重新输出「加载本地 cookie / token...」）。
+    - WebSocket `optionRequest` 帧演进：`options` 由字符串数组改为 `{ id, label }` 对象数组，并携带任务 `scope` 与回落选项 `defaultOptionId`；`submitChoice` 的 `choice` 即选项 `id`。
+- **内部与构建**
+    - 进度阶段句柄收窄：`ProgressBus.BeginStage` 返回 `IDisposable`，删除单实现接口 `IProgressScope` 与其无效 `Report` 成员。
+    - 工作流事件收窄：删除 `IWorkflowContext`，任务事件队列统一为具体类 `ChannelWorkflowContext`（交互能力并入 `AskBus`）。
+    - 直播状态行迁移：`LiveProgress` 由 Core 迁至 CLI 并改订阅进度总线（`BBDown.Core` 不再含控制台渲染组件）；直播进度样本 `Ratio` 恒 0，`Detail` 承载时长 / 分段 / 清晰度。
+    - 交互选项描述统一来源：`TrackSelect` 提取 `DescribeVideo` / `DescribeAudio`，日志列表与交互选项共用同一格式化文本。
+    - GUI 构建矩阵调整：win-x64 额外产出 Win7 兼容包（YY-Thunks / VC-LTL 静态消除 CRT 依赖，`SupportedOSPlatformVersion=7.0`），win-arm64 不构建 Win7 兼容版。
+    - BBDown.WebUI lint 配置迁移 `.oxlintrc.json` → `.oxlintrc.jsonc`：保留的禁用规则逐条注明原因（与 AGENTS 约定 / 技术现实冲突），恢复代码已满足的规则（`switch-case-braces`、`prefer-template` 等 10 条）并补齐对应代码。
+    - README 致谢列表按字母序重排并补齐依赖项。
+    - 破坏性变更：直播录制 `LiveDownload.RunAsync` 第三参数新增 `sessionId`（会话标识），`LiveSignal` 改为键控注册表，原进程级单槽停录接口不再存在（调用方需传入唯一会话标识）。
 
 ## [v2.0.1]
 
 ### 新增
 
-- 音频档位选择：新增 `--audio-quality` / `-aq`（逗号分隔的音质名或音质 id，如 `杜比全景声, Hi-Res 无损, 192K` 或 `30250, 30251, 30280`，写在前优先），覆盖默认「各通道最高音质」；音轨列表与选中的音轨信息以音质名呈现（杜比全景声 / 杜比音效 / Hi-Res 无损 / 192K / 132K / 64K），杜比音效与杜比全景声按 `dolby.type` 区分；GUI 常用输入区新增「音频档位」项，serve 经 DTO 字段对齐透传。杜比 / Hi-Res 需登录大会员 Cookie，否则接口不下发对应轨道。
+- 音频档位选择：新增 `--audio-quality` / `-aq`（逗号分隔的音质名或音质 id，如 `杜比全景声, Hi-Res 无损, 192K` 或 `30250, 30251, 30280`，写在前优先），覆盖默认「各通道最高音质」；音轨列表与选中音轨以音质名呈现（杜比全景声 / 杜比音效 / Hi-Res 无损 / 192K / 132K / 64K），杜比音效与杜比全景声按 `dolby.type` 区分；GUI 常用输入区新增「音频档位」项，serve 经 DTO 字段对齐透传；杜比 / Hi-Res 需登录大会员 Cookie，否则接口不下发对应轨道。同步移除 `Config.AudioQualities` 中 30250 死代码条目，单测改为走真实音频解析路径 `ParsePriorityList` 验证排序。
 
 ### 修复
 
-- 修复杜比视界探测可能无限等待：FFmpeg 缺失运行库时 `CheckFFmpegDOVIAsync` 的 `WaitForExit` 会卡死整段下载，现加 50 秒超时并在超时后杀进程；版本判定简化为 `libavutil >= 57`（FFmpeg 5.0+），正则只取主版本号。
-- 修复弹幕 / 字幕注入样式污染：弹幕正文写入 ASS 时未转义 `\ { }` 与换行、字幕正文未转义 `-->`，特殊字符会被当覆盖指令或时间轴分隔符；现分别转义后再写入。
-- 修复 aria2c 下载失败被静默吞掉：退出码非零未报错，下载实际失败却被视为成功；现显式抛出含退出码语义的异常（未知错误 / 超时 / 资源未找到 / 403 / 磁盘不足等）。
-- 修复重跑已存在文件误报失败：downloader 库对「目标已存在即跳过」以 Failed 状态送达但保留原文件，原判断只看 Completed 会误判失败；现锁定成功判定为「Completed 或 Failed 且文件仍在」，并补单测防止库升级后静默改判。
-- 修复分 P 解析不到轨道静默成功：接口正常但无音视频轨道（风控降级 / 字段变更）时，此前以退出码 0 收场导致脚本无法感知失败；现抛异常交外层重试并上报分 P 失败。
-- 修复直播合并产物静默丢段：合并产物远小于分段总和（< 90%）时判定数据丢失，保留全部分段并告警，不再覆盖输出。
-- 修复番剧播放信息解析兜底：网页源码匹配不到 `__INITIAL_STATE__` 或 epList 缺失 / 为空时给出可读错误，不再由 `JsonDocument` / `GetProperty` 抛晦涩异常。
-- 修复简写输入畸形崩溃：av / ep / bv / ss / md 等前缀后跟非数字或空串时改为统一可读错误，而非 `FormatException` / 越界；BV 号固定以 BV1 开头（BV2 等不计 BV 号）。
-- 修复课程与互动视频字段缺失崩溃：课程 `up_info` 缺失退化为空 UP 主信息、互动视频 `rights` / `is_stein_gate` 缺失按非互动处理，均不再抛异常。
-- 修复多处解析空引用：配音轨列表为空、章节看点 `toastText` / `start` / `end` 缺失、收藏夹分页元素生命周期、空间列表冗余字段等场景不再崩溃。
-- 修复评论下载失败连累视频：评论抓取异常（网络层）只告警，不再中断本分 P 视频下载。
-- 修复 Cookie 粘贴空白导致认证静默失败：加载凭据时剥离首尾空白与换行符。
-- 修复归档记录校验逻辑反转：产物被删 / 记录路径为空 / 损坏行时正确视为未下载重新下，避免漏下。
-- 修复 FLV 码率显示除零：分片时长未给（Dur 为 0）时跳过码率折算，不再显示 Infinity。
-- 修正音频档位选择单测与单测无关项：原单测误用画质优先级解析、未真正覆盖 `--audio-quality` 排序逻辑，现走真实音频解析路径 `ParsePriorityList`；并移除 `Config.AudioQualities` 中 30250 的死代码条目（该 id 由 `GetAudioQualityName` 按 `dolby.type` 区分，不进字典）。
-- 修复 serve 并发问题：重复提交同资源时释放新建任务的取消令牌避免泄漏；FLV 多片段并行采样时下载字节累计改用原子操作，避免进度丢失。
-- 修复 GUI 队列调度提前退出：无运行任务但仍有等待任务时继续调度，不再误 break。
-- 修复 README 选项对照错误：`--full-comment` 对应 `-w O`（原误写为 `-g O`）。
-- aria2c 6h 进程级兜底超时：防止子进程僵死长期占住并发槽，硬超时触发时杀进程并抛 `TimeoutException`，与用户取消（调用方 `ct`）区分语义。
-- 加固 gRPC POST 容错：`GetPostResponseAsync` 改为最多 3 次指数退避重试，仅对 `PlayView` / 弹幕视图等幂等只读查询生效；HttpClient 超时与 5xx 触发重试，非用户取消不再静默挂起。
-- player.so 异常返回降级：风控页 / 网络异常返回 HTML 而非 XML 时，`LoadXml` 抛 `XmlException` 被包成可读错误（可能触发风控），不再裸异常冒泡。
-- 调试日志凭据脱敏：`AppHelper` 的 App 端 gRPC 请求头经 `Redactor.Headers` 打码，authorization 等凭据不再明文进日志。
-- 文件名安全兜底：`GetValidFileName` 对纯点 / 空格串裁剪后为空时回退为 `_`，避免空文件名或以点结尾的非法产物。
-- Unix 可执行位校验：`FindExecutable` 在 Unix 上仅选择任意执行位置位的文件，避免 PATH 中同名但不可执行的文件被误选。
+- **解析与崩溃防护**
+    - 番剧发布时间解析在非公历 locale 下中断：`pub_time` 格式固定为公历 `yyyy-MM-dd HH:mm:ss`，`ParseExact` 改以 `InvariantCulture` 解析。
+    - 番剧播放信息解析兜底：网页源码匹配不到 `__INITIAL_STATE__` 或 epList 缺失 / 为空时给出可读错误，不再由 `JsonDocument` / `GetProperty` 抛晦涩异常。
+    - 简写输入畸形崩溃：av / ep / bv / ss / md 等前缀后跟非数字或空串时改为统一可读错误，而非 `FormatException` / 越界；BV 号固定以 BV1 开头。
+    - 课程与互动视频字段缺失崩溃：课程 `up_info` 缺失退化为空 UP 主信息、互动视频 `rights` / `is_stein_gate` 缺失按非互动处理。
+    - 多处解析空引用：配音轨列表为空、章节看点 `toastText` / `start` / `end` 缺失、收藏夹分页元素生命周期、空间列表冗余字段等场景不再崩溃。
+    - 分 P 解析不到轨道静默成功：接口正常但无音视频轨道（风控降级 / 字段变更）时，此前以退出码 0 收场导致脚本无法感知失败；现抛异常交外层重试并上报分 P 失败。
+    - FLV 码率显示除零：分片时长未给（Dur 为 0）时跳过码率折算，不再显示 Infinity。
+- **下载与混流健壮性**
+    - 杜比视界探测可能无限等待：FFmpeg 缺失运行库时 `CheckFFmpegDOVIAsync` 的 `WaitForExit` 会卡死整段下载，现加 50 秒超时并在超时后杀进程；版本判定简化为 `libavutil >= 57`（FFmpeg 5.0+），正则只取主版本号。
+    - 弹幕 / 字幕注入样式污染：弹幕正文写入 ASS 时未转义 `\ { }` 与换行、字幕正文未转义 `-->`，特殊字符会被当覆盖指令或时间轴分隔符；现分别转义后再写入。
+    - aria2c 下载失败被静默吞掉：退出码非零未报错，下载实际失败却被视为成功；现显式抛出含退出码语义的异常（未知错误 / 超时 / 资源未找到 / 403 / 磁盘不足等）。
+    - 重跑已存在文件误报失败：downloader 库对「目标已存在即跳过」以 Failed 状态送达但保留原文件，原判断只看 Completed 会误判失败；现锁定成功判定为「Completed 或 Failed 且文件仍在」，并补单测防止库升级后静默改判。
+    - 直播合并产物静默丢段：合并产物远小于分段总和（< 90%）时判定数据丢失，保留全部分段并告警，不再覆盖输出。
+    - 评论下载失败连累视频：评论抓取异常（网络层）只告警，不再中断本分 P 视频下载。
+    - aria2c 6h 进程级兜底超时：防止子进程僵死长期占住并发槽，硬超时触发时杀进程并抛 `TimeoutException`，与用户取消（调用方 `ct`）区分语义。
+- **serve 与 GUI**
+    - serve 并发问题：重复提交同资源时释放新建任务的取消令牌避免泄漏；FLV 多片段并行采样时下载字节累计改用原子操作，避免进度丢失。
+    - GUI 队列调度提前退出：无运行任务但仍有等待任务时继续调度，不再误 break。
+- **安全与日志**
+    - Cookie 粘贴空白导致认证静默失败：加载凭据时剥离首尾空白与换行符。
+    - 归档记录校验逻辑反转：产物被删 / 记录路径为空 / 损坏行时正确视为未下载重新下，避免漏下。
+    - 加固 gRPC POST 容错：`GetPostResponseAsync` 改为最多 3 次指数退避重试，仅对 `PlayView` / 弹幕视图等幂等只读查询生效；HttpClient 超时与 5xx 触发重试，非用户取消不再静默挂起。
+    - player.so 异常返回降级：风控页 / 网络异常返回 HTML 而非 XML 时，`LoadXml` 抛 `XmlException` 被包成可读错误（可能触发风控），不再裸异常冒泡。
+    - 调试日志凭据脱敏：`AppHelper` 的 App 端 gRPC 请求头经 `Redactor.Headers` 打码，authorization 等凭据不再明文进日志。
+    - 文件名安全兜底：`GetValidFileName` 对纯点 / 空格串裁剪后为空时回退为 `_`，避免空文件名或以点结尾的非法产物。
+    - Unix 可执行位校验：`FindExecutable` 在 Unix 上仅选择任意执行位置位的文件，避免 PATH 中同名但不可执行的文件被误选。
+- **文档**
+    - 修复 README 选项对照错误：`--full-comment` 对应 `-w O`（原误写为 `-g O`）。
 
 ### 变更
 
@@ -375,3 +387,4 @@
 [v2.0.0-rc.2]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-rc.1...v2.0.0-rc.2
 [v2.0.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-rc.2...v2.0.0
 [v2.0.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0...v2.0.1
+[v2.1.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.1...v2.1.0

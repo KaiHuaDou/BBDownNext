@@ -14,6 +14,11 @@ public static partial class OpusFetcher
         var list = new List<OpusParagraph>( );
         foreach (var para in EnumerateArrayOrEmpty(paras))
         {
+            if (para.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
             var p = ParseParagraph(para);
             if (p.Kind != OpusParagraphKind.Unknown)
             {
@@ -65,7 +70,7 @@ public static partial class OpusFetcher
             return ParseQuoteParagraph(para);
         }
 
-        if (para.TryGetProperty("text", out var text) && text.TryGetProperty("nodes", out var nodes))
+        if (TryGetObject(para, "text", out var text) && text.TryGetProperty("nodes", out var nodes))
         {
             var textNodes = ParseNodes(nodes);
             var headingLevel = DetectHeadingLevel(textNodes);
@@ -104,7 +109,7 @@ public static partial class OpusFetcher
     private static OpusParagraph ParseQuoteParagraph(JsonElement para)
     {
         var quote = new OpusParagraph { Kind = OpusParagraphKind.Quote };
-        if (para.TryGetProperty("text", out var qt) && qt.TryGetProperty("nodes", out var qn))
+        if (TryGetObject(para, "text", out var qt) && qt.TryGetProperty("nodes", out var qn))
         {
             quote.TextNodes = ParseNodes(qn);
         }
@@ -147,6 +152,11 @@ public static partial class OpusFetcher
         var result = new List<OpusTextNode>( );
         foreach (var node in EnumerateArrayOrEmpty(nodes))
         {
+            if (node.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
             if (node.TryGetProperty("rich", out var rich) && rich.ValueKind == JsonValueKind.Object)
             {
                 var text = rich.TryGetProperty("orig_text", out var ot) ? (ot.GetString( ) ?? "")
@@ -179,12 +189,17 @@ public static partial class OpusFetcher
     private static OpusParagraph ParseImageParagraph(JsonElement para, JsonElement pics)
     {
         var p = new OpusParagraph { Kind = OpusParagraphKind.Image };
-        var captionFromText = para.TryGetProperty("text", out var t) && t.TryGetProperty("nodes", out var tn) && tn.ValueKind == JsonValueKind.Array && tn.GetArrayLength( ) > 0
+        var captionFromText = TryGetObject(para, "text", out var t) && t.TryGetProperty("nodes", out var tn) && tn.ValueKind == JsonValueKind.Array && tn.GetArrayLength( ) > 0
             ? (tn[0].TryGetProperty("word", out var w) && w.TryGetProperty("words", out var ws) ? (ws.GetString( ) ?? "") : "")
             : "";
 
         foreach (var picEl in pics.EnumerateArray( ))
         {
+            if (picEl.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
             var url = picEl.TryGetProperty("url", out var u) ? (u.GetString( ) ?? "") : "";
             var caption = picEl.TryGetProperty("caption", out var cap) ? (cap.GetString( ) ?? captionFromText) : captionFromText;
             var width = picEl.TryGetProperty("width", out var wd) && wd.ValueKind == JsonValueKind.Number ? wd.GetInt32( ) : 0;
@@ -210,6 +225,11 @@ public static partial class OpusFetcher
 
         foreach (var item in items.EnumerateArray( ))
         {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
             var li = new OpusListItem
             {
                 Level = item.TryGetProperty("level", out var lv) && lv.ValueKind == JsonValueKind.Number ? lv.GetInt32( ) : 1,
@@ -234,7 +254,7 @@ public static partial class OpusFetcher
             Level = lf.TryGetProperty("level", out var lv) && lv.ValueKind == JsonValueKind.Number ? lv.GetInt32( ) : 1,
             Order = lf.TryGetProperty("order", out var ord) && ord.ValueKind == JsonValueKind.Number ? ord.GetInt32( ) : 1,
         };
-        if (para.TryGetProperty("text", out var text) && text.TryGetProperty("nodes", out var nodes))
+        if (TryGetObject(para, "text", out var text) && text.TryGetProperty("nodes", out var nodes))
         {
             li.Nodes = ParseNodes(nodes);
         }

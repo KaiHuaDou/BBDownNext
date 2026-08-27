@@ -12,6 +12,7 @@ using BBDown.Core.Util;
 
 using static BBDown.Core.Download.DownloadUtil;
 using static BBDown.Core.Logger;
+using static BBDown.Core.Util.RetryUtil;
 
 namespace BBDown.Core.Media;
 
@@ -23,10 +24,20 @@ public static class PageAssets
         var p = pageCtx.Page;
         Directory.CreateDirectory(pageCtx.TempDir);
 
-        // 混流封面（C）需要临时封面文件；独立封面（c）不走临时目录，由 DashDownload 直接落到输出路径
+        // 混流封面（C）需要临时封面文件；独立封面（c）不走临时目录，由 DashDownload 直接落到输出路径。
+        // 封面非必要项，独立重试，耗尽仅跳过（不影响音视频）
         if (myOption.Content.Has(DownloadContent.MuxCover) && !File.Exists(pageCtx.CoverPath))
         {
-            await DownloadFileAsync(pageCtx.CoverUrl, pageCtx.CoverPath, new DownloadConfig { Cookie = ctx.Fetch.Cfg.Cookie, Aria2cPath = ctx.Run.Tools.Aria2c }, ct);
+            try
+            {
+                await RetryAsync(
+                    async ( ) => await DownloadFileAsync(pageCtx.CoverUrl, pageCtx.CoverPath, new DownloadConfig { Cookie = ctx.Fetch.Cfg.Cookie, Aria2cPath = ctx.Run.Tools.Aria2c }, ct),
+                    myOption.MaxRetry, "封面", ct, ex => PageDownload.ShouldRetry(ex, ct));
+            }
+            catch (Exception ex)
+            {
+                LogWarn($"封面下载失败，已跳过：{ex.Message}");
+            }
         }
 
         // 无 s / S 则不下字幕；S 不依赖 s（AI 字幕与普通字幕独立）
@@ -43,23 +54,43 @@ public static class PageAssets
             subtitleInfo = [.. subtitleInfo.Where(s => !s.Lan.StartsWith("ai-"))];
         }
 
-        // 各语言字幕互不依赖，并行下载；每份字幕独立落盘与移动，互不干扰
+        // 各语言字幕互不依赖，并行下载；每份字幕独立重试，耗尽仅跳过该语言，不影响其他字幕与音视频
         var options = new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = ct };
         await Parallel.ForEachAsync(subtitleInfo, options, async (s, token) =>
         {
             s.Path = Path.Combine(pageCtx.TempDir, Path.GetFileName(s.Path));
             Log($"下载字幕 {s.Lan} => {SubUtil.GetSubtitleCode(s.Lan).Name}...");
             LogDebug("下载：{0}", s.Url);
-            await SubUtil.SaveSubtitleAsync(s.Url, s.Path, ctx.Fetch.Cfg, token);
+            try
+            {
+                await RetryAsync(
+                    async ( ) => await SubUtil.SaveSubtitleAsync(s.Url, s.Path, ctx.Fetch.Cfg, token),
+                    myOption.MaxRetry, $"字幕 {s.Lan}", token, ex => PageDownload.ShouldRetry(ex, token));
+            }
+            catch (Exception ex)
+            {
+                LogWarn($"字幕 {s.Lan} 下载失败，已跳过：{ex.Message}");
+                s.Path = "";
+                return;
+            }
+
             if (File.Exists(s.Path) && File.ReadAllText(s.Path).Length != 0)
             {
                 MoveSubtitleToOutput(s, ctx, pageCtx, !myOption.Content.Has(DownloadContent.Video));
             }
-            else if (File.Exists(s.Path))
+            else
             {
-                File.Delete(s.Path);
+                if (File.Exists(s.Path))
+                {
+                    File.Delete(s.Path);
+                }
+
+                s.Path = "";
             }
         });
+
+        // 仅把成功落盘的字幕交回上层，供混流内嵌与收尾逻辑使用
+        subtitleInfo = [.. subtitleInfo.Where(s => !string.IsNullOrEmpty(s.Path))];
 
         return subtitleInfo;
     }

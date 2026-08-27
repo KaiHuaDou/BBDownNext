@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BBDown.Core.Live;
+using BBDown.Core.Opus;
 using BBDown.Core.Util;
 
 using static BBDown.Core.ResourceId;
@@ -37,6 +39,17 @@ public static partial class InputResolver
             }
 
             input = tmp;
+        }
+
+        // 直播 / 专栏为独立链路（不经 ResourceId 的 fetcher 分发），serve 受理时在此识别并打标
+        if (LiveInputResolver.TryParse(input, out var live))
+        {
+            return new LiveRoom(long.Parse(live.RoomId));
+        }
+
+        if (OpusInputResolver.TryParse(input, out var opus))
+        {
+            return new OpusArticle(long.TryParse(opus.OpusId, out var opusId) ? opusId : 0, long.TryParse(opus.CvId, out var cvId) ? cvId : 0);
         }
 
         // 前缀检查防误匹配（sav123 之类含 av+数字的串），正则 Success 防 Match 失败后取空组抛 FormatException
@@ -179,6 +192,17 @@ public static partial class InputResolver
         if (input.StartsWith("space", StringComparison.OrdinalIgnoreCase) && input["space".Length..] is { Length: > 0 } spaceRest && spaceRest.All(char.IsDigit))
         {
             return new Space(long.Parse(spaceRest));
+        }
+
+        // 直播 / 专栏简写（live123 / cv123 / opus123）：与 URL 形态同一识别器，serve 受理与 CLI 分流语义一致
+        if (LiveInputResolver.TryParse(input, out var live))
+        {
+            return new LiveRoom(long.Parse(live.RoomId));
+        }
+
+        if (OpusInputResolver.TryParse(input, out var opus))
+        {
+            return new OpusArticle(long.TryParse(opus.OpusId, out var opusId) ? opusId : 0, long.TryParse(opus.CvId, out var cvId) ? cvId : 0);
         }
 
         // 裸数字按 av 号识别；若该 av 实际被重定向到番剧播放页，FixAvidAsync 会探测并转 Ep

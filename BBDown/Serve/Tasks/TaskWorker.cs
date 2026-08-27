@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
@@ -9,7 +10,9 @@ using System.Threading.Tasks;
 
 using BBDown.Core;
 using BBDown.Core.Download;
+using BBDown.Core.Live;
 using BBDown.Core.Logging;
+using BBDown.Core.Opus;
 using BBDown.Core.Pipeline;
 using BBDown.Core.Workflow;
 
@@ -25,6 +28,8 @@ internal sealed partial class TaskWorker : BackgroundService
     private readonly TaskQueue queue;
     private readonly TaskStore store;
     private readonly SemaphoreSlim? gate;   // null = 不限制（历史行为）
+    // scope（task.Id 的 record ToString）→ 任务：进度样本按字符串匹配回写，不经 ResourceId 解析
+    private readonly ConcurrentDictionary<string, DownloadTask> byScope = new( );
 
     public TaskWorker(TaskQueue queue, TaskStore store, int maxConcurrent)
     {
@@ -49,7 +54,7 @@ internal sealed partial class TaskWorker : BackgroundService
             return;
         }
 
-        if (ResourceId.TryParse(sample.Scope, out var id) && store.Get(id) is { } task)
+        if (sample.Scope is { } scope && byScope.TryGetValue(scope, out var task))
         {
             task.Progress = sample.Ratio;
             // 一个周期一个字节都没到（卡住或已下完）时保留上一次的速度，不要显示成 0
@@ -121,19 +126,23 @@ internal sealed partial class TaskWorker : BackgroundService
     private async Task RunTaskAsync(TaskEnvelope envelope)
     {
         var task = envelope.Task;
-        // 消息作用域：下载期间 Logger 的业务消息经 MessageBus 携带本任务 id，
-        // serve 桥接器据此路由进任务事件流（WebSocket），收尾后退出作用域
-        using (MessageBus.BeginScope(task.Id.ToString( )))
+        // 消息作用域：下载期间 Logger 的业务消息经 MessageBus 携带本任务 id（record ToString 形态，
+        // 桥接器 / 进度回写据此做字符串匹配，不解析），收尾后退出作用域
+        var scope = task.Id.ToString( );
+        byScope[scope] = task;
+        using (MessageBus.BeginScope(scope))
         {
             try
             {
-                await RunGatedAsync(task, ( ) => DownloadPipeline.RunAsync(envelope.Request, SinkFor(task), store.GetContext(task.Id), task.Cts.Token), task.Cts.Token);
+                await RunGatedAsync(task, ( ) => RunDownloadAsync(task, envelope), task.Cts.Token);
                 task.IsSuccessful = true;
             }
             catch (OperationCanceledException) when (task.Cts.IsCancellationRequested)
             {
                 // 关服（Ctrl+C）或单独停止任务都会取消 task.Cts：前者走进程级令牌，后者走停止端点。
                 // 排队中的任务会在闸门处被取消，属正常退出路径，不该刷成"下载失败"
+                // ErrorMessage 供客户端区分「已取消」与真实失败（前端据此显示任务状态）
+                task.ErrorMessage = "任务已取消";
                 if (AppEnv.CancellationToken.IsCancellationRequested)
                 {
                     Logger.LogWarn($"{task.Id} 已取消（服务器正在退出）");
@@ -153,6 +162,8 @@ internal sealed partial class TaskWorker : BackgroundService
             }
         }
 
+        byScope.TryRemove(scope, out _);
+
         task.Status = DownloadStatus.Finished;
         task.TaskFinishTime = DateTimeOffset.Now.ToUnixTimeMilliseconds( );
         if (task.IsSuccessful)
@@ -165,7 +176,7 @@ internal sealed partial class TaskWorker : BackgroundService
         store.MoveToFinished(task);
         // 任务已结束，释放与进程级令牌的链接注册（不取消任何下载，仅释放资源）
         task.Cts.Dispose( );
-        store.ReleaseContext(task.Id);
+        store.ReleaseContext(task.Id.ToString( ));
         await NotifyCallbackAsync(task, envelope.CallBackWebHook);
     }
 
@@ -189,6 +200,26 @@ internal sealed partial class TaskWorker : BackgroundService
                 task.VideoPubTime = v.PubTime;
             },
             task.SavePaths.Add);
+    }
+
+    // 按任务类型分发执行：直播 / 专栏走独立链路（不经 DownloadPipeline），消息 / 进度仍经总线 +
+    // scope（record ToString）路由进事件流，与普通下载一致；LiveTarget 由受理时解析出的房间号直接构造，
+    // 不重解析 URL（原始 URL 可能是 b23 短链，LiveInputResolver 认不出）
+    private async Task RunDownloadAsync(DownloadTask task, TaskEnvelope envelope)
+    {
+        var token = task.Cts.Token;
+        switch (task.Id)
+        {
+            case ResourceId.LiveRoom room:
+                await LiveDownload.RunAsync(envelope.Request, new LiveTarget(room.RoomId.ToString( )), task.Id.ToString( ), SinkFor(task), token);
+                break;
+            case ResourceId.OpusArticle:
+                await OpusDownload.RunAsync(envelope.Request, SinkFor(task), token);
+                break;
+            default:
+                await DownloadPipeline.RunAsync(envelope.Request, SinkFor(task), store.GetContext(task.Id.ToString( )), token);
+                break;
+        }
     }
 
     private static async Task NotifyCallbackAsync(DownloadTask task, string? callBackWebHook)

@@ -44,6 +44,7 @@ public sealed record TaskParams
     public string PostProcessPath { get; init; } = "";
     public string Aria2cArgs { get; init; } = "";
     public string DelayPerPage { get; init; } = "0";
+    public string MaxRetry { get; init; } = "3";
     public string LiveQuality { get; init; } = "10000";
     public string Api { get; init; } = "web";
     public string FilePattern { get; init; } = "";
@@ -111,6 +112,7 @@ public static class TaskParamsMapper
             Aria2cPath = options.Aria2cPath,
             UposHost = options.UposHost,
             DelayPerPage = options.DelayPerPage,
+            MaxRetry = int.TryParse(options.MaxRetry, out var retry) ? retry : 3,
             Host = options.Host,
             EpHost = options.EpHost,
             TvHost = options.TvHost,

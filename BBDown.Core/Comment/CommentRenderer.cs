@@ -50,7 +50,8 @@ public static class CommentRenderer
             }
         }
 
-        return text.ToString( );
+        // AppendLine 用平台换行（Windows 为 \r\n），产物统一 LF 行尾（跨平台 diff / 工具友好）
+        return text.ToString( ).Replace("\r\n", "\n");
     }
 
     private static string Headline(CommentItem comment)

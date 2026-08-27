@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import { LIVE_QUALITY_LEVELS } from '../lib/live'
-import { API_CHOICES, MUX_CHOICES, SERVE_EXCLUDED, type TaskOptions } from '../lib/options'
+import { API_CHOICES, MUX_CHOICES, type TaskOptions } from '../lib/options'
 
 const options = defineModel<TaskOptions>({ required: true })
-
-const isExcluded = (field: string): boolean => field in SERVE_EXCLUDED
-const excludedHint = (field: string): string | undefined => SERVE_EXCLUDED[field]
 
 const fmtHas = (formats: string, value: string): boolean => formats.split(',').includes(value)
 const toggleFmt = (formats: string, value: string, on: boolean): string => {
@@ -120,15 +117,9 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
           </div>
         </div>
         <div class="flex flex-col gap-1 pt-0.5">
-          <label
-            class="check-row"
-            :class="{ 'opacity-50': isExcluded('interactivePages') }"
-            :title="excludedHint('interactivePages')">
-            <input
-              v-model="options.interactivePages"
-              type="checkbox"
-              :disabled="isExcluded('interactivePages')" />
-            逐集确认（每集询问是否下载）
+          <label class="check-row">
+            <input v-model="options.interactivePages" type="checkbox" />
+            逐集确认（每集询问是否下载，需 serve 开启事件流）
           </label>
           <label class="check-row">
             <input v-model="options.showAll" type="checkbox" />
@@ -163,12 +154,13 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
             <input v-model="options.stopOnError" type="checkbox" />
             失败即停止
           </label>
-          <label
-            class="check-row"
-            :class="{ 'opacity-50': isExcluded('debug') }"
-            :title="excludedHint('debug')">
-            <input v-model="options.debug" type="checkbox" :disabled="isExcluded('debug')" />
-            调试日志
+          <label class="check-row">
+            <input v-model="options.hideStreams" type="checkbox" />
+            隐藏可用音视频流
+          </label>
+          <label class="check-row">
+            <input v-model="options.encodingFirst" type="checkbox" />
+            编码优先于清晰度（两者皆填时）
           </label>
           <label class="check-row">
             <input v-model="options.allowPcdn" type="checkbox" />
@@ -200,17 +192,6 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
               class="field-input"
               title="混流的音频语言代码，如 chi、jpn" />
           </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('aria2cArgs') }"
-            :title="excludedHint('aria2cArgs')">
-            <label class="field-label" for="aria2c-args">aria2c 附加参数</label>
-            <input
-              id="aria2c-args"
-              v-model="options.aria2cArgs"
-              class="field-input"
-              :disabled="isExcluded('aria2cArgs')" />
-          </div>
           <div class="field-row">
             <label class="field-label" for="mux">混流方式</label>
             <select id="mux" v-model="options.mux" class="field-input">
@@ -218,85 +199,6 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
                 {{ choice.label }}
               </option>
             </select>
-          </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('workDir') }"
-            :title="excludedHint('workDir')">
-            <label class="field-label" for="work-dir">工作目录</label>
-            <input
-              id="work-dir"
-              v-model="options.workDir"
-              class="field-input"
-              :disabled="isExcluded('workDir')" />
-          </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('ffmpegPath') }"
-            :title="excludedHint('ffmpegPath')">
-            <label class="field-label" for="ffmpeg-path">FFmpeg 路径</label>
-            <input
-              id="ffmpeg-path"
-              v-model="options.ffmpegPath"
-              class="field-input"
-              :disabled="isExcluded('ffmpegPath')" />
-          </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('mp4boxPath') }"
-            :title="excludedHint('mp4boxPath')">
-            <label class="field-label" for="mp4box-path">MP4Box 路径</label>
-            <input
-              id="mp4box-path"
-              v-model="options.mp4boxPath"
-              class="field-input"
-              :disabled="isExcluded('mp4boxPath')" />
-          </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('aria2cPath') }"
-            :title="excludedHint('aria2cPath')">
-            <label class="field-label" for="aria2c-path">aria2c 路径</label>
-            <input
-              id="aria2c-path"
-              v-model="options.aria2cPath"
-              class="field-input"
-              :disabled="isExcluded('aria2cPath')" />
-          </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('postProcessPath') }"
-            :title="excludedHint('postProcessPath')">
-            <label class="field-label" for="post-process">后处理程序</label>
-            <input
-              id="post-process"
-              v-model="options.postProcessPath"
-              class="field-input"
-              :disabled="isExcluded('postProcessPath')" />
-          </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('filePattern') }"
-            :title="excludedHint('filePattern')">
-            <label class="field-label" for="file-pattern">文件命名模式</label>
-            <input
-              id="file-pattern"
-              v-model="options.filePattern"
-              class="field-input"
-              :disabled="isExcluded('filePattern')"
-              title="单 P 文件名模板，内置变量见 BBDown --help" />
-          </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('multiFilePattern') }"
-            :title="excludedHint('multiFilePattern')">
-            <label class="field-label" for="multi-file-pattern">多 P 文件命名</label>
-            <input
-              id="multi-file-pattern"
-              v-model="options.multiFilePattern"
-              class="field-input"
-              :disabled="isExcluded('multiFilePattern')"
-              title="多 P 文件名模板，内置变量见 BBDown --help" />
           </div>
         </div>
       </div>
@@ -319,15 +221,9 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
             <input v-model="options.audioAscending" type="checkbox" />
             音频升序（体积小优先）
           </label>
-          <label
-            class="check-row"
-            :class="{ 'opacity-50': isExcluded('interactiveQuality') }"
-            :title="excludedHint('interactiveQuality')">
-            <input
-              v-model="options.interactiveQuality"
-              type="checkbox"
-              :disabled="isExcluded('interactiveQuality')" />
-            交互选清晰度 / 轨道
+          <label class="check-row">
+            <input v-model="options.interactiveQuality" type="checkbox" />
+            交互选清晰度 / 轨道（需 serve 开启事件流）
           </label>
         </div>
         <div class="flex flex-col gap-1">
@@ -341,20 +237,10 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
               <option v-for="api in API_CHOICES" :key="api" :value="api">{{ api }}</option>
             </select>
           </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('liveQuality') }"
-            :title="excludedHint('liveQuality')">
+          <div class="field-row">
             <label class="field-label" for="live-quality">直播清晰度</label>
-            <select
-              id="live-quality"
-              v-model="options.liveQuality"
-              class="field-input"
-              :disabled="isExcluded('liveQuality')">
-              <option
-                v-for="level in LIVE_QUALITY_LEVELS"
-                :key="level.qn"
-                :value="String(level.qn)">
+            <select id="live-quality" v-model="options.liveQuality" class="field-input">
+              <option v-for="level in LIVE_QUALITY_LEVELS" :key="level.qn" :value="level.qn">
                 {{ level.qn }} {{ level.name }}
               </option>
             </select>
@@ -383,50 +269,6 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
               class="field-input"
               title="逗号分隔，如 杜比全景声,Hi-Res 无损,192K" />
           </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('userAgent') }"
-            :title="excludedHint('userAgent')">
-            <label class="field-label" for="user-agent">User-Agent</label>
-            <input
-              id="user-agent"
-              v-model="options.userAgent"
-              class="field-input"
-              :disabled="isExcluded('userAgent')" />
-          </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('host') }"
-            :title="excludedHint('host')">
-            <label class="field-label" for="host">Host</label>
-            <input
-              id="host"
-              v-model="options.host"
-              class="field-input"
-              :disabled="isExcluded('host')" />
-          </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('epHost') }"
-            :title="excludedHint('epHost')">
-            <label class="field-label" for="ep-host">EP Host</label>
-            <input
-              id="ep-host"
-              v-model="options.epHost"
-              class="field-input"
-              :disabled="isExcluded('epHost')" />
-          </div>
-          <div
-            class="field-row"
-            :class="{ 'opacity-50': isExcluded('tvHost') }"
-            :title="excludedHint('tvHost')">
-            <label class="field-label" for="tv-host">TV Host</label>
-            <input
-              id="tv-host"
-              v-model="options.tvHost"
-              class="field-input"
-              :disabled="isExcluded('tvHost')" />
-          </div>
           <div class="field-row">
             <label class="field-label" for="area">Area</label>
             <input
@@ -442,6 +284,14 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
               v-model="options.uposHost"
               class="field-input"
               title="自定义 upos 服务器" />
+          </div>
+          <div class="field-row">
+            <label class="field-label" for="callback-webhook">完成回调 URL</label>
+            <input
+              id="callback-webhook"
+              v-model="options.callBackWebHook"
+              class="field-input"
+              title="任务完成后回调的公网 http/https 地址（服务端做 SSRF 校验）" />
           </div>
         </div>
       </div>

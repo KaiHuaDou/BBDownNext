@@ -14,7 +14,7 @@ using BBDown.Serve.Tasks;
 namespace BBDown.Tests;
 
 /// <summary>
-/// P0-9：为 <see cref="BBDownApiServer"/> 补回归测试。
+/// P0-9：为 <see cref="BBDownServer"/> 补回归测试。
 /// 重点是 serve 请求契约 <see cref="ServeRequestOptions"/>（受控子集，结构上无法注入主机可控字段）
 /// 与 <see cref="SsrfGuard.IsSafeWebHook"/>（SSRF 防护），以及变更类端点必须是 POST（P1-15）。
 /// </summary>
@@ -29,20 +29,20 @@ public class BBDownApiServerTests
         // 反序列化时被忽略，转换后的 DownloadRequest 回落为安全默认值，结构上杜绝 RCE / 路径逃逸
         const string maliciousJson = """
         {
-            "Url": "https://www.bilibili.com/video/BV1xx411c7XD",
-            "FFmpegPath": "/evil/ffmpeg",
-            "Mp4boxPath": "/evil/mp4box",
-            "Aria2cPath": "/evil/aria2c",
-            "Aria2cArgs": "--on-download-complete /evil.sh",
-            "WorkDir": "/tmp/escape",
-            "FilePattern": "../../../etc/cron.d/pwn",
-            "MultiFilePattern": "../../../root/.bashrc",
-            "Debug": true,
-            "UserAgent": "Mozilla/5.0 (attacker)",
-            "ConfigFile": "/etc/passwd",
-            "Host": "https://evil.example.com",
-            "EpHost": "https://evil.example.com",
-            "TvHost": "https://evil.example.com"
+            "url": "https://www.bilibili.com/video/BV1xx411c7XD",
+            "ffmpegPath": "/evil/ffmpeg",
+            "mp4boxPath": "/evil/mp4box",
+            "aria2cPath": "/evil/aria2c",
+            "aria2cArgs": "--on-download-complete /evil.sh",
+            "workDir": "/tmp/escape",
+            "filePattern": "../../../etc/cron.d/pwn",
+            "multiFilePattern": "../../../root/.bashrc",
+            "debug": true,
+            "userAgent": "Mozilla/5.0 (attacker)",
+            "configFile": "/etc/passwd",
+            "host": "https://evil.example.com",
+            "epHost": "https://evil.example.com",
+            "tvHost": "https://evil.example.com"
         }
         """;
         var req = JsonSerializer.Deserialize<ServeRequestOptions>(maliciousJson, ServeRequestOptionsJsonContext.Default.ServeRequestOptions)!;
@@ -102,8 +102,8 @@ public class BBDownApiServerTests
     [Fact]
     public void ServeRequestOptions_JsonRoundTrip_ParsesContentAndApiStrings( )
     {
-        // 请求体用字符串表达内容集与 API 通道，与 CLI 输入一致；转换后落入枚举字段
-        const string json = """{"Url":"https://www.bilibili.com/video/BV1xx411c7XD","Content":"av","Api":"tv"}""";
+        // 请求体用字符串表达内容集与 API 通道，与 CLI 输入一致；转换后落入枚举字段（契约 camelCase）
+        const string json = """{"url":"https://www.bilibili.com/video/BV1xx411c7XD","content":"av","api":"tv"}""";
         var req = JsonSerializer.Deserialize<ServeRequestOptions>(json, ServeRequestOptionsJsonContext.Default.ServeRequestOptions)!;
         var opts = req.ToDownloadRequest( );
 
@@ -206,7 +206,8 @@ public class BBDownApiServerTests
         var task = new DownloadTask(new ResourceId.Season(2539), "ss2539", 0);
         var json = JsonSerializer.Serialize(task, AppJsonSerializerContext.Default.DownloadTask);
 
-        Assert.Contains("\"Id\":\"season2539\"", json);
+        // id 经 ResourceIdJsonConverter 输出规范字符串，属性名随契约 camelCase
+        Assert.Contains("\"id\":\"season2539\"", json);
     }
 
     #endregion

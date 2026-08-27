@@ -21,7 +21,7 @@ internal sealed class ApiKeyAuthenticationHandler(
 {
     protected override Task<AuthenticateResult> HandleAuthenticateAsync( )
     {
-        // 回环免令牌模式（未设置期望令牌）：认证不适用，返回 NoResult 而非 Fail，
+        // 免令牌模式（未设置期望令牌，即未以 --serve-token 启用强制鉴权）：认证不适用，返回 NoResult 而非 Fail，
         // 避免每个请求都产生「无效或缺失令牌」的失败日志噪音（无 FallbackPolicy，放行不受影响）
         if (Options.ExpectedToken is null)
         {

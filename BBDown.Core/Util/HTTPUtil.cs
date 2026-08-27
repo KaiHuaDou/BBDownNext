@@ -94,6 +94,14 @@ public static partial class HTTPUtil
     // b23.tv 短链展开后的目标不可信，拦截可防用户可控 URL 把 Cookie 外发给第三方
     internal static bool IsTrustedCookieHost(string host, AppConfig cfg)
     {
+        // hdslb.com 是 B 站官方 CDN 域（字幕、封面等静态资源均下发此域），其子域全由 B 站掌控；
+        // 字幕 URL 来自 B 站自有 API 响应（非用户可控），整体放行避免把 Cookie 错判为不可信主机
+        if (host.Equals("hdslb.com", StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith(".hdslb.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         return host is BiliApi.MainHost or BiliApi.PassportHost or BiliApi.TvHost or BiliApi.IntlAppHost
                    or BiliApi.IntlWebHost or BiliApi.LiveApiHost or "www.bilibili.com" or "space.bilibili.com"
                    or "bangumi.bilibili.com" or "comment.bilibili.com" or "live.bilibili.com"

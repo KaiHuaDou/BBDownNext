@@ -260,7 +260,8 @@ public class MuxerArgsTests
         Assert.Contains("/tmp/a.m4a:lang=zh", args);
         Assert.Equal("/tmp/chapters", ValueAfter(args, "-chap"));
         Assert.Contains("/tmp/s0.srt#trackID=1:name=:hdlr=sbtl:lang=chi", args);
-        Assert.Equal("4:type=name:str=中文（简体）", ValueAfter(args, "-udta"));
+        // 字幕是第 3 个输入轨道（视频 1 / 音频 2 / 字幕 3），udta 编号随输入序
+        Assert.Equal("3:type=name:str=中文（简体）", ValueAfter(args, "-udta"));
     }
 
     [Fact]

@@ -50,6 +50,8 @@ public partial class MainWindow : Window
             LiveQualityBox.Items.Add(new ComboBoxItem { Content = $"{qn} {name}", Tag = qn.ToString( ) });
         }
 
+        LiveQualityBox.SelectedIndex = 0;
+
         foreach ((var value, var label) in MuxChoices)
         {
             MuxBox.Items.Add(new ComboBoxItem { Content = label, Tag = value });
@@ -431,7 +433,7 @@ public partial class MainWindow : Window
                 switch (state.Kind)
                 {
                     case TaskKind.Opus:
-                        await OpusDownload.RunAsync(req, token);
+                        await OpusDownload.RunAsync(req, ct: token);
                         break;
                     case TaskKind.Live:
                         if (!LiveInputResolver.TryParse(state.Url, out var live))
@@ -439,7 +441,10 @@ public partial class MainWindow : Window
                             throw new InvalidOperationException("直播地址解析失败");
                         }
 
-                        await LiveDownload.RunAsync(req, live, token);
+                        var liveSink = new PipelineSink(
+                            Meta: info => SetTaskTitle(state, info.Title),
+                            Saved: path => AppendProcessLog(state.Index, $"已保存：{path}", false));
+                        await LiveDownload.RunAsync(req, live, state.Index.ToString( ), liveSink, ct: token);
                         break;
                     default:
                     {

@@ -120,10 +120,6 @@ const reset = (): void => {
   appendLog('选项已重置')
 }
 
-const openOutputDir = (): void => {
-  appendLog('输出目录由 serve --work-dir 启动参数控制，请在本机访问')
-}
-
 const currentAsk = computed<PendingAsk | undefined>(() => pendingAsks.value[0])
 
 const dismissAsk = (): void => {
@@ -166,7 +162,7 @@ const onSavedCredential = (next: Credential): void => {
             <input
               v-model="target"
               class="field-input flex-1"
-              placeholder="粘贴视频链接 / av 号 / BV 号…" />
+              placeholder="粘贴链接，或输入 av / BV / live / opus 等号…" />
           </div>
           <div class="mt-2 text-sm" :class="targetHint ? 'text-[#4caf50]' : 'text-[#9e9e9e]'">
             {{ targetHint ? `✓ ${targetHint}` : '未能识别' }}
@@ -204,7 +200,6 @@ const onSavedCredential = (next: Credential): void => {
           <button class="btn-action" type="button" @click="run">执行</button>
           <button class="btn-action" type="button" @click="enqueue">加入任务队列</button>
           <button class="btn-action" type="button" @click="reset">重置选项</button>
-          <button class="btn-action" type="button" @click="openOutputDir">打开输出目录</button>
         </div>
       </div>
 

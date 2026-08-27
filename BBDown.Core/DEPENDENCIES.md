@@ -100,7 +100,7 @@ Core 通过以下显式注入点向宿主（CLI / GUI）开放能力，宿主无
 | `PageQueue.RunPagesAsync.run` | `Func<Page,CancellationToken,Task>` | 分 P 编排：本函数只管「遍历 + 聚合失败」，单页逻辑由调用方注入 |
 | `SubUtil.TryFetchAsync.fetch` + `candidates[]` | `Func<Task<List<Subtitle>>>` | 字幕多候选接口逐个回退 |
 | `SubUtil.FromJsonAsync.locate` | `Func<JsonElement,JsonElement>` | 不同接口的 JSON 定位路径不同 |
-| `BBDownApiServer.RunGatedAsync.download` | `Func<Task>` | 任务级并发闸门与下载动作分离 |
+| `TaskWorker.RunGatedAsync.download` | `Func<Task>` | 任务级并发闸门与下载动作分离 |
 | `CommandLineInvoker.GetRootCommand.action` | `Func<DownloadRequest,Task<int>>` | 命令行解析与执行分离（System.CommandLine 的 `SetAction` 结构使然） |
 
 ## 依赖约束

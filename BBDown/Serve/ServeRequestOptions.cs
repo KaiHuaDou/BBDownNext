@@ -14,7 +14,7 @@ namespace BBDown.Serve;
 /// serve 进程没有可交互的 stdin，远程开启交互式选项只会让任务阻塞在 Console.ReadLine。
 /// 这样新增一个下载选项时不会自动变成 serve 的可注入点，也不必再维护一份「清零列表」。
 /// 其中 Host/EpHost/TvHost 因「请求不带 cookie 时回落本机 SESSDATA、host 又由请求体控制」会形成凭据外泄链（P0-1），
-/// 已整体移出请求契约，改为 serve 启动参数（--host/--ep-host/--tv-host）固定，详见 <see cref="BBDownApiServer.ApplyServeHost"/>。
+/// 已整体移出请求契约，改为 serve 启动参数（--host/--ep-host/--tv-host）固定，详见 <see cref="BBDownServer.ApplyServeHost"/>。
 /// </summary>
 internal sealed class ServeRequestOptions
 {
@@ -49,12 +49,20 @@ internal sealed class ServeRequestOptions
     public bool NoForceHost { get; set; }
     public bool SaveArchivesToFile { get; set; }
     public bool StopOnError { get; set; }
+    /// <summary>交互式逐集确认（--interactive-pages）。经 AskBus 发布选项请求，由 WebSocket 事件流送达客户端应答；无订阅者时回落非交互。</summary>
+    public bool InteractivePages { get; set; }
+    /// <summary>交互式选择清晰度（--interactive-quality）。同上，依赖 --interactive 事件流。</summary>
+    public bool InteractiveQuality { get; set; }
+    /// <summary>直播录制清晰度（qn），缺省回落原画。其它选项受控于服务端固定 host，本项随任务变化无注入风险。</summary>
+    public int LiveQuality { get; set; } = BBDown.Core.Download.LiveQuality.Original;
     public string Pages { get; set; } = "";
     public string Lang { get; set; } = "";
     public string Cookie { get; set; } = "";
     public string AccessToken { get; set; } = "";
     public string UposHost { get; set; } = "";
     public string DelayPerPage { get; set; } = "0";
+    /// <summary>每个下载项的额外重试次数，缺省回落 3。</summary>
+    public int MaxRetry { get; set; } = 3;
     public string Area { get; set; } = "";
 
     /// <summary>任务完成回调地址（仅允许公网 http/https，由服务端做 SSRF 校验）。</summary>

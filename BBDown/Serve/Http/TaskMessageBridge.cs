@@ -1,6 +1,3 @@
-using System;
-
-using BBDown.Core;
 using BBDown.Core.Logging;
 using BBDown.Core.Workflow;
 using BBDown.Serve.Tasks;
@@ -12,7 +9,7 @@ namespace BBDown.Serve.Http;
 /// AskBus（选项请求），把 Scope（任务 id）匹配的消息 / 事件送进对应任务的事件流（WebSocket）。
 /// 无 Scope（CLI 路径）或任务无事件上下文（未启用交互）时忽略。宿主生命周期与 serve 进程一致。
 /// </summary>
-internal sealed class TaskMessageBridge : IDisposable
+internal sealed class TaskMessageBridge
 {
     private readonly TaskStore store;
 
@@ -24,21 +21,15 @@ internal sealed class TaskMessageBridge : IDisposable
         AskBus.Subscribe(OnAsk);
     }
 
-    public void Dispose( )
-    {
-        MessageBus.Unsubscribe(OnMessage);
-        ProgressBus.Unsubscribe(OnProgress);
-        AskBus.Unsubscribe(OnAsk);
-    }
-
     private void OnMessage(LogMessage message)
     {
-        if (message.Scope is null || !ResourceId.TryParse(message.Scope, out var id))
+        // scope 即任务标识字符串（task.Id 的 record ToString），直接命中上下文表，不经解析
+        if (message.Scope is null)
         {
             return;
         }
 
-        store.GetContext(id)?.EnqueueMessage(message.Text, message.Time);
+        store.GetContext(message.Scope)?.EnqueueMessage(message.Text, message.Time);
     }
 
     // 阶段边界（低频）入事件队列；阶段内样本高频不进队列——快照由 ProgressBus.Latest 承载，
@@ -56,7 +47,7 @@ internal sealed class TaskMessageBridge : IDisposable
             ProgressRangeEndEvent end => end.Scope,
             _ => "",
         };
-        if (ResourceId.TryParse(scope, out var id) && store.GetContext(id) is { } ctx)
+        if (store.GetContext(scope) is { } ctx)
         {
             ctx.EnqueueEvent(evt);
         }
@@ -65,7 +56,7 @@ internal sealed class TaskMessageBridge : IDisposable
     // 选项请求（低频）入事件队列，应答经 submitChoice 帧回 AskBus（TaskSocketHub）
     private void OnAsk(OptionRequestEvent evt)
     {
-        if (ResourceId.TryParse(evt.Scope, out var id) && store.GetContext(id) is { } ctx)
+        if (store.GetContext(evt.Scope) is { } ctx)
         {
             ctx.EnqueueEvent(evt);
         }

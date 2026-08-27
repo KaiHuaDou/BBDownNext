@@ -246,9 +246,18 @@ export function useTasks(): TasksState {
 
   const probeHealth = async (): Promise<void> => {
     try {
-      await fetchHealth(config.value)
+      const health = await fetchHealth(config.value)
       connected.value = true
       connectionError.value = null
+      // healthz 暴露事件流开关：未开 --interactive 时无需保持 WS 连接（订阅探测依赖有运行任务，空列表时不可靠）；
+      // 旧版 serve 无该字段（undefined）时回退订阅探测行为
+      if (health.interactive === false) {
+        eventStream.value = 'disabled'
+        socket?.close()
+      } else if (eventStream.value === 'disabled') {
+        // serve 重启并开启 --interactive 后自动重建事件流，无需手动改配置
+        startSocket()
+      }
     } catch (e) {
       connected.value = false
       connectionError.value = errorMessage(e)
@@ -272,8 +281,12 @@ export function useTasks(): TasksState {
       // 连接生命周期与 REST 连接状态分离：WS 异常不污染 connectionError（healthz 轮询会覆盖）
       onStatus: (error) => {
         if (error) {
+          // 重连期间反复断开只在首次记录，避免日志区刷屏
+          if (eventStream.value !== 'reconnecting') {
+            appendLog(error, true)
+          }
+
           eventStream.value = 'reconnecting'
-          appendLog(error, true)
         } else {
           eventStream.value = 'active'
         }
@@ -386,6 +399,11 @@ export function useTasks(): TasksState {
   }
 
   const exportLog = (): void => {
+    if (logLines.value.length === 0) {
+      appendLog('日志为空，无需导出')
+      return
+    }
+
     const blob = new Blob([logLines.value.map((line) => line.text).join('\n')], {
       type: 'text/plain'
     })

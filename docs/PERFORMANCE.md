@@ -4,8 +4,8 @@
 
 15 个结果 - 8 文件
 
-BBDown\Serve\BBDownApiServer.Tasks.cs:
-  174:             return option with { WorkDir = serveWorkDir };
+BBDown\Serve\Tasks\TaskStore.cs:
+  224:            return option with { WorkDir = workDir };
 
 BBDown.Core\Auth\CredentialStore.cs:
   76:         var c = LoadCredential(dir) with { Cookie = cookie, RefreshToken = refreshToken, Ts = issueTs };

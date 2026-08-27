@@ -9,7 +9,8 @@ const KNOWN_PREFIXES: [string, string][] = [
   ['md', '番剧（md 号）'],
   ['opus', '专栏（opus 号）'],
   ['cv', '专栏（cv 号）'],
-  ['space', '用户空间']
+  ['space', '用户空间'],
+  ['live', '直播间（live 号）']
 ]
 
 /** 识别输入文本，返回可读描述；无法识别返回 null。 */

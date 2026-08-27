@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 
 using static BBDown.Core.Logger;
+using static BBDown.Core.Util.JsonUtil;
 
 namespace BBDown.Core.Opus;
 
@@ -80,6 +81,11 @@ public static partial class OpusFetcher
         {
             foreach (var tag in tags.EnumerateArray( ))
             {
+                if (tag.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
                 var name = tag.TryGetProperty("name", out var tn) ? (tn.GetString( ) ?? "")
                            : (tag.TryGetProperty("show_text", out var st) ? (st.GetString( ) ?? "") : "");
                 if (!string.IsNullOrEmpty(name))
@@ -109,14 +115,19 @@ public static partial class OpusFetcher
             {
                 foreach (var module in modules.EnumerateArray( ))
                 {
+                    if (module.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+
                     var moduleType = module.TryGetProperty("module_type", out var mt) ? (mt.GetString( ) ?? "") : "";
                     if (moduleType == "MODULE_TYPE_CONTENT"
-                        && module.TryGetProperty("module_content", out var mc)
+                        && TryGetObject(module, "module_content", out var mc)
                         && mc.TryGetProperty("paragraphs", out var paras) && paras.ValueKind == JsonValueKind.Array)
                     {
                         doc.Paragraphs = ParseParagraphs(paras);
                     }
-                    else if (moduleType == "MODULE_TYPE_AUTHOR" && module.TryGetProperty("module_author", out var ma))
+                    else if (moduleType == "MODULE_TYPE_AUTHOR" && TryGetObject(module, "module_author", out var ma))
                     {
                         doc.AuthorName = ma.TryGetProperty("name", out var n) ? (n.GetString( ) ?? "") : "";
                         if (string.IsNullOrEmpty(doc.AuthorMid))
@@ -148,6 +159,11 @@ public static partial class OpusFetcher
             {
                 foreach (var op in ops.EnumerateArray( ))
                 {
+                    if (op.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+
                     if (op.TryGetProperty("insert", out var ins) && ins.ValueKind == JsonValueKind.String)
                     {
                         sb.Append(ins.GetString( ));

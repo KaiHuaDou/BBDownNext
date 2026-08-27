@@ -12,6 +12,7 @@ using BBDown.Core.Workflow;
 using static BBDown.Core.Download.DownloadUtil;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Parser;
+using static BBDown.Core.Util.RetryUtil;
 using static BBDown.Core.Util.Utils;
 
 namespace BBDown.Core.Media;
@@ -101,7 +102,10 @@ public static class FlvDownload
             List<string> clipPaths;
             using (var stage = ProgressBus.BeginStage("下载"))
             {
-                clipPaths = await DownloadClipsAsync(clips, pageCtx, downloadConfig, ct);
+                // 片段下载是整 P 必要步骤，独立重试；耗尽则整 P 失败（不影响其他分 P）
+                clipPaths = await RetryAsync(
+                    async ( ) => await DownloadClipsAsync(clips, pageCtx, downloadConfig, ct),
+                    myOption.MaxRetry, $"P{p.Index} 片段", ct, ex => PageDownload.ShouldRetry(ex, ct));
             }
 
             Log($"下载 P{p.Index} 完毕");
@@ -109,7 +113,10 @@ public static class FlvDownload
             var videoPath = pageCtx.VideoPath;
             try
             {
-                await Muxer.MergeFLV([.. clipPaths], videoPath, ctx.Run.Tools, ct);
+                // 合并分片是整 P 必要步骤，独立重试；片段在重试全部耗尽后才清理
+                await RetryAsync(
+                    async ( ) => await Muxer.MergeFLV([.. clipPaths], videoPath, ctx.Run.Tools, ct),
+                    myOption.MaxRetry, $"P{p.Index} 合并分片", ct, ex => PageDownload.ShouldRetry(ex, ct));
             }
             finally
             {
@@ -122,7 +129,10 @@ public static class FlvDownload
 
             // 非 AVC 已在上游拒绝，无 HEVC 标记
             var inputs = new MuxFinish.MuxInputs(savePath, videoPath, "", audioMaterial, myOption.Mux, IsHevc: false);
-            return await MuxFinish.RunAsync(session, inputs, selection, ct);
+            // 混流是整 P 必要收尾，独立重试；耗尽则整 P 失败（不影响其他分 P）
+            return await RetryAsync(
+                async ( ) => await MuxFinish.RunAsync(session, inputs, selection, ct),
+                myOption.MaxRetry, $"P{p.Index} 混流", ct, ex => PageDownload.ShouldRetry(ex, ct));
         }
     }
 

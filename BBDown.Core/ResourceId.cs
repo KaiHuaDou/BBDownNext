@@ -44,6 +44,12 @@ public abstract record ResourceId
     /// <summary>稍后再看列表</summary>
     public sealed record WatchLater : ResourceId;
 
+    /// <summary>直播间（房间号，可为短号，短号在 live_init 时换真实房间号）</summary>
+    public sealed record LiveRoom(long RoomId) : ResourceId;
+
+    /// <summary>专栏（opus 动态 id 与 cv id 是同一文章的两个 id，至少一个非 0）</summary>
+    public sealed record OpusArticle(long OpusId, long CvId) : ResourceId;
+
     /// <summary>
     /// 解析 serve API 路径参数的规范 id（"&lt;type&gt;&lt;值&gt;" 无冒号形态，如 "season2539"；
     /// fav 双值为 "fav&lt;fid&gt;_&lt;mid&gt;"，watchLater 无值）。仅接受规范形态，不接受用户输入简写。
@@ -143,6 +149,30 @@ public abstract record ResourceId
                 }
 
                 break;
+            case "live":
+                if (TryLong(rest, out var roomId))
+                {
+                    id = new LiveRoom(roomId);
+                    return true;
+                }
+
+                break;
+            case "opus":
+                if (TryLong(rest, out var opusId))
+                {
+                    id = new OpusArticle(opusId, 0);
+                    return true;
+                }
+
+                break;
+            case "cv":
+                if (TryLong(rest, out var cvId))
+                {
+                    id = new OpusArticle(0, cvId);
+                    return true;
+                }
+
+                break;
             case "fav":
                 var sep = rest.IndexOf('_');
                 if (sep > 0 && TryLong(rest[..sep], out var fid) && TryLong(rest[(sep + 1)..], out var favMid))
@@ -157,9 +187,9 @@ public abstract record ResourceId
         return false;
     }
 
-    // 前缀按长度降序（cheeseSeason 11 > mediaList 9 > cheeseEp 8 > season 6 > series/space 5 > fav 3 > ep/av 2），
+    // 前缀按长度降序（cheeseSeason 11 > mediaList 9 > cheeseEp 8 > season 6 > series/space 5 > opus/live 4 > fav 3 > ep/cv/av 2），
     // 未来若出现包含关系（如新增 "cheese" 前缀），长前缀仍优先匹配
-    private static readonly string[] TypePrefixes = ["cheeseSeason", "mediaList", "cheeseEp", "season", "series", "space", "fav", "ep", "av"];
+    private static readonly string[] TypePrefixes = ["cheeseSeason", "mediaList", "cheeseEp", "season", "series", "space", "opus", "live", "fav", "ep", "cv", "av"];
 
     // 仅接受纯数字（无符号/空白/千分位），保证规范形态与非法输入严格区分
     private static bool TryLong(string value, out long result)

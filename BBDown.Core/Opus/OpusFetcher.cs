@@ -73,7 +73,8 @@ public static partial class OpusFetcher
 
         if (data.TryGetProperty("item", out var item) && item.ValueKind == JsonValueKind.Object
             && item.TryGetProperty("type", out var itype) && itype.ValueKind == JsonValueKind.Number && itype.GetInt32( ) == 1
-            && item.TryGetProperty("basic", out var basic) && basic.TryGetProperty("rid_str", out var rid) && rid.ValueKind == JsonValueKind.String)
+            && item.TryGetProperty("basic", out var basic) && basic.ValueKind == JsonValueKind.Object
+            && basic.TryGetProperty("rid_str", out var rid) && rid.ValueKind == JsonValueKind.String)
         {
             return rid.GetString( );
         }
@@ -93,6 +94,11 @@ public static partial class OpusFetcher
         var images = new List<OpusImage>( );
         foreach (var module in modules.EnumerateArray( ))
         {
+            if (module.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
             var moduleType = module.TryGetProperty("module_type", out var mt) ? (mt.GetString( ) ?? "") : "";
             if (moduleType != "MODULE_TYPE_TOP"
                 || !module.TryGetProperty("module_top", out var top) || top.ValueKind != JsonValueKind.Object
@@ -105,6 +111,11 @@ public static partial class OpusFetcher
 
             foreach (var pic in pics.EnumerateArray( ))
             {
+                if (pic.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
                 var url = pic.TryGetProperty("url", out var u) ? (u.GetString( ) ?? "") : "";
                 if (url.Length != 0)
                 {

@@ -32,6 +32,7 @@ dotnet_diagnostic.CA2007.severity = none # ConfigureAwait，控制台单线程�
 dotnet_diagnostic.CA2234.severity = none # 不必强制使用 System.Uri
 dotnet_diagnostic.CA5351.severity = none # bilibili WBI / APPKEY 签名强制使用 MD5，不可替换为 SHA（替换将导致鉴权失败）
 dotnet_diagnostic.CA5394.severity = none # Random 伪随机可以满足要求
+dotnet_diagnostic.NU1900.severity = none # NuGet 的随机错误
 
 dotnet_code_quality_unused_parameters = all:suggestion
 

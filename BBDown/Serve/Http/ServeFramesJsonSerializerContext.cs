@@ -17,4 +17,5 @@ namespace BBDown.Serve.Http;
 [JsonSerializable(typeof(ProgressRangeEndEvent))]
 [JsonSerializable(typeof(OptionRequestEvent))]
 [JsonSerializable(typeof(AskOption))]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 internal partial class ServeFramesJsonSerializerContext : JsonSerializerContext;

@@ -19,13 +19,16 @@ namespace BBDown;
 
 internal sealed class Program
 {
+    // 录制中的直播会话标识，供 Ctrl+Break handler 精准停止对应录制（并发场景互不干扰）
+    private static string? liveSessionId;
+
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
         e.Cancel = true;
 
         // Ctrl+Break（SIGQUIT）在录制直播时是「停录并混流」，绝不能触发全局取消——那会把随后的 ffmpeg 一起杀掉。
-        // 非录制场景 TryRequestStop 恒为 false，直接落回原有的全局取消路径，既有行为零变化
-        if (e.SpecialKey == ConsoleSpecialKey.ControlBreak && LiveSignal.TryRequestStop( ))
+        // 非录制场景 liveSessionId 为 null，TryRequestStop 恒为 false，直接落回原有的全局取消路径，既有行为零变化
+        if (e.SpecialKey == ConsoleSpecialKey.ControlBreak && liveSessionId is { } liveId && LiveSignal.TryRequestStop(liveId))
         {
             if (!Console.IsOutputRedirected)
             {
@@ -140,11 +143,11 @@ internal sealed class Program
         {
             new Option<string>("--listen", "-l")
             {
-                Description = "服务器监听地址，默认 http://127.0.0.1:23333（仅本机可访问，无需令牌）；绑定到非回环地址时会强制要求令牌"
+                Description = "服务器监听地址，默认 http://127.0.0.1:23333；是否强制令牌鉴权取决于是否传入 --serve-token，未传入则默认免令牌开放并仅警告"
             },
             new Option<string>("--serve-token")
             {
-                Description = "serve 模式鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 X-BBDown-Token 头或 ?token= 查询参数"
+                Description = "serve 模式鉴权令牌；显式传入后才启用强制鉴权（所有访问均须带 X-BBDown-Token 头或 ?token= 查询参数），未传入则默认免令牌开放并仅警告"
             },
             new Option<string>("--work-dir")
             {
@@ -244,7 +247,9 @@ internal sealed class Program
                     LogDebug(debug);
                 }
 
-                await OpusDownload.RunAsync(myOption, AppEnv.CancellationToken);
+                // 图片可能上百张，进度条比逐条日志更直观（OpusDownload 按张数上报 ProgressBus 样本）
+                using var opusProgressBar = new ProgressBar(AppEnv.CancellationToken);
+                await OpusDownload.RunAsync(myOption, ct: AppEnv.CancellationToken);
                 return 0;
             }
 
@@ -259,13 +264,18 @@ internal sealed class Program
                 try
                 {
                     using var liveProgress = new LiveProgress( );
-                    await LiveDownload.RunAsync(myOption, liveTarget, AppEnv.CancellationToken);
+                    liveSessionId = liveTarget.RoomId;
+                    await LiveDownload.RunAsync(myOption, liveTarget, liveSessionId, ct: AppEnv.CancellationToken);
                     return 0;
                 }
                 catch (OperationCanceledException) when (AppEnv.CancellationToken.IsCancellationRequested)
                 {
                     LogWarn("录制已中断，已录制的分段文件保留在工作目录中（未混流）。");
                     return 130;
+                }
+                finally
+                {
+                    liveSessionId = null;
                 }
             }
 
@@ -318,10 +328,10 @@ internal sealed class Program
     private static void StartServer(ServeConfig config)
     {
         // 渲染器已由 Main 顶层装配并覆盖 serve 生命周期，此处不再创建，避免双订阅导致日志双打印
-        var server = new BBDownApiServer( );
+        var server = new BBDownServer( );
         server.SetUpServer(config);
 #pragma warning disable CA2234 // 保留 Run(string) 内的 URL 合法性校验与友好退出
-        server.Run(string.IsNullOrEmpty(config.ListenUrl) ? BBDownApiServer.DefaultListenUrl : config.ListenUrl);
+        server.Run(string.IsNullOrEmpty(config.ListenUrl) ? BBDownServer.DefaultListenUrl : config.ListenUrl);
 #pragma warning restore CA2234
     }
 }

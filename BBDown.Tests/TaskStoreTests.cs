@@ -122,7 +122,7 @@ public class TaskStoreTests
         // 交互关闭（默认）或任务未受理时无事件上下文
         var store = NewStore(new ServeConfig( ));
 
-        Assert.Null(store.GetContext(new ResourceId.Av(1)));
+        Assert.Null(store.GetContext(new ResourceId.Av(1).ToString( )));
     }
 
     [Fact]
@@ -130,6 +130,6 @@ public class TaskStoreTests
     {
         var store = NewStore(new ServeConfig( ));
 
-        Assert.Null(store.ReleaseContext(new ResourceId.Av(1)));
+        Assert.Null(store.ReleaseContext(new ResourceId.Av(1).ToString( )));
     }
 }

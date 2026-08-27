@@ -71,7 +71,10 @@ internal static class PageQueue
             {
                 try
                 {
-                    await CommentDownload.RunAsync(ctx, PageDownload.BuildPageContext(p, ctx, pagesInfo), sink, token);
+                    // 评论非必要项：独立重试，耗尽仅告警跳过（不影响视频下载）
+                    await RetryUtil.RetryAsync(
+                        async ( ) => await CommentDownload.RunAsync(ctx, PageDownload.BuildPageContext(p, ctx, pagesInfo), sink, token),
+                        myOption.MaxRetry, "评论", token, ex => PageDownload.ShouldRetry(ex, token));
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
                 {

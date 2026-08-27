@@ -92,6 +92,7 @@ public partial class MainWindow
             PostProcessPath = PostProcessPathBox.Text.Trim( ),
             Aria2cArgs = Aria2cArgsBox.Text.Trim( ),
             DelayPerPage = DelayPerPageBox.Text.Trim( ),
+            MaxRetry = MaxRetryBox.Text.Trim( ),
             LiveQuality = ReadLiveQuality( ),
             Api = ApiBox.SelectedItem as string ?? "web",
             FilePattern = FilePatternBox.Text.Trim( ),
@@ -203,6 +204,7 @@ public partial class MainWindow
         PostProcessPathBox.Text = options.PostProcessPath;
         Aria2cArgsBox.Text = options.Aria2cArgs;
         DelayPerPageBox.Text = options.DelayPerPage;
+        MaxRetryBox.Text = options.MaxRetry;
         ApplyLiveQuality(options.LiveQuality);
         ApiBox.SelectedItem = options.Api;
         FilePatternBox.Text = options.FilePattern;

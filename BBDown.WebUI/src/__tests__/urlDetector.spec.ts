@@ -12,6 +12,7 @@ describe('describeTarget', () => {
     expect(describeTarget('opus123')).toBe('专栏（opus 号）')
     expect(describeTarget('cv123')).toBe('专栏（cv 号）')
     expect(describeTarget('space402787936')).toBe('用户空间')
+    expect(describeTarget('live123456')).toBe('直播间（live 号）')
   })
 
   it('裸数字视为 av 号', () => {
@@ -35,5 +36,6 @@ describe('describeTarget', () => {
     expect(describeTarget('随便什么')).toBeNull()
     expect(describeTarget('av')).toBeNull()
     expect(describeTarget('ep')).toBeNull()
+    expect(describeTarget('live')).toBeNull()
   })
 })

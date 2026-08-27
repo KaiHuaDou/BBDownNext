@@ -51,10 +51,10 @@ public partial class MainWindow
             return;
         }
 
-        // LiveSignal 为单一全局槽：同时录制多个直播间时只停最后注册者（与 CLI 单录制语义一致）
-        AppendLog(LiveSignal.TryRequestStop( )
+        // LiveSignal 按任务序号（sessionId）精准停止对应直播，并发录制互不干扰
+        AppendLog(LiveSignal.TryRequestStop(state.Index.ToString( ))
             ? $"任务{state.Index} 已请求停止录制并合并"
-            : "当前没有正在录制的直播");
+            : $"任务{state.Index} 当前未在录制或已停止");
     }
 
     private void StartQueueButtonClicked(object? o, RoutedEventArgs e)

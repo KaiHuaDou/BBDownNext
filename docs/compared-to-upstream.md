@@ -18,7 +18,7 @@
 | **TV 端登录** | 独立 `logintv` 子命令 | `login --tv`（与 `login` / `login --app` 统一为一个子命令的可选标志） |
 | **AOT 原生发布** | 未提供；依赖运行时反射 | 代码已改造为 **AOT 安全**（`System.Text.Json` 源生成器替代反射）；AOT 在 `BBDown/Directory.Build.props` 默认开启，`dotnet publish BBDown -r <RID> -c Release` 即产出单文件原生二进制 |
 | **WBI 签名降风控** | playurl / view 等接口明文或仅简单 sign | 对 playurl（wbi/playurl）、view（wbi/view）、字幕（player/wbi/v2）、空间列表（space/wbi/arc/search）均做标准 WBI 签名；未探测账号时退化为不签名 |
-| **serve 鉴权** | 基础令牌 | 回环地址免令牌；非回环地址强制令牌（`X-BBDown-Token` 头或 `?token=` 查询），否则 401 |
+| **serve 鉴权** | 基础令牌 | 默认免令牌开放并仅警告；显式传入 `--serve-token` 后强制所有接口鉴权（`X-BBDown-Token` 头或 `?token=` 查询），否则 401 |
 | **serve 安全** | 请求体基本透传 | 请求契约收窄为受控子集 DTO；host 三兄弟与 work-dir 服务端固定；回调地址 **SSRF 防护**（拒绝内网/回环，连接前二次校验）；**CORS 默认关闭** |
 | **专栏/图文导出** | 无 | 主命令自动识别专栏地址（`/opus/`、`/read/`、`opus{id}` / `cv{id}`），导出为 Markdown + 图片目录；纯图文动态（`item.type == 0`）按正文导出，顶部相册一并下载置于文档最前 |
 | **稍后再看列表** | 无 | `watchlater` 系列地址解析为整个列表（按添加顺序），多 P 自动展开，支持 `-p` / `-iap`；接口私有，需登录 Cookie |
@@ -70,17 +70,17 @@
 
 ### 2.4 serve 模式
 
-- **路由与方法**（`BBDown/Serve/BBDownApiServer.cs`，按职责拆为 `BBDownApiServer.Endpoints.cs` / `BBDownApiServer.Tasks.cs` 三个 partial 文件）：
-    - `GET /get-tasks/`、`/get-tasks/running`、`/get-tasks/finished`、`/get-tasks/{id}`（任务状态查询）。
-    - `POST /add-task`（新增下载任务）。
-    - `POST /remove-finished/`、`/remove-finished/failed`、`/remove-finished/{id}`（清理已完成任务）。
-    - `POST /stop-task/{id}`（取消单个运行中 / 排队中任务，不影响其他任务）。
-- **鉴权**：`FinalizeAuth(url)` 判定监听地址——回环地址（`IsLoopbackUrl`）免令牌；非回环地址 `authRequired = true`，请求须带 `X-BBDown-Token` 头或 `?token=` 查询参数，缺失/错误返回 401（中间件 `context.Response.StatusCode = 401`）。
-- **SSRF 防护**（`BBDown/Serve/SsrfGuard.cs`，自 `BBDownApiServer` 抽出的静态防护类）：
+- **路由与方法**（`BBDown/Serve/BBDownServer.cs` 主干 + `Http/ServeEndpoints.cs` 端点 + `Tasks/TaskWorker.cs`、`Tasks/TaskStore.cs`）：
+    - `GET /api/v1/tasks`、`/api/v1/tasks/running`、`/api/v1/tasks/finished`、`/api/v1/tasks/{id}`（任务状态查询）。
+    - `POST /api/v1/tasks`（新增下载任务，202 受理 / 200 命中已有 / 400 非法 / 429 队列满）。
+    - `DELETE /api/v1/tasks/finished`、`/api/v1/tasks/finished/failed`、`/api/v1/tasks/{id}`（清理已完成任务）。
+    - `POST /api/v1/tasks/{id}/stop`（取消单个运行中 / 排队中任务，不影响其他任务）。
+- **鉴权**：`FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时设置 `authRequired = true`，请求须带 `X-BBDown-Token` 头或 `?token=` 查询参数，缺失/错误返回 401（中间件 `context.Response.StatusCode = 401`）；未传入令牌时默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。
+- **SSRF 防护**（`BBDown/Serve/SsrfGuard.cs`，独立静态防护类）：
     - `IsSafeWebHook(uri)` 仅允许公网 `http/https`，拒绝 `localhost`、回环与私网地址。
     - 专用 `WebHookClient` 关闭自动重定向，并在 `ConnectCallback` 中于建立 TCP 连接前对最终端点 IP 做 `IsPrivateAddress` 二次校验（消除 DNS 重绑定 TOCTOU 窗口），拒绝私网/回环/链路本地/未指定地址（`::`）。
 - **服务端固定字段**：`host` / `ep-host` / `tv-host` 三兄弟与 `work-dir` 不再出现在请求 DTO（`ServeRequestOptions`），改由 serve 启动参数固定（聚合为 `ServeConfig` record，取代散参），避免请求不带 cookie 时回落本机 `SESSDATA` 被导向外部服务器（`BBDown/Serve/ServeConfig.cs`）。
-- **CORS 默认关闭**：不指定 `--cors-origin` 时完全不注册 CORS；指定时仅允许该单一来源（`AddCors` → `AllowSpecificOrigin`）。
+- **CORS 默认放行回环来源**：`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环判定，非回环 `Origin` 仍被浏览器拦截；指定 `--cors-origin` 时叠加该单一来源（`AddCors` → `AllowSpecificOrigin`）。
 - **并发度**：`--max-concurrent N>0` 用 `SemaphoreSlim` 限制同时下载任务数，多余任务排队（`DownloadTask.Status == Queued`）；单个任务内部的下载并行度由多线程下载器自行决定，不再压到 1；`0`（默认）表示不限制（历史行为）。任务模型为 `DownloadTask` / `DownloadStatus`。
 
 ### 2.5 专栏/图文导出（Opus）
@@ -116,6 +116,7 @@
     - `--allow-preview`：输出文件名末段加 `[试看]` 前缀（`SavePath.ApplyPreviewPrefix`），退出码 0。
     - 信息/封面/弹幕模式仅提示，不中止。
 - **重试排除**：`ShouldRetry` 明确将 `ChargedPreviewException` 排除在可重试之外（充电权限不会因重试改变）。
+- **逐项重试**：每个下载项独立重试（`--max-retry`，默认额外 3 次），非必要项（字幕 / 封面 / 弹幕 / 配音 / 评论）耗尽仅跳过该项、必要项（音视频 / 混流）耗尽则该分 P 失败；分 P 之间互不影响。
 
 ### 2.8 断点续传
 
@@ -191,7 +192,7 @@
 - **登录三态 + Cookie 续期**：`BBDown.Core/Auth/`（`Login.cs` 轮询编排 `QrLoginPlan` / `RunQrLoginAsync`；`Login.Web.cs` / `Login.App.cs` / `Login.Refresh.cs` / `Login.Sign.cs`，含 `TryRefreshWebCookieIfStaleAsync` / `RefreshWebCookieAsync` / `MakeCorrespondPath` / `RefreshRsaPublicKey`）。
 - **凭据单文件 + 源生成器**：`BBDown.Core/Auth/CredentialStore.cs`（`Credential` / `CredentialJsonContext` / `SaveWebCookie` 等）。
 - **WBI 签名**：`BBDown.Core/Util/SignUtil.cs`（`WbiSign` / `WbiEncodeValue`）；应用点 `NormalInfoFetcher.cs`、`SubUtil.cs`、`SpaceListFetcher.cs`、`BiliApi.cs`（`PlayUrlWebPath` / `ViewWbi` / `PlayerWbiV2` / `SpaceArcSearch`），playurl 侧由 `PlayUrlClient` 调用。
-- **serve 安全**：`BBDown/Serve/`（`BBDownApiServer.cs` 与 `BBDownApiServer.Endpoints.cs` / `BBDownApiServer.Tasks.cs` 分部类；`SsrfGuard.cs`：`IsSafeWebHook` / `IsPrivateAddress` / `IsLoopbackUrl` / `WebHookClient`；`ServeConfig.cs` / `ServeRequestOptions.cs` / `ServeBindingResult.cs` / `ApiTypeJsonConverter.cs`）。
+- **serve 安全**：`BBDown/Serve/`（`BBDownServer.cs` 主干 + `Http/`（端点 `ServeEndpoints.cs`、WebSocket `TasksSocket.cs`）+ `Tasks/`（任务表 `TaskStore.cs`、消费循环 `TaskWorker.cs`）；`SsrfGuard.cs`：`IsSafeWebHook` / `IsPrivateAddress` / `IsLoopbackUrl` / `WebHookClient`；`ServeConfig.cs` / `ServeRequestOptions.cs` / `ServeBindingResult.cs` / `ApiTypeJsonConverter.cs`）。
 - **Opus 导出**：`BBDown.Core/Opus/`（`OpusFetcher` partial：`OpusFetcher.cs` / `OpusFetcher.Parse.cs` / `OpusFetcher.Paragraph.cs`；`OpusInputResolver` / `OpusHtmlToMarkdown` / `OpusMarkdownRenderer` / `OpusImageUtil` / `OpusRegexes` / `OpusDocument`）与 `BBDown.Core/Pipeline/OpusDownload.cs`。
 - **空间列表**：`BBDown.Core/Fetcher/SpaceListFetcher.cs`、`BBDown.Core/Pipeline/InputResolver.cs`、`BBDown.Core/Fetcher/FetcherRegistry.cs`。
 - **稍后再看**：`BBDown.Core/Fetcher/WatchLaterFetcher.cs`、`BBDown.Core/Pipeline/InputResolver.cs`、`BBDown.Core/IdPrefix.cs`（`WatchLater`）。
@@ -213,6 +214,6 @@
 - **`logintv` 子命令已合并**：原版 `logintv` 在本分支为 `login --tv`。
 - **交互式选项更名**：`--interactive` / `-ia` → `--interactive-quality` / `-iaq`；`--select-page` / `-p` → `--pages` / `-p`；serve 请求契约字段同步由 `selectPage` 改为 `pages`。
 - **`opus` 子命令已移除**：专栏 / 图文导出统一走根命令自动识别（`BBDown <专栏地址>`、`BBDown opus{id}`、`BBDown cv{id}`）；裸数字不再触发专栏，保留给视频 av 号简写。
-- **serve 接口方法变更**：`/add-task` 与 `/remove-finished*` 均为 **POST**；`/get-tasks/*` 为 GET。旧调用方需相应调整。
-- **CORS 默认关闭**：旧版可能默认放开跨域；本分支默认不开放，须显式传 `--cors-origin` 才对该单一来源开放。
+- **serve 接口方法变更**：任务创建 / 清理为 **POST / DELETE**、查询类（`/api/v1/tasks/*`）为 GET，详见 [API.md](./API.md)。旧调用方需相应调整。
+- **CORS 默认放行回环来源**：旧版可能默认放开跨域；本分支默认仅回环来源放行，非回环来源须显式传 `--cors-origin` 才开放。
 - **解密能力外移**：旧版内置解密选项（`--drm-key`）已移除，改为 `--post-process <exe>` 外部后处理（见 2.15）；图形界面同样不再提供密钥输入项。

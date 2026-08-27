@@ -5,8 +5,10 @@ using BBDown.Core.Download;
 
 namespace BBDown.Cli;
 
-/// <summary>全部 CLI 选项与别名的静态定义，供根命令注册。
-/// 按 README「参数说明」的分组排列，注册顺序即 --help 显示顺序。</summary>
+/// <summary>
+/// 全部 CLI 选项与别名的静态定义，供根命令注册。
+/// 按 README 「参数说明」 的分组排列，注册顺序即 --help 显示顺序。
+/// </summary>
 internal static class CliOptions
 {
     internal static readonly Argument<string> Url = new("url") { Description = "视频地址 或 av|bv|BV|ep|ss，也可传直播间地址进行录制" };
@@ -195,6 +197,15 @@ internal static class CliOptions
         Description = "使用单线程下载，用于不支持 Range 的服务器。"
     };
     internal static readonly Option<string> DelayPerPage = new("--delay-per-page", []) { Description = "设置下载合集分 P 之间的下载间隔时间（单位：秒）", DefaultValueFactory = _ => "0" };
+    internal static readonly Option<int> MaxRetry = new("--max-retry", [])
+    {
+        Description = """
+        每个下载项（字幕 / 封面 / 弹幕 / 音视频 / 混流等）在首次尝试之外的额外重试次数，默认 3。
+        非必要项（字幕 / 封面 / 弹幕 / 背景配音 / 角色配音）重试耗尽仅跳过该项；
+        音视频或混流重试耗尽则该分 P 失败。
+        """,
+        DefaultValueFactory = _ => 3
+    };
     internal static readonly Option<string> UposHost = new("--upos-host", []) { Description = "自定义 upos 服务器" };
     internal static readonly Option<bool> NoForceHost = new("--no-force-host", []) { Description = "不强制替换下载服务器 host" };
     internal static readonly Option<bool> AllowPcdn = new("--allow-pcdn", []) { Description = "不替换 PCDN 域名，仅在正常情况与 --upos-host 均无法下载时使用" };

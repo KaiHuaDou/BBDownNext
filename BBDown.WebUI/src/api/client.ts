@@ -1,13 +1,15 @@
 import type { DownloadTask, HealthStatus, ServeRequestOptions, TaskSnapshot } from '../lib/types'
 
 /**
- * serve REST 客户端：地址与令牌配置持久化到 localStorage，
- * 回环地址（默认）免令牌，非回环需 X-BBDown-Token 头。
+ * serve REST 客户端：地址与令牌配置持久化到 localStorage。
+ * baseUrl 留空即直连本机 serve 默认地址（127.0.0.1:23333，默认免令牌且回环 Origin 默认可跨域）；
+ * 若服务端以 --serve-token 启用了鉴权，则须在本页填入对应的 X-BBDown-Token 令牌（与回环 / 非回环无关）；跨机器访问时还须以 --cors-origin 允许本页来源。
  */
 
 const BASE_URL_KEY = 'bbdown.serveBaseUrl'
 const TOKEN_KEY = 'bbdown.serveToken'
 
+/** 本机 serve 默认地址（BBDown serve；与 BBDownApiServer.DefaultListenUrl 一致）。 */
 export const DEFAULT_BASE_URL = 'http://127.0.0.1:23333'
 
 export interface ServeConfig {
@@ -15,9 +17,14 @@ export interface ServeConfig {
   token: string
 }
 
+/** baseUrl 留空归一化为本机 serve 默认地址，直连不依赖任何 dev server 代理。 */
+export function resolveBaseUrl(baseUrl: string): string {
+  return baseUrl.trim() || DEFAULT_BASE_URL
+}
+
 export function loadServeConfig(): ServeConfig {
   return {
-    baseUrl: localStorage.getItem(BASE_URL_KEY) ?? DEFAULT_BASE_URL,
+    baseUrl: resolveBaseUrl(localStorage.getItem(BASE_URL_KEY) ?? ''),
     token: localStorage.getItem(TOKEN_KEY) ?? ''
   }
 }
@@ -25,6 +32,26 @@ export function loadServeConfig(): ServeConfig {
 export function saveServeConfig(config: ServeConfig): void {
   localStorage.setItem(BASE_URL_KEY, config.baseUrl)
   localStorage.setItem(TOKEN_KEY, config.token)
+}
+
+/** 请求超时：serve 假死（进程挂起不响应）时避免连接状态停留在「已连接」。 */
+const RequestTimeoutMs = 5000
+
+/** 带超时的 fetch：超时抛「请求超时」错误（AbortController 中止）。 */
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), RequestTimeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } catch (e) {
+    if (controller.signal.aborted) {
+      throw new Error('请求超时（服务端无响应）', { cause: e })
+    }
+
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 async function request<T>(config: ServeConfig, path: string, init?: RequestInit): Promise<T> {
@@ -37,7 +64,13 @@ async function request<T>(config: ServeConfig, path: string, init?: RequestInit)
     headers.set('X-BBDown-Token', config.token)
   }
 
-  const response = await fetch(`${config.baseUrl.replace(/\/+$/, '')}${path}`, { ...init, headers })
+  const response = await fetchWithTimeout(
+    `${resolveBaseUrl(config.baseUrl).replace(/\/+$/, '')}${path}`,
+    {
+      ...init,
+      headers
+    }
+  )
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}：${await response.text().catch(() => '')}`)
   }
@@ -62,13 +95,13 @@ export async function submitTask(
   config: ServeConfig,
   body: ServeRequestOptions
 ): Promise<{ task: DownloadTask; duplicate: boolean }> {
-  const baseUrl = config.baseUrl.replace(/\/+$/, '')
+  const baseUrl = resolveBaseUrl(config.baseUrl).replace(/\/+$/, '')
   const headers = new Headers({ 'Content-Type': 'application/json' })
   if (config.token) {
     headers.set('X-BBDown-Token', config.token)
   }
 
-  const response = await fetch(`${baseUrl}/api/v1/tasks`, {
+  const response = await fetchWithTimeout(`${baseUrl}/api/v1/tasks`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body)

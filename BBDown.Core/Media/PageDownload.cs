@@ -11,6 +11,7 @@ using BBDown.Core.Mux;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Parser;
+using static BBDown.Core.Util.RetryUtil;
 using static BBDown.Core.Util.Utils;
 
 namespace BBDown.Core.Media;
@@ -21,91 +22,73 @@ public static class PageDownload
     {
         var pageCtx = BuildPageContext(p, ctx, selectedPagesInfo);
         List<Subtitle> subtitleInfo = [];
-        // 交互选轨状态跨重试保留：选过的序号经 PageOutcome 回传，重试恢复，避免静默降级到第 0 条轨道
         var selection = TrackSelection.Default;
-        var retryCount = 0;
         var outcome = PageOutcome.Abort(TrackSelection.Default);
-        while (true)
+
+        // 拉播放信息 + 解析是整 P 的必要前置，单独包一层重试（耗尽则整 P 失败）；试看判定在重试外，充电权限不会因重试改变
+        var (playerInfo, parsedResult) = await RetryAsync(async ( ) =>
         {
-            try
+            var playerTask = ChapterMeta.FetchPlayerV2Async(p.Cid, p.Aid, ctx.Fetch.Cfg, ct);
+            var parsedTask = ExtractTracksAsync(ctx.Fetch.FetchedId, p.Aid, p.Cid, p.EpId,
+                myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, ct: ct);
+            var playerInfo = await playerTask;
+            var parsedResult = await parsedTask;
+            return (playerInfo, parsedResult);
+        }, myOption.MaxRetry, $"P{p.Index} 解析", ct, ex => ShouldRetry(ex, ct));
+
+        p.Points = playerInfo.Points;
+        if (p.Points.Count == 0)
+        {
+            p.Points = parsedResult.ExtraPoints;
+        }
+
+        if (Config.DebugLog)
+        {
+            File.WriteAllText(Path.Combine(ctx.Run.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.RawResponse);
+        }
+
+        if (IsTruncatedPreview(playerInfo.UpowerExclusive, p.Dur, parsedResult.Duration))
+        {
+            LogWarn(string.IsNullOrEmpty(playerInfo.UpowerTitle) ? "充电专属视频" : playerInfo.UpowerTitle);
+            LogWarn($"当前账号未充电该 UP 主，只能获取 {FormatTime(parsedResult.Duration, true)} 的试看片段（完整视频 {FormatTime(p.Dur, true)}）", false);
+            // 这三个开关都不产出视频文件，中止反而挡掉用户诊断问题的手段
+            if (myOption.OnlyShowInfo || !myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
             {
-                LogDebug("获取播放器信息...");
-                // player/v2 与拉流解析互相独立，并行发起省一次 RTT
-                var playerTask = ChapterMeta.FetchPlayerV2Async(p.Cid, p.Aid, ctx.Fetch.Cfg, ct);
-                var parsedTask = ExtractTracksAsync(ctx.Fetch.FetchedId, p.Aid, p.Cid, p.EpId,
-                    myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, ct: ct);
-                var playerInfo = await playerTask;
-                var parsedResult = await parsedTask;
-                p.Points = playerInfo.Points;
-                if (p.Points.Count == 0)
-                {
-                    p.Points = parsedResult.ExtraPoints;
-                }
-
-                if (Config.DebugLog)
-                {
-                    File.WriteAllText(Path.Combine(ctx.Run.WorkDir, $"debug_{DateTime.Now:yyyyMMddHHmmssfff}.json"), parsedResult.RawResponse);
-                }
-
-                if (IsTruncatedPreview(playerInfo.UpowerExclusive, p.Dur, parsedResult.Duration))
-                {
-                    LogWarn(string.IsNullOrEmpty(playerInfo.UpowerTitle) ? "充电专属视频" : playerInfo.UpowerTitle);
-                    LogWarn($"当前账号未充电该 UP 主，只能获取 {FormatTime(parsedResult.Duration, true)} 的试看片段（完整视频 {FormatTime(p.Dur, true)}）", false);
-                    // 这三个开关都不产出视频文件，中止反而挡掉用户诊断问题的手段
-                    if (myOption.OnlyShowInfo || !myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
-                    {
-                        LogWarn("当前仅输出信息/封面/弹幕，不受影响", false);
-                    }
-                    else if (myOption.AllowPreview)
-                    {
-                        pageCtx = pageCtx with { IsPreview = true };
-                    }
-                    else
-                    {
-                        throw new ChargedPreviewException($"P{p.Index}（{p.Aid}）为充电视频试看片段，已跳过。");
-                    }
-                }
-
-                // 先以空字幕占位建好 session（此时 pageCtx 已含最终 IsPreview 标记），再交给 PrepareAsync 填充字幕
-                var session = new DownloadSession(myOption, ctx, pageCtx, [], BuildDownloadConfig(myOption, ctx.Fetch.Cfg, ctx.Run.Tools), sink);
-                if (!myOption.OnlyShowInfo)
-                {
-                    subtitleInfo = await PageAssets.PrepareAsync(session, ct);
-                }
-
-                session = session with { Subtitles = subtitleInfo };
-                outcome = await DispatchAsync(parsedResult, session, selection, ct);
-                if (pageCtx.IsPreview)
-                {
-                    outcome = outcome with { Preview = true };
-                }
-
-                selection = new TrackSelection(outcome.Selected, outcome.VIndex, outcome.AIndex);
-                if (outcome.Aborted)
-                {
-                    return outcome;
-                }
-
-                if (!string.IsNullOrWhiteSpace(outcome.SavePath))
-                {
-                    sink.Saved?.Invoke(outcome.SavePath);
-                }
+                LogWarn("当前仅输出信息/封面/弹幕，不受影响", false);
             }
-            catch (Exception ex) when (ShouldRetry(ex, ct))
+            else if (myOption.AllowPreview)
             {
-                if (++retryCount > 2)
-                {
-                    throw;
-                }
-
-                LogError(ex.Message);
-                var backoff = TimeSpan.FromSeconds(1 << retryCount);
-                LogWarn($"下载失败，{backoff.TotalSeconds:0} 秒后重试...");
-                await Task.Delay(backoff, ct);
-                continue;
+                pageCtx = pageCtx with { IsPreview = true };
             }
+            else
+            {
+                throw new ChargedPreviewException($"P{p.Index}（{p.Aid}）为充电视频试看片段，已跳过。");
+            }
+        }
 
-            break;
+        // 先以空字幕占位建好 session（此时 pageCtx 已含最终 IsPreview 标记），再交给 PrepareAsync 填充字幕
+        var session = new DownloadSession(myOption, ctx, pageCtx, [], BuildDownloadConfig(myOption, ctx.Fetch.Cfg, ctx.Run.Tools), sink);
+        if (!myOption.OnlyShowInfo)
+        {
+            subtitleInfo = await PageAssets.PrepareAsync(session, ct);
+        }
+
+        session = session with { Subtitles = subtitleInfo };
+        outcome = await DispatchAsync(parsedResult, session, selection, ct);
+        if (pageCtx.IsPreview)
+        {
+            outcome = outcome with { Preview = true };
+        }
+
+        selection = new TrackSelection(outcome.Selected, outcome.VIndex, outcome.AIndex);
+        if (outcome.Aborted)
+        {
+            return outcome;
+        }
+
+        if (!string.IsNullOrWhiteSpace(outcome.SavePath))
+        {
+            sink.Saved?.Invoke(outcome.SavePath);
         }
 
         return outcome;

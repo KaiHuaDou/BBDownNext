@@ -2,8 +2,8 @@
 
 BBDown 的服务器模式（`BBDown serve`）会在本地启动一个 HTTP 服务器，对外暴露任务增删查的 JSON API。本文档描述这些接口的请求 / 响应格式、数据结构与使用注意事项。
 
-> **⚠️ 安全警告：该接口默认监听 `http://127.0.0.1:23333`（回环地址）时免令牌即可调用；一旦绑定非回环地址（如 `0.0.0.0`），BBDown 会强制要求令牌鉴权**——未通过 `--serve-token` 指定时会自动生成一个并打印到控制台，客户端必须携带 `X-BBDown-Token` 请求头（WebSocket 握手除外，见 [WebSocket 事件流](#websocket-事件流)），否则返回 `401`。
-> 令牌只防未授权调用、不验证调用方身份；服务器**默认完全关闭 CORS**（不发送 `Access-Control-Allow-Origin` 头），仅当显式 `--cors-origin <url>` 时才对该单一来源开放。无论是否开 CORS，**切勿直接暴露到公网**；需要跨机器访问时，请自行加反向代理与 TLS，再显式指定 `serve -l http://0.0.0.0:23333`。
+> **⚠️ 安全警告：该接口默认免令牌即可调用，未指定 `--serve-token` 时即使绑定到非回环地址（如 `0.0.0.0`）也仅打印警告、不强制鉴权；显式指定 `--serve-token` 后所有接口强制令牌鉴权，客户端必须携带 `X-BBDown-Token` 请求头（WebSocket 握手经 `?token=` 查询参数，见 [WebSocket 事件流](#websocket-事件流)），否则返回 `401`。
+> 令牌只防未授权调用、不验证调用方身份；服务器**默认仅对回环来源开放 CORS**（`127.0.0.1` / `localhost` 页面的跨源请求带 `Access-Control-Allow-Origin` 响应头），其余来源需显式 `--cors-origin <url>` 放行；恶意网页（非回环 `Origin`）依旧拿不到 CORS 头、被浏览器拦截。无论是否开 CORS，**切勿直接暴露到公网**；需要跨机器访问时，请自行加反向代理与 TLS，再显式指定 `serve -l http://0.0.0.0:23333`。
 
 ---
 
@@ -20,14 +20,14 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | 参数               | 简写 | 说明                                                                                                                                                                          |
 | ------------------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--listen`         | `-l` | 监听地址，默认 `http://127.0.0.1:23333`                                                                                                                                       |
-| `--serve-token`    |      | 鉴权令牌；未提供且绑定到非回环地址时自动生成并打印，客户端需带 `X-BBDown-Token` 头（WebSocket 握手经 `?token=` 查询参数）                                                                       |
+| `--serve-token`    |      | 鉴权令牌；显式传入后才启用强制鉴权（所有接口均须携带 `X-BBDown-Token` 头，WebSocket 握手经 `?token=` 查询参数），未传入则默认免令牌开放并仅警告                                                                       |
 | `--work-dir`       |      | 所有任务的工作目录（请求体中的 `WorkDir` 字段会被忽略，一律以服务端为准）                                                                                                     |
 | `--max-concurrent` |      | 同时下载的任务数上限，默认 `0` 表示不限制；设为 `N > 0` 时最多 `N` 个任务同时下载，其余按提交顺序排队（`Status` 为 `Queued`），单个任务内部的下载并行度由多线程下载器自行决定 |
 | `--interactive`    |      | 开启任务事件流（见 [WebSocket 事件流](#websocket-事件流)）：任务产生消息 / 进度 / 选项事件并经 WebSocket 推送，选项可远程应答。默认关闭，此时任务不产生事件流、无额外开销      |
 
 服务器启动后会一直运行，直到进程被终止（可用 `Ctrl+C` 优雅取消正在进行的下载）。
 
-> **鉴权：** 默认绑定回环地址（`127.0.0.1`）且未指定 `--serve-token` 时所有接口免令牌；一旦显式指定 `--serve-token` 或绑定非回环地址，**所有接口**（含 `GET /api/v1/tasks*` 与 WebSocket 握手）均需携带鉴权令牌——HTTP API 用请求头 `X-BBDown-Token: <token>`，WebSocket 握手用查询参数 `?token=<token>`（浏览器无法自定义请求头，该例外仅限 `/hubs/tasks`），未携带或错误一律返回 `401`。令牌由 `--serve-token` 显式指定，或绑非回环时自动生成并打印到控制台。
+> **鉴权：** 默认免令牌即可调用，未指定 `--serve-token` 时仅打印警告；显式指定 `--serve-token` 后**所有接口**（含 `GET /api/v1/tasks*` 与 WebSocket 握手）均需携带鉴权令牌——HTTP API 用请求头 `X-BBDown-Token: <token>`，WebSocket 握手用查询参数 `?token=<token>`（浏览器无法自定义请求头，该例外仅限 `/hubs/tasks`），未携带或错误一律返回 `401`。令牌仅由 `--serve-token` 显式指定，未传入时即使绑定到非回环地址也仅警告、不自动生成令牌。
 
 ---
 
@@ -104,14 +104,14 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 - **Endpoint：** `/api/v1/tasks/finished`
 - **Method：** DELETE
-- **Auth：** 非回环绑定下需携带鉴权令牌（见上文鉴权说明）。
+- **Auth：** 显式传入 `--serve-token` 时需携带鉴权令牌（见上文鉴权说明）；未传入则默认免令牌。
 - **Response：** `200 OK`。
 
 ### 移除所有已失败的已完成任务
 
 - **Endpoint：** `/api/v1/tasks/finished/failed`
 - **Method：** DELETE
-- **Auth：** 非回环绑定下需携带鉴权令牌（见上文鉴权说明）。
+- **Auth：** 显式传入 `--serve-token` 时需携带鉴权令牌（见上文鉴权说明）；未传入则默认免令牌。
 - **Description：** 仅移除已完成且失败（`IsSuccessful == false`）的任务。
 - **Response：** `200 OK`。
 
@@ -119,7 +119,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 - **Endpoint：** `/api/v1/tasks/{id}`
 - **Method：** DELETE
-- **Auth：** 非回环绑定下需携带鉴权令牌（见上文鉴权说明）。
+- **Auth：** 显式传入 `--serve-token` 时需携带鉴权令牌（见上文鉴权说明）；未传入则默认免令牌。
 - **Description：** 按任务 id 移除对应的已完成任务。
 - **Parameters：**
     - `{id}`（路径参数）：任务的规范 id（如 `av170001`、`season2539`），见 [任务标识](#任务标识)。
@@ -129,7 +129,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 - **Endpoint：** `/api/v1/tasks/{id}/stop`
 - **Method：** POST
-- **Auth：** 非回环绑定下需携带鉴权令牌（见上文鉴权说明）。
+- **Auth：** 显式传入 `--serve-token` 时需携带鉴权令牌（见上文鉴权说明）；未传入则默认免令牌。
 - **Description：** 取消指定 id 的运行中或排队中任务，不影响其他任务。每个任务持有与进程级关停令牌 `Link` 的 `CancellationTokenSource`，调用该接口即触发其 `Cancel()`，只终止目标任务；`Ctrl+C`（全局令牌）仍会取消所有进行中的任务。
 - **Parameters：**
     - `{id}`（路径参数）：任务的规范 id（如 `av170001`、`season2539`），见 [任务标识](#任务标识)。
@@ -170,7 +170,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | `event` | `taskId`、`event` | 可靠事件（`WorkflowEvent`，`type` 判别符区分 `message` / `progressStart` / `progressSample` / `progressEnd` / `optionRequest`）。进度是阶段性的：`progressStart`（阶段开始，含 `stageName`）与 `progressEnd`（阶段结束）为低频语义事件，宿主据此显隐进度；阶段内高频样本不进本通道 |
 | `snapshot` | `taskId`、`snapshot` | 阶段内最新进度样本（`ratio` 0-1 / `totalBytes` / `speed` / `detail`），订阅时推一次，此后约每 200 ms 推变化帧；阶段结束后样本清空 |
 | `choiceResult` | `requestId`、`ok`、`error?` | 选项应答结果；`ok=false` 表示任务不存在、选项非法或已应答 |
-| `error` | `error` | 订阅失败（任务不存在或未启用交互） |
+| `error` | `error` | 订阅失败（任务不存在、已结束或未启用交互） |
 
 ### 选项交互流程
 
@@ -255,8 +255,9 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 - **断点续传：** 下载统一走 downloader 库，数据先写入 `<目标路径>.download` 临时文件，续传元数据内嵌在文件末尾周期性刷新。**重跑同一条命令即可从断点继续**——既能在单条流粒度续传，也能在合集 / 多 P 粒度续传：某分 P 的视频轨下完但音频轨失败，重跑时视频轨会被直接跳过、只补下音频轨。下载失败或被 `Ctrl+C` 中断时，临时文件会保留，重跑即可续上；服务端内容变化（如换画质）时自动删除临时文件重下。所有分片（连同边下边混流的临时文件）都成功后才清理这些临时文件。
 - **`--save-records`：** 归档以 `(aid, cid)` 为键（同一 `aid` 的不同分 P 互不干扰，旧版仅按 `aid` 记录会导致多 P 从第 2 P 起被误跳过），并且**只有整段（含混流）成功后才写入**；记录的文件被删除 / 移动后会重新下载。旧版 `aid|` 拼接格式已失效，启动时遇到会被忽略并提示一次。
 - **`--stop-on-error`：** 默认关闭，即某个分 P 下载失败时会继续下载其余分 P，最后汇总失败清单并以非零状态码退出；开启后遇到第一个失败的分 P 立即停止。
+- **`--max-retry`：** 每个下载项在首次尝试之外的额外重试次数，默认 3；非必要项（字幕 / 封面 / 弹幕 / 配音 / 评论）耗尽仅跳过该项，必要项（音视频 / 混流）耗尽则该分 P 失败。serve 请求体字段为 `MaxRetry`（对应 `ServeRequestOptions`）。
 - **`AllowPreview`：** 请求体可携带该布尔字段（对应命令行 `--allow-preview`）。充电专属稿件在无充电权限时接口照常返回成功但只下发试看片段，默认会被识别并跳过，任务表现为 `IsSuccessful == false`；传 `true` 则保留试看片段，输出文件名带 `[试看]` 前缀。
-- **CORS：** 服务器**默认关闭跨域**（不发送 `Access-Control-Allow-Origin` 头），从根本上消除浏览器侧 CSRF 面；仅当显式 `--cors-origin <url>` 时才对该单一来源开放，仅建议在本地 / 可信网络下使用。
+- **CORS：** 服务器**默认仅对回环来源开放**（`127.0.0.1` / `localhost` 页面的跨源请求放行，与本机页面直连 serve 的场景对齐）；其余来源需显式 `--cors-origin <url>` 放行。非回环 `Origin` 的浏览器请求依旧拿不到 `Access-Control-Allow-Origin` 头、被浏览器拦截（CSRF 面不因此扩大），仅建议在本地 / 可信网络下使用。
 - **不支持专栏导出：** 当前 `serve` 模式的 `POST /api/v1/tasks` 仅接受 `av|bv|BV|ep|ss` 编号（音视频链路），**不支持**提交专栏（opus / cv）导出任务。专栏导出请在 CLI 根命令下传入专栏地址（`https://www.bilibili.com/opus/...`、`opus{id}`、`cv{id}`）由程序自动识别。
 - **评论下载（`--comment`）：** 请求体可携带 `CommentCount` / `CommentSort` / `CommentFormats` / `FullComment` 四个字段（与命令行选项同名同义，默认 `CommentCount=0` 即不下载）。`CommentCount > 0` 时评论区按 `aid` 去重抓取（多 P 同稿只抓一次），产物为与主文件同目录的 `<标题>.comments.json` / `<标题>.comments.txt`。注意：加 `FullComment`（额外翻页抓全楼中楼）会随评论条数线性放大请求量，显著拉长单个任务的耗时，请按需使用。
 

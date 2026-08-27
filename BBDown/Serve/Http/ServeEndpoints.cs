@@ -122,8 +122,9 @@ internal static class ServeEndpoints
             }
         });
 
-        // 健康检查：匿名放行（探活不要求令牌）
-        app.MapGet("/healthz", (TaskStore store) => Results.Ok(new HealthStatus("ok", store.RunningSnapshot( ).Count)))
+        // 健康检查：匿名放行（探活不要求令牌）；携带事件流开关（--interactive）供前端判定通道可用性
+        app.MapGet("/healthz", (TaskStore store, ServeConfig config) =>
+                Results.Ok(new HealthStatus("ok", store.RunningSnapshot( ).Count, config.Interactive)))
             .AllowAnonymous( );
     }
 }

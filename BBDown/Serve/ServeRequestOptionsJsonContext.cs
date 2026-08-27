@@ -10,4 +10,5 @@ namespace BBDown.Serve;
 /// </summary>
 [JsonSerializable(typeof(ServeRequestOptions))]
 [JsonSerializable(typeof(DownloadRequest))]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 internal partial class ServeRequestOptionsJsonContext : JsonSerializerContext;

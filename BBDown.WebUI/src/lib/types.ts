@@ -30,10 +30,11 @@ export interface TaskSnapshot {
   finished: DownloadTask[]
 }
 
-/** /healthz 响应。 */
+/** /healthz 响应；interactive 为 serve 事件流开关（旧版 serve 无此字段时为 undefined）。 */
 export interface HealthStatus {
   status: string
   running: number
+  interactive?: boolean
 }
 
 /** 混流方式（与 Core MuxMode 枚举小写对齐）。 */
@@ -73,6 +74,9 @@ export interface ServeRequestOptions {
   noForceHost: boolean
   saveArchivesToFile: boolean
   stopOnError: boolean
+  interactivePages: boolean
+  interactiveQuality: boolean
+  liveQuality: number
   pages: string
   lang: string
   cookie: string

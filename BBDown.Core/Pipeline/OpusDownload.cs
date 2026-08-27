@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Download;
+using BBDown.Core.Entity;
 using BBDown.Core.Opus;
 using BBDown.Core.Util;
 using BBDown.Core.Workflow;
@@ -26,7 +27,7 @@ namespace BBDown.Core.Pipeline;
 /// </summary>
 public static class OpusDownload
 {
-    public static async Task RunAsync(DownloadRequest myOption, CancellationToken ct = default)
+    public static async Task RunAsync(DownloadRequest myOption, PipelineSink sink = default, CancellationToken ct = default)
     {
         var workDir = WorkSetup.ResolveWorkDir(myOption);
 
@@ -59,6 +60,15 @@ public static class OpusDownload
         Log($"标题：{doc.Title}");
         Log($"作者：{doc.AuthorName}");
         Log($"段落数：{doc.Paragraphs.Count}，图片数：{CountImages(doc)}");
+        // serve 等宿主的任务契约回填（标题 / 保存路径），CLI 传 default 无回调
+        sink.Meta?.Invoke(new VInfo
+        {
+            Title = doc.Title,
+            Desc = "",
+            Pic = "",
+            PubTime = 0,
+            PagesInfo = [],
+        });
 
         var baseName = FileNameUtil.GetValidFileName(doc.Title);
         if (string.IsNullOrEmpty(baseName))
@@ -89,6 +99,7 @@ public static class OpusDownload
         // Encoding.UTF8 会写出 BOM，多数 YAML front matter 解析器会因此认不出首行的 ---
         await File.WriteAllTextAsync(mdPath, markdown, new UTF8Encoding(false), ct);
         Log($"已保存到 {mdPath}");
+        sink.Saved?.Invoke(mdPath);
     }
 
     private static int CountImages(OpusDocument doc)
@@ -123,7 +134,7 @@ public static class OpusDownload
         // 原图 CDN 用 https 即可，NoForceHttp 避免被 DownloadUtil 降成 http
         var config = new DownloadConfig { Cookie = cfg.Cookie, NoForceHttp = true };
 
-        // 图片下载有明确总量（urls.Count），按张数上报进度；CLI 无进度条装配，事件服务 GUI 任务行
+        // 图片下载有明确总量（urls.Count），按张数上报进度；CLI 经 ProgressBar 展示，事件服务 GUI 任务行
         using var stage = ProgressBus.BeginStage("下载图片");
         for (var i = 0; i < urls.Count; i++)
         {

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading.RateLimiting;
 using System.Threading.Tasks;
@@ -17,7 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace BBDown.Serve;
 
-public class BBDownApiServer
+public class BBDownServer
 {
     internal const string DefaultListenUrl = "http://127.0.0.1:23333";
 
@@ -33,12 +32,7 @@ public class BBDownApiServer
     private bool authRequired;
     private bool authFinalized;
 
-    private static string GenerateServeToken( )
-    {
-        return Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
-    }
-
-    // 决定是否需要鉴权：显式提供令牌 / 绑定非回环地址 => 强制；仅本机回环 => 免令牌
+    // 鉴权判定：显式传入 --serve-token 才启用强制鉴权（所有访问均须带令牌）；未传入则默认免令牌开放，仅打印警告
     private void FinalizeAuth(string url)
     {
         if (authFinalized)
@@ -47,15 +41,20 @@ public class BBDownApiServer
         }
 
         authFinalized = true;
-        if (serveToken is not null) { authRequired = true; return; }
+        if (serveToken is not null)
+        {
+            authRequired = true;
+            return;
+        }
 
-        if (SsrfGuard.IsLoopbackUrl(url)) { authRequired = false; return; }
-
-        serveToken = GenerateServeToken( );
-        authRequired = true;
+        // 未指定令牌：任何能连上本监听端口的客户端都可无令牌调用，仅以警告提示暴露风险（不自动生成令牌）；绑定非回环时风险更高
+        authRequired = false;
+        var nonLoopback = !SsrfGuard.IsLoopbackUrl(url);
         Console.BackgroundColor = ConsoleColor.DarkYellow;
         Console.ForegroundColor = ConsoleColor.Black;
-        Console.WriteLine($"serve 模式绑定到非回环地址，已生成鉴权令牌，客户端需带 X-BBDown-Token: {serveToken}");
+        Console.WriteLine(nonLoopback
+            ? "serve 未设置鉴权令牌且绑定到非回环地址：任何能访问本端口的客户端均可无令牌调用，存在被公网 / 局域网滥用的高风险，请立即以 --serve-token 指定令牌或加反向代理。"
+            : "serve 未设置鉴权令牌：任何能访问本监听端口的客户端均可无令牌调用，请勿暴露到公网 / 局域网。如需鉴权请以 --serve-token 指定令牌。");
         Console.ResetColor( );
     }
 
@@ -67,7 +66,7 @@ public class BBDownApiServer
         }
 
         serveToken = config.ServeToken;
-        // 鉴权判定须在注册认证管道前完成（回环免令牌 / 非回环强制令牌），Run 传入的 URL 与之等价
+        // 鉴权判定须在注册认证管道前完成（--serve-token 传入才强制，否则免令牌仅警告），Run 传入的 URL 与之等价
         FinalizeAuth(config.ListenUrl ?? DefaultListenUrl);
 
         var builder = WebApplication.CreateSlimBuilder( );
@@ -86,16 +85,17 @@ public class BBDownApiServer
 
         builder.Services.ConfigureHttpJsonOptions((options) => options.SerializerOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(options.SerializerOptions.TypeInfoResolver, AppJsonSerializerContext.Default));
 
-        // CORS 默认全关（§2.1-C）：浏览器跨源（含恶意网页）的预检会因缺少 ACAO 头被拦，从根本上消除 CSRF 面。
-        // 仅当显式给出 --cors-origin 时才开放给该单一来源（用于同源之外的 Web 前端）。
-        if (!string.IsNullOrWhiteSpace(config.CorsOrigin))
+        // CORS：放行回环来源（127.0.0.1 / localhost）与显式 --cors-origin 的浏览器请求。
+        // 安全前提：CORS 校验的是请求方 Origin 而非目标地址，恶意网页（非回环 Origin）依旧无 ACAO 头被浏览器拦截；
+        // 回环信任假设与写端点 / WebSocket 的 Origin 校验（IsAllowedOrigin）保持一致，DNS rebinding 按 Origin 头判定可防。
+        builder.Services.AddCors((options) =>
         {
-            builder.Services.AddCors((options) =>
-            {
-                options.AddPolicy("AllowSpecificOrigin",
-                    policy => policy.WithOrigins(config.CorsOrigin).AllowAnyMethod( ).AllowAnyHeader( ));
-            });
-        }
+            options.AddPolicy("AllowSpecificOrigin",
+                policy => policy
+                    .SetIsOriginAllowed(origin => TaskSocketHub.IsAllowedOrigin(origin, config))
+                    .AllowAnyMethod( )
+                    .AllowAnyHeader( ));
+        });
 
         // 全局限流（per-IP 固定窗口）兜底滥用；任务提交独立策略（防批量拉任务）
         builder.Services.AddRateLimiter(options =>
@@ -126,7 +126,7 @@ public class BBDownApiServer
                 ApiKeyAuthenticationOptions.DefaultScheme,
                 options => options.ExpectedToken = serveToken);
         // UseAuthorization 要求授权服务始终注册；FallbackPolicy 默认拒绝仅鉴权模式启用，
-        // 回环免令牌时无 FallbackPolicy，匿名全放行
+        // 未启用强制鉴权（authRequired == false）时无 FallbackPolicy，匿名全放行
         builder.Services.AddAuthorization(options =>
         {
             if (authRequired)
@@ -145,13 +145,10 @@ public class BBDownApiServer
         app = builder.Build( );
 
         // 交互开启时：日志消息经桥接器按任务路由进事件流（WebSocket）。
-        // MessageBus 静态订阅持有桥接器，存活至进程退出，无需字段引用或释放。
+        // 桥接器被静态订阅强持有，存活至进程退出，无需字段引用或释放。
         if (config.Interactive)
         {
-            // 桥接器被 MessageBus 静态订阅持有，存活至进程退出，无需字段引用或释放
-#pragma warning disable CA2000
             _ = new TaskMessageBridge(app.Services.GetRequiredService<TaskStore>( ));
-#pragma warning restore CA2000
         }
 
         // 安全响应头：所有响应（含 4xx）统一携带
@@ -164,10 +161,7 @@ public class BBDownApiServer
             context.Response.Headers.ContentSecurityPolicy = "default-src 'none'";
             await next( );
         });
-        if (!string.IsNullOrWhiteSpace(config.CorsOrigin))
-        {
-            app.UseCors("AllowSpecificOrigin");
-        }
+        app.UseCors("AllowSpecificOrigin");
 
         app.UseRateLimiter( );
 

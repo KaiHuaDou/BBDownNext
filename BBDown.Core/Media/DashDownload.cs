@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,6 +12,7 @@ using BBDown.Core.Workflow;
 
 using static BBDown.Core.Download.DownloadUtil;
 using static BBDown.Core.Logger;
+using static BBDown.Core.Util.RetryUtil;
 
 namespace BBDown.Core.Media;
 
@@ -78,17 +80,44 @@ public static class DashDownload
         var savePath = SavePath.Build(ctx, pageCtx, selectedVideo, selectedAudio);
         LogDebug("Format After: " + savePath);
 
-        if (myOption.Content.Has(DownloadContent.Danmaku) && await PageAssets.DownloadDanmakuAsync(session, savePath, ct))
+        // 弹幕非必要项，独立重试，耗尽仅跳过（无音视频时后续会自然中止该 P）
+        if (myOption.Content.Has(DownloadContent.Danmaku))
         {
-            return PageOutcome.Abort(selection);
+            var danmakuOnly = false;
+            try
+            {
+                danmakuOnly = await RetryAsync(
+                    async ( ) => await PageAssets.DownloadDanmakuAsync(session, savePath, ct),
+                    myOption.MaxRetry, "弹幕", ct, ex => PageDownload.ShouldRetry(ex, ct));
+            }
+            catch (Exception ex)
+            {
+                LogWarn($"弹幕下载失败，已跳过：{ex.Message}");
+            }
+
+            if (danmakuOnly)
+            {
+                return PageOutcome.Abort(selection);
+            }
         }
 
+        // 独立封面（c）非必要项，独立重试，耗尽仅跳过（不影响音视频）
         if (myOption.Content.Has(DownloadContent.Cover))
         {
             var newCoverPath = Path.ChangeExtension(savePath, Path.GetExtension(pageCtx.CoverUrl));
-            await DownloadFileAsync(pageCtx.CoverUrl, newCoverPath, downloadConfig, ct);
-            MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
-            sink.Saved?.Invoke(newCoverPath);
+            try
+            {
+                await RetryAsync(
+                    async ( ) => await DownloadFileAsync(pageCtx.CoverUrl, newCoverPath, downloadConfig, ct),
+                    myOption.MaxRetry, "封面", ct, ex => PageDownload.ShouldRetry(ex, ct));
+                MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
+                sink.Saved?.Invoke(newCoverPath);
+            }
+            catch (Exception ex)
+            {
+                LogWarn($"封面下载失败，已跳过：{ex.Message}");
+            }
+
             if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
             {
                 return PageOutcome.Abort(selection);
@@ -126,7 +155,10 @@ public static class DashDownload
         }
 
         var inputs = new MuxFinish.MuxInputs(savePath, videoPath, audioPath, audioMaterial, mux, selectedVideo?.Codecs == "HEVC");
-        return await MuxFinish.RunAsync(session, inputs, selection, ct);
+        // 混流是整 P 必要收尾，独立重试；耗尽则整 P 失败（不影响其他分 P）
+        return await RetryAsync(
+            async ( ) => await MuxFinish.RunAsync(session, inputs, selection, ct),
+            myOption.MaxRetry, $"P{p.Index} 混流", ct, ex => PageDownload.ShouldRetry(ex, ct));
     }
 
     // 下载全部已选轨（视频 / 音频 / 背景配音 / 角色配音）并就地后处理；返回混流所需的配音素材与
@@ -162,21 +194,39 @@ public static class DashDownload
                     mux = MuxMode.Mp4box;
                 }
 
+                // 视频是必要轨，独立重试；耗尽则整 P 失败
                 Log($"开始下载 P{p.Index} 视频...");
-                await DownloadAsync(selectedVideo!.BaseUrl, videoPath, downloadConfig, ct: ct);
+                await RetryAsync(
+                    async ( ) => await DownloadAsync(selectedVideo!.BaseUrl, videoPath, downloadConfig, ct: ct),
+                    myOption.MaxRetry, $"P{p.Index} 视频", ct, ex => PageDownload.ShouldRetry(ex, ct));
             }
 
             if (hasAudio)
             {
+                // 音频是必要轨，独立重试；耗尽则整 P 失败
                 Log($"开始下载 P{p.Index} 音频...");
-                await DownloadAsync(selectedAudio!.BaseUrl, audioPath, downloadConfig, ct: ct);
+                await RetryAsync(
+                    async ( ) => await DownloadAsync(selectedAudio!.BaseUrl, audioPath, downloadConfig, ct: ct),
+                    myOption.MaxRetry, $"P{p.Index} 音频", ct, ex => PageDownload.ShouldRetry(ex, ct));
             }
 
+            // 背景配音非必要项，独立重试，耗尽仅跳过该轨
             if (hasBackgroundAudio)
             {
                 backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.{p.Cid}.P{p.Index}.back_ground.m4a");
                 Log($"开始下载 P{p.Index} 背景配音...");
-                await DownloadAsync(selectedBackgroundAudio!.BaseUrl, backgroundPath, downloadConfig, ct: ct);
+                try
+                {
+                    await RetryAsync(
+                        async ( ) => await DownloadAsync(selectedBackgroundAudio!.BaseUrl, backgroundPath, downloadConfig, ct: ct),
+                        myOption.MaxRetry, $"P{p.Index} 背景配音", ct, ex => PageDownload.ShouldRetry(ex, ct));
+                }
+                catch (Exception ex)
+                {
+                    LogWarn($"背景配音下载失败，已跳过：{ex.Message}");
+                    backgroundPath = "";
+                    hasBackgroundAudio = false;
+                }
             }
 
             if (hasBackgroundAudio)
@@ -184,6 +234,7 @@ public static class DashDownload
                 audioMaterial.Add(new AudioMaterial { Title = "背景音频", PersonName = "", Path = backgroundPath });
             }
 
+            // 角色配音非必要项，逐角色独立重试，单个角色耗尽仅跳过该角色
             if (hasRoleAudio)
             {
                 foreach (var role in parsedResult.RoleAudioList)
@@ -198,7 +249,18 @@ public static class DashDownload
 
                     role.Path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.Path));
                     Log($"开始下载 P{p.Index} 配音 [{role.Title}]...");
-                    await DownloadAsync(roleAudio.BaseUrl, role.Path, downloadConfig, ct: ct);
+                    try
+                    {
+                        await RetryAsync(
+                            async ( ) => await DownloadAsync(roleAudio.BaseUrl, role.Path, downloadConfig, ct: ct),
+                            myOption.MaxRetry, $"P{p.Index} 配音 [{role.Title}]", ct, ex => PageDownload.ShouldRetry(ex, ct));
+                    }
+                    catch (Exception ex)
+                    {
+                        LogWarn($"配音 [{role.Title}] 下载失败，已跳过：{ex.Message}");
+                        continue;
+                    }
+
                     audioMaterial.Add(new AudioMaterial { Title = role.Title, PersonName = role.PersonName, Path = role.Path });
                 }
             }

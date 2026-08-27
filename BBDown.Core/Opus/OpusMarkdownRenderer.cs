@@ -32,7 +32,8 @@ public static class OpusMarkdownRenderer
             RenderParagraph(sb, p, options);
         }
 
-        return sb.ToString( ).TrimEnd( ) + Environment.NewLine;
+        // AppendLine 用平台换行（Windows 为 \r\n），产物统一 LF 行尾（跨平台 diff / 工具友好）
+        return sb.ToString( ).TrimEnd( ).Replace("\r\n", "\n") + "\n";
     }
 
     private static void AppendFrontMatter(StringBuilder sb, OpusDocument doc)

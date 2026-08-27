@@ -51,17 +51,22 @@ BBDown/
 │   │   └── ConfigParser.cs         # 配置文件解析 (仅补齐命令行未指定项)
 │   │
 │   └── Serve/              # 命名空间 BBDown.Serve — serve 模式
-│       ├── BBDownApiServer.cs      # 分部类主干：SetUpServer / 令牌鉴权 / CORS / 并发限流（Run / RunAsync / StartForTestAsync）
-│       ├── BBDownApiServer.Endpoints.cs # 分部类：Minimal API 路由（/add-task、/get-tasks/*、/stop-task/{id} 等）
-│       ├── BBDownApiServer.Tasks.cs     # 分部类：任务表维护（DownloadTask / Queued → Running → Finished）
-│       ├── DownloadTask.cs         # serve 任务状态/快照 record（DownloadStatus / DownloadTask / DownloadTaskSnapshot，Cts [JsonIgnore]）
-│       ├── ServeConfig.cs          # serve 启动参数聚合 record（取代 StartServer 散参，服务端固定不可覆盖）
-│       ├── ServeRequestOptions.cs  # serve 请求受控子集 + CallBackWebHook
-│       ├── ServeBindingResult.cs   # 请求绑定结果（含非法字段回落语义）
-│       ├── ApiTypeJsonConverter.cs # serve 契约 Api 字段字符串 ↔ ApiType 转换
+│       ├── BBDownServer.cs             # 服务装配：SetUpServer / 令牌鉴权 / CORS / 并发限流
+│       ├── DownloadTask.cs             # serve 任务状态/快照 record（DownloadStatus / DownloadTask / DownloadTaskSnapshot，Cts [JsonIgnore]）
+│       ├── ServeConfig.cs              # serve 启动参数聚合 record（取代 StartServer 散参，服务端固定不可覆盖）
+│       ├── ServeRequestOptions.cs      # serve 请求受控子集 + CallBackWebHook（含 InteractivePages / InteractiveQuality / LiveQuality）
+│       ├── ServeBindingResult.cs       # 请求绑定结果（含非法字段回落语义）
+│       ├── ApiTypeJsonConverter.cs     # serve 契约 Api 字段字符串 ↔ ApiType 转换
 │       ├── ServeRequestOptionsJsonContext.cs # serve 请求 DTO 源生成器上下文
 │       ├── AppJsonSerializerContext.cs # serve 响应 DTO 源生成器上下文
-│       └── SsrfGuard.cs            # SSRF 防护静态类（IsSafeWebHook / IsPrivateAddress / IsLoopbackUrl / WebHookClient）
+│       ├── HealthStatus.cs             # /healthz 响应 record（Status / Running / Interactive）
+│       ├── SsrfGuard.cs                # SSRF 防护静态类（IsSafeWebHook / IsPrivateAddress / IsLoopbackUrl / WebHookClient）
+│       ├── Http/ServeEndpoints.cs      # Minimal API 路由（/api/v1/tasks*、/healthz）
+│       ├── Http/TasksSocket.cs         # WebSocket hub（/hubs/tasks 事件流）
+│       ├── Http/TaskMessageBridge.cs   # Core 总线 → WebSocket 帧桥接
+│       ├── Http/ServeFramesJsonSerializerContext.cs # 帧 DTO 源生成器上下文
+│       ├── Tasks/TaskStore.cs          # 任务表维护（DownloadTask / Queued → Running → Finished，去重淘汰）
+│       └── Tasks/TaskWorker.cs         # 消费循环 + 并发闸门 RunGatedAsync + 下载分发（含 LiveRoom / OpusArticle）
 │
 ├── BBDown.Core/            # 核心类库 (library, IsAotCompatible)，命名空间 BBDown.Core
 │   ├── Download/           # 下载域模型与传输层（跨层共用，避免模型层反向引用能力层）
@@ -120,7 +125,7 @@ BBDown/
 │   │   ├── LiveProgress.cs         # 录制进度回吐
 │   │   ├── LiveFileNaming.cs       # 分段/产物文件名（主播名-标题-时间戳）
 │   │   ├── LiveMuxer.cs            # 分段 FLV → mp4 合并（avc/hevc bitstream filter 分派、+genpts）
-│   │   └── LiveSignal.cs           # Ctrl+Break 停录合并 / Ctrl+C 中断信号
+│   │   └── LiveSignal.cs           # 按 sessionId 键控的直播停录注册表（Register / TryRequestStop / LiveSignalScope，并发录制互不干扰）
 │   │
 │   ├── Auth/               # 命名空间 BBDown.Core.Auth — 登录与凭据
 │   │   ├── Login.cs                # 扫码登录公共轮询编排（QrLoginPlan / RunQrLoginAsync，接入全局取消与失败重试）
@@ -274,7 +279,7 @@ LiveMuxer.MergeSegmentsAsync  Ctrl+Break 触发：分段 FLV → 单个 mp4（av
 落盘 <主播名>-<标题>-<yyyyMMdd_HHmmss>.mp4
 ```
 
-**取消令牌贯穿全链路**：全局 `CancellationTokenSource`，Ctrl+C 触发优雅取消，`OperationCanceledException` 被捕获后进程以 `130` 退出，已下载的 `.download` 临时文件保留，重跑同一条命令即可续传。直播录制同样接入该令牌：`LiveSignal` 区分 `Ctrl+Break`（停录并合并，退出码 `0`）与 `Ctrl+C`（中断保留分段，退出码 `130`）。
+**取消令牌贯穿全链路**：全局 `CancellationTokenSource`，Ctrl+C 触发优雅取消，`OperationCanceledException` 被捕获后进程以 `130` 退出，已下载的 `.download` 临时文件保留，重跑同一条命令即可续传。直播录制同样接入该令牌：`LiveSignal` 区分 `Ctrl+Break`（停录并合并，退出码 `0`）与 `Ctrl+C`（中断保留分段，退出码 `130`）。直播停录信号 `LiveSignal` 现为按 `sessionId` 键控的注册表：CLI 以房间号、GUI 以任务序号、serve 以任务 id 作为标识分别挂载停止源，`Ctrl+Break` 只停对应会话、并发录制互不干扰；录制结束（`LiveSignalScope` 释放）自动摘除挂载。
 
 ---
 
@@ -301,19 +306,17 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 
 ## 5. serve 模式与鉴权
 
-`BBDown serve` 用 ASP.NET Minimal API 暴露任务增删查接口（完整契约见 [API.md](./API.md)）。实现为 `BBDownApiServer` 分部类（`BBDownApiServer.cs` 主干 / `BBDownApiServer.Endpoints.cs` 端点注册 / `BBDownApiServer.Tasks.cs` 任务表维护），SSRF 防护抽到独立静态类 `SsrfGuard`，启动参数聚合为 `ServeConfig` record。设计要点：
+`BBDown serve` 用 ASP.NET Minimal API 暴露任务增删查接口（完整契约见 [API.md](./API.md)）。主干为 `BBDownServer`，端点注册在 `Http/ServeEndpoints.cs`、WebSocket 在 `Http/TasksSocket.cs`、任务表与消费循环在 `Tasks/`（TaskStore / TaskWorker），SSRF 防护抽到独立静态类 `SsrfGuard`，启动参数聚合为 `ServeConfig` record。设计要点：
 
-- **令牌鉴权**：`SetUpServer` → `FinalizeAuth(url)` 判定监听地址：
-    - 绑定**回环地址**（默认 `127.0.0.1`）→ 免令牌。
-    - 绑定**非回环地址**（如 `0.0.0.0`）且未显式 `--serve-token` → 自动生成令牌并打印，客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，否则返回 `401`。
-- **请求契约收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`/`Debug`/`UserAgent`/`ConfigFile`）与交互式选项（`InteractiveQuality`/`InteractivePages`——serve 无本地 stdin，交互选项从契约移除），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略。
+- **令牌鉴权**：`SetUpServer` → `FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时启用强制鉴权；未传入则默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。强制鉴权时客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，否则返回 `401`。
+- **请求契约收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在契约中，serve 以 `--interactive` 启动时 Web 前端经 WebSocket 事件流远程应答选项请求。
 - **SSRF 防护**（`SsrfGuard`）：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点；专用 `WebHookClient` 关闭自动重定向并在连接前二次校验端点 IP。
-- **CORS**：默认**完全关闭**（不发送 `Access-Control-Allow-Origin` 头），从根本上消除恶意网页经浏览器发起的 CSRF 面；仅当显式 `--cors-origin <url>` 时才对该单一来源开放（用于同源之外的 Web 前端），且公网暴露仍需配合反向代理与 TLS。
+- **CORS**：默认放行**回环来源**（`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环判定），非回环 `Origin` 依旧无 `Access-Control-Allow-Origin` 头、被浏览器拦截，与写端点 / WebSocket 的 Origin 校验（防 DNS rebinding）保持一致；公网暴露仍需配合反向代理与 TLS。
 - **容量上限**：已完成任务保留上限 `MaxFinishedTasks = 200`，超出按策略淘汰。
 - **任务表以 `ResourceId` 为键**（`ConcurrentDictionary<ResourceId, DownloadTask>`）：解析结果直接作键，值相等性天然去重，同资源重复提交命中同一任务；`DownloadTask.Id` 即该 `ResourceId`，JSON 序列化为规范字符串（如 `season2539`，与路径参数同一编码，见 [API.md](./API.md) 的任务标识一节）。
-- **并发限流**：`--max-concurrent N`（默认 `0` = 不限制，保持历史行为）。`SetUpServer` 在 `N > 0` 时建立 `SemaphoreSlim(N, N)`；`AddDownloadTaskAsync` 经 `RunGatedAsync` 在调用 `DownloadPipeline.RunAsync` 前取额度、`finally` 归还。取额度发生在 id 去重登记**之后**，因此排队中的任务已在 `runningTasks` 里可见，`DownloadTask.Status` 为 `Queued`，拿到额度转 `Running`，收尾转 `Finished`。`max-concurrent` 仅约束**同时下载的任务数**，多余任务排队；单个任务内部的下载并行度（分片并发）由多线程下载器自行决定（`PageDownload.BuildDownloadConfig` 始终将 `MaxDegreeOfParallelism` 设为 `0`，即回落到 `ProcessorCount`），不再随限流被压到 `1`。`0` 表示不限制（与 CLI 完全一致）。
+- **并发限流**：`--max-concurrent N`（默认 `0` = 不限制，保持历史行为）。`SetUpServer` 在 `N > 0` 时建立 `SemaphoreSlim(N, N)`；任务经 `TaskWorker.RunGatedAsync` 在调用 `DownloadPipeline.RunAsync` 前取额度、`finally` 归还。取额度发生在 id 去重登记**之后**，因此排队中的任务已在 `runningTasks` 里可见，`DownloadTask.Status` 为 `Queued`，拿到额度转 `Running`，收尾转 `Finished`。`max-concurrent` 仅约束**同时下载的任务数**，多余任务排队；单个任务内部的下载并行度（分片并发）由多线程下载器自行决定（`PageDownload.BuildDownloadConfig` 始终将 `MaxDegreeOfParallelism` 设为 `0`，即回落到 `ProcessorCount`），不再随限流被压到 `1`。`0` 表示不限制（与 CLI 完全一致）。
 
-> 注意：`/remove-finished*` 与 `/add-task` 均为 **POST**；查询类（`/get-tasks/*`）为 GET。
+> 注意：任务创建 / 清理为 **POST / DELETE**，查询类（`/api/v1/tasks/*`）为 GET，详见 [API.md](./API.md)。
 >
 > **单任务取消**：每个 `DownloadTask` 持有与进程级 `AppEnv.CancellationToken`（关停源）`Link` 的 `CancellationTokenSource Cts`；`POST /stop-task/{id}` 调用 `task.Cts.Cancel()` 取消单个运行/排队中的任务，不影响其他任务。Ctrl+C 取消全局令牌会经链接源取消所有任务。`Cts` 标记 `[JsonIgnore]`，不进入任务 DTO 的序列化。
 
@@ -421,4 +424,4 @@ OpusDownload.RunAsync (BBDown.Core.Pipeline)  不走 WorkSetup.Build / 不构造
 
 ### 11.3 serve 模式说明
 
-v1 的 `serve` JSON API 仅面向音视频任务，**不支持**提交专栏导出任务（`/add-task` 的 `Url` 只识别 `av|bv|BV|ep|ss` 编号）。专栏导出目前仅通过 CLI 根命令自动识别进行。
+v1 的 `serve` JSON API 面向音视频、直播与专栏（opus / cv）任务：`TaskWorker` 按 `ResourceId` 分发，`LiveRoom` 走直播录制链路、`OpusArticle` 走专栏导出链路，与 CLI 根命令识别的目标类型一致。

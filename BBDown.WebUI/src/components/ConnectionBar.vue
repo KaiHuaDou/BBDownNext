@@ -45,6 +45,9 @@ const save = (): void => {
   emit('save', { baseUrl: baseUrl.value.trim(), token: token.value.trim() })
   editing.value = false
 }
+
+/** 空 baseUrl 归一为本机 serve 默认地址（直连），非空 = 直连指定 serve 地址。 */
+const displayUrl = computed(() => props.config.baseUrl.trim() || '默认直连（127.0.0.1:23333）')
 </script>
 
 <template>
@@ -62,34 +65,43 @@ const save = (): void => {
       eventStreamLabel.text
     }}</span>
     <span v-if="error" class="truncate text-xs text-[#e53935]" :title="error">{{ error }}</span>
-    <span class="ml-auto truncate text-xs text-[#9e9e9e]">{{ config.baseUrl }}</span>
+    <span class="ml-auto truncate text-xs text-[#9e9e9e]" :title="config.baseUrl">{{
+      displayUrl
+    }}</span>
     <button class="btn-ghost" type="button" @click="editing = !editing">设置</button>
 
     <div
       v-if="editing"
       class="absolute right-3 top-12 z-30 w-96 rounded border border-[#3c3c3c] bg-[#252526] p-4 shadow-lg">
       <div class="mb-2 text-sm font-semibold text-[#eee]">serve 连接设置</div>
-      <label class="mb-1 block text-xs text-[#9e9e9e]" for="base-url">服务器地址</label>
+      <label class="mb-1 block text-xs text-[#9e9e9e]" for="base-url"
+        >服务器地址（留空直连本机 127.0.0.1:23333）</label
+      >
       <input
         id="base-url"
         v-model="baseUrl"
         class="field-input mb-3"
-        placeholder="http://127.0.0.1:23333"
+        placeholder="留空：直连本机 127.0.0.1:23333（默认免令牌）；或填 http://&lt;ip&gt;:23333（需 serve --cors-origin，且若服务端启用了 --serve-token 则还需令牌）"
         @keydown.enter="save" />
       <label class="mb-1 block text-xs text-[#9e9e9e]" for="serve-token">鉴权令牌（可选）</label>
       <input
         id="serve-token"
         v-model="token"
         class="field-input mb-3"
-        placeholder="回环地址免令牌，非回环需 X-BBDown-Token"
+        placeholder="默认免令牌，传入 --serve-token 后需 X-BBDown-Token"
         @keydown.enter="save" />
       <div class="flex justify-end gap-2">
         <button class="btn-ghost" type="button" @click="editing = false">取消</button>
         <button class="btn-action" type="button" @click="save">保存</button>
       </div>
       <p class="mt-2 text-xs leading-relaxed text-[#9e9e9e]">
-        需先以 <code class="text-[#c9a227]">BBDown serve</code> 启动服务端；默认回环地址免令牌。
-        若要推送下载日志与选项交互，请以 <code class="text-[#c9a227]">--interactive</code> 启动。
+        需先以 <code class="text-[#c9a227]">BBDown serve</code> 启动服务端。地址留空即直连本机
+        <code class="text-[#c9a227]">127.0.0.1:23333</code>（默认免令牌，且回环 Origin
+        默认可跨域）；若服务端以
+        <code class="text-[#c9a227]">--serve-token</code> 启用了鉴权，须在此填入对应的
+        <code class="text-[#c9a227]">X-BBDown-Token</code> 令牌。跨机器访问时还须以
+        <code class="text-[#c9a227]">--cors-origin</code> 允许本页来源。若要推送下载日志与选项交互，请以
+        <code class="text-[#c9a227]">--interactive</code> 启动。
       </p>
     </div>
   </div>

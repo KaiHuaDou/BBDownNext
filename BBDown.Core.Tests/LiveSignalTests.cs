@@ -1,6 +1,5 @@
 using System.Threading;
 
-
 namespace BBDown.Core.Tests;
 
 [CollectionDefinition]
@@ -16,23 +15,23 @@ public class LiveSignalTests
     public LiveSignalTests( )
     {
         using var dummy = new CancellationTokenSource( );
-        LiveSignal.Register(dummy).Dispose( );
+        LiveSignal.Register("__dummy__", dummy).Dispose( );
     }
 
     // 非录制场景下 Ctrl+Break 必须回落到全局取消，否则用户按了没反应
     [Fact]
     public void TryRequestStop_WithoutRegistration_ReturnsFalse( )
     {
-        Assert.False(LiveSignal.TryRequestStop( ));
+        Assert.False(LiveSignal.TryRequestStop("nope"));
     }
 
     [Fact]
     public void TryRequestStop_AfterRegister_CancelsToken( )
     {
         using var cts = new CancellationTokenSource( );
-        using var scope = LiveSignal.Register(cts);
+        using var scope = LiveSignal.Register("a", cts);
 
-        Assert.True(LiveSignal.TryRequestStop( ));
+        Assert.True(LiveSignal.TryRequestStop("a"));
         Assert.True(cts.IsCancellationRequested);
     }
 
@@ -41,19 +40,19 @@ public class LiveSignalTests
     public void TryRequestStop_Twice_SecondReturnsFalse( )
     {
         using var cts = new CancellationTokenSource( );
-        using var scope = LiveSignal.Register(cts);
+        using var scope = LiveSignal.Register("a", cts);
 
-        Assert.True(LiveSignal.TryRequestStop( ));
-        Assert.False(LiveSignal.TryRequestStop( ));
+        Assert.True(LiveSignal.TryRequestStop("a"));
+        Assert.False(LiveSignal.TryRequestStop("a"));
     }
 
     [Fact]
     public void TryRequestStop_AfterScopeDisposed_ReturnsFalse( )
     {
         using var cts = new CancellationTokenSource( );
-        LiveSignal.Register(cts).Dispose( );
+        LiveSignal.Register("a", cts).Dispose( );
 
-        Assert.False(LiveSignal.TryRequestStop( ));
+        Assert.False(LiveSignal.TryRequestStop("a"));
         Assert.False(cts.IsCancellationRequested);
     }
 
@@ -62,43 +61,47 @@ public class LiveSignalTests
     public void TryRequestStop_OnDisposedSource_ReturnsFalse( )
     {
         var cts = new CancellationTokenSource( );
-        using var scope = LiveSignal.Register(cts);
+        using var scope = LiveSignal.Register("a", cts);
         cts.Dispose( );
 
-        Assert.False(LiveSignal.TryRequestStop( ));
+        Assert.False(LiveSignal.TryRequestStop("a"));
     }
 
+    // 并发录制：不同会话标识互不影响，各自可单独停止
     [Fact]
-    public void Register_Second_OverridesFirst( )
+    public void TryRequestStop_StopsOnlyMatchingSession( )
     {
         using var first = new CancellationTokenSource( );
         using var second = new CancellationTokenSource( );
-        using var firstScope = LiveSignal.Register(first);
-        using var secondScope = LiveSignal.Register(second);
+        using var firstScope = LiveSignal.Register("a", first);
+        using var secondScope = LiveSignal.Register("b", second);
 
-        Assert.True(LiveSignal.TryRequestStop( ));
+        Assert.True(LiveSignal.TryRequestStop("a"));
+        Assert.True(first.IsCancellationRequested);
+        Assert.False(second.IsCancellationRequested);
+
+        Assert.True(LiveSignal.TryRequestStop("b"));
         Assert.True(second.IsCancellationRequested);
-        Assert.False(first.IsCancellationRequested);
     }
 
-    // 先注册者后释放，不能把后注册者的挂载一并摘掉
+    // 先注册者后释放，不能把另一会话的挂载一并摘掉
     [Fact]
-    public void DisposingStaleScope_DoesNotDetachCurrent( )
+    public void DisposingScope_DoesNotDetachOtherSession( )
     {
         using var first = new CancellationTokenSource( );
         using var second = new CancellationTokenSource( );
-        var firstScope = LiveSignal.Register(first);
-        using var secondScope = LiveSignal.Register(second);
+        var firstScope = LiveSignal.Register("a", first);
+        using var secondScope = LiveSignal.Register("b", second);
 
         firstScope.Dispose( );
 
-        Assert.True(LiveSignal.TryRequestStop( ));
+        Assert.True(LiveSignal.TryRequestStop("b"));
         Assert.True(second.IsCancellationRequested);
     }
 
     [Fact]
     public void Register_NullSource_Throws( )
     {
-        Assert.Throws<System.ArgumentNullException>(( ) => LiveSignal.Register(null!));
+        Assert.Throws<System.ArgumentNullException>(( ) => LiveSignal.Register("a", null!));
     }
 }

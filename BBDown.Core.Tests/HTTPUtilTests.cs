@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Net.Http;
 
@@ -75,8 +76,14 @@ public class HTTPUtilTests
     [InlineData("comment.bilibili.com", true)]
     [InlineData("live.bilibili.com", true)]
     [InlineData("passport.snm0516.aisee.tv", true)]
+    // 字幕 CDN 域：AI 字幕走 aisubtitle.hdslb.com，常规字幕走 i0.hdslb.com，整体放行
+    [InlineData("hdslb.com", true)]
+    [InlineData("aisubtitle.hdslb.com", true)]
+    [InlineData("i0.hdslb.com", true)]
     [InlineData("evil.example.com", false)]
     [InlineData("api.bilibili.com.evil.com", false)]
+    // 必须以点分隔，evilhdslb.com 不是 B 站域名，不得放行
+    [InlineData("evilhdslb.com", false)]
     public void IsTrustedCookieHost_AcceptsOfficialDomainsOnly(string host, bool expected)
     {
         Assert.Equal(expected, HTTPUtil.IsTrustedCookieHost(host, AppConfig.Empty));

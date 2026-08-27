@@ -287,6 +287,14 @@
                                          Grid.Row="10" Grid.Column="1"
                                          Classes="FieldInput"
                                          ToolTip.Tip="多 P 文件名模板，内置变量见 BBDown --help" />
+                                <TextBlock Grid.Row="11" Grid.Column="0"
+                                           Classes="FieldLabel"
+                                           Text="每项下重试次数" />
+                                <TextBox x:Name="MaxRetryBox"
+                                         Grid.Row="11" Grid.Column="1"
+                                         Classes="FieldInput"
+                                         LostFocus="IntegerBoxLostFocus"
+                                         ToolTip.Tip="每个下载项在首次尝试之外的额外重试次数，默认 3" />
                             </Grid>
                         </Grid>
                     </Expander>

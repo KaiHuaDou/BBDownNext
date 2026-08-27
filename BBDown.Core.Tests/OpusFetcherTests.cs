@@ -358,4 +358,41 @@ public class OpusFetcherTests
         Assert.Equal("马场芳郎【某科学的超电磁炮】", p.LinkTitle);
         Assert.Equal("", p.LinkUrl);
     }
+
+    // 缺陷回归：图文动态里图片段落的 text 为 null（属性存在而非缺失），TryGetProperty 对 null 元素
+    // 抛 InvalidOperationException（JsonElementHasWrongType, Object, Null），须按缺失处理而非下钻
+    [Fact]
+    public void ParseOpusDetail_ImageParagraphWithNullText_DoesNotThrow( )
+    {
+        const string json = """
+        {
+          "item": {
+            "basic": { "title": "动态", "uid": 1 },
+            "modules": [
+              {
+                "module_type": "MODULE_TYPE_CONTENT",
+                "module_content": {
+                  "paragraphs": [
+                    {
+                      "para_type": 1,
+                      "format": { "align": 0, "indent": null },
+                      "text": { "nodes": [ { "word": { "words": "文字" }, "rich": null, "formula": null } ] }
+                    },
+                    { "para_type": 2, "text": null, "pic": { "pics": [ { "url": "http://i0.hdslb.com/a.jpg" } ] } }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+        """;
+        using var doc = JsonDocument.Parse(json);
+        var parsed = OpusFetcher.ParseOpusDetail(doc.RootElement, "url");
+
+        Assert.Equal(2, parsed.Paragraphs.Count);
+        Assert.Equal(OpusParagraphKind.Text, parsed.Paragraphs[0].Kind);
+        Assert.Equal("文字", parsed.Paragraphs[0].TextNodes[0].Text);
+        Assert.Equal(OpusParagraphKind.Image, parsed.Paragraphs[1].Kind);
+        Assert.Equal("http://i0.hdslb.com/a.jpg", parsed.Paragraphs[1].Images[0].Url);
+    }
 }

@@ -78,6 +78,11 @@ public static partial class UrlDetector
             return "用户空间";
         }
 
+        if (StartsWithId(text, "live"))
+        {
+            return "直播间（live 号）";
+        }
+
         if (text.StartsWith("https://www.bilibili.com/watchlater", StringComparison.OrdinalIgnoreCase))
         {
             return "稍后再看列表";

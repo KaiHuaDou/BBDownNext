@@ -22,7 +22,9 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
 
     private readonly ConcurrentDictionary<ResourceId, DownloadTask> running = new( );
     private readonly ConcurrentDictionary<ResourceId, DownloadTask> finished = new( );
-    private readonly ConcurrentDictionary<ResourceId, ChannelWorkflowContext> contexts = new( );
+    // 事件上下文按 scope（task.Id 的 record ToString）键存：桥接器从总线消息的 Scope 字符串直接命中，
+    // 不经 ResourceId 解析（record ToString 与 TryParse 的规范形态不对称）
+    private readonly ConcurrentDictionary<string, ChannelWorkflowContext> contexts = new( );
     private readonly string? workDir = config.WorkDir;
     private readonly string? host = config.Host;
     private readonly string? epHost = config.EpHost;
@@ -55,7 +57,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
         if (interactive)
         {
             ctx = new ChannelWorkflowContext( );
-            contexts[id] = ctx;
+            contexts[task.Id.ToString( )] = ctx;
         }
 
         if (!queue.Writer.TryWrite(new TaskEnvelope(task, option, req.CallBackWebHook)))
@@ -64,7 +66,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
             running.TryRemove(id, out _);
             if (ctx is not null)
             {
-                contexts.TryRemove(id, out _);
+                contexts.TryRemove(task.Id.ToString( ), out _);
             }
 
             task.Cts.Dispose( );
@@ -75,25 +77,50 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
     }
 
     /// <summary>
-    /// 取任务的事件上下文；交互未开启或任务已结束为 null。
+    /// 取任务的事件上下文；交互未开启或任务已结束为 null。scope 为总线消息携带的任务标识
+    /// （task.Id 的 record ToString）。
     /// </summary>
-    public ChannelWorkflowContext? GetContext(ResourceId id)
+    public ChannelWorkflowContext? GetContext(string scope)
     {
-        return contexts.GetValueOrDefault(id);
+        return contexts.GetValueOrDefault(scope);
     }
 
     /// <summary>
     /// 任务结束收尾：移除事件上下文并取消该任务的挂起提问，返回被移除的上下文。
     /// </summary>
-    public ChannelWorkflowContext? ReleaseContext(ResourceId id)
+    public ChannelWorkflowContext? ReleaseContext(string scope)
     {
-        if (!contexts.TryRemove(id, out var ctx))
+        if (!contexts.TryRemove(scope, out var ctx))
         {
             return null;
         }
 
-        AskBus.CancelPending(id.ToString( ));
+        AskBus.CancelPending(scope);
         return ctx;
+    }
+
+    /// <summary>
+    /// 按作用域字符串（task.Id 的 record ToString）查任务，运行中优先；事件流帧 TaskId 回发订阅时命中。
+    /// </summary>
+    public DownloadTask? GetByScope(string scope)
+    {
+        foreach (var task in running.Values)
+        {
+            if (task.Id.ToString( ) == scope)
+            {
+                return task;
+            }
+        }
+
+        foreach (var task in finished.Values)
+        {
+            if (task.Id.ToString( ) == scope)
+            {
+                return task;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
