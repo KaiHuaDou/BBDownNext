@@ -1,0 +1,118 @@
+name: Release (reuse CI artifacts)
+
+# 发版不再重建：直接复用最近一次绿色 ci.yml / gui.yml 运行上传的产物，
+# 仅做下载 + 抽取 CHANGELOG 说明 + 建 Release。约 1–2 分钟，而非全量重跑。
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v2.1.0（留空则使用触发 ref）"
+        required: true
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve latest green ci.yml run for this commit
+        id: ci
+        run: |
+          RUN=$(gh run list --workflow ci.yml --commit "${{ github.sha }}" --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          echo "run=$RUN" >> "$GITHUB_OUTPUT"
+          if [ -z "$RUN" ]; then
+            echo "::error::未找到该 commit 上成功的 ci.yml 运行，无法复用产物（请先等 main 上的 CI 变绿）"
+            exit 1
+          fi
+
+      - name: Download CLI artifacts from that run
+        run: gh run download "${{ steps.ci.outputs.run }}" --pattern 'BBDown_*' --dir artifacts
+
+      - name: Download GUI artifacts (latest green gui.yml run)
+        run: |
+          GRUN=$(gh run list --workflow gui.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -n "$GRUN" ]; then
+            gh run download "$GRUN" --pattern 'BBDown_GUI_*' --dir artifacts || true
+          fi
+
+      - name: Flatten artifacts
+        shell: bash
+        run: |
+          cd artifacts
+          find . -mindepth 2 -type f -print0 | while IFS= read -r -d '' f; do mv "$f" .; done
+          find . -mindepth 1 -type d -empty -delete
+
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, re
+
+          tag = os.environ.get("RELEASE_TAG", "")
+          version = tag[1:] if tag.startswith("v") else tag
+
+          with open("CHANGELOG.md", encoding="utf-8") as f:
+              lines = f.read().splitlines()
+
+          esc = re.escape(version)
+          # 方括号内允许可选的 v 前缀（CHANGELOG 标题可能是 [vX.Y.Z] 或 [X.Y.Z]）
+          pat = re.compile(r"^##\s+\[?v?" + esc + r"\]?(?:\s*-\s*\S+)?\s*$")
+          start = None
+          for i, line in enumerate(lines):
+              if pat.match(line):
+                  start = i
+                  break
+
+          found = False
+          body_lines = []
+          if start is not None:
+              # 去掉版本号外的链接方括号，便于在 Release 正文里干净渲染
+              heading = re.sub(r"^##\s+\[([^\]]+)\]", r"## \1", lines[start])
+              body_lines.append(heading)
+              for line in lines[start + 1:]:
+                  # 遇到下一个二级标题或文件底部的链接引用定义即停止
+                  if re.match(r"^##\s+", line) or re.match(r"^\[[^\]]+\]:", line):
+                      break
+                  body_lines.append(line)
+              found = True
+
+          body = "\n".join(body_lines).strip() + "\n"
+          with open("release_notes.md", "w", encoding="utf-8") as f:
+              f.write(body)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"found={str(found).lower()}\n")
+              f.write(f"version={version}\n")
+          print(f"version={version} found={found}")
+          PY
+
+      - name: Create GitHub Release (from CHANGELOG)
+        if: steps.notes.outputs.found == 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: artifacts/*
+          tag_name: ${{ env.RELEASE_TAG }}
+          body_path: release_notes.md
+
+      - name: Create GitHub Release (auto-generated notes)
+        if: steps.notes.outputs.found != 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: artifacts/*
+          tag_name: ${{ env.RELEASE_TAG }}
+          generate_release_notes: true

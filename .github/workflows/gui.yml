@@ -160,37 +160,3 @@ jobs:
           name: BBDown_GUI_${{ matrix.rid }}
           path: BBDown.GUI-${{ matrix.rid }}.zip
           retention-days: 7
-
-  attach-to-latest-release:
-    name: Attach to latest release
-    if: github.event_name == 'workflow_dispatch'
-    needs: [build-windows, build-macos, build-linux]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/download-artifact@v8
-        with:
-          path: artifacts
-          pattern: BBDown_GUI_*
-          merge-multiple: true
-
-      - name: Get latest release tag
-        id: latest
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          tag="$(gh release list --limit 1 --json tagName --jq '.[0].tagName')"
-          if [ -z "$tag" ]; then
-            echo "no release found"
-            exit 1
-          fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-
-      - name: Upload artifacts to release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ steps.latest.outputs.tag }}" artifacts/* --clobber

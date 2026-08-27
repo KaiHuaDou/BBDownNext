@@ -90,9 +90,7 @@ public static class PageAssets
         });
 
         // 仅把成功落盘的字幕交回上层，供混流内嵌与收尾逻辑使用
-        subtitleInfo = [.. subtitleInfo.Where(s => !string.IsNullOrEmpty(s.Path))];
-
-        return subtitleInfo;
+        return [.. subtitleInfo.Where(s => !string.IsNullOrEmpty(s.Path))];
     }
 
     private static void MoveSubtitleToOutput(Subtitle s, WorkContext ctx, PageContext pageCtx, bool audioOnly)
