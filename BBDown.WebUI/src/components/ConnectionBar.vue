@@ -19,7 +19,7 @@ const editing = ref(false)
 const baseUrl = ref(props.config.baseUrl)
 const token = ref(props.config.token)
 
-/** 事件流状态展示：active 绿色，disabled 灰色（serve 未开 --interactive），其余黄色（连接中/重连）。 */
+/** 事件流状态展示：active 绿色，disabled 灰色（serve 以 --no-interactive 关闭），其余黄色（连接中/重连）。 */
 const eventStreamLabel = computed<{ text: string; cls: string; tip: string }>(() => {
   switch (props.eventStream) {
     case 'active': {
@@ -29,7 +29,7 @@ const eventStreamLabel = computed<{ text: string; cls: string; tip: string }>(()
       return {
         text: '事件流未启用',
         cls: 'bg-[#9e9e9e]',
-        tip: 'serve 未以 --interactive 启动：日志与选项交互不可用，任务状态由轮询提供'
+        tip: 'serve 以 --no-interactive 关闭：日志与选项交互不可用，任务状态由轮询提供'
       }
     }
     case 'reconnecting': {
@@ -100,8 +100,8 @@ const displayUrl = computed(() => props.config.baseUrl.trim() || '默认直连�
         默认可跨域）；若服务端以
         <code class="text-[#c9a227]">--serve-token</code> 启用了鉴权，须在此填入对应的
         <code class="text-[#c9a227]">X-BBDown-Token</code> 令牌。跨机器访问时还须以
-        <code class="text-[#c9a227]">--cors-origin</code> 允许本页来源。若要推送下载日志与选项交互，请以
-        <code class="text-[#c9a227]">--interactive</code> 启动。
+        <code class="text-[#c9a227]">--cors-origin</code>
+        允许本页来源。事件流默认开启（推送日志与选项交互）。
       </p>
     </div>
   </div>

@@ -4,6 +4,12 @@ import { API_CHOICES, MUX_CHOICES, type TaskOptions } from '../lib/options'
 
 const options = defineModel<TaskOptions>({ required: true })
 
+/** 事件流（serve --no-interactive 关闭）是否可用；不可用时间选项交互类选项无意义。 */
+const props = defineProps<{
+  interactiveAvailable?: boolean
+}>()
+const interactiveAvailable = props.interactiveAvailable ?? true
+
 const fmtHas = (formats: string, value: string): boolean => formats.split(',').includes(value)
 const toggleFmt = (formats: string, value: string, on: boolean): string => {
   const set = new Set(formats.split(',').filter((s) => s.length > 0))
@@ -117,8 +123,12 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
           </div>
         </div>
         <div class="flex flex-col gap-1 pt-0.5">
-          <label class="check-row">
-            <input v-model="options.interactivePages" type="checkbox" />
+          <label class="check-row" :class="{ 'opacity-50': !interactiveAvailable }">
+            <input
+              v-model="options.interactivePages"
+              type="checkbox"
+              :disabled="!interactiveAvailable"
+              title="需 serve 事件流（--no-interactive 关闭）" />
             逐集确认（每集询问是否下载，需 serve 开启事件流）
           </label>
           <label class="check-row">
@@ -185,6 +195,16 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
               title="合集分 P 之间的下载间隔（单位：秒）" />
           </div>
           <div class="field-row">
+            <label class="field-label" for="max-retry">重试次数</label>
+            <input
+              id="max-retry"
+              v-model.number="options.maxRetry"
+              class="field-input"
+              type="number"
+              min="0"
+              title="每个下载项（字幕 / 封面 / 弹幕 / 音视频 / 混流等）失败后的额外重试次数，0 表示不重试，缺省 3" />
+          </div>
+          <div class="field-row">
             <label class="field-label" for="lang">混流音频语言</label>
             <input
               id="lang"
@@ -221,8 +241,12 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
             <input v-model="options.audioAscending" type="checkbox" />
             音频升序（体积小优先）
           </label>
-          <label class="check-row">
-            <input v-model="options.interactiveQuality" type="checkbox" />
+          <label class="check-row" :class="{ 'opacity-50': !interactiveAvailable }">
+            <input
+              v-model="options.interactiveQuality"
+              type="checkbox"
+              :disabled="!interactiveAvailable"
+              title="需 serve 事件流（--no-interactive 关闭）" />
             交互选清晰度 / 轨道（需 serve 开启事件流）
           </label>
         </div>

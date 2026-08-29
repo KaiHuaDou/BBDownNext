@@ -192,21 +192,37 @@ BBDown/
 │   └── DEPENDENCIES.md     # 依赖架构说明
 │
 ├── BBDown.GUI/             # 图形界面（Avalonia，net9.0，AOT 单文件）
+│   ├── Program.cs          # 入口：Avalonia 应用装配与启动
 │   ├── App.axaml.cs        # Application 入口
 │   ├── MainWindow.axaml    # 主窗口布局（任务列表 / 日志区 / 选项面板）
 │   ├── MainWindow.axaml.cs # 主窗口：初始化、队列执行与直播/专栏分流
 │   ├── MainWindow.Options.cs # 选项面板与下载参数的双向绑定
+│   ├── MainWindow.Download.cs # 下载提交与参数组装
 │   ├── MainWindow.Tasks.cs # 任务列表交互（取消 / 停止录制 / 重试 / 移除）
+│   ├── MainWindow.Progress.cs # 进度区渲染（阶段化显隐）
 │   ├── MainWindow.Log.cs   # 日志区（ListBox 虚拟化 + 导出）
 │   ├── MainWindow.Login.cs # 扫码登录入口与登录态展示
+│   ├── MainWindow.Ask.cs   # 交互请求弹窗（逐集确认 / 选清晰度 / 选轨）
+│   ├── AskDialog.axaml(.cs) # 交互弹窗视图
 │   ├── LoginWindow.axaml(.cs) # 扫码登录弹窗（WEB / TV / APP）
+│   ├── LoginResult.cs      # 登录结果模型
 │   ├── QueueRunner.cs      # 任务队列与并发池（1–8，运行中可调）
+│   ├── QueueRunner.Execute.cs # 并发执行循环（取额度 / 分发 / 归还）
+│   ├── QueueStore.cs       # 队列持久化（BBDown.GUI.queue.json）
 │   ├── TaskParams.cs       # 单任务参数模型 + DownloadRequest 映射
 │   ├── UrlDetector.cs      # 下载目标识别
+│   ├── GuiPaths.cs         # 程序 / 数据 / 队列路径解析
 │   ├── ConfigStore.cs      # 面板选项便携保存（BBDown.GUI.config.json）
 │   ├── StatusConverters.cs # 状态 → 颜色 / 可见性转换器
 │   └── Theme.axaml         # 样式集中定义
 │
+├── BBDown.WebUI/           # Web 前端（Vue 3 + Vite + TypeScript，pnpm workspace，复刻 GUI 业务功能，WIP）
+│   ├── src/main.ts         # 应用入口（挂 App.vue，注入状态层）
+│   ├── src/App.vue         # 根组件（连接设置 / 任务提交 / 选项面板 / 任务列表 / 日志区）
+│   ├── src/lib/            # 纯函数与工具：content（内容字符表）/ options（选项映射）/ format（ETA 与耗时格式化）/ urlDetector（目标识别）/ errors / storage（localStorage）/ live（直播清晰度）
+│   ├── src/api/            # 网络层：client（REST 轮询）/ ws（WebSocket 事件流，含 disabled 停用态）/ login（登录态查询）
+│   ├── src/state/          # 状态层：store（全局状态）/ types / snapshot（轮询快照归一）/ taskView（任务 → 视图模型，含 ResourceId 前缀识别）/ connection（WS 订阅与重连）/ actions（提交 / 取消 / 移除 / 启动）/ useTasks（组合式封装）
+│   └── src/components/      # 视图组件：ConnectionBar / OptionsPanel / TaskList / LogPanel / AskDialog / LoginDialog
 ├── BBDown.Tests/           # 针对 BBDown 的 xUnit 测试
 ├── BBDown.Core.Tests/      # 针对 BBDown.Core 的 xUnit 测试
 └── Plugins/                # 插件（BBDown.Sample 内置模板；其余为独立 git 仓库，不进主构建）
@@ -309,16 +325,17 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 `BBDown serve` 用 ASP.NET Minimal API 暴露任务增删查接口（完整契约见 [API.md](./API.md)）。主干为 `BBDownServer`，端点注册在 `Http/ServeEndpoints.cs`、WebSocket 在 `Http/TasksSocket.cs`、任务表与消费循环在 `Tasks/`（TaskStore / TaskWorker），SSRF 防护抽到独立静态类 `SsrfGuard`，启动参数聚合为 `ServeConfig` record。设计要点：
 
 - **令牌鉴权**：`SetUpServer` → `FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时启用强制鉴权；未传入则默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。强制鉴权时客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，否则返回 `401`。
-- **请求契约收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在契约中，serve 以 `--interactive` 启动时 Web 前端经 WebSocket 事件流远程应答选项请求。
+- **请求契约收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在契约中，serve 未以 `--no-interactive` 关闭时 Web 前端经 WebSocket 事件流远程应答选项请求。
 - **SSRF 防护**（`SsrfGuard`）：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点；专用 `WebHookClient` 关闭自动重定向并在连接前二次校验端点 IP。
 - **CORS**：默认放行**回环来源**（`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环判定），非回环 `Origin` 依旧无 `Access-Control-Allow-Origin` 头、被浏览器拦截，与写端点 / WebSocket 的 Origin 校验（防 DNS rebinding）保持一致；公网暴露仍需配合反向代理与 TLS。
 - **容量上限**：已完成任务保留上限 `MaxFinishedTasks = 200`，超出按策略淘汰。
 - **任务表以 `ResourceId` 为键**（`ConcurrentDictionary<ResourceId, DownloadTask>`）：解析结果直接作键，值相等性天然去重，同资源重复提交命中同一任务；`DownloadTask.Id` 即该 `ResourceId`，JSON 序列化为规范字符串（如 `season2539`，与路径参数同一编码，见 [API.md](./API.md) 的任务标识一节）。
 - **并发限流**：`--max-concurrent N`（默认 `0` = 不限制，保持历史行为）。`SetUpServer` 在 `N > 0` 时建立 `SemaphoreSlim(N, N)`；任务经 `TaskWorker.RunGatedAsync` 在调用 `DownloadPipeline.RunAsync` 前取额度、`finally` 归还。取额度发生在 id 去重登记**之后**，因此排队中的任务已在 `runningTasks` 里可见，`DownloadTask.Status` 为 `Queued`，拿到额度转 `Running`，收尾转 `Finished`。`max-concurrent` 仅约束**同时下载的任务数**，多余任务排队；单个任务内部的下载并行度（分片并发）由多线程下载器自行决定（`PageDownload.BuildDownloadConfig` 始终将 `MaxDegreeOfParallelism` 设为 `0`，即回落到 `ProcessorCount`），不再随限流被压到 `1`。`0` 表示不限制（与 CLI 完全一致）。
+- **任务状态机**：`DownloadStatus` 四态——`Pending`（enqueue 提交、尚未 start）、`Queued`（已投入执行队列、等待并发额度，仅 `--max-concurrent > 0` 出现）、`Running`（下载中）、`Finished`（收尾，成败见 `IsSuccessful`）。`POST /api/v1/tasks?mode=enqueue` 创建 `Pending` 任务，`POST /api/v1/tasks/{id}/start` 将其转 `Queued`；`/running` 与 `/healthz` 计数排除 `Pending`（尚未占执行队列）。状态流转由 `TaskStore` 维护，详见 [API.md](./API.md)。
 
 > 注意：任务创建 / 清理为 **POST / DELETE**，查询类（`/api/v1/tasks/*`）为 GET，详见 [API.md](./API.md)。
 >
-> **单任务取消**：每个 `DownloadTask` 持有与进程级 `AppEnv.CancellationToken`（关停源）`Link` 的 `CancellationTokenSource Cts`；`POST /stop-task/{id}` 调用 `task.Cts.Cancel()` 取消单个运行/排队中的任务，不影响其他任务。Ctrl+C 取消全局令牌会经链接源取消所有任务。`Cts` 标记 `[JsonIgnore]`，不进入任务 DTO 的序列化。
+> **单任务取消**：每个 `DownloadTask` 持有与进程级 `AppEnv.CancellationToken`（关停源）`Link` 的 `CancellationTokenSource Cts`；`POST /api/v1/tasks/{id}/stop` 调用 `task.Cts.Cancel()` 取消单个运行/排队中的任务，不影响其他任务。Ctrl+C 取消全局令牌会经链接源取消所有任务。`Cts` 标记 `[JsonIgnore]`，不进入任务 DTO 的序列化。
 
 ---
 
@@ -425,3 +442,16 @@ OpusDownload.RunAsync (BBDown.Core.Pipeline)  不走 WorkSetup.Build / 不构造
 ### 11.3 serve 模式说明
 
 v1 的 `serve` JSON API 面向音视频、直播与专栏（opus / cv）任务：`TaskWorker` 按 `ResourceId` 分发，`LiveRoom` 走直播录制链路、`OpusArticle` 走专栏导出链路，与 CLI 根命令识别的目标类型一致。
+
+---
+
+## 12. BBDown.WebUI（Web 前端）
+
+`BBDown.WebUI` 是 serve 模式的 Web 前端（Vue 3 + Vite + TypeScript，pnpm workspace），目标复刻 GUI 业务功能，当前为 WIP（尚未生产可用）。它不内置下载能力，全部经 serve 的 REST 快照轮询与 WebSocket 事件流（`--no-interactive` 关闭时事件流降级、状态仍由轮询提供）与 `BBDown serve` 通信。设计要点：
+
+- **状态层与视图分离**：`state/` 持有全局状态（`store` + `types`），`snapshot` 把轮询快照归一到统一视图模型，`taskView` 把 `DownloadTask` 映射为视图模型（按 `ResourceId` 规范 id 前缀识别资源类型）；`connection` 管理 WebSocket 订阅与重连，`actions` 收口提交 / 取消 / 移除 / 启动，`useTasks` 为组合式封装。
+- **网络层**：`api/client` 做 REST 轮询，`api/ws` 维护 WebSocket 事件流连接（含 `disabled` 停用态：serve 声明不支持交互时停止重连、避免抖动），`api/login` 查询登录态。
+- **纯函数优先**：`lib/` 下 `content`（内容字符表与顺序）、`options`（选项映射）、`format`（ETA 与耗时格式化）、`urlDetector`（下载目标识别）、`live`（直播清晰度）均为可单测纯函数，测试在 `src/__tests__/` 与 `src/state/*.spec.ts`。
+- **视图组件**：`ConnectionBar`（连接设置，地址与令牌 localStorage 持久化）、`OptionsPanel`（内容 / 下载 / 解析选项，serve 契约排除的字段禁用并标注原因）、`TaskList`（任务队列与状态）、`LogPanel`（日志区）、`AskDialog`（交互选项弹窗）、`LoginDialog`（登录入口）。
+
+构建与运行见 [README](./README.md)「Web 前端」节。

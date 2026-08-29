@@ -151,7 +151,7 @@ internal sealed class Program
             },
             new Option<string>("--work-dir")
             {
-                Description = "所有任务的工作目录，请求中的同名字段会被忽略"
+                Description = "所有任务的下载输出目录，请求中的同名字段会被忽略"
             },
             new Option<string>("--host")
             {
@@ -174,12 +174,12 @@ internal sealed class Program
                 Description = "同时下载的任务数上限，默认 0 表示不限制；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队，单个任务内部的下载并行度由多线程下载器自行决定",
                 DefaultValueFactory = _ => 0,
             },
-            new Option<bool>("--interactive")
+            new Option<bool>("--no-interactive", ["-ni"])
             {
-                Description = "开启任务事件流（WebSocket /hubs/tasks 推送消息 / 进度 / 选项请求）。默认关闭，此时任务不产生事件流，无额外开销"
+                Description = "关闭任务事件流（WebSocket /hubs/tasks 推送消息 / 进度 / 选项请求）。默认开启，加此选项则服务端不推送事件流，无额外开销"
             }
         };
-        command.SetAction(result => StartServer(new ServeConfig(
+        command.SetAction(result => Task.FromResult(StartServer(new ServeConfig(
             result.GetValue<string>("--listen"),
             result.GetValue<string>("--work-dir"),
             result.GetValue<string>("--serve-token"),
@@ -188,7 +188,7 @@ internal sealed class Program
             result.GetValue<string>("--tv-host"),
             result.GetValue<string>("--cors-origin"),
             result.GetValue<int>("--max-concurrent"),
-            result.GetValue<bool>("--interactive"))));
+            !result.GetValue<bool>("--no-interactive")))));
         return command;
     }
 
@@ -300,7 +300,13 @@ internal sealed class Program
             return 130;
         }
 
-        // 必须排在通用分支之前，否则会打出"请升级到最新版本后重试"这句对充电权限毫无意义的误导文案
+        // 工作目录问题是用户侧输入错误，只打印清晰文案，不带「请升级」误导语（退出码 1）
+        if (e is WorkDirException)
+        {
+            LogError(e.Message);
+            return 1;
+        }
+
         if (IsChargedPreviewOnly(e))
         {
             LogWarn("全部所选分 P 均为充电专属试看片段，未产出文件（退出码 2）");
@@ -310,7 +316,7 @@ internal sealed class Program
         Console.BackgroundColor = ConsoleColor.Red;
         Console.ForegroundColor = ConsoleColor.White;
         var msg = Config.DebugLog ? e.ToString( ) : e.Message;
-        Console.Write($"{msg}{Environment.NewLine}请升级到最新版本后重试。");
+        Console.Write($"{msg}{Environment.NewLine}");
         Console.ResetColor( );
         Console.WriteLine( );
         return 1;
@@ -325,13 +331,28 @@ internal sealed class Program
                    && agg.InnerExceptions.All(inner => inner is ChargedPreviewException));
     }
 
-    private static void StartServer(ServeConfig config)
+    private static int StartServer(ServeConfig config)
     {
+        // serve 的工作目录在启动时一次性校验：坏值会让每个任务都在运行时失败，不如启动即报错退出
+        if (!string.IsNullOrWhiteSpace(config.WorkDir))
+        {
+            try
+            {
+                WorkSetup.ValidateWorkDir(config.WorkDir);
+            }
+            catch (WorkDirException e)
+            {
+                LogError(e.Message);
+                return 1;
+            }
+        }
+
         // 渲染器已由 Main 顶层装配并覆盖 serve 生命周期，此处不再创建，避免双订阅导致日志双打印
         var server = new BBDownServer( );
         server.SetUpServer(config);
 #pragma warning disable CA2234 // 保留 Run(string) 内的 URL 合法性校验与友好退出
         server.Run(string.IsNullOrEmpty(config.ListenUrl) ? BBDownServer.DefaultListenUrl : config.ListenUrl);
 #pragma warning restore CA2234
+        return 0;
     }
 }

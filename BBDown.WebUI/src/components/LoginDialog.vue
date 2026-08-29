@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import {
-  loadCredential,
-  LOGIN_CHANNELS,
-  saveCredential,
-  type Credential,
-  type LoginChannel
-} from '../api/login'
+import { loadCredential, saveCredential, type Credential } from '../api/login'
 
 defineProps<{
   credential: Credential
@@ -18,7 +12,6 @@ const emit = defineEmits<{
   saved: [credential: Credential]
 }>()
 
-const channel = ref<LoginChannel>('web')
 const cookie = ref(loadCredential().cookie)
 const accessToken = ref(loadCredential().accessToken)
 
@@ -35,17 +28,6 @@ const save = (): void => {
     @click.self="emit('close')">
     <div class="flex w-96 flex-col gap-3 rounded border border-[#3c3c3c] bg-[#252526] p-5">
       <div class="text-center text-sm font-semibold text-[#eee]">登录</div>
-
-      <!-- 通道单选（复刻 LoginWindow，当前仅占位） -->
-      <div class="flex justify-center gap-3">
-        <label
-          v-for="item in LOGIN_CHANNELS"
-          :key="item.value"
-          class="flex items-center gap-1 text-sm text-[#ddd]">
-          <input v-model="channel" type="radio" :value="item.value" />
-          {{ item.label }}
-        </label>
-      </div>
 
       <!-- 二维码区：登录端点预留（serve 未实现），显示说明 -->
       <div

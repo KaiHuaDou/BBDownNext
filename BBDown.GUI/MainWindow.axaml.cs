@@ -4,8 +4,6 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 using Avalonia;
 using Avalonia.Controls;
@@ -19,9 +17,6 @@ using BBDown.Core;
 using BBDown.Core.Download;
 using BBDown.Core.Live;
 using BBDown.Core.Logging;
-using BBDown.Core.Pipeline;
-using BBDown.Core.Util;
-using BBDown.Core.Workflow;
 
 namespace BBDown.GUI;
 
@@ -66,7 +61,7 @@ public partial class MainWindow : Window
         // 交互选项请求（逐集确认 / 选轨）回投 UI 线程弹窗应答
         AskBus.Subscribe(OnAsk);
 
-        queue = new QueueRunner(Dispatch);
+        queue = new QueueRunner(Dispatcher.UIThread.Invoke);
         queue.Changed += OnQueueChanged;
         queue.Executor = ExecuteTaskAsync;
         queue.Logger = LogTaskError;
@@ -82,7 +77,7 @@ public partial class MainWindow : Window
         DragDrop.AddDropHandler(this, WindowDrop);
     }
 
-    // 日志区渲染：MessageBus 消息按 Scope（任务序号）加前缀，Error 级标红；窗口关闭后退订
+    // MessageBus 回调跑在下载线程，需回投 UI 线程；closed 在 WindowClosed 置位，回投前判空避免向已销毁窗口 Post 崩溃
     private void OnLogMessage(LogMessage message)
     {
         var line = message.Scope is { } scope ? $"[任务{scope}] {message.Text}" : message.Text;
@@ -91,48 +86,6 @@ public partial class MainWindow : Window
         {
             Dispatcher.UIThread.Post(( ) => AppendLog(line.TrimEnd('\n'), isError));
         }
-    }
-
-    // 进度事件回投任务行：按 Scope（任务序号）定位任务状态，UI 线程更新
-    private void OnProgress(WorkflowEvent evt)
-    {
-        switch (evt)
-        {
-            case ProgressRangeStartEvent start:
-                // 新阶段（分 P 切换 / 重下）：重置 ETA 基准，覆盖首帧样本到达前的旧剩余时间残留
-                ResetTaskEta(tasks.FirstOrDefault(t => t.Index.ToString( ) == start.Scope));
-                break;
-            case ProgressSampleEvent sample:
-                if (tasks.FirstOrDefault(t => t.Index.ToString( ) == sample.Scope) is { } state)
-                {
-                    SetTaskSample(state, sample.Ratio, sample.Speed, sample.Detail);
-                }
-
-                break;
-            case ProgressRangeEndEvent:
-                // 任务进入混流等无进度阶段：进度条停在满条，任务收尾时随 Status 隐藏，无需额外动作
-                break;
-        }
-    }
-
-    // 阶段开始即重置 ETA 基准（lastRatio / etaStart 仅 UI 线程读写，回投 UI 线程执行）
-    private void ResetTaskEta(TaskState? state)
-    {
-        if (closed || state is null)
-        {
-            return;
-        }
-
-        Dispatcher.UIThread.Post(( ) =>
-        {
-            if (closed)
-            {
-                return;
-            }
-
-            state.lastRatio = 0;
-            state.etaStart = DateTime.UtcNow;
-        });
     }
 
     private void WindowClosed(object? o, EventArgs e)
@@ -365,127 +318,6 @@ public partial class MainWindow : Window
         }
 
         return false;
-    }
-
-    private void Dispatch(Action action)
-    {
-        Dispatcher.UIThread.Invoke(action);
-    }
-
-    /// <summary>进度总线采样回投进度与速度 / 剩余时间到 UI 线程；stageDetail 为总线阶段文本（直播时长 / 分段 / 清晰度），优先显示。</summary>
-    private void SetTaskSample(TaskState state, double ratio, double speed, string? stageDetail)
-    {
-        if (closed)
-        {
-            return;
-        }
-
-        Dispatcher.UIThread.Post(( ) =>
-        {
-            if (closed)
-            {
-                return;
-            }
-
-            state.Progress = Math.Clamp(ratio, 0, 1);
-            // 直播等阶段文本（时长 / 分段 / 清晰度）直接展示并附速度；视频无阶段文本，走速度 + ETA 折算
-            if (stageDetail is not null)
-            {
-                state.Detail = speed > 0 ? $"{stageDetail} | {Utils.FormatSpeed((long) speed, 1)}" : stageDetail;
-                return;
-            }
-
-            var now = DateTime.UtcNow;
-            // 进度回退视为分 P 切换，重置 ETA 基准
-            if (state.lastRatio == 0 || ratio < state.lastRatio)
-            {
-                state.etaStart = now;
-            }
-
-            state.lastRatio = ratio;
-
-            // speed 为链路折算的每秒速率
-            var detail = speed > 0 ? Utils.FormatSpeed((long) speed, 1) : "";
-            if (Utils.FormatEta(ratio, now - state.etaStart) is { } eta)
-            {
-                detail = detail.Length == 0 ? $"剩余 {eta}" : $"{detail} · 剩余 {eta}";
-            }
-
-            state.Detail = detail;
-        });
-    }
-
-    private async Task<int> ExecuteTaskAsync(TaskState state, CancellationToken token)
-    {
-        // 调度循环在后台线程执行；日志经 MessageBus 转发，BeginScope 标注任务序号供日志区加 [任务 N] 前缀
-        // 后处理路径已随 TaskParams 落入 DownloadRequest（PostProcessPath），按任务生效，无需进程级配置
-        var req = state.Params.ToDownloadRequest(state.Url);
-        // 调试日志是进程级开关（Config.DebugLog）：任一任务要求调试即开启，且只开不关，避免并发任务互相关闭
-        if (req.Debug)
-        {
-            Config.SetDebugLog(true);
-        }
-
-        using (MessageBus.BeginScope(state.Index.ToString( )))
-        {
-            try
-            {
-                switch (state.Kind)
-                {
-                    case TaskKind.Opus:
-                        await OpusDownload.RunAsync(req, ct: token);
-                        break;
-                    case TaskKind.Live:
-                        if (!LiveInputResolver.TryParse(state.Url, out var live))
-                        {
-                            throw new InvalidOperationException("直播地址解析失败");
-                        }
-
-                        var liveSink = new PipelineSink(
-                            Meta: info => SetTaskTitle(state, info.Title),
-                            Saved: path => AppendProcessLog(state.Index, $"已保存：{path}", false));
-                        await LiveDownload.RunAsync(req, live, state.Index.ToString( ), liveSink, ct: token);
-                        break;
-                    default:
-                    {
-                        var sink = new PipelineSink(
-                        Meta: info => SetTaskTitle(state, info.Title),
-                        Saved: path => AppendProcessLog(state.Index, $"已保存：{path}", false));
-                        await DownloadPipeline.RunAsync(req, sink, null, token);
-                        break;
-                    }
-                }
-
-                return 0;
-            }
-            catch (OperationCanceledException)
-            {
-                AppendProcessLog(state.Index, "已取消", false);
-                throw;
-            }
-            catch (Exception e)
-            {
-                AppendProcessLog(state.Index, $"失败：{e.Message}", true);
-                return 1;
-            }
-        }
-    }
-
-    /// <summary>解析出标题后回投到任务列表（替代裸 Url 展示）。</summary>
-    private void SetTaskTitle(TaskState state, string title)
-    {
-        if (closed)
-        {
-            return;
-        }
-
-        Dispatcher.UIThread.Post(( ) =>
-        {
-            if (!closed)
-            {
-                state.Title = title;
-            }
-        });
     }
 
     private bool TryGetTarget(out string url)

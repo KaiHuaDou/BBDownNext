@@ -1,7 +1,7 @@
 /** serve 契约类型：与 BBDown.Serve 的 DownloadTask / ServeRequestOptions / WorkflowEvent 序列化格式对齐。 */
 
 /** 任务状态（serve 侧枚举，JSON 为字符串）。 */
-export type DownloadStatus = 'Queued' | 'Running' | 'Finished'
+export type DownloadStatus = 'Pending' | 'Queued' | 'Running' | 'Finished'
 
 /** serve 侧任务对象（DownloadTask）。 */
 export interface DownloadTask {
@@ -85,6 +85,8 @@ export interface ServeRequestOptions {
   delayPerPage: string
   area: string
   callBackWebHook?: string
+  /** 每个下载项的额外重试次数，缺省回落 3（与 serve ServeRequestOptions.MaxRetry 对齐）。 */
+  maxRetry: number
 }
 
 /** 工作流事件（type 判别符与 Core WorkflowEvent 对齐）。 */
@@ -130,7 +132,7 @@ export interface ClientFrame {
 }
 
 /** 前端任务视图状态（对齐 GUI TaskState 的五态展示）。 */
-export type TaskViewStatus = 'Waiting' | 'Running' | 'Success' | 'Failed' | 'Cancelled'
+export type TaskViewStatus = 'Pending' | 'Waiting' | 'Running' | 'Success' | 'Failed' | 'Cancelled'
 
 export interface TaskView {
   id: string
@@ -143,6 +145,6 @@ export interface TaskView {
   errorMessage?: string
   savePaths: string[]
   isLive: boolean
-  /** 提交时的选项快照，「继续」按钮据此重新提交（仅内存，不持久化） */
-  retryOptions?: unknown
+  /** 资源类型中文（由规范 id 前缀推导：视频 / 番剧 / 专栏 / 直播 …） */
+  kind: string
 }

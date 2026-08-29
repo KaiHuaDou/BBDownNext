@@ -8,32 +8,28 @@
     <StackPanel Margin="20">
         <StackPanel Margin="0,0,0,10" HorizontalAlignment="Center" Orientation="Horizontal">
             <RadioButton x:Name="WebRadioButton"
-                         Margin="0,0,10,0" Content="WEB" Tag="web"
-                         GroupName="LoginChannel" IsChecked="True"
-                         IsCheckedChanged="ChannelRadioButtonChecked" />
+                         Margin="0,0,10,0"
+                         IsChecked="True"
+                         Content="WEB" GroupName="LoginChannel"
+                         IsCheckedChanged="ChannelRadioButtonChecked" Tag="web" />
             <RadioButton x:Name="TvRadioButton"
-                         Margin="0,0,10,0" Content="TV" Tag="tv"
-                         GroupName="LoginChannel"
-                         IsCheckedChanged="ChannelRadioButtonChecked" />
+                         Margin="0,0,10,0"
+                         Content="TV" GroupName="LoginChannel"
+                         IsCheckedChanged="ChannelRadioButtonChecked" Tag="tv" />
             <RadioButton x:Name="AppRadioButton"
-                         Content="APP" Tag="app"
-                         GroupName="LoginChannel"
-                         IsCheckedChanged="ChannelRadioButtonChecked" />
+                         Content="APP" GroupName="LoginChannel"
+                         IsCheckedChanged="ChannelRadioButtonChecked" Tag="app" />
         </StackPanel>
         <Image x:Name="QrImage"
                Width="240" Height="240"
                HorizontalAlignment="Center"
                RenderOptions.BitmapInterpolationMode="None" />
         <TextBlock x:Name="StatusText"
-                   Margin="0,15,0,0"
-                   HorizontalAlignment="Center"
+                   Margin="0,15,0,0" HorizontalAlignment="Center"
                    FontSize="14"
                    Text="正在生成二维码..." />
         <Button x:Name="CancelButton"
-                Margin="0,20,0,0"
-                HorizontalAlignment="Center"
-                Padding="30,5"
-                Click="CancelButtonClicked"
-                Content="取消" />
+                Margin="0,20,0,0" Padding="30,5" HorizontalAlignment="Center"
+                Click="CancelButtonClicked" Content="取消" />
     </StackPanel>
 </Window>

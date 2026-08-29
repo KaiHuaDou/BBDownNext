@@ -265,7 +265,7 @@ internal static class CliOptions
         """
     };
     internal static readonly Option<bool> InteractivePages = new("--interactive-pages", ["-iap"]) { Description = "逐集确认是否下载：[y] 要，[n] 不要，[a] 剩余全部要，[q] 剩余全部不要，回车=不要" };
-    internal static readonly Option<string> WorkDir = new("--work-dir", ["-cwd"]) { Description = "设置程序的工作目录" };
+    internal static readonly Option<string> WorkDir = new("--work-dir", ["-cwd"]) { Description = "设置下载输出目录" };
     internal static readonly Option<string> FFmpegPath = new("--ffmpeg-path", []) { Description = "设置 FFmpeg 的路径" };
     internal static readonly Option<string> Mp4boxPath = new("--mp4box-path", []) { Description = "设置 MP4Box 的路径" };
     internal static readonly Option<string> Aria2cPath = new("--aria2c-path", []) { Description = "设置 aria2c 的路径" };

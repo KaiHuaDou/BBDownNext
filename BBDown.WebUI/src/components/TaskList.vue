@@ -9,12 +9,16 @@ const emit = defineEmits<{
   stop: [view: TaskView]
   cancel: [view: TaskView]
   retry: [view: TaskView]
+  start: [view: TaskView]
   remove: [view: TaskView]
 }>()
 
 /** 状态文字颜色（复刻 GUI StatusToBrushConverter）。 */
 function statusColor(status: TaskView['status']): string {
   switch (status) {
+    case 'Pending': {
+      return '#7e57c2'
+    }
     case 'Waiting': {
       return '#c9a227'
     }
@@ -51,6 +55,9 @@ function statusColor(status: TaskView['status']): string {
               :style="{ color: statusColor(task.status) }">
               {{ task.statusText }}
             </span>
+            <span class="shrink-0 rounded bg-[#3a3a3d] px-1 text-xs text-[#bbb]">{{
+              task.kind
+            }}</span>
             <span class="truncate text-sm text-[#eee]">{{ task.title ?? task.url }}</span>
           </div>
           <div v-if="task.detail" class="mt-0.5 text-xs text-[#9e9e9e]">{{ task.detail }}</div>
@@ -79,6 +86,13 @@ function statusColor(status: TaskView['status']): string {
             type="button"
             @click="emit('retry', task)">
             继续
+          </button>
+          <button
+            v-if="task.status === 'Pending'"
+            class="btn-task"
+            type="button"
+            @click="emit('start', task)">
+            启动
           </button>
           <button
             v-if="task.status !== 'Running'"

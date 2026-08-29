@@ -8,11 +8,11 @@
   },
   "categories": {
     "correctness": "error",
-    "suspicious": "warn",
     "pedantic": "off",
     "perf": "warn",
+    "restriction": "warn",
     "style": "warn",
-    "restriction": "warn"
+    "suspicious": "warn"
   },
   "options": {
     "typeAware": true,

@@ -1,8 +1,11 @@
 /**
  * 登录端点预留：serve 当前未提供扫码登录接口（登录仅能在 CLI / 桌面 GUI 完成），
  * 此模块为将来 serve 增加登录端点时预留实现位置；当前所有函数一律抛「未实现」。
- * 登录态凭据（cookie / accessToken）走本地存储，提交任务时随 ServeRequestOptions 附带。
+ * 登录态凭据（cookie / accessToken）持久化于浏览器 localStorage（明文），随任务请求经
+ * ServeRequestOptions 附带。非回环部署时须注意 XSS 可读取该凭据，仅建议本机 / 可信环境使用。
  */
+
+import { readLocalStorage, writeLocalStorage } from '../lib/storage'
 
 export type LoginChannel = 'web' | 'tv' | 'app'
 
@@ -17,14 +20,14 @@ export interface Credential {
 
 export function loadCredential(): Credential {
   return {
-    cookie: localStorage.getItem(COOKIE_KEY) ?? '',
-    accessToken: localStorage.getItem(TOKEN_KEY) ?? ''
+    cookie: readLocalStorage(COOKIE_KEY),
+    accessToken: readLocalStorage(TOKEN_KEY)
   }
 }
 
 export function saveCredential(credential: Credential): void {
-  localStorage.setItem(COOKIE_KEY, credential.cookie)
-  localStorage.setItem(TOKEN_KEY, credential.accessToken)
+  writeLocalStorage(COOKIE_KEY, credential.cookie)
+  writeLocalStorage(TOKEN_KEY, credential.accessToken)
 }
 
 /** 登录通道枚举（与 GUI LoginChannel 对齐）。 */

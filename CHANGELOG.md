@@ -6,6 +6,48 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
+## [v2.1.1]
+
+### 新增
+
+- **serve 任务受理模式（enqueue / start）**
+    - 提交即执行与入队暂停分离：`POST /api/v1/tasks` 接受 `?mode=enqueue`，任务以 `Pending` 状态仅入暂停表、不立即执行；新增 `POST /api/v1/tasks/{id}/start` 将暂停任务投入执行队列（200 已启动 / 404 非暂停态 / 429 队列满）。`Pending` 成为 `DownloadStatus` 的独立状态，位于 `Queued` 之前。
+    - `Pending` 任务不计入运行统计：`/running` 与 `/healthz` 的运行中计数均排除 `Pending`（尚未进入执行队列）。
+    - 单任务删除扩展：`DELETE /api/v1/tasks/{id}` 同时清理已完成任务与 enqueue 暂停态任务（从暂停表移除并释放取消源）；运行中任务仍须先经 stop 端点取消。
+    - `GET /api/v1/tasks/finished` 保留，返回已完成任务列表（与 v2.1.0 一致）。
+- **工作目录校验**
+    - 新增 `WorkDirException`（位于 `BBDown.Core`）：工作目录无效或不可写入时抛出，进程退出码 1 并打印原始文案（不含「请升级」误导语）。
+    - `WorkSetup` 新增 `ValidateWorkDir`（创建并校验目录，失败抛 `WorkDirException`）与纯函数 `NormalizeWorkDir`（去空白、展开环境变量与 `~`、转为绝对路径，空输入返回 null）；`ResolveWorkDir` 复用二者。
+    - serve 在启动时一次性校验 `--work-dir`，坏值直接报错退出（不再让每个任务在运行时失败）。
+    - CLI 的 `--work-dir` 输入做 `Trim`，描述改为「设置下载输出目录」。
+- **BBDown.WebUI（新前端，WIP）**
+    - 内容字符勾选：提交区补齐 12 个内容复选框（音频 / 视频 / 独立封面 / 封面嵌入 / 弹幕 / 专栏图片 / 嵌入元数据 / YAML front matter / 评论 / 全部评论 / AI 字幕 / 字幕），3 列网格布局对齐 GUI；`content` 字符串按 Core 规范顺序维护，专栏模式仅 `i` / `M` 生效，其余字符自然失效。
+    - 任务类型标识：任务列表按规范 id 前缀显示资源类型（视频 / 番剧 / 专栏 / 直播 / 课程 / 空间 / 收藏 / 合集 / 系列 / 稍后再看），与 Core `ResourceId` 规范形态一致。
+    - 提交拆为「加入并执行」与「加入队列」：后者经 `?mode=enqueue` 提交、`Pending` 状态可经任务项的「启动」按钮调 `startTask` 触发；任务列表状态栏新增 `Pending` 计数。
+    - 状态层重写：`state/` 拆分为 `store`（全局状态）/ `types` / `snapshot`（轮询快照归一）/ `taskView`（任务 → 视图模型，含 `ResourceId` 前缀识别）/ `connection`（WebSocket 订阅与重连）/ `actions`（提交 / 取消 / 移除 / 启动）/ `useTasks`（组合式封装），`useTasks.ts` 大幅瘦身。
+    - 网络层：`api/client.ts` 的 `submitTask` 接受 `mode` 参数并新增 `startTask`；`api/ws.ts` 重构为显式状态机并新增 `disable`（serve 声明不支持交互时停止重连、避免抖动）；新增 `lib/storage.ts`（localStorage 读写封装，取代散落的 `localStorage` 直接调用）。
+    - 选项面板接收 `interactive-available`（事件流关闭时禁用交互选项）；`lib/options.ts` 新增 `maxRetry`，`lib/format.ts` 修正 ETA 折算。
+
+### 重构
+
+- **GUI 代码拆分（无用户可见行为变化）**
+    - 入口类 `Program` 由 `App.axaml.cs` 迁出为独立 `Program.cs`；新增 `GuiPaths.cs` 集中 `ExeDirectory`（配置文件 / 队列文件路径逻辑统一迁入）。
+    - `MainWindow` 按职责拆分为分部类：`MainWindow.Download.cs`（单任务下载执行 `ExecuteTaskAsync`）、`MainWindow.Progress.cs`（进度 / ETA / 标题回投，含 `byIndex` 索引避免线性扫描任务列表）、`MainWindow.Tasks.cs`（任务列表刷新维护 `byIndex`）。
+    - `QueueRunner` 执行循环拆入 `QueueRunner.Execute.cs`；`Concurrency` setter 调大时主动放行一个等待槽，使排队任务立即扩容而非等到有任务完成。`csproj` 的 `StartupObject` 改为 `BBDown.GUI.Program`。
+- **文档与配置**
+    - `ARCHITECTURE.md` 更新 GUI 文件树、新增 BBDown.WebUI 章节与 serve 任务状态机说明；`API.md` 同步 enqueue/start 与 `Pending` 状态、专栏导出、工作目录措辞；`README.md` / `docs/compared-to-upstream.md` 同步 `--no-interactive` 与「下载输出目录」措辞。
+    - 新增 `Settings.XamlStyler` 统一 XAML 格式化规则；`AGENTS.md` 移除一段过时的测试范围说明尾注。
+    - 新增 `BBDown.Core.Tests/WorkDirTests.cs` 覆盖 `WorkDirException` / `ValidateWorkDir` / `NormalizeWorkDir`。
+
+### 修复
+
+- 通用异常出口（`MapExitCode` 兜底分支）移除「请升级到最新版本后重试」这句对所有错误都无意义的误导文案，仅打印原始消息（调试模式仍附堆栈）。
+
+### 变更
+
+- 交互式选项更名与默认翻转：`--interactive` / `-ia` → `--no-interactive` / `-ni`；任务事件流默认开启（此前需显式 `--interactive` 才开启），指定 `--no-interactive` 才关闭通道，详见 [API.md](./API.md) WebSocket 事件流。
+- 工作目录措辞统一为「下载输出目录」：CLI `--work-dir`、serve `--work-dir`，以及 README / API.md / ARCHITECTURE.md / `docs/compared-to-upstream.md` 的对应描述。
+
 ## [v2.1.0]
 
 ### 新增
@@ -388,3 +430,4 @@
 [v2.0.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0-rc.2...v2.0.0
 [v2.0.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0...v2.0.1
 [v2.1.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.1...v2.1.0
+[v2.1.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.1.0...v2.1.1

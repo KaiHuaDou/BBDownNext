@@ -19,7 +19,7 @@
 | **AOT 原生发布** | 未提供；依赖运行时反射 | 代码已改造为 **AOT 安全**（`System.Text.Json` 源生成器替代反射）；AOT 在 `BBDown/Directory.Build.props` 默认开启，`dotnet publish BBDown -r <RID> -c Release` 即产出单文件原生二进制 |
 | **WBI 签名降风控** | playurl / view 等接口明文或仅简单 sign | 对 playurl（wbi/playurl）、view（wbi/view）、字幕（player/wbi/v2）、空间列表（space/wbi/arc/search）均做标准 WBI 签名；未探测账号时退化为不签名 |
 | **serve 鉴权** | 基础令牌 | 默认免令牌开放并仅警告；显式传入 `--serve-token` 后强制所有接口鉴权（`X-BBDown-Token` 头或 `?token=` 查询），否则 401 |
-| **serve 安全** | 请求体基本透传 | 请求契约收窄为受控子集 DTO；host 三兄弟与 work-dir 服务端固定；回调地址 **SSRF 防护**（拒绝内网/回环，连接前二次校验）；**CORS 默认关闭** |
+| **serve 安全** | 请求体基本透传 | 请求契约收窄为受控子集 DTO；host 三兄弟与下载输出目录服务端固定；回调地址 **SSRF 防护**（拒绝内网/回环，连接前二次校验）；**CORS 默认关闭** |
 | **专栏/图文导出** | 无 | 主命令自动识别专栏地址（`/opus/`、`/read/`、`opus{id}` / `cv{id}`），导出为 Markdown + 图片目录；纯图文动态（`item.type == 0`）按正文导出，顶部相册一并下载置于文档最前 |
 | **稍后再看列表** | 无 | `watchlater` 系列地址解析为整个列表（按添加顺序），多 P 自动展开，支持 `-p` / `-iap`；接口私有，需登录 Cookie |
 | **UP 主空间投稿列表** | 无 | 新增 `SpaceListFetcher` 与 space URL 解析，可下载某 UP 全部投稿 |

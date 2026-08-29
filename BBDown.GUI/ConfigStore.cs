@@ -24,7 +24,7 @@ public sealed partial class ConfigJsonContext : JsonSerializerContext;
 /// <summary>portable 配置读写，配置文件随 exe 存放于同目录。</summary>
 public static class ConfigStore
 {
-    private static string FilePath => Path.Combine(ExeDirectory( ), "BBDown.GUI.config.json");
+    private static string FilePath => Path.Combine(GuiPaths.ExeDirectory( ), "BBDown.GUI.config.json");
 
     /// <summary>加载配置；文件缺失或损坏返回 null（调用方回落默认值）。</summary>
     public static ConfigData? Load( )
@@ -47,12 +47,7 @@ public static class ConfigStore
     /// <summary>保存配置，失败抛异常由调用方记录。</summary>
     public static void Save(ConfigData config)
     {
-        Directory.CreateDirectory(ExeDirectory( ));
+        Directory.CreateDirectory(GuiPaths.ExeDirectory( ));
         File.WriteAllText(FilePath, JsonSerializer.Serialize(config, ConfigJsonContext.Default.ConfigData));
-    }
-
-    private static string ExeDirectory( )
-    {
-        return Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
     }
 }

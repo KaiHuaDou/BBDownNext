@@ -10,7 +10,7 @@
         <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
     </PropertyGroup>
     <PropertyGroup>
-        <StartupObject>BBDown.GUI.App.Program</StartupObject>
+        <StartupObject>BBDown.GUI.Program</StartupObject>
         <AnalysisLevel>latest-all</AnalysisLevel>
         <WarningLevel>8</WarningLevel>
     </PropertyGroup>

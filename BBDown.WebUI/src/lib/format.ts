@@ -37,12 +37,12 @@ export function formatTime(totalSeconds: number): string {
 }
 
 /** 按已下载比例与当前速率外推剩余时间；比例过低（<=2%）时发散，返回 null 不显示。 */
-export function formatEta(ratio: number, speed: number, totalBytes: number): string | null {
+export function formatEta(ratio: number, speed: number, downloadedBytes: number): string | null {
   if (ratio <= 0.02 || speed <= 0) {
     return null
   }
 
-  const remainingBytes = (totalBytes * (1 - ratio)) / ratio
+  const remainingBytes = (downloadedBytes * (1 - ratio)) / ratio
   return formatTime(remainingBytes / speed)
 }
 
@@ -50,7 +50,7 @@ export function formatEta(ratio: number, speed: number, totalBytes: number): str
 export function buildDetail(
   ratio: number,
   speed: number,
-  totalBytes: number,
+  downloadedBytes: number,
   stageDetail?: string
 ): string {
   if (stageDetail) {

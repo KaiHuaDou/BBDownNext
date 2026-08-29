@@ -77,7 +77,15 @@ public partial class MainWindow
         {
             try
             {
-                var config = new AppConfig(cookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", "");
+                var config = new AppConfig(
+                    Cookie: cookie,
+                    Token: "",
+                    Host: BiliApi.MainHost,
+                    EpHost: BiliApi.MainHost,
+                    TvHost: BiliApi.TvHost,
+                    Area: "",
+                    Wbi: "",
+                    UserAgent: "");
                 var (info, _) = await Account.ProbeAccountAsync(config);
                 status = info.IsLogin ? $"WEB 已登录：{info.UserName}" : "未登录";
             }

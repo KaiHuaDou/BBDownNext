@@ -13,4 +13,4 @@ internal sealed record ServeConfig(
     string? TvHost = null,
     string? CorsOrigin = null,
     int MaxConcurrent = 0,
-    bool Interactive = false);
+    bool Interactive = true);

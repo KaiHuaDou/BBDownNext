@@ -120,7 +120,7 @@ public sealed class TaskState : INotifyPropertyChanged
 }
 
 /// <summary>任务队列与并发调度；集合与状态只在 UI 线程变更（经 dispatch 回投），后台仅执行子进程。</summary>
-public sealed class QueueRunner(Action<Action> dispatch)
+public sealed partial class QueueRunner(Action<Action> dispatch)
 {
     private readonly Action<Action> dispatch = dispatch;
     private readonly List<TaskState> waiting = [];
@@ -132,11 +132,20 @@ public sealed class QueueRunner(Action<Action> dispatch)
     private int nextIndex = 1;
     private volatile int concurrency = 3;
 
-    /// <summary>同时运行的任务数上限，运行时变更立即生效。</summary>
+    /// <summary>同时运行的任务数上限，运行时调大立即唤醒排队中的等待任务。</summary>
     public int Concurrency
     {
         get => concurrency;
-        set => concurrency = value;
+        set
+        {
+            var previous = concurrency;
+            concurrency = value;
+            // 调大并发上限时主动放行一个等待槽，使排队任务立即扩容而非等到有任务完成
+            if (value > previous)
+            {
+                wakeup.Release( );
+            }
+        }
     }
 
     /// <summary>任务执行器，返回子进程退出码；未设置时任务直接标记失败。</summary>
@@ -261,124 +270,5 @@ public sealed class QueueRunner(Action<Action> dispatch)
         }
 
         return TaskKind.Video;
-    }
-
-    private async Task RunScheduleAsync( )
-    {
-        while (true)
-        {
-            await AcquireSlotAsync( );
-            TaskState? state = null;
-            dispatch(( ) =>
-            {
-                if (waiting.Count > 0)
-                {
-                    state = waiting[0];
-                    waiting.RemoveAt(0);
-                    running.Add(state);
-                    state.Status = TaskStatus.Running;
-                    state.TokenSource = new CancellationTokenSource( );
-                    Changed?.Invoke(this, EventArgs.Empty);
-                }
-            });
-
-            if (state is null)
-            {
-                ReleaseSlot( );
-                var hasWaiting = false;
-                dispatch(( ) => hasWaiting = waiting.Count > 0);
-                if (hasWaiting)
-                {
-                    continue;
-                }
-
-                break;
-            }
-
-            _ = ExecuteAndReleaseAsync(state);
-        }
-
-        scheduling = false;
-    }
-
-    private async Task ExecuteAndReleaseAsync(TaskState state)
-    {
-        try
-        {
-            await ExecuteAsync(state);
-        }
-        catch
-        {
-            // ExecuteAsync 已兜底任务异常，此处仅防御窗口关闭时 dispatch 抛出的异常
-        }
-        finally
-        {
-            ReleaseSlot( );
-        }
-    }
-
-    private async Task ExecuteAsync(TaskState state)
-    {
-        try
-        {
-            if (Executor is null)
-            {
-                throw new InvalidOperationException("任务执行器未设置");
-            }
-
-            var token = state.TokenSource?.Token ?? CancellationToken.None;
-            var exitCode = await Executor(state, token);
-            dispatch(( ) =>
-            {
-                state.Status = exitCode == 0 ? TaskStatus.Success : TaskStatus.Failed;
-                MoveToFinished(state);
-                Changed?.Invoke(this, EventArgs.Empty);
-            });
-        }
-        catch (OperationCanceledException)
-        {
-            dispatch(( ) =>
-            {
-                state.Status = TaskStatus.Cancelled;
-                MoveToFinished(state);
-                Changed?.Invoke(this, EventArgs.Empty);
-            });
-        }
-        catch (Exception ex)
-        {
-            dispatch(( ) =>
-            {
-                state.Status = TaskStatus.Failed;
-                MoveToFinished(state);
-                Changed?.Invoke(this, EventArgs.Empty);
-            });
-            Logger?.Invoke(state, ex.Message);
-        }
-    }
-
-    private void MoveToFinished(TaskState state)
-    {
-        running.Remove(state);
-        finished.Add(state);
-    }
-
-    private async Task AcquireSlotAsync( )
-    {
-        while (true)
-        {
-            var current = Volatile.Read(ref activeCount);
-            if (current < concurrency && Interlocked.CompareExchange(ref activeCount, current + 1, current) == current)
-            {
-                return;
-            }
-
-            await wakeup.WaitAsync( );
-        }
-    }
-
-    private void ReleaseSlot( )
-    {
-        Interlocked.Decrement(ref activeCount);
-        wakeup.Release( );
     }
 }

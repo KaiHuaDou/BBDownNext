@@ -1,10 +1,10 @@
-import type { DownloadTask, HealthStatus, ServeRequestOptions, TaskSnapshot } from '../lib/types'
-
+import { readLocalStorage, writeLocalStorage } from '../lib/storage'
 /**
  * serve REST 客户端：地址与令牌配置持久化到 localStorage。
  * baseUrl 留空即直连本机 serve 默认地址（127.0.0.1:23333，默认免令牌且回环 Origin 默认可跨域）；
  * 若服务端以 --serve-token 启用了鉴权，则须在本页填入对应的 X-BBDown-Token 令牌（与回环 / 非回环无关）；跨机器访问时还须以 --cors-origin 允许本页来源。
  */
+import type { DownloadTask, HealthStatus, ServeRequestOptions, TaskSnapshot } from '../lib/types'
 
 const BASE_URL_KEY = 'bbdown.serveBaseUrl'
 const TOKEN_KEY = 'bbdown.serveToken'
@@ -24,14 +24,14 @@ export function resolveBaseUrl(baseUrl: string): string {
 
 export function loadServeConfig(): ServeConfig {
   return {
-    baseUrl: resolveBaseUrl(localStorage.getItem(BASE_URL_KEY) ?? ''),
-    token: localStorage.getItem(TOKEN_KEY) ?? ''
+    baseUrl: resolveBaseUrl(readLocalStorage(BASE_URL_KEY)),
+    token: readLocalStorage(TOKEN_KEY)
   }
 }
 
 export function saveServeConfig(config: ServeConfig): void {
-  localStorage.setItem(BASE_URL_KEY, config.baseUrl)
-  localStorage.setItem(TOKEN_KEY, config.token)
+  writeLocalStorage(BASE_URL_KEY, config.baseUrl)
+  writeLocalStorage(TOKEN_KEY, config.token)
 }
 
 /** 请求超时：serve 假死（进程挂起不响应）时避免连接状态停留在「已连接」。 */
@@ -45,7 +45,9 @@ async function fetchWithTimeout(url: string, init: RequestInit): Promise<Respons
     return await fetch(url, { ...init, signal: controller.signal })
   } catch (e) {
     if (controller.signal.aborted) {
-      throw new Error('请求超时（服务端无响应）', { cause: e })
+      const err = new Error('请求超时（服务端无响应）')
+      ;(err as { cause?: unknown }).cause = e
+      throw err
     }
 
     throw e
@@ -90,10 +92,12 @@ export function fetchTasks(config: ServeConfig): Promise<TaskSnapshot> {
 
 /**
  * 提交下载任务。202 受理新任务；200 命中已有任务；抛错携带状态码信息。
+ * mode 为 enqueue 时附加 ?mode=enqueue：任务进入暂停态（待 start），不自动执行。
  */
 export async function submitTask(
   config: ServeConfig,
-  body: ServeRequestOptions
+  body: ServeRequestOptions,
+  mode: 'execute' | 'enqueue' = 'execute'
 ): Promise<{ task: DownloadTask; duplicate: boolean }> {
   const baseUrl = resolveBaseUrl(config.baseUrl).replace(/\/+$/, '')
   const headers = new Headers({ 'Content-Type': 'application/json' })
@@ -101,7 +105,8 @@ export async function submitTask(
     headers.set('X-BBDown-Token', config.token)
   }
 
-  const response = await fetchWithTimeout(`${baseUrl}/api/v1/tasks`, {
+  const url = `${baseUrl}/api/v1/tasks${mode === 'enqueue' ? '?mode=enqueue' : ''}`
+  const response = await fetchWithTimeout(url, {
     method: 'POST',
     headers,
     body: JSON.stringify(body)
@@ -120,6 +125,11 @@ export async function submitTask(
 /** 取消运行中 / 排队中任务。 */
 export function stopTask(config: ServeConfig, id: string): Promise<void> {
   return request<void>(config, `/api/v1/tasks/${encodeURIComponent(id)}/stop`, { method: 'POST' })
+}
+
+/** 启动 enqueue 暂停的任务（投入执行队列）。 */
+export function startTask(config: ServeConfig, id: string): Promise<void> {
+  return request<void>(config, `/api/v1/tasks/${encodeURIComponent(id)}/start`, { method: 'POST' })
 }
 
 /** 移除指定已完成任务。 */

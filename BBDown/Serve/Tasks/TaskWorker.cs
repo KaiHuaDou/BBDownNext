@@ -189,6 +189,14 @@ internal sealed partial class TaskWorker : BackgroundService
         return AbsolutePathRegex( ).Replace(text, "<redacted-path>");
     }
 
+    // 由资源类型推导内容适用域：专栏 / 直播模式需要按模式提示不生效的内容标志（与 CLI 的 ContentMode 映射一致）
+    private static ContentMode ContentModeOf(ResourceId id) => id switch
+    {
+        ResourceId.LiveRoom => ContentMode.Live,
+        ResourceId.OpusArticle => ContentMode.Opus,
+        _ => ContentMode.Video,
+    };
+
     // 把可变的任务对象收束在 serve 内部：下载链路只拿到回调，不持有 DownloadTask 引用
     internal static PipelineSink SinkFor(DownloadTask task)
     {
@@ -208,6 +216,16 @@ internal sealed partial class TaskWorker : BackgroundService
     private async Task RunDownloadAsync(DownloadTask task, TaskEnvelope envelope)
     {
         var token = task.Cts.Token;
+        // 与 CLI 一致：专栏 / 直播模式下输出非活跃内容标志的调试提示（视频模式不提示，避免误导）
+        var mode = ContentModeOf(task.Id);
+        if (mode != ContentMode.Video)
+        {
+            foreach (var warn in ContentSelector.DescribeInactive(envelope.Request.Content, mode))
+            {
+                Logger.LogDebug(warn);
+            }
+        }
+
         switch (task.Id)
         {
             case ResourceId.LiveRoom room:

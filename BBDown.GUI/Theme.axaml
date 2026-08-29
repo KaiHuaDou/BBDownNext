@@ -1,30 +1,30 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- 表单标签：字段名 TextBlock 的统一边距 -->
+    <!--表单标签：字段名 TextBlock 的统一边距-->
     <Style Selector="TextBlock.FieldLabel">
         <Setter Property="Margin" Value="0,3,5,3" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
-    <!-- 表单输入框：字段 TextBox 的统一边距 -->
+    <!--表单输入框：字段 TextBox 的统一边距-->
     <Style Selector="TextBox.FieldInput">
         <Setter Property="Margin" Value="0,3,5,3" />
     </Style>
 
-    <!-- 复选框行：选项列的统一边距 -->
+    <!--复选框行：选项列的统一边距-->
     <Style Selector="CheckBox.CheckBoxItem">
         <Setter Property="Margin" Value="0,3" />
     </Style>
 
-    <!-- 操作按钮：统一内边距，Margin 按布局就地覆盖 -->
+    <!--操作按钮：统一内边距，Margin 按布局就地覆盖-->
     <Style Selector="Button.ButtonAction">
         <Setter Property="Padding" Value="20,8" />
         <Setter Property="MinHeight" Value="36" />
         <Setter Property="FontSize" Value="14" />
     </Style>
 
-    <!-- 任务列表项背景进度条：全幅填充、无轨道、不拦截鼠标 -->
+    <!--任务列表项背景进度条：全幅填充、无轨道、不拦截鼠标-->
     <Style Selector="ProgressBar.TaskProgress">
         <Setter Property="Minimum" Value="0" />
         <Setter Property="Maximum" Value="1" />

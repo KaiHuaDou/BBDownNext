@@ -265,5 +265,3 @@ AGENT 对此文档的修改只能添加在本节，在本节添加内容无需�
 所有 `dotnet` 命令（build / test 等）必须在**沙箱外**运行，且运行前先执行 `taskkill -f -im dotnet.exe`（Git Bash 下用 `-` 前缀，`//` 前缀无效）清理残留进程，必要时连带 `testhost.exe` / `BBDown.Tests.exe`。
 
 **测试范围约定**：只测静态 / 纯函数；涉及耗时复杂操作（真实服务器、WebSocket、网络请求、文件 IO、解析等）一律不测。测试过不了直接删除该测试，不反复调试。
-
-原因：沙箱会拦截测试宿主的 Recent 目录写入导致 test host 异常退出；WebSocket / Kestrel 测试在部分环境会长时间挂起（历史记录：>8 分钟未完成；单个 WebSocket 测试 Stop 时因连接未关等 30s 优雅关闭超时），残留 dotnet / testhost 进程会互相干扰后续运行并锁死构建输出。Core.Tests 全绿为准，BBDown.Tests 只跑纯函数子集（跑前先 taskkill）。

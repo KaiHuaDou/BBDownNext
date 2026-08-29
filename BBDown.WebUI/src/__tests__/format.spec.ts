@@ -28,8 +28,9 @@ describe('formatSpeed / formatTime', () => {
 })
 
 describe('formatEta', () => {
-  it('按剩余字节与速率外推', () => {
+  it('按已下载字节与速率外推（剩余 = 已下载 × (1-比例) ÷ 比例 = 总量 × (1-比例)）', () => {
     expect(formatEta(0.5, 100, 100)).toBe('00m01s')
+    expect(formatEta(0.25, 100, 100)).toBe('00m03s')
   })
 
   it('比例过低或速度为 0 时不显示', () => {

@@ -26,6 +26,15 @@ public partial class MainWindow
             tasks.Add(state);
         }
 
+        lock (indexGate)
+        {
+            byIndex.Clear( );
+            foreach (var state in tasks)
+            {
+                byIndex[state.Index] = state;
+            }
+        }
+
         QueueStatusText.Text = $"等待 {tasks.Count(t => t.Status == TaskStatus.Waiting)}" +
                                $" · 运行 {tasks.Count(t => t.Status == TaskStatus.Running)}" +
                                $" · 成功 {tasks.Count(t => t.Status == TaskStatus.Success)}" +

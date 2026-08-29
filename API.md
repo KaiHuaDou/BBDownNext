@@ -21,9 +21,9 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | ------------------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--listen`         | `-l` | 监听地址，默认 `http://127.0.0.1:23333`                                                                                                                                       |
 | `--serve-token`    |      | 鉴权令牌；显式传入后才启用强制鉴权（所有接口均须携带 `X-BBDown-Token` 头，WebSocket 握手经 `?token=` 查询参数），未传入则默认免令牌开放并仅警告                                                                       |
-| `--work-dir`       |      | 所有任务的工作目录（请求体中的 `WorkDir` 字段会被忽略，一律以服务端为准）                                                                                                     |
+| `--work-dir`       |      | 所有任务的下载输出目录（请求体中的 `WorkDir` 字段会被忽略，一律以服务端为准）                                                                                                     |
 | `--max-concurrent` |      | 同时下载的任务数上限，默认 `0` 表示不限制；设为 `N > 0` 时最多 `N` 个任务同时下载，其余按提交顺序排队（`Status` 为 `Queued`），单个任务内部的下载并行度由多线程下载器自行决定 |
-| `--interactive`    |      | 开启任务事件流（见 [WebSocket 事件流](#websocket-事件流)）：任务产生消息 / 进度 / 选项事件并经 WebSocket 推送，选项可远程应答。默认关闭，此时任务不产生事件流、无额外开销      |
+| `--no-interactive` | `-ni` | 关闭任务事件流（见 [WebSocket 事件流](#websocket-事件流)）：默认开启，任务产生消息 / 进度 / 选项事件并经 WebSocket `/hubs/tasks` 推送，选项可远程应答；指定本项后服务端不推送事件流、无额外开销，交互选项回落非交互 |
 
 服务器启动后会一直运行，直到进程被终止（可用 `Ctrl+C` 优雅取消正在进行的下载）。
 
@@ -41,7 +41,8 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | GET    | `/api/v1/tasks/running`         | 获取正在运行的任务列表                                |
 | GET    | `/api/v1/tasks/finished`        | 获取已完成的任务列表                                  |
 | GET    | `/api/v1/tasks/{id}`            | 获取指定任务详情                                      |
-| POST   | `/api/v1/tasks`                 | 新增下载任务（202 受理 / 200 命中已有 / 400 / 429）   |
+| POST   | `/api/v1/tasks`                 | 新增下载任务（202 受理 / 200 命中已有 / 400 / 429）；`?mode=enqueue` 仅入暂停表不执行，待 `start` 触发 |
+| POST   | `/api/v1/tasks/{id}/start`      | 启动 enqueue 暂停的任务（200 已启动 / 404 非暂停态 / 429 队列满） |
 | DELETE | `/api/v1/tasks/finished`        | 移除所有已完成任务                                    |
 | DELETE | `/api/v1/tasks/finished/failed` | 移除所有已失败（`IsSuccessful == false`）的已完成任务 |
 | DELETE | `/api/v1/tasks/{id}`            | 移除指定已完成任务                                    |
@@ -87,16 +88,16 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 - **Endpoint：** `/api/v1/tasks`
 - **Method：** POST
 - **Description：** 向任务列表新增一个下载任务。
-- **Request Body：** JSON 格式的任务信息，需符合 `ServeRequestOptions`（由 `DownloadRequest` 裁剪出的受控子集）。不要求包含所有字段，**只需有 `Url` 字段**即可；`Url` 支持与命令行相同的 `av|bv|BV|ep|ss` 编号。
+- **Request Body：** JSON 格式的任务信息，需符合 `ServeRequestOptions`（由 `DownloadRequest` 裁剪出的受控子集）。不要求包含所有字段，**只需有 `Url` 字段**即可；`Url` 支持与命令行相同的 `av|bv|BV|ep|ss` 编号。提交模式由查询参数 `?mode` 控制：缺省或 `execute` 受理即执行，任务初始 `Status` 为 `Queued`；`enqueue` 仅入暂停表不执行，任务初始 `Status` 为 `Pending`，待 `POST /api/v1/tasks/{id}/start` 触发。
 - **Response：**
-    - 新任务受理成功：`202 Accepted`，响应体为 `DownloadTask` JSON，`Location` 头指向 `/api/v1/tasks/{id}`；任务初始 `Status` 为 `Queued`（已受理、等待执行）。
+    - 新任务受理成功（`execute`）：`202 Accepted`，响应体为 `DownloadTask` JSON，`Location` 头指向 `/api/v1/tasks/{id}`；任务初始 `Status` 为 `Queued`（已受理、等待执行）。`enqueue` 模式受理成功同样返回 `202`，但任务初始 `Status` 为 `Pending`（等待 `start`）。
     - 重复提交同一资源：`200 OK`，响应体为**已有**的运行中任务（不会重复下载）。
     - 请求体无法解析：`400 Bad Request`，错误消息为 `"输入有误"`。
     - 受理队列已满：`429 Too Many Requests`。
 
 > **安全限制：** 出于安全考虑，请求体只接受受控子集字段，以下主机可控字段**不会**出现在 `ServeRequestOptions` 中（即便传入也会被忽略），一律以服务端启动时的配置为准：
 > `FFmpegPath`、`Mp4boxPath`、`Aria2cPath`、`Aria2cArgs`、`WorkDir`、`FilePattern`、`MultiFilePattern`、`Debug`、`UserAgent`、`ConfigFile`。
-> 工作目录请在启动服务时用 `serve --work-dir` 指定；FFmpeg / MP4Box / aria2c 请放在 BBDown 同目录或系统 `PATH` 中。
+> 下载输出目录请在启动服务时用 `serve --work-dir` 指定；FFmpeg / MP4Box / aria2c 请放在 BBDown 同目录或系统 `PATH` 中。
 >
 > **回调：** 请求体可携带 `CallBackWebHook`（字符串），任务**完成**后会以 `POST` 方式向该地址回传 `DownloadTask` 的 JSON；留空或不传则不回调。
 
@@ -125,6 +126,19 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
     - `{id}`（路径参数）：任务的规范 id（如 `av170001`、`season2539`），见 [任务标识](#任务标识)。
 - **Response：** 无论是否找到对应任务，均返回 `200 OK`。
 
+### 启动暂停的任务
+
+- **Endpoint：** `/api/v1/tasks/{id}/start`
+- **Method：** POST
+- **Auth：** 显式传入 `--serve-token` 时需携带鉴权令牌（见上文鉴权说明）；未传入则默认免令牌。
+- **Description：** 启动以 `?mode=enqueue` 提交、尚处 `Pending` 状态的任务，将其投入执行队列开始下载。
+- **Parameters：**
+    - `{id}`（路径参数）：任务的规范 id（如 `av170001`、`season2539`），见 [任务标识](#任务标识)。
+- **Response：**
+    - 任务在暂停表且已投入执行队列：`200 OK`，任务转为 `Queued` / `Running`。
+    - 任务不在暂停表（已运行 / 未知 / 已结束）：`404 Not Found`。
+    - 执行队列写满：`429 Too Many Requests`，任务保留 `Pending` 可重试。
+
 ### 取消单个任务
 
 - **Endpoint：** `/api/v1/tasks/{id}/stop`
@@ -141,7 +155,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 ## WebSocket 事件流
 
-`--interactive` 开启后，任务会通过 WebSocket 通道（`/hubs/tasks`）向外推送消息 / 进度 / 选项事件，客户端可订阅指定任务并远程应答选项。该通道是任务进度与交互的唯一实时出口；未开启时任务不产生事件流。
+任务事件流经 WebSocket 通道（`/hubs/tasks`）向外推送：任务产生消息 / 进度快照 / 选项请求，选项交互（逐集确认 / 选轨）可经 `submitChoice` 帧远程应答。该通道默认开启；指定 `--no-interactive` 后服务端不推送事件流、无额外开销，交互选项回落非交互（仍需交互的任务按非交互默认值收尾）。
 
 > **消息来源与展示：** Core 只产生消息（下载链路主动消息 + 日志系统的 Info / Warn / Error 业务消息），不决定展示方式。CLI 渲染到控制台（含颜色与进度条）、GUI 输出到窗口日志区、serve 经本通道推送到订阅者——`message` 事件即这两类业务消息的统一出口。
 
@@ -226,7 +240,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | `TotalDownloadedBytes` | `long`               | 总下载字节数（Byte）；完成后的数值比实际文件略小（见下方注意事项）                                                                                     |
 | `ErrorMessage`         | `string?`            | 失败原因（本机绝对路径已替换为 `<redacted-path>`）；任务成功或未失败时为 `null`                                                                        |
 | `IsSuccessful`         | `bool`               | 任务是否成功完成                                                                                                                                       |
-| `Status`               | `string`             | 任务状态：`Queued`（已受理、正在等待并发额度，仅 `--max-concurrent > 0` 时出现）/ `Running`（下载中）/ `Finished`（已结束，成败见 `IsSuccessful`）     |
+| `Status`               | `string`             | 任务状态：`Pending`（已受理、等待手动启动，仅 `?mode=enqueue` 提交时出现）/ `Queued`（已提交执行、等待并发额度，仅 `--max-concurrent > 0` 时出现）/ `Running`（下载中）/ `Finished`（已结束，成败见 `IsSuccessful`）     |
 | `SavePaths`            | `Collection<string>` | 已生成文件的本地路径集合（可能包含视频、音频、弹幕、封面等）                                                                                           |
 
 ### `DownloadTaskSnapshot`
@@ -258,7 +272,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 - **`--max-retry`：** 每个下载项在首次尝试之外的额外重试次数，默认 3；非必要项（字幕 / 封面 / 弹幕 / 配音 / 评论）耗尽仅跳过该项，必要项（音视频 / 混流）耗尽则该分 P 失败。serve 请求体字段为 `MaxRetry`（对应 `ServeRequestOptions`）。
 - **`AllowPreview`：** 请求体可携带该布尔字段（对应命令行 `--allow-preview`）。充电专属稿件在无充电权限时接口照常返回成功但只下发试看片段，默认会被识别并跳过，任务表现为 `IsSuccessful == false`；传 `true` 则保留试看片段，输出文件名带 `[试看]` 前缀。
 - **CORS：** 服务器**默认仅对回环来源开放**（`127.0.0.1` / `localhost` 页面的跨源请求放行，与本机页面直连 serve 的场景对齐）；其余来源需显式 `--cors-origin <url>` 放行。非回环 `Origin` 的浏览器请求依旧拿不到 `Access-Control-Allow-Origin` 头、被浏览器拦截（CSRF 面不因此扩大），仅建议在本地 / 可信网络下使用。
-- **不支持专栏导出：** 当前 `serve` 模式的 `POST /api/v1/tasks` 仅接受 `av|bv|BV|ep|ss` 编号（音视频链路），**不支持**提交专栏（opus / cv）导出任务。专栏导出请在 CLI 根命令下传入专栏地址（`https://www.bilibili.com/opus/...`、`opus{id}`、`cv{id}`）由程序自动识别。
+- **专栏导出：** `POST /api/v1/tasks` 接受专栏（opus / cv）地址，与音视频链路共用同一受理队列与并发闸门，经 `OpusArticle` 路由到专栏导出链路。专栏模式仅 `i`（专栏图片）与 `M`（YAML front matter）内容标志生效，其余标志（a / v / m / s / C / d / o / O / S）自然失效，任务日志会给出调试提示。默认内容集 `avmsCiM` 已包含 `i` / `M`，即默认导出图片与 front matter。
 - **评论下载（`--comment`）：** 请求体可携带 `CommentCount` / `CommentSort` / `CommentFormats` / `FullComment` 四个字段（与命令行选项同名同义，默认 `CommentCount=0` 即不下载）。`CommentCount > 0` 时评论区按 `aid` 去重抓取（多 P 同稿只抓一次），产物为与主文件同目录的 `<标题>.comments.json` / `<标题>.comments.txt`。注意：加 `FullComment`（额外翻页抓全楼中楼）会随评论条数线性放大请求量，显著拉长单个任务的耗时，请按需使用。
 
 ---
@@ -280,6 +294,22 @@ curl -X POST -H 'Content-Type: application/json' \
 ```shell
 curl -X POST -H 'Content-Type: application/json' \
   -d '{ "Url": "av170001" }' \
+  http://localhost:23333/api/v1/tasks
+```
+
+### 用 opus / cv 专栏地址添加任务
+
+```shell
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{ "Url": "https://www.bilibili.com/opus/1230485246732926996" }' \
+  http://localhost:23333/api/v1/tasks
+```
+
+仅导出专栏图片、不要 YAML front matter：
+
+```shell
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{ "Url": "cv123", "Content": "i" }' \
   http://localhost:23333/api/v1/tasks
 ```
 

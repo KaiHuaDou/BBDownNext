@@ -19,7 +19,7 @@ internal static class ServeEndpoints
     {
         var tasks = app.MapGroup("/api/v1/tasks");
         tasks.MapGet("", (TaskStore store) => Results.Json(new DownloadTaskSnapshot(store.RunningSnapshot( ), store.FinishedSnapshot( )), AppJsonSerializerContext.Default.DownloadTaskSnapshot));
-        tasks.MapGet("/running", (TaskStore store) => Results.Json(store.RunningSnapshot( ), AppJsonSerializerContext.Default.ListDownloadTask));
+        tasks.MapGet("/running", (TaskStore store) => Results.Json(store.RunningSnapshot( ).FindAll(t => t.Status != DownloadStatus.Pending), AppJsonSerializerContext.Default.ListDownloadTask));
         tasks.MapGet("/finished", (TaskStore store) => Results.Json(store.FinishedSnapshot( ), AppJsonSerializerContext.Default.ListDownloadTask));
         tasks.MapGet("/{id}", (string id, TaskStore store) =>
         {
@@ -31,16 +31,18 @@ internal static class ServeEndpoints
 
             return Results.Json(task, AppJsonSerializerContext.Default.DownloadTask);
         });
-        tasks.MapPost("", async (ServeBindingResult<ServeRequestOptions> bindingResult, TaskStore store, CancellationToken token) =>
+        tasks.MapPost("", async (ServeBindingResult<ServeRequestOptions> bindingResult, TaskStore store, HttpContext http, CancellationToken token) =>
         {
             if (!bindingResult.IsValid)
             {
                 return Results.BadRequest("输入有误");
             }
 
+            // mode=enqueue 仅入暂停表（待 start）；缺省或 execute 受理即执行
+            var mode = http.Request.Query["mode"].ToString( ) == "enqueue" ? SubmitMode.Enqueue : SubmitMode.Execute;
             try
             {
-                var result = await store.EnqueueAsync(bindingResult.Result!, token);
+                var result = await store.EnqueueAsync(bindingResult.Result!, mode, token);
                 if (result.QueueFull)
                 {
                     return Results.StatusCode(StatusCodes.Status429TooManyRequests);
@@ -58,6 +60,7 @@ internal static class ServeEndpoints
                 return Results.BadRequest("输入有误");
             }
         }).RequireRateLimiting("taskSubmit");
+        tasks.MapStartEndpoint( );
         // 变更类端点必须用 POST/DELETE，不能暴露为 GET，否则与本就全开的 CORS 叠加形成 CSRF（P1-15）
         tasks.MapPost("/{id}/stop", (string id, TaskStore store) =>
         {
@@ -80,10 +83,11 @@ internal static class ServeEndpoints
         });
         tasks.MapDelete("/{id}", (string id, TaskStore store) =>
         {
-            // 规范 id 解析失败视为不存在，仍返回 200（与旧行为一致：无论是否找到都 200）
+            // 规范 id 解析失败视为不存在，仍返回 200（与旧行为一致：无论是否找到都 200）；
+            // RemoveTask 同时清理已完成与 enqueue 暂停态任务
             if (ResourceId.TryParse(id, out var rid))
             {
-                store.RemoveFinished(rid);
+                store.RemoveTask(rid);
             }
 
             return Results.Ok( );
@@ -122,9 +126,31 @@ internal static class ServeEndpoints
             }
         });
 
-        // 健康检查：匿名放行（探活不要求令牌）；携带事件流开关（--interactive）供前端判定通道可用性
+        // 健康检查：匿名放行（探活不要求令牌）；携带事件流开关（--no-interactive 为 false）供前端判定通道可用性；
+        // 计数排除 enqueue 暂停态（Pending 尚未进入执行队列，不计入运行中）
         app.MapGet("/healthz", (TaskStore store, ServeConfig config) =>
-                Results.Ok(new HealthStatus("ok", store.RunningSnapshot( ).Count, config.Interactive)))
+                Results.Ok(new HealthStatus("ok", store.RunningSnapshot( ).FindAll(t => t.Status != DownloadStatus.Pending).Count, config.Interactive)))
             .AllowAnonymous( );
+    }
+
+    /// <summary>
+    /// 启动 enqueue 暂停的任务：从暂停表取出执行信封投入执行队列（详见 <see cref="TaskStore.Start"/>）。
+    /// </summary>
+    private static void MapStartEndpoint(this RouteGroupBuilder tasks)
+    {
+        tasks.MapPost("/{id}/start", (string id, TaskStore store) =>
+        {
+            if (!ResourceId.TryParse(id, out var rid))
+            {
+                return Results.NotFound( );
+            }
+
+            return store.Start(rid) switch
+            {
+                StartResult.Started => Results.Ok( ),
+                StartResult.QueueFull => Results.StatusCode(StatusCodes.Status429TooManyRequests),
+                _ => Results.NotFound( )
+            };
+        });
     }
 }

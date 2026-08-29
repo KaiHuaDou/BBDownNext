@@ -131,7 +131,7 @@ internal static class CommandLineInvoker
                 Cookie = parseResult.GetValue(Cookie) ?? "",
                 AccessToken = parseResult.GetValue(AccessToken) ?? "",
                 Aria2cArgs = parseResult.GetValue(Aria2cArgs) ?? "",
-                WorkDir = parseResult.GetValue(WorkDir) ?? "",
+                WorkDir = parseResult.GetValue(WorkDir)?.Trim( ) ?? "",
                 FFmpegPath = parseResult.GetValue(FFmpegPath) ?? "",
                 Mp4boxPath = parseResult.GetValue(Mp4boxPath) ?? "",
                 Aria2cPath = parseResult.GetValue(Aria2cPath) ?? "",

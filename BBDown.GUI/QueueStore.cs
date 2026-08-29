@@ -17,7 +17,7 @@ public sealed partial class QueueJsonContext : JsonSerializerContext;
 /// <summary>未完成任务队列的 portable 读写，配置文件随 exe 存放于同目录。</summary>
 public static class QueueStore
 {
-    private static string FilePath => Path.Combine(ExeDirectory( ), "BBDown.GUI.queue.json");
+    private static string FilePath => Path.Combine(GuiPaths.ExeDirectory( ), "BBDown.GUI.queue.json");
 
     /// <summary>加载待恢复队列；文件缺失或损坏返回空列表。</summary>
     public static List<QueuedTask> Load( )
@@ -40,12 +40,7 @@ public static class QueueStore
     /// <summary>保存待恢复队列；失败抛异常由调用方记录。</summary>
     public static void Save(IEnumerable<QueuedTask> tasks)
     {
-        Directory.CreateDirectory(ExeDirectory( ));
+        Directory.CreateDirectory(GuiPaths.ExeDirectory( ));
         File.WriteAllText(FilePath, JsonSerializer.Serialize([.. tasks], QueueJsonContext.Default.ListQueuedTask));
-    }
-
-    private static string ExeDirectory( )
-    {
-        return Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
     }
 }

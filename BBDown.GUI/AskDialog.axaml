@@ -11,25 +11,18 @@
                    Margin="0,0,0,12"
                    FontSize="14"
                    TextWrapping="Wrap" />
-        <ListBox x:Name="OptionList"
-                 MaxHeight="300"
-                 HorizontalAlignment="Stretch">
+        <ListBox x:Name="OptionList" MaxHeight="300" HorizontalAlignment="Stretch">
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="workflow:AskOption">
-                    <Button Padding="12,6"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Left"
-                            Tag="{Binding}"
+                    <Button Padding="12,6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                             Click="OptionClicked"
-                            Content="{Binding Label}" />
+                            Content="{Binding Label}"
+                            Tag="{Binding}" />
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
         <Button x:Name="DismissButton"
-                Margin="0,14,0,0"
-                HorizontalAlignment="Center"
-                Padding="30,5"
-                Click="DismissButtonClicked"
-                Content="取消" />
+                Margin="0,14,0,0" Padding="30,5" HorizontalAlignment="Center"
+                Click="DismissButtonClicked" Content="取消" />
     </StackPanel>
 </Window>

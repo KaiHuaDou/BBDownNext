@@ -224,22 +224,64 @@ public static class WorkSetup
     }
 
     /// <summary>
-    /// 解析用户输入的自定义工作目录，返回绝对路径。未指定时回落到进程当前目录。
+    /// 解析用户输入的自定义下载输出目录，返回绝对路径。未指定时回落到进程当前目录。
     /// </summary>
     internal static string ResolveWorkDir(DownloadRequest myOption)
     {
-        if (string.IsNullOrEmpty(myOption.WorkDir))
+        if (string.IsNullOrWhiteSpace(myOption.WorkDir))
         {
             return Environment.CurrentDirectory;
         }
 
-        var dir = Path.GetFullPath(Environment.ExpandEnvironmentVariables(myOption.WorkDir));
-        if (!Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-
+        var dir = ValidateWorkDir(myOption.WorkDir);
         LogDebug("本次任务工作目录：{0}", dir);
         return dir;
+    }
+
+    /// <summary>
+    /// 校验并准备下载输出目录：规范化路径、必要时创建。失败抛 <see cref="WorkDirException"/>，
+    /// 文案只说明工作目录问题，不带「请升级」之类的误导语。
+    /// </summary>
+    public static string ValidateWorkDir(string raw)
+    {
+        // NormalizeWorkDir 对空输入返回 null；此处回落进程当前目录，与 ResolveWorkDir 的空值语义对齐
+        var dir = NormalizeWorkDir(raw) ?? Environment.CurrentDirectory;
+        try
+        {
+            if (!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+        }
+        catch (Exception e) when (e is UnauthorizedAccessException or IOException or ArgumentException)
+        {
+            throw new WorkDirException($"工作目录无效或不可写入：{dir}", e);
+        }
+
+        return dir;
+    }
+
+    /// <summary>
+    /// 把用户输入的工作目录规范化为绝对路径（纯函数，不含任何 IO，便于单测）。
+    /// 处理：去空白、展开 %VAR%（Windows）/ $VAR（Unix）环境变量、展开开头的 ~ 为用户主目录。
+    /// 空或纯空白返回 null，调用方据此回落进程当前目录。
+    /// </summary>
+    internal static string? NormalizeWorkDir(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var expanded = Environment.ExpandEnvironmentVariables(raw.Trim( ));
+        if (expanded.Length > 0 && expanded[0] == '~')
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            expanded = home.Length == 0
+                ? expanded[1..]
+                : Path.Combine(home, expanded[1..].TrimStart('/', '\\'));
+        }
+
+        return Path.GetFullPath(expanded);
     }
 }

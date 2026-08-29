@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
 
-import type { LogLine } from '../state/useTasks'
+import type { LogLine } from '../state/types'
 
 const props = defineProps<{
   logLines: LogLine[]
