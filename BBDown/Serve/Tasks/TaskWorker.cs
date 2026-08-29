@@ -12,7 +12,6 @@ using BBDown.Core;
 using BBDown.Core.Download;
 using BBDown.Core.Live;
 using BBDown.Core.Logging;
-using BBDown.Core.Opus;
 using BBDown.Core.Pipeline;
 using BBDown.Core.Workflow;
 
@@ -126,9 +125,9 @@ internal sealed partial class TaskWorker : BackgroundService
     private async Task RunTaskAsync(TaskEnvelope envelope)
     {
         var task = envelope.Task;
-        // 消息作用域：下载期间 Logger 的业务消息经 MessageBus 携带本任务 id（record ToString 形态，
-        // 桥接器 / 进度回写据此做字符串匹配，不解析），收尾后退出作用域
-        var scope = task.Id.ToString( );
+        // 消息作用域：下载期间 Logger 的业务消息经 MessageBus 携带本任务 id（ResourceIdJsonConverter.Format 规范串，
+        // 与 /get-tasks 返回的 id 形态一致，桥接器 / 进度回写据此字符串匹配），收尾后退出作用域
+        var scope = ResourceIdJsonConverter.Format(task.Id);
         byScope[scope] = task;
         using (MessageBus.BeginScope(scope))
         {
@@ -176,7 +175,7 @@ internal sealed partial class TaskWorker : BackgroundService
         store.MoveToFinished(task);
         // 任务已结束，释放与进程级令牌的链接注册（不取消任何下载，仅释放资源）
         task.Cts.Dispose( );
-        store.ReleaseContext(task.Id.ToString( ));
+        store.ReleaseContext(ResourceIdJsonConverter.Format(task.Id));
         await NotifyCallbackAsync(task, envelope.CallBackWebHook);
     }
 
@@ -190,12 +189,15 @@ internal sealed partial class TaskWorker : BackgroundService
     }
 
     // 由资源类型推导内容适用域：专栏 / 直播模式需要按模式提示不生效的内容标志（与 CLI 的 ContentMode 映射一致）
-    private static ContentMode ContentModeOf(ResourceId id) => id switch
+    private static ContentMode ContentModeOf(ResourceId id)
     {
-        ResourceId.LiveRoom => ContentMode.Live,
-        ResourceId.OpusArticle => ContentMode.Opus,
-        _ => ContentMode.Video,
-    };
+        return id switch
+        {
+            ResourceId.LiveRoom => ContentMode.Live,
+            ResourceId.OpusArticle => ContentMode.Opus,
+            _ => ContentMode.Video,
+        };
+    }
 
     // 把可变的任务对象收束在 serve 内部：下载链路只拿到回调，不持有 DownloadTask 引用
     internal static PipelineSink SinkFor(DownloadTask task)
@@ -207,7 +209,7 @@ internal sealed partial class TaskWorker : BackgroundService
                 task.Pic = v.Pic;
                 task.VideoPubTime = v.PubTime;
             },
-            task.SavePaths.Add);
+            task.AddSavePath);
     }
 
     // 按任务类型分发执行：直播 / 专栏走独立链路（不经 DownloadPipeline），消息 / 进度仍经总线 +
@@ -229,13 +231,13 @@ internal sealed partial class TaskWorker : BackgroundService
         switch (task.Id)
         {
             case ResourceId.LiveRoom room:
-                await LiveDownload.RunAsync(envelope.Request, new LiveTarget(room.RoomId.ToString( )), task.Id.ToString( ), SinkFor(task), token);
+                await LiveDownload.RunAsync(envelope.Request, new LiveTarget(room.RoomId.ToString( )), ResourceIdJsonConverter.Format(task.Id), SinkFor(task), token);
                 break;
             case ResourceId.OpusArticle:
                 await OpusDownload.RunAsync(envelope.Request, SinkFor(task), token);
                 break;
             default:
-                await DownloadPipeline.RunAsync(envelope.Request, SinkFor(task), store.GetContext(task.Id.ToString( )), token);
+                await DownloadPipeline.RunAsync(envelope.Request, SinkFor(task), store.GetContext(ResourceIdJsonConverter.Format(task.Id)), token);
                 break;
         }
     }

@@ -15,8 +15,8 @@ using Avalonia.Threading;
 
 using BBDown.Core;
 using BBDown.Core.Download;
-using BBDown.Core.Live;
 using BBDown.Core.Logging;
+using BBDown.Core.Workflow;
 
 namespace BBDown.GUI;
 

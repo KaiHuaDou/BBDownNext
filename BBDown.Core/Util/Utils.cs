@@ -97,6 +97,11 @@ public static partial class Utils
     // delta 为采样周期内新增字节数，seconds 为采样周期时长，折算成每秒速率
     public static string FormatSpeed(long delta, double seconds)
     {
+        if (seconds <= 0)
+        {
+            return "0 B/s";
+        }
+
         return $"{FormatFileSize((long) (delta / seconds))}/s";
     }
 

@@ -99,6 +99,7 @@ public static class LiveMuxer
     private static async Task<bool> ConcatAsync(List<string> inputs, string outPath, string codecName, ToolPaths tools, CancellationToken ct)
     {
         List<string> tsFiles = new(inputs.Count);
+        List<string> mergedInputs = new(inputs.Count);
         var concatPath = Path.ChangeExtension(outPath, ".concat.ts");
         try
         {
@@ -108,13 +109,14 @@ public static class LiveMuxer
                 var code = await Utils.RunExe(tools.Ffmpeg, BuildLiveToTsArgs(input, tsPath, codecName, Config.DebugLog), ct);
                 if (code != 0)
                 {
-                    // 单段损坏不该拖垮整场录像，跳过后继续拼其余分段
+                    // 单段损坏不该拖垮整场录像，跳过后继续拼其余分段；该源段保留供手工抢救，不在此删除
                     LogWarn($"分段 {Path.GetFileName(input)} 转换失败 (退出码 {code}), 已跳过");
                     SafeDelete(tsPath);
                     continue;
                 }
 
                 tsFiles.Add(tsPath);
+                mergedInputs.Add(input);
             }
 
             if (tsFiles.Count == 0)
@@ -126,7 +128,8 @@ public static class LiveMuxer
             CombineMultipleFilesIntoSingleFile([.. tsFiles], concatPath);
             // 已转换并入的 ts 字节数之和才是真实预期，被跳过的损坏分段不计入
             var expected = tsFiles.Sum(t => new FileInfo(t).Length);
-            return await RemuxAsync(concatPath, outPath, inputs, expected, tools, ct);
+            // 仅删除成功合并的源段；被跳过（转换失败）的源段保留供手工抢救，避免文档承诺的"保留全部分段"被破坏
+            return await RemuxAsync(concatPath, outPath, mergedInputs, expected, tools, ct);
         }
         finally
         {

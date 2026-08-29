@@ -160,11 +160,12 @@ internal sealed class TaskSocketHub(TaskStore store)
         // 快照恢复：订阅时先推一次当前进度样本
         if (ProgressBus.Latest(scope)?.Sample is { } snapshot)
         {
-            await SendAsync(socket, new EventFrame("snapshot", TaskId: task.Id.ToString( ), Snapshot: snapshot), token);
+            await SendAsync(socket, new EventFrame("snapshot", TaskId: ResourceIdJsonConverter.Format(task.Id), Snapshot: snapshot), token);
         }
     }
 
-    // 任务标识 → scope（record ToString）：规范 id 经 TryParse 还原后取 ToString，record 形态原样
+    // 任务标识 → scope（ResourceIdJsonConverter.Format 规范串）：规范 id 经 TryParse 还原后取 Format，
+    // 与 /get-tasks 返回的 id 形态一致；record 形态原样兜底。opus 等多值 id 经 Format 归一，避免订阅失效
     private static string? ResolveScope(string? taskId)
     {
         if (taskId is null)
@@ -172,7 +173,7 @@ internal sealed class TaskSocketHub(TaskStore store)
             return null;
         }
 
-        return ResourceId.TryParse(taskId, out var id) ? id.ToString( ) : taskId;
+        return ResourceId.TryParse(taskId, out var id) ? ResourceIdJsonConverter.Format(id) : taskId;
     }
 
     private void Unsubscribe(WebSocket socket, string? taskId)
@@ -230,7 +231,7 @@ internal sealed class TaskSocketHub(TaskStore store)
     {
         await foreach (var evt in ctx.ReadAllAsync(token))
         {
-            await writer.WriteAsync(new EventFrame("event", TaskId: id.ToString( ), Event: evt), token);
+            await writer.WriteAsync(new EventFrame("event", TaskId: ResourceIdJsonConverter.Format(id), Event: evt), token);
         }
     }
 
@@ -242,7 +243,7 @@ internal sealed class TaskSocketHub(TaskStore store)
         while (!token.IsCancellationRequested)
         {
             await Task.Delay(SnapshotInterval, token);
-            var state = ProgressBus.Latest(id.ToString( ));
+            var state = ProgressBus.Latest(ResourceIdJsonConverter.Format(id));
             if (state?.Sample is { } sample && !ReferenceEquals(sample, last))
             {
                 last = sample;

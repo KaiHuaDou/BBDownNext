@@ -141,7 +141,8 @@ public static partial class OpusFetcher
             }
         }
 
-        if (doc.Paragraphs.Count == 0)
+        // 极简动态可能没有正文段落：返回仅含元信息的空文档供前端渲染空正文，仅当整体 item 缺失才算结构异常
+        if (doc.Paragraphs.Count == 0 && !data.TryGetProperty("item", out _))
         {
             throw new InvalidOperationException("图文动态正文为空，可能是接口返回结构变化，请带 --debug 重试并反馈");
         }

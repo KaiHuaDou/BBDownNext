@@ -53,7 +53,27 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
     [JsonIgnore]
     public CancellationTokenSource Cts { get; } = CancellationTokenSource.CreateLinkedTokenSource(AppEnv.CancellationToken);
 
-    public Collection<string> SavePaths { get; } = [];
+    // SavePaths 由工作线程在保存文件时写入，HTTP 线程在序列化时读取，须加锁并快照，避免枚举被并发修改
+    private readonly Lock savePathsGate = new( );
+    private readonly List<string> savePaths = [ ];
+    public IReadOnlyList<string> SavePaths
+    {
+        get
+        {
+            lock (savePathsGate)
+            {
+                return [.. savePaths];
+            }
+        }
+    }
+
+    public void AddSavePath(string path)
+    {
+        lock (savePathsGate)
+        {
+            savePaths.Add(path);
+        }
+    }
 }
 
 public record DownloadTaskSnapshot(IReadOnlyList<DownloadTask> Running, IReadOnlyList<DownloadTask> Finished);

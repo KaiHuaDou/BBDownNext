@@ -35,7 +35,8 @@ public static partial class InputResolver
             var tmp = await GetWebLocationAsync(input, ct);
             if (tmp == input)
             {
-                throw new InvalidOperationException("无限重定向");
+                // 短链未展开（并非循环重定向）：展开失败，给出明确错误而非误报"无限重定向"
+                throw new InvalidOperationException($"短链展开失败，未能解析出目标地址：{input}");
             }
 
             input = tmp;
@@ -70,7 +71,13 @@ public static partial class InputResolver
             var bvid = GetQueryString("bvid", input);
             if (bvid.Length > 0)
             {
-                return new Av(BilibiliBvConverter.Decode(BVRegex( ).Match(bvid).Groups[1].Value));
+                var watchlaterMatch = BVRegex( ).Match(bvid);
+                if (!watchlaterMatch.Success)
+                {
+                    throw new InvalidOperationException($"watchlater 链接的 bvid 参数无效：{bvid}");
+                }
+
+                return new Av(BilibiliBvConverter.Decode(watchlaterMatch.Groups[1].Value));
             }
 
             var oid = GetQueryString("oid", input);
@@ -120,14 +127,25 @@ public static partial class InputResolver
         if (input.Contains("/space.bilibili.com/") && input.Contains("/favlist"))
         {
             var fid = GetQueryString("fid", input);
-            var uid = long.Parse(UidRegex( ).Match(input).Groups[1].Value);
-            return new Fav(long.TryParse(fid, out var fidL) ? fidL : 0, uid);
+            var uidMatch = UidRegex( ).Match(input);
+            if (!uidMatch.Success)
+            {
+                throw new InvalidOperationException($"无法从空间链接解析出 UID：{input}");
+            }
+
+            return new Fav(long.TryParse(fid, out var fidL) ? fidL : 0, long.Parse(uidMatch.Groups[1].Value));
         }
 
         if (input.Contains("/space.bilibili.com/"))
         {
             // 空间首页 / /upload/video / /video?tid=0 等子路径统一按「该 UP 全部投稿」处理
-            return new Space(long.Parse(UidRegex( ).Match(input).Groups[1].Value));
+            var uidMatch = UidRegex( ).Match(input);
+            if (!uidMatch.Success)
+            {
+                throw new InvalidOperationException($"无法从空间链接解析出 UID：{input}");
+            }
+
+            return new Space(long.Parse(uidMatch.Groups[1].Value));
         }
 
         if (long.TryParse(GetQueryString("ep_id", input), out var queryEpId))
@@ -221,15 +239,37 @@ public static partial class InputResolver
     {
         if (input.Contains("/ep"))
         {
-            return new CheeseEp(long.Parse(EpRegex( ).Match(input).Groups[1].Value));
+            return new CheeseEp(RequireCheeseEpId(input));
         }
 
         if (input.Contains("/ss"))
         {
-            return new CheeseSeason(long.Parse(SsRegex( ).Match(input).Groups[1].Value));
+            return new CheeseSeason(RequireCheeseSsId(input));
         }
 
-        return new CheeseEp(long.Parse(EpRegex( ).Match(input).Groups[1].Value));
+        return new CheeseEp(RequireCheeseEpId(input));
+    }
+
+    private static long RequireCheeseEpId(string input)
+    {
+        var m = EpRegex( ).Match(input);
+        if (!m.Success)
+        {
+            throw new InvalidOperationException($"无法从课程链接解析出 ep_id：{input}");
+        }
+
+        return long.Parse(m.Groups[1].Value);
+    }
+
+    private static long RequireCheeseSsId(string input)
+    {
+        var m = SsRegex( ).Match(input);
+        if (!m.Success)
+        {
+            throw new InvalidOperationException($"无法从课程链接解析出 season_id：{input}");
+        }
+
+        return long.Parse(m.Groups[1].Value);
     }
 
     // 新版个人空间合集/系列链接：
@@ -281,7 +321,8 @@ public static partial class InputResolver
 
         var api = $"{BiliApi.VideoPage}/av{av.Aid}/";
         var location = await GetWebLocationAsync(api, ct);
-        return location.Contains("/ep") ? new Ep(long.Parse(EpRegex( ).Match(location).Groups[1].Value)) : id;
+        var epMatch = EpRegex( ).Match(location);
+        return epMatch.Success && location.Contains("/ep") ? new Ep(long.Parse(epMatch.Groups[1].Value)) : id;
     }
 
     // ss（番剧季号）直接解析为 season_id，与 md 路径完全对称：同样交由 BangumiInfoFetcher 按 season_id 拉取整季正片。

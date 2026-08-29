@@ -150,7 +150,8 @@ public static class FlvDownload
         var p = pageCtx.Page;
         var pad = string.Empty.PadRight(clips.Count.ToString( ).Length, '0');
         var clipPaths = new string[clips.Count];
-        // 片段间并行与片段内 downloader 连接合计不超过 DownloaderAdapter.MaxRangeConcurrency
+        // 片段间并行与片段内连接合计不超过 DownloaderAdapter.MaxRangeConcurrency，
+        // 直接约束会话级 ParallelCount（DownloadConfig 为引用类型，FLV 片段下载后不再触发下载，无后续副作用）
         downloadConfig.ParallelCount = DownloaderAdapter.MaxRangeConcurrency / MaxClipParallelism;
         var options = new ParallelOptions { MaxDegreeOfParallelism = MaxClipParallelism, CancellationToken = ct };
         await Parallel.ForEachAsync(Enumerable.Range(0, clips.Count), options, async (i, token) =>

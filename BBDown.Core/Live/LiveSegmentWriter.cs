@@ -53,8 +53,8 @@ public static class LiveSegmentWriter
             response.EnsureSuccessStatusCode( );
 
             await using var source = await response.Content.ReadAsStreamAsync(ct);
-            // Append 而非 Create：重试同名分段时不该把已录内容抹掉
-            await using var target = new FileStream(partPath, FileMode.Append, FileAccess.Write, FileShare.Read, BufferSize, useAsync: true);
+            // Create 而非 Append：断流重连拿到的是新连接、新 FLV 头，旧半截不可续，重试必须覆盖而非在半截后追加第二个 FLV 头
+            await using var target = new FileStream(partPath, FileMode.Create, FileAccess.Write, FileShare.Read, BufferSize, useAsync: true);
             return await PumpAsync(source, target, onBytes, ct);
         }
     }

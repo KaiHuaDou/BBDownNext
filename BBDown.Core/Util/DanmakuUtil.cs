@@ -13,7 +13,7 @@ namespace BBDown.Core.Util;
 
 public static class DanmakuUtil
 {
-    private const int MONITOR_WIDTH = 1920;         //渲染字幕时的渲染范围的高度
+    private const int MONITOR_WIDTH = 1920;         //渲染字幕时的渲染范围的宽度
     private const int MONITOR_HEIGHT = 1080;        //渲染字幕时的渲染范围的高度
     private const int FONT_SIZE = 40;               //字体大小
     private const double MOVE_SPEND_TIME = 8.00;    //单条条滚动弹幕存在时间（控制速度）

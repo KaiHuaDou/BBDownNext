@@ -92,6 +92,16 @@ public static partial class HTTPUtil
 
     // 凭据门：携带操作者 Cookie 的请求只允许发往 B 站官方域或用户显式配置的 host（--host / --ep-host / --tv-host）。
     // b23.tv 短链展开后的目标不可信，拦截可防用户可控 URL 把 Cookie 外发给第三方
+    private static readonly HashSet<string> TrustedCookieHosts =
+    [
+        BiliApi.MainHost, BiliApi.PassportHost, BiliApi.TvHost, BiliApi.IntlAppHost,
+        BiliApi.IntlWebHost, BiliApi.LiveApiHost,
+        "www.bilibili.com", "space.bilibili.com", "bangumi.bilibili.com",
+        "comment.bilibili.com", "live.bilibili.com",
+        // passport.snm0516.aisee.tv 即 B 站 passport 下发的跨域种 cookie 节点（aisee.tv 为 B 站自有域名），整体放行
+        "passport.snm0516.aisee.tv"
+    ];
+
     internal static bool IsTrustedCookieHost(string host, AppConfig cfg)
     {
         // hdslb.com 是 B 站官方 CDN 域（字幕、封面等静态资源均下发此域），其子域全由 B 站掌控；
@@ -102,11 +112,7 @@ public static partial class HTTPUtil
             return true;
         }
 
-        return host is BiliApi.MainHost or BiliApi.PassportHost or BiliApi.TvHost or BiliApi.IntlAppHost
-                   or BiliApi.IntlWebHost or BiliApi.LiveApiHost or "www.bilibili.com" or "space.bilibili.com"
-                   or "bangumi.bilibili.com" or "comment.bilibili.com" or "live.bilibili.com"
-                   or "passport.snm0516.aisee.tv"
-               || host == cfg.Host || host == cfg.EpHost || host == cfg.TvHost;
+        return TrustedCookieHosts.Contains(host) || host == cfg.Host || host == cfg.EpHost || host == cfg.TvHost;
     }
 
     // UA 请求级化：显式参数 > AppConfig.UserAgent > 进程级默认。CLI 的 --user-agent 由 WorkSetup.ResolveConfig
@@ -341,7 +347,7 @@ public static partial class HTTPUtil
                 request.Headers.TryAddWithoutValidation("grpc-encoding", "gzip");
             }
 
-            HttpResponseMessage response;
+            HttpResponseMessage? response;
             try
             {
                 response = await AppHttpClient.SendAsync(request, ct);
@@ -370,27 +376,29 @@ public static partial class HTTPUtil
                 await Task.Delay(delay, ct); delay *= 2; continue;
             }
 
-            if ((int) response.StatusCode >= 500 && attempt < maxAttempts)
+            using (response)
             {
-                response.Dispose( );
-                await Task.Delay(delay, ct); delay *= 2; continue;
+                if ((int) response.StatusCode >= 500 && attempt < maxAttempts)
+                {
+                    await Task.Delay(delay, ct); delay *= 2; continue;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new HttpRequestException($"gRPC 请求失败：HTTP {(int) response.StatusCode} {response.ReasonPhrase}", null, response.StatusCode);
+                }
+
+                var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+
+                // grpc-status 可能出现在响应头，也可能出现在读完 body 后的 trailer 中
+                var status = ReadGrpcMeta(response, "grpc-status");
+                if (status is not (null or "0"))
+                {
+                    throw new HttpRequestException($"gRPC 返回错误 status={status}: {ReadGrpcMeta(response, "grpc-message") ?? "无错误描述"}");
+                }
+
+                return bytes;
             }
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new HttpRequestException($"gRPC 请求失败：HTTP {(int) response.StatusCode} {response.ReasonPhrase}", null, response.StatusCode);
-            }
-
-            var bytes = await response.Content.ReadAsByteArrayAsync(ct);
-
-            // grpc-status 可能出现在响应头，也可能出现在读完 body 后的 trailer 中
-            var status = ReadGrpcMeta(response, "grpc-status");
-            if (status is not (null or "0"))
-            {
-                throw new HttpRequestException($"gRPC 返回错误 status={status}: {ReadGrpcMeta(response, "grpc-message") ?? "无错误描述"}");
-            }
-
-            return bytes;
         }
     }
 

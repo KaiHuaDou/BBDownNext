@@ -1,3 +1,5 @@
+#pragma warning disable CA1001 // wakeup 仅走 WaitAsync 异步路径，不创建内核句柄，生命周期随窗口
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,6 +45,12 @@ public sealed partial class QueueRunner
         }
 
         scheduling = false;
+        // 置 false 与消费最后一个等待任务之间存在窗口：窗口内入队并调用 StartSchedule 会因 scheduling 仍为 true 提前返回，
+        // 导致新任务永久滞留。置 false 后重查，存在等待任务则重新拉起调度
+        if (HasWaiting)
+        {
+            StartSchedule( );
+        }
     }
 
     private async Task ExecuteAndReleaseAsync(TaskState state)

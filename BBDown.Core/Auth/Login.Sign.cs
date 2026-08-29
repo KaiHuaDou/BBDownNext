@@ -4,7 +4,6 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Web;
 
 namespace BBDown.Core.Auth;
 
@@ -30,12 +29,21 @@ public static partial class Login
         return new string([.. Enumerable.Repeat(Chars, length).Select(s => s[Random.Shared.Next(s.Length)])]);
     }
 
-    // https://stackoverflow.com/a/45088333
+    // 手写拼接，避免 System.Web.HttpUtility（AOT 裁剪告警且类型不可静态分析）
     public static string ToQueryString(NameValueCollection nameValueCollection)
     {
-        var httpValueCollection = HttpUtility.ParseQueryString(string.Empty);
-        httpValueCollection.Add(nameValueCollection);
-        return httpValueCollection.ToString( )!;
+        var builder = new StringBuilder( );
+        foreach (var key in nameValueCollection.AllKeys)
+        {
+            if (builder.Length > 0)
+            {
+                builder.Append('&');
+            }
+
+            builder.Append(Uri.EscapeDataString(key!)).Append('=').Append(Uri.EscapeDataString(nameValueCollection[key]!));
+        }
+
+        return builder.ToString( );
     }
 
     public static Dictionary<string, string> ToDictionary(this NameValueCollection nameValueCollection)

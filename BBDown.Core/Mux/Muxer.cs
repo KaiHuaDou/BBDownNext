@@ -59,7 +59,7 @@ public static class Muxer
         var trackId = 0;
         if (req.VideoPath.Length != 0)
         {
-            args.AddRange(["-add", $"{req.VideoPath}#trackID={(!req.Content.Has(DownloadContent.Video) && req.AudioPath.Length == 0 ? 2 : 1)}:name="]);
+            args.AddRange(["-add", $"{req.VideoPath}#trackID=1:name="]);
             trackId++;
         }
 
@@ -292,9 +292,22 @@ public static class Muxer
         }
 
         // MuxMode.None 由 MuxFinish 提前中止，不会走到这里；Mkv 走 FFmpeg（matroska 容器）
-        return req.Mux == MuxMode.Mp4box
-            ? await Utils.RunExe(req.Tools.Mp4box, BuildMp4boxArgs(req, chapterFile, Config.DebugLog), ct)
-            : await Utils.RunExe(req.Tools.Ffmpeg, BuildFFmpegArgs(req, chapterFile, Config.DebugLog), ct);
+        // 混流失败时章节临时文件未进入 MuxFinish 的成功清理路径，此处于异常分支删除，避免残留
+        try
+        {
+            return req.Mux == MuxMode.Mp4box
+                ? await Utils.RunExe(req.Tools.Mp4box, BuildMp4boxArgs(req, chapterFile, Config.DebugLog), ct)
+                : await Utils.RunExe(req.Tools.Ffmpeg, BuildFFmpegArgs(req, chapterFile, Config.DebugLog), ct);
+        }
+        catch
+        {
+            if (chapterFile != null)
+            {
+                SafeDelete(chapterFile);
+            }
+
+            throw;
+        }
     }
 
     public static async Task MergeFLV(string[] files, string outPath, ToolPaths tools, CancellationToken ct = default)
@@ -318,7 +331,12 @@ public static class Muxer
             foreach (var file in files)
             {
                 var tmpFile = Path.Combine(Path.GetDirectoryName(file)!, Path.GetFileNameWithoutExtension(file) + ".ts");
-                await Utils.RunExe(tools.Ffmpeg, ["-loglevel", "warning", "-y", "-i", file, "-map", "0", "-c", "copy", "-f", "mpegts", "-bsf:v", "h264_mp4toannexb", tmpFile], ct);
+                var code = await Utils.RunExe(tools.Ffmpeg, ["-loglevel", "warning", "-y", "-i", file, "-map", "0", "-c", "copy", "-f", "mpegts", "-bsf:v", "h264_mp4toannexb", tmpFile], ct);
+                if (code != 0)
+                {
+                    throw new InvalidOperationException($"FLV 分段 {file} 转封装失败（退出码 {code}）");
+                }
+
                 tsFiles.Add(tmpFile);
                 SafeDelete(file);
             }

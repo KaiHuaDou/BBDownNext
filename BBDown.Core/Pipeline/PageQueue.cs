@@ -60,7 +60,7 @@ internal static class PageQueue
         var isFirstPage = true;
         var errors = await RunPagesAsync(pagesInfo, myOption.StopOnError, async (p, token) =>
         {
-            Log($"开始解析 P{p.Index}：{p.Aid}...（{pagesInfo.IndexOf(p) + 1} / {pagesInfo.Count}）");
+            Log($"开始解析 P{p.Index}：{p.Aid}...（{p.Index} / {totalPages}）");
 
             // 评论区关闭也能立刻反馈，视频下载失败也不丢评论；放在视频下载之前。--info-only 仅解析不产出评论。
             // o/O 只是开关，评论数量走 --comments-count：两者都满足才真正抓取

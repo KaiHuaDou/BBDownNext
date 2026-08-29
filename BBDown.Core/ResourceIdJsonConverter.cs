@@ -27,7 +27,7 @@ public sealed class ResourceIdJsonConverter : JsonConverter<ResourceId>
         writer.WriteStringValue(Format(value));
     }
 
-    private static string Format(ResourceId id)
+    public static string Format(ResourceId id)
     {
         return id switch
         {

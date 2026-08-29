@@ -89,6 +89,8 @@ public static class MuxFinish
         if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
         {
             LogError("混流失败");
+            // 失败产物可能非空但损坏，留着会被下次 TrySkipExisting 误判为已完成；删除以保证重跑重新混流
+            SafeDelete(savePath);
             return PageOutcome.Abort(selection);
         }
 

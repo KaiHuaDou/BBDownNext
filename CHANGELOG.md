@@ -42,6 +42,22 @@
 ### 修复
 
 - 通用异常出口（`MapExitCode` 兜底分支）移除「请升级到最新版本后重试」这句对所有错误都无意义的误导文案，仅打印原始消息（调试模式仍附堆栈）。
+- 进度条比例钳制到 [0, 宽度]，时长 0 不再越界崩溃。
+- 评论楼中楼按 Rpid 去重；多 P 收藏详情拉取失败记日志而非静默丢页；fav 去重改 `HashSet<Page>` 降为 O(1)。
+- 账号探测缓存：探测异常时清除故障 Task，避免后续全部抓取反复失败无恢复。
+- 直播分段写模式改 `FileMode.Create`，断流重试不再追加到旧段导致损坏；异常分支清理残缺段。
+- 直播合并仅删成功合并段，可挽救分段不再被误删；编码候选消失时显式记录回退（避免静默混入异编码导致数据丢失）。
+- 字面量 `Console.WriteLine` 改走日志层；`InputResolver` 正则未命中改可读错误、短链非重定向不再误报；`useIntlApi` 在归一化前捕获，ApiType 与实际抓取一致；`PageQueue` 进度分母用原始分 P 数；`Muxer` 死分支 `trackID=2` 统一 `trackID=1` 并清理章节临时文件；`DashDownload` 空 `CoverUrl` 不上报封面路径。
+- aria2c 支持断点续传：目标已存在则跳过、`-c` 续传，`-x`/`--`-s` 受连接数约束不再无上限。
+- b23.tv 短链在入口展开，直播 / opus 不再被误判为视频。
+- DASH 音视频 / 背景音 / 角色音轨失败即时清理临时文件，且仅对成功角色发起后处理，避免以残缺文件覆盖原轨。
+- FLV 混流捕获 ffmpeg 退出码，非 0 抛异常不再静默成功；混流失败清理残缺产物。
+- FLV 片段并发上限受 `DownloaderAdapter.MaxRangeConcurrency` 约束，aria2c 连接数随之收敛。
+- gRPC 响应 `using` 释放，避免句柄泄漏。
+- GUI 队列调度丢失唤醒：无运行任务仍有等待任务时重查并重启调度，避免空队列卡死。
+- opus 空段落仅当整项缺失才报错；SRT 正文转义换行 / 回车；速度除零回落 `0 B/s`。
+- serve 任务 `SavePaths` 加锁并快照枚举，并发保存不再触发 `InvalidOperationException`。
+- serve 任务 scope 统一：opus 多值 id 经 `ResourceIdJsonConverter.Format` 归一，任务查询 / 事件帧 / 启动取消按同一规范串定位，多值 id 不再漏判。
 
 ### 变更
 

@@ -75,12 +75,13 @@ public static class BBDownAria2c
         };
     }
 
-    internal static List<string> BuildArgs(string url, string path, string extraArgs, string cookie)
+    internal static List<string> BuildArgs(string url, string path, string extraArgs, string cookie, bool singleThread = false,
+ int connections = 16)
     {
         List<string> args =
         [
-            "--auto-file-renaming=false", "--download-result=hide", "--allow-overwrite=true",
-            "--console-log-level=warn", "-x16", "-s16", "-j16", "-k5M"
+            "--auto-file-renaming=false", "--download-result=hide", "--allow-overwrite=true", "--continue=true",
+            "--console-log-level=warn", singleThread ? "-x1" : $"-x{connections}", singleThread ? "-s1" : $"-s{connections}", "-j16", "-k5M"
         ];
         if (!HTTPUtil.IsAndroidPlatformUrl(url))
         {

@@ -219,7 +219,7 @@ public sealed class ProgressBar : IDisposable
                 return;
             }
 
-            var filled = (int) (ratio * BarWidth);
+            var filled = Math.Clamp((int) (ratio * BarWidth), 0, BarWidth);
             spinnerIndex = (spinnerIndex + 1) % SpinnerFrames.Length;
             Draw($"             [{new string('#', filled)}{new string('-', BarWidth - filled)}] {ratio * 100,3:0.00}% {SpinnerFrames[spinnerIndex]}{speedText}{etaText}");
             renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);

@@ -241,12 +241,12 @@ public class MuxerArgsTests
     }
 
     [Fact]
-    public void BuildMp4boxArgs_AudioOnlyWithoutAudioUsesTrackTwo( )
+    public void BuildMp4boxArgs_AudioWithoutAudioUsesTrackOne( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.m4a", title: "t", content: DownloadContent.Audio);
         var args = Muxer.BuildMp4boxArgs(req, null, false);
 
-        Assert.Contains("/tmp/v.mp4#trackID=2:name=", args);
+        Assert.Contains("/tmp/v.mp4#trackID=1:name=", args);
     }
 
     [Fact]

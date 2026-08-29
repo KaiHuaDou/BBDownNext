@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -194,7 +195,8 @@ public static class CommentFetcher
                 foreach (var reply in replies)
                 {
                     var item = MapItem(reply);
-                    if (item != null)
+                    // 楼中楼按 Rpid 去重：分页重叠或 MapItem 递归嵌套子回复时避免重复条目
+                    if (item != null && comment.Replies.All(r => r.Rpid != item!.Rpid))
                     {
                         comment.Replies.Add(item);
                     }

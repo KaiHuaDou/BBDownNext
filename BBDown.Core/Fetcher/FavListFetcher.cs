@@ -47,6 +47,8 @@ public static class FavListFetcher
         const int pageSize = 20;
         var index = 1;
         List<Page> pagesInfo = [];
+        // 去重用 HashSet<Page> 做 O(1) 判定（与 SpaceListFetcher 一致），避免 List.Contains 的 O(n²)
+        var seenPages = new HashSet<Page>( );
 
         var api = $"{BiliApi.FavResourceList}?media_id={favId}&pn=1&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
         var json = await GetWebSourceAsync(api, cfg, null, ct);
@@ -126,7 +128,7 @@ public static class FavListFetcher
                     p.Title = m.GetProperty("title").ToString( ) + $"_P{item.Index}_{item.Title}";
                     p.Cover = tmpInfo.Pic;
                     p.Desc = m.GetProperty("intro").ToString( );
-                    if (!pagesInfo.Contains(p))
+                    if (seenPages.Add(p))
                     {
                         pagesInfo.Add(p);
                     }
@@ -134,6 +136,11 @@ public static class FavListFetcher
             }
             else
             {
+                if (pageCount > 1)
+                {
+                    LogWarn($"多 P 收藏视频 {m.GetProperty("id")} 详情抓取失败，仅下载首分 P");
+                }
+
                 Page p = new( )
                 {
                     Index = index++,
@@ -149,7 +156,7 @@ public static class FavListFetcher
                     OwnerName = m.GetProperty("upper").GetProperty("name").ToString( ),
                     OwnerMid = m.GetProperty("upper").GetProperty("mid").ToString( ),
                 };
-                if (!pagesInfo.Contains(p))
+                if (seenPages.Add(p))
                 {
                     pagesInfo.Add(p);
                 }

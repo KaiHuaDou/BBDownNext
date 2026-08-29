@@ -43,15 +43,28 @@ public static class DownloadUtil
             Directory.CreateDirectory(destDir);
         }
 
+        var singleThread = config.SingleThread;
+        if (!singleThread && url.Contains(CmccCdnMarker))
+        {
+            LogWarn("检测到 CMCC 域名 CDN，已经禁用多线程。");
+            singleThread = true;
+        }
+
         if (config.UseAria2c)
         {
-            await BBDownAria2c.RunAsync(config.Aria2cPath ?? "aria2c", BBDownAria2c.BuildArgs(url, path, config.Aria2cArgs, config.Cookie), ct);
+            // 最终文件已完整产出过：直接跳过（aria2 的续传元数据是其专属 .aria2 控制文件）
+            if (File.Exists(path))
+            {
+                LogDebug("文件已下载过，跳过下载");
+                return;
+            }
+
+            await BBDownAria2c.RunAsync(config.Aria2cPath ?? "aria2c", BBDownAria2c.BuildArgs(url, path, config.Aria2cArgs, config.Cookie, singleThread, config.ParallelCount), ct);
             if (File.Exists(path + ".aria2") || !File.Exists(path))
             {
                 throw new InvalidOperationException("aria2 下载可能存在错误");
             }
 
-            Console.WriteLine( );
             return;
         }
 
@@ -60,13 +73,6 @@ public static class DownloadUtil
         {
             LogDebug("文件已下载过，跳过下载");
             return;
-        }
-
-        var singleThread = config.SingleThread;
-        if (!singleThread && url.Contains(CmccCdnMarker))
-        {
-            LogWarn("检测到 CMCC 域名 CDN，已经禁用多线程。");
-            singleThread = true;
         }
 
         await DownloaderAdapter.RunAsync(url, path, config, singleThread, resumable, ct);

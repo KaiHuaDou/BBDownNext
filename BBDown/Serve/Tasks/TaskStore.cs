@@ -24,8 +24,8 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
     private readonly ConcurrentDictionary<ResourceId, DownloadTask> finished = new( );
     // enqueue（不立即执行）任务的执行信封暂存：start 时取出写入执行队列，故暂停态任务不占执行队列
     private readonly ConcurrentDictionary<ResourceId, TaskEnvelope> pending = new( );
-    // 事件上下文按 scope（task.Id 的 record ToString）键存：桥接器从总线消息的 Scope 字符串直接命中，
-    // 不经 ResourceId 解析（record ToString 与 TryParse 的规范形态不对称）
+    // 事件上下文按 scope（ResourceIdJsonConverter.Format 规范串）键存：规范串与 /get-tasks 返回的 id 形态一致，
+    // 经 ResourceId.TryParse 可往返，避免 record ToString 与规范串不对称导致 opus 等任务订阅/交互失效
     private readonly ConcurrentDictionary<string, ChannelWorkflowContext> contexts = new( );
     private readonly string? workDir = config.WorkDir;
     private readonly string? host = config.Host;
@@ -71,7 +71,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
         if (interactive)
         {
             ctx = new ChannelWorkflowContext( );
-            contexts[task.Id.ToString( )] = ctx;
+            contexts[ResourceIdJsonConverter.Format(task.Id)] = ctx;
         }
 
         var envelope = new TaskEnvelope(task, option, req.CallBackWebHook);
@@ -89,7 +89,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
             running.TryRemove(id, out _);
             if (ctx is not null)
             {
-                contexts.TryRemove(task.Id.ToString( ), out _);
+                contexts.TryRemove(ResourceIdJsonConverter.Format(task.Id), out _);
             }
 
             task.Cts.Dispose( );
@@ -149,7 +149,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
     {
         foreach (var task in running.Values)
         {
-            if (task.Id.ToString( ) == scope)
+            if (ResourceIdJsonConverter.Format(task.Id) == scope)
             {
                 return task;
             }
@@ -157,7 +157,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
 
         foreach (var task in finished.Values)
         {
-            if (task.Id.ToString( ) == scope)
+            if (ResourceIdJsonConverter.Format(task.Id) == scope)
             {
                 return task;
             }
@@ -239,7 +239,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
         if (pending.TryRemove(id, out var envelope))
         {
             running.TryRemove(id, out _);
-            ReleaseContext(envelope.Task.Id.ToString( ));
+            ReleaseContext(ResourceIdJsonConverter.Format(envelope.Task.Id));
             envelope.Task.Cts.Dispose( );
         }
     }

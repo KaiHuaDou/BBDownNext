@@ -40,7 +40,17 @@ public static class VideoInfo
         Log("检测账号登录...");
         var navTask = EnsureAccountProbedAsync(cfg, ct);
         var buvidTask = Buvid.InitAsync(ct);
-        await Task.WhenAll(navTask, buvidTask);
+        try
+        {
+            await Task.WhenAll(navTask, buvidTask);
+        }
+        catch
+        {
+            // 探测抛异常（网络抖动等）：清空故障 Task，否则会被缓存导致后续所有抓取反复失败无恢复
+            InvalidateProbe(navTask);
+            throw;
+        }
+
         var (info, wbi) = await navTask;
         cfg = cfg with { Wbi = wbi };
         // 未拿到 wbi（网络抖动/未登录）时不缓存，允许后续 URL 重试
@@ -62,13 +72,14 @@ public static class VideoInfo
         var id = await InputResolver.ResolveIdAsync(runConfig.Input, cfg, ct);
         Log($"id: {id}");
 
-        (id, var vInfo) = await FetchVideoInfoAsync(id, cfg, myOption.Api == ApiType.Intl, ct);
+        // 抓取所用的 API 类型以发起抓取前的选项为准，下游据此保持一致，避免 cheese+intl 被回退后 ApiType 与抓取实情不符
+        var fetchApi = myOption.Api;
+        (id, var vInfo) = await FetchVideoInfoAsync(id, cfg, fetchApi == ApiType.Intl, ct);
         myOption = NormalizeOptionsAfterFetch(myOption, vInfo);
         PrintVideoSummary(vInfo, myOption);
-        var apiType = myOption.Api;
         PrintPagesInfo(vInfo, myOption);
 
-        return (myOption, new FetchResult(vInfo, cfg, id, apiType));
+        return (myOption, new FetchResult(vInfo, cfg, id, fetchApi));
     }
 
     // nav 探测（wbi 密钥）进程内仅执行一次；后续调用复用同一 Task，避免批量下载时每个 URL 重复打 nav 接口。

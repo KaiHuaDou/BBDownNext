@@ -11,6 +11,7 @@ using BBDown.Core.Download;
 using BBDown.Core.Live;
 using BBDown.Core.Opus;
 using BBDown.Core.Pipeline;
+using BBDown.Core.Util;
 using BBDown.Serve;
 
 using static BBDown.Core.Logger;
@@ -19,8 +20,9 @@ namespace BBDown;
 
 internal sealed class Program
 {
-    // 录制中的直播会话标识，供 Ctrl+Break handler 精准停止对应录制（并发场景互不干扰）
-    private static string? liveSessionId;
+    // 录制中的直播会话标识，供 Ctrl+Break handler 精准停止对应录制（并发场景互不干扰）。
+    // volatile：主线程写、CancelKeyPress handler 线程读，需内存屏障保证 handler 读到最新值
+    private static volatile string? liveSessionId;
 
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
@@ -96,8 +98,8 @@ internal sealed class Program
                 rootResult = rootCommand.Parse(mergedArgs, parserConfiguration);
             }
 
-            // 命令行与配置文件都没给出视频地址时，打印用法而不是抛「缺少必需参数」（--help/--version 不产生错误，仍走原流程）
-            if (rootResult.Errors.Count > 0 && !HasUrlArgument(rootResult))
+            // 既无 URL 参数、也无配置文件提供地址时，打印用法而不是抛「缺少必需参数」（--help/--version 不产生错误，仍走原流程）
+            if (!HasUrlArgument(rootResult) && (rootResult.Errors.Count > 0 || string.IsNullOrEmpty(rootResult.GetValue<string>("--config"))))
             {
                 PrintUsageExample( );
                 return 0;
@@ -230,6 +232,15 @@ internal sealed class Program
 
     private static async Task<int> RunApp(DownloadRequest myOption)
     {
+        // b23.tv 短链需展开后再识别形态：专栏/直播为独立链路，展开到对应 URL 才能正确分流
+        // （否则落入通用解析抛"未知 id 类型"）。展开幂等，下游 OpusDownload 二次展开无副作用
+        var url = myOption.Url;
+        if (url.Contains("b23.tv", StringComparison.OrdinalIgnoreCase))
+        {
+            url = await HTTPUtil.GetWebLocationAsync(url, AppEnv.CancellationToken);
+            myOption = myOption with { Url = url };
+        }
+
         // 进程级全局状态只在每次 CLI 运行起点设置一次（serve 模式不在此路径；
         // ServeRequestOptions 已剔除 Debug/UserAgent，故 serve 任务不触碰这些全局，避免并发互相踩踏）。
         Config.SetDebugLog(myOption.Debug);
@@ -282,7 +293,7 @@ internal sealed class Program
             // 交互消费端先于进度条装配：AskBus 订阅在解析期即可能触发（逐集确认），进度条钩子由 CliInteraction 静态属性承载
             using var interaction = new CliInteraction( );
             using var progressBar = new ProgressBar(AppEnv.CancellationToken);
-            await DownloadPipeline.RunAsync(myOption, new PipelineSink(null, null), null, AppEnv.CancellationToken);
+            await DownloadPipeline.RunAsync(myOption, ct: AppEnv.CancellationToken);
             return 0;
         }
         catch (Exception e)

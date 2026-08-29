@@ -306,7 +306,13 @@ public static partial class SubUtil
     {
         StringBuilder lines = new( );
         using var json = JsonDocument.Parse(jsonString);
-        var sub = json.RootElement.GetProperty("body").EnumerateArray( ).ToList( );
+        // 字幕 body 缺失（异常 schema）时降级为空字幕，避免整条字幕保存失败
+        if (!json.RootElement.TryGetProperty("body", out var body))
+        {
+            return "";
+        }
+
+        var sub = body.EnumerateArray( ).ToList( );
         for (var i = 0; i < sub.Count; i++)
         {
             var line = sub[i];
@@ -336,9 +342,10 @@ public static partial class SubUtil
         return TimeSpan.FromSeconds(sec).ToString(@"hh\:mm\:ss\,fff");
     }
 
-    // SRT 无原生转义；正文若恰为 "-->" 会被宽松解析器误判为时间轴分隔符，故替换为视觉等价的长横箭头
+    // SRT 无原生转义；正文内的换行会破坏条目边界（宽松解析器按空行分段），
+    // 恰为 "-->" 又会被误判为时间轴分隔符，故换行替换为空格、箭头替换为视觉等价的长横
     private static string EscapeSrtText(string text)
     {
-        return text.Replace("-->", "—>");
+        return text.Replace("\r", "").Replace("\n", " ").Replace("-->", "—>");
     }
 }

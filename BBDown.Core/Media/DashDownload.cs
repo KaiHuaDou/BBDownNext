@@ -13,6 +13,7 @@ using BBDown.Core.Workflow;
 using static BBDown.Core.Download.DownloadUtil;
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.RetryUtil;
+using static BBDown.Core.Util.Utils;
 
 namespace BBDown.Core.Media;
 
@@ -110,8 +111,12 @@ public static class DashDownload
                 await RetryAsync(
                     async ( ) => await DownloadFileAsync(pageCtx.CoverUrl, newCoverPath, downloadConfig, ct),
                     myOption.MaxRetry, "封面", ct, ex => PageDownload.ShouldRetry(ex, ct));
-                MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
-                sink.Saved?.Invoke(newCoverPath);
+                 MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
+                 // 封面 URL 为空时 DownloadFileAsync 直接返回不写文件，不应当作已保存回报
+                 if (!string.IsNullOrEmpty(pageCtx.CoverUrl))
+                 {
+                     sink.Saved?.Invoke(newCoverPath);
+                 }
             }
             catch (Exception ex)
             {
@@ -181,6 +186,8 @@ public static class DashDownload
         var hasRoleAudio = parsedResult.RoleAudioList.Count != 0;
         var backgroundPath = "";
         List<AudioMaterial> audioMaterial = [];
+        // 成功下载的角色配音，供后续后处理使用；失败角色已清理临时文件、不加入
+        List<AudioMaterialInfo> succeededRoles = [];
         // 主媒体下载窗口：只有音视频轨下载时进度条才显示（阶段内采样经 ProgressBus 上报）
         if (hasVideo || hasAudio || hasBackgroundAudio || hasRoleAudio)
         {
@@ -224,6 +231,8 @@ public static class DashDownload
                 catch (Exception ex)
                 {
                     LogWarn($"背景配音下载失败，已跳过：{ex.Message}");
+                    // 已写入的残缺临时文件未进入 audioMaterial，混流清理不会删除，此处显式清理避免残留
+                    SafeDelete(backgroundPath);
                     backgroundPath = "";
                     hasBackgroundAudio = false;
                 }
@@ -258,10 +267,13 @@ public static class DashDownload
                     catch (Exception ex)
                     {
                         LogWarn($"配音 [{role.Title}] 下载失败，已跳过：{ex.Message}");
+                        // 残缺临时文件未进入 audioMaterial，混流清理不会删除，此处显式清理避免残留
+                        SafeDelete(role.Path);
                         continue;
                     }
 
                     audioMaterial.Add(new AudioMaterial { Title = role.Title, PersonName = role.PersonName, Path = role.Path });
+                    succeededRoles.Add(role);
                 }
             }
         }
@@ -284,13 +296,9 @@ public static class DashDownload
             await TryPostProcessAsync(session, backgroundPath, "background", p.Aid, p.Cid, ct);
         }
 
-        foreach (var role in parsedResult.RoleAudioList)
+        foreach (var role in succeededRoles)
         {
-            var roleAudio = role.Audio.ElementAtOrDefault(aIndex);
-            if (roleAudio != null)
-            {
-                await TryPostProcessAsync(session, role.Path, "role", p.Aid, p.Cid, ct);
-            }
+            await TryPostProcessAsync(session, role.Path, "role", p.Aid, p.Cid, ct);
         }
 
         return (audioMaterial, mux);

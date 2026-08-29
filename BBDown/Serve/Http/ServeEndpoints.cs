@@ -60,7 +60,20 @@ internal static class ServeEndpoints
                 return Results.BadRequest("输入有误");
             }
         }).RequireRateLimiting("taskSubmit");
-        tasks.MapStartEndpoint( );
+        tasks.MapPost("/{id}/start", (string id, TaskStore store) =>
+        {
+            if (!ResourceId.TryParse(id, out var rid))
+            {
+                return Results.NotFound( );
+            }
+
+            return store.Start(rid) switch
+            {
+                StartResult.Started => Results.Ok( ),
+                StartResult.QueueFull => Results.StatusCode(StatusCodes.Status429TooManyRequests),
+                _ => Results.NotFound( )
+            };
+        });
         // 变更类端点必须用 POST/DELETE，不能暴露为 GET，否则与本就全开的 CORS 叠加形成 CSRF（P1-15）
         tasks.MapPost("/{id}/stop", (string id, TaskStore store) =>
         {
@@ -131,26 +144,5 @@ internal static class ServeEndpoints
         app.MapGet("/healthz", (TaskStore store, ServeConfig config) =>
                 Results.Ok(new HealthStatus("ok", store.RunningSnapshot( ).FindAll(t => t.Status != DownloadStatus.Pending).Count, config.Interactive)))
             .AllowAnonymous( );
-    }
-
-    /// <summary>
-    /// 启动 enqueue 暂停的任务：从暂停表取出执行信封投入执行队列（详见 <see cref="TaskStore.Start"/>）。
-    /// </summary>
-    private static void MapStartEndpoint(this RouteGroupBuilder tasks)
-    {
-        tasks.MapPost("/{id}/start", (string id, TaskStore store) =>
-        {
-            if (!ResourceId.TryParse(id, out var rid))
-            {
-                return Results.NotFound( );
-            }
-
-            return store.Start(rid) switch
-            {
-                StartResult.Started => Results.Ok( ),
-                StartResult.QueueFull => Results.StatusCode(StatusCodes.Status429TooManyRequests),
-                _ => Results.NotFound( )
-            };
-        });
     }
 }

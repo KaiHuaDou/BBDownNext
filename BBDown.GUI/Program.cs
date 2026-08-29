@@ -31,6 +31,7 @@ public static class Program
         };
         App.BuildAvaloniaApp( ).SetupWithLifetime(lifetime);
         lifetime.Start(args);
+        lifetime.Dispose( );
     }
 
     private static void ShowErrorDialog(string message, ClassicDesktopStyleApplicationLifetime lifetime)

@@ -88,7 +88,7 @@ public static partial class TrackSelect
                 LogColor($"{index++}. {DescribeVideo(v, pageDur)}", false);
                 if (onlyShowInfo)
                 {
-                    Console.WriteLine(v.BaseUrl);
+                    Log(v.BaseUrl);
                 }
             }
         }
@@ -102,7 +102,7 @@ public static partial class TrackSelect
                 LogColor($"{index++}. {DescribeAudio(a, pageDur)}", false);
                 if (onlyShowInfo)
                 {
-                    Console.WriteLine(a.BaseUrl);
+                    Log(a.BaseUrl);
                 }
             }
         }
@@ -133,7 +133,7 @@ public static partial class TrackSelect
             LogColor($"{index++}. [{v.Dfn}] [{v.Res}] [{v.Codecs}] [{v.Fps}] {kbps}[{FormatFileSize(v.Size)}]".Replace("[] ", ""), false);
             if (onlyShowInfo)
             {
-                clips.ForEach(Console.WriteLine);
+                clips.ForEach(c => Log(c));
             }
         }
     }
