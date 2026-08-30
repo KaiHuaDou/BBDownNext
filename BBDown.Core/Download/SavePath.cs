@@ -83,8 +83,8 @@ public static partial class SavePath
                 "videoBandwidth" => videoTrack == null ? "" : videoTrack.Bandwidth.ToString( ),
                 "audioCodecs" => audioTrack == null ? "" : audioTrack.Codecs,
                 "audioBandwidth" => audioTrack == null ? "" : audioTrack.Bandwidth.ToString( ),
-                "publishDate" => Utils.FormatTimeStamp(pubTime, defaultDateFormat),
-                "videoDate" => Utils.FormatTimeStamp(p.PubTime, defaultDateFormat),
+                "publishDate" => GetValidFileName(Utils.FormatTimeStamp(pubTime, defaultDateFormat)),
+                "videoDate" => GetValidFileName(Utils.FormatTimeStamp(p.PubTime, defaultDateFormat)),
                 "apiType" => apiType.ToString( ).ToUpperInvariant( ),
                 _ => UnknownPlaceholder(key)
             };

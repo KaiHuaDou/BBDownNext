@@ -10,20 +10,21 @@ export interface LogLine {
   isError: boolean
 }
 
-/** 挂起的选项请求（逐集确认 / 选轨等），由 UI 弹窗应答。 */
+/** 挂起的选项请求（逐集确认 / 选轨等），由 UI 弹窗应答。deadline 为服务端 AskBus 超时（ISO），到点本地回落。 */
 export interface PendingAsk {
   requestId: string
   taskId: string
   prompt: string
   options: { id: string; label: string }[]
   defaultOptionId?: string
+  deadline: string
 }
 
 /**
- * 事件流（WebSocket）状态：serve 以 --no-interactive 关闭时降级为 disabled，
- * 任务列表与进度仍由 REST 轮询提供，日志与选项交互不可用。
+ * 事件流（WebSocket）状态：connecting 连接中 / active 已连接并推送 / reconnecting 断开重连中。
+ * serve 事件流始终启用（已移除 --no-interactive），不再有 disabled 降级态。
  */
-export type EventStreamState = 'connecting' | 'active' | 'disabled' | 'reconnecting'
+export type EventStreamState = 'connecting' | 'active' | 'reconnecting'
 
 /** useTasks 返回契约：状态引用 + 任务操作。 */
 export interface TasksState {

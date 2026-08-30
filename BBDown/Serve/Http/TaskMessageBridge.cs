@@ -23,7 +23,7 @@ internal sealed class TaskMessageBridge
 
     private void OnMessage(LogMessage message)
     {
-        // scope 即任务标识字符串（task.Id 的 record ToString），直接命中上下文表，不经解析
+        // scope 即任务标识字符串（ResourceIdJsonConverter.Format 规范串），直接命中上下文表，不经解析
         if (message.Scope is null)
         {
             return;

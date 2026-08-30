@@ -30,11 +30,10 @@ export interface TaskSnapshot {
   finished: DownloadTask[]
 }
 
-/** /healthz 响应；interactive 为 serve 事件流开关（旧版 serve 无此字段时为 undefined）。 */
+/** /healthz 响应（前端已不再轮询，保留类型供外部调用者使用）。 */
 export interface HealthStatus {
   status: string
   running: number
-  interactive?: boolean
 }
 
 /** 混流方式（与 Core MuxMode 枚举小写对齐）。 */
@@ -84,7 +83,6 @@ export interface ServeRequestOptions {
   uposHost: string
   delayPerPage: string
   area: string
-  callBackWebHook?: string
   /** 每个下载项的额外重试次数，缺省回落 3（与 serve ServeRequestOptions.MaxRetry 对齐）。 */
   maxRetry: number
 }
@@ -114,10 +112,12 @@ export type WorkflowEvent =
 
 /** 服务端 → 客户端帧。 */
 export interface EventFrame {
-  kind: 'event' | 'snapshot' | 'choiceResult' | 'error'
+  kind: 'event' | 'snapshot' | 'choiceResult' | 'error' | 'taskList'
   taskId?: string
   event?: WorkflowEvent
   snapshot?: { scope: string; ratio: number; totalBytes: number; speed: number; detail?: string }
+  /** taskList 帧携带的全量任务列表（running + finished），用于免轮询刷新。 */
+  tasks?: TaskSnapshot
   requestId?: string
   ok?: boolean
   error?: string

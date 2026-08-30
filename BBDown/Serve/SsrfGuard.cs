@@ -121,11 +121,20 @@ internal static class SsrfGuard
             return false;
         }
 
-        if (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+        return IsLoopbackHost(uri.Host);
+    }
+
+    /// <summary>
+    /// Host 头是否为字面回环地址。刻意不做 DNS 解析：解析结果正是 DNS rebinding 能操纵的东西，
+    /// 把判定建立在它上面等于把边界交给攻击者。
+    /// </summary>
+    internal static bool IsLoopbackHost(string host)
+    {
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        return IPAddress.TryParse(uri.Host, out var ip) && IPAddress.IsLoopback(ip);
+        return IPAddress.TryParse(host, out var ip) && IPAddress.IsLoopback(ip);
     }
 }

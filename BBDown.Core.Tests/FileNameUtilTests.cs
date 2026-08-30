@@ -56,6 +56,15 @@ public class FileNameUtilTests
         Assert.Equal("_" + input, FileNameUtil.GetValidFileName(input));
     }
 
+    // 占位符的字符集（SavePath.InfoRegex）不含 '/'，替换值里出现分隔符只可能来自服务端数据
+    [Theory]
+    [InlineData("2024/01/02", "2024_01_02")]
+    [InlineData("2024-01-02 03:04:05", "2024-01-02 03_04_05")]
+    public void GetValidFileName_NeutralizesDateFormatResults(string input, string expected)
+    {
+        Assert.Equal(expected, FileNameUtil.GetValidFileName(input));
+    }
+
     [Fact]
     public void GetValidFileName_ConsoleIsNotReserved( )
     {

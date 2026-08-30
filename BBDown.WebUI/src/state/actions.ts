@@ -12,7 +12,7 @@ import { loadCredential } from '../api/login'
 import { errorMessage } from '../lib/errors'
 import { toServeRequest, type TaskOptions } from '../lib/options'
 import type { TaskView } from '../lib/types'
-import { poll, probeHealth, startSocket } from './connection'
+import { startSocket } from './connection'
 import { appendLog } from './snapshot'
 import type { TaskStore } from './store'
 import type { PendingAsk } from './types'
@@ -29,7 +29,6 @@ export async function submit(
     const { task, duplicate } = await submitTask(store.config.value, request, mode)
     store.submittedOptions.set(task.id, { ...options })
     appendLog(store, duplicate ? `任务已存在：${url}` : `任务已受理：${url}`)
-    void poll(store)
     return { taskId: task.id, duplicate }
   } catch (e) {
     appendLog(store, `任务提交失败：${errorMessage(e)}`, true)
@@ -57,16 +56,15 @@ export async function start(store: TaskStore, view: TaskView): Promise<void> {
   }
 }
 
-/** 移除已完成任务；运行中的任务需先取消。 */
+/** 移除收尾态任务（enqueue 暂停 / 已结束）；运行与排队中的任务需先取消。 */
 export async function remove(store: TaskStore, view: TaskView): Promise<void> {
-  if (view.status === 'Running') {
-    appendLog(store, '运行中的任务请先取消')
+  if (view.status === 'Running' || view.status === 'Waiting') {
+    appendLog(store, '进行中的任务请先取消', true)
     return
   }
 
   try {
     await removeTask(store.config.value, view.id)
-    store.tasks.value = store.tasks.value.filter((t) => t.id !== view.id)
   } catch (e) {
     appendLog(store, `移除失败：${errorMessage(e)}`, true)
   }
@@ -85,9 +83,6 @@ export async function retry(
 export async function clearAll(store: TaskStore): Promise<void> {
   try {
     await clearFinished(store.config.value)
-    store.tasks.value = store.tasks.value.filter(
-      (t) => t.status === 'Running' || t.status === 'Waiting'
-    )
   } catch (e) {
     appendLog(store, `清空失败：${errorMessage(e)}`, true)
   }
@@ -97,7 +92,6 @@ export async function clearAll(store: TaskStore): Promise<void> {
 export async function clearFailed(store: TaskStore): Promise<void> {
   try {
     await clearFailedRemote(store.config.value)
-    store.tasks.value = store.tasks.value.filter((t) => t.status !== 'Failed')
   } catch (e) {
     appendLog(store, `清空失败：${errorMessage(e)}`, true)
   }
@@ -115,8 +109,6 @@ export function applyConfig(store: TaskStore, next: ServeConfig): void {
   store.config.value = next
   saveServeConfig(next)
   startSocket(store)
-  void probeHealth(store)
-  void poll(store)
 }
 
 /** 导出日志为文本文件下载。 */

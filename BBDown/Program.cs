@@ -175,10 +175,6 @@ internal sealed class Program
             {
                 Description = "同时下载的任务数上限，默认 0 表示不限制；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队，单个任务内部的下载并行度由多线程下载器自行决定",
                 DefaultValueFactory = _ => 0,
-            },
-            new Option<bool>("--no-interactive", ["-ni"])
-            {
-                Description = "关闭任务事件流（WebSocket /hubs/tasks 推送消息 / 进度 / 选项请求）。默认开启，加此选项则服务端不推送事件流，无额外开销"
             }
         };
         command.SetAction(result => Task.FromResult(StartServer(new ServeConfig(
@@ -189,8 +185,7 @@ internal sealed class Program
             result.GetValue<string>("--ep-host"),
             result.GetValue<string>("--tv-host"),
             result.GetValue<string>("--cors-origin"),
-            result.GetValue<int>("--max-concurrent"),
-            !result.GetValue<bool>("--no-interactive")))));
+            result.GetValue<int>("--max-concurrent")))));
         return command;
     }
 

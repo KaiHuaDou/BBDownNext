@@ -36,7 +36,7 @@ public static class LiveSegmentWriter
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        HTTPUtil.AddLiveStreamHeaders(request, cookie);
+        BiliHeaders.AddLiveStreamHeaders(request, cookie);
 
         HttpResponseMessage response;
         try

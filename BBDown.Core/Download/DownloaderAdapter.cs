@@ -122,7 +122,7 @@ internal sealed class DownloadHeaderHandler(HttpMessageHandler inner, string coo
     {
         // 缺 UA 的请求会被 B 站 CDN 直接 403 拒绝
         request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
-        if (!HTTPUtil.IsAndroidPlatformUrl(request.RequestUri!.AbsoluteUri))
+        if (!BiliHeaders.IsAndroidPlatformUrl(request.RequestUri!.AbsoluteUri))
         {
             request.Headers.TryAddWithoutValidation("Referer", BiliApi.Site);
         }

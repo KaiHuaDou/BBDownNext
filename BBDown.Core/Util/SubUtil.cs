@@ -207,7 +207,9 @@ public static partial class SubUtil
     {
         return [.. array.EnumerateArray( ).Select(sub =>
         {
-            var lan = sub.GetProperty(lanKey).ToString( );
+            // lan 来自响应体（镜像站 / --insecure 下由对端控制），且会被拼进落盘路径，
+            // 故在产生处一次净化：下游的混流内嵌与产物命名一律使用净化后的值
+            var lan = FileNameUtil.GetValidFileName(sub.GetProperty(lanKey).ToString( ));
             var url = sub.GetProperty(urlKey).ToString( ).Replace("\\\\/", "/");
             // 国际版只有 json 接口给的是可转 srt 的结构，其余是 ass 成品
             var ext = !intl || url.Contains(".json") ? ".srt" : ".ass";
@@ -280,11 +282,15 @@ public static partial class SubUtil
             Type = 1,
             Spmid = "main.ugc-video-detail.0.0",
         }.ToByteArray( ));
-        var headers = AppHelper.GetHeader(cfg, "app.biliapi.net");
+        var headers = AppHelper.GetHeader(cfg, BiliApi.GrpcDmView);
         var body = GrpcUtil.ReadMessage(await GetPostResponseAsync(BiliApi.GrpcDmView, payload, headers, ct));
         var reply = new MessageParser<DmViewReply>(( ) => new DmViewReply( )).ParseFrom(body);
         return reply.Subtitle?.Subtitles?
-            .Select(s => new Subtitle { Lan = s.Lan, Url = s.SubtitleUrl, Path = $"{pathPrefix}.{s.Lan}.srt" })
+            .Select(s =>
+            {
+                var lan = FileNameUtil.GetValidFileName(s.Lan);
+                return new Subtitle { Lan = lan, Url = s.SubtitleUrl, Path = $"{pathPrefix}.{lan}.srt" };
+            })
             .ToList( ) ?? [];
     }
 

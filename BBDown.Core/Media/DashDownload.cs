@@ -111,12 +111,12 @@ public static class DashDownload
                 await RetryAsync(
                     async ( ) => await DownloadFileAsync(pageCtx.CoverUrl, newCoverPath, downloadConfig, ct),
                     myOption.MaxRetry, "封面", ct, ex => PageDownload.ShouldRetry(ex, ct));
-                 MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
-                 // 封面 URL 为空时 DownloadFileAsync 直接返回不写文件，不应当作已保存回报
-                 if (!string.IsNullOrEmpty(pageCtx.CoverUrl))
-                 {
-                     sink.Saved?.Invoke(newCoverPath);
-                 }
+                MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
+                // 封面 URL 为空时 DownloadFileAsync 直接返回不写文件，不应当作已保存回报
+                if (!string.IsNullOrEmpty(pageCtx.CoverUrl))
+                {
+                    sink.Saved?.Invoke(newCoverPath);
+                }
             }
             catch (Exception ex)
             {

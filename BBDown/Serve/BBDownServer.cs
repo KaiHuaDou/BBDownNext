@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading.RateLimiting;
-using System.Threading.Tasks;
 
 using BBDown.Serve.Http;
 using BBDown.Serve.Tasks;
@@ -24,8 +23,9 @@ public class BBDownServer
     private static readonly TimeSpan AuthFailureWindow = TimeSpan.FromMinutes(1);
     private const int AuthFailureCap = 1024;
 
-    // 认证失败滑动窗口（实例级：每个服务实例独立限速）：每 IP 每分钟 5 次，超限 429（防令牌暴力）
-    private readonly ConcurrentDictionary<string, (int Count, DateTimeOffset Start)> authFailures = new( );
+    // 认证失败滑动窗口（实例级：每个服务实例独立限速）：每 IP 每分钟 5 次，超限 429（防令牌暴力）。
+    // 第二项是最后一次失败时刻，既用于判定窗口是否过期，也用于超限时的淘汰排序
+    private readonly ConcurrentDictionary<string, (int Count, DateTimeOffset Last)> authFailures = new( );
 
     private WebApplication? app;
     private string? serveToken;
@@ -86,8 +86,9 @@ public class BBDownServer
         builder.Services.ConfigureHttpJsonOptions((options) => options.SerializerOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(options.SerializerOptions.TypeInfoResolver, AppJsonSerializerContext.Default));
 
         // CORS：放行回环来源（127.0.0.1 / localhost）与显式 --cors-origin 的浏览器请求。
-        // 安全前提：CORS 校验的是请求方 Origin 而非目标地址，恶意网页（非回环 Origin）依旧无 ACAO 头被浏览器拦截；
-        // 回环信任假设与写端点 / WebSocket 的 Origin 校验（IsAllowedOrigin）保持一致，DNS rebinding 按 Origin 头判定可防。
+        // 安全前提：CORS 校验的是请求方 Origin 而非目标地址，恶意网页（非回环 Origin）依旧无 ACAO 头被浏览器拦截。
+        // 注意它挡不住 DNS rebinding——攻击者域名解析到 127.0.0.1 后，页面发起的是「同源」请求，
+        // 同源 GET 不携带 Origin。该场景由下面的 Host 头白名单兜底。
         builder.Services.AddCors((options) =>
         {
             options.AddPolicy("AllowSpecificOrigin",
@@ -144,12 +145,9 @@ public class BBDownServer
 
         app = builder.Build( );
 
-        // 交互开启时：日志消息经桥接器按任务路由进事件流（WebSocket）。
-        // 桥接器被静态订阅强持有，存活至进程退出，无需字段引用或释放。
-        if (config.Interactive)
-        {
-            _ = new TaskMessageBridge(app.Services.GetRequiredService<TaskStore>( ));
-        }
+        // 日志消息经桥接器按任务路由进事件流（WebSocket）。事件流始终启用，桥接器被静态订阅强持有，
+        // 存活至进程退出，无需字段引用或释放。
+        _ = new TaskMessageBridge(app.Services.GetRequiredService<TaskStore>( ));
 
         // 安全响应头：所有响应（含 4xx）统一携带
         app.Use(async (context, next) =>
@@ -161,6 +159,22 @@ public class BBDownServer
             context.Response.Headers.ContentSecurityPolicy = "default-src 'none'";
             await next( );
         });
+
+        // 免令牌时 serve 的信任边界就是「回环直连」，按请求目标的 Host 头判定：
+        // 读端点（GET）拿不到 Origin（见上方 CORS 注释），只能靠 Host 把 rebinding 挡在外面。
+        // 带令牌时跳过——此时认证才是边界，Host 可能是反向代理的域名。
+        // 置于限流之前：连本机都不该来的请求不配消耗限流配额
+        app.Use(async (context, next) =>
+        {
+            if (!authRequired && !SsrfGuard.IsLoopbackHost(context.Request.Host.Host))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+
+            await next( );
+        });
+
         app.UseCors("AllowSpecificOrigin");
 
         app.UseRateLimiter( );
@@ -231,18 +245,47 @@ public class BBDownServer
     {
         var now = DateTimeOffset.UtcNow;
         var (count, _) = authFailures.AddOrUpdate(ip, (1, now), (_, v) =>
-            now - v.Start > AuthFailureWindow ? (1, now) : (v.Count + 1, v.Start));
+            now - v.Last > AuthFailureWindow ? (1, now) : (v.Count + 1, now));
         if (count > AuthFailureLimit)
         {
             return true;
         }
 
-        // 防条目无限增长：超上限整体清空（滑动窗口语义下影响有限）
-        if (authFailures.Count > AuthFailureCap)
+        TrimAuthFailures(now);
+        return false;
+    }
+
+    /// <summary>
+    /// 把失败记录压回条目上限。只清过期条目约束不住规模：用大量一次性 IP / XFF 值轰炸时
+    /// 每条都是「刚刚失败」，永远不会过期。故先清过期，仍超限则按最后失败时间淘汰最旧的部分——
+    /// 整体清空会把攻击者的计数一并重置，等于周期性放宽限速。
+    /// </summary>
+    private void TrimAuthFailures(DateTimeOffset now)
+    {
+        if (authFailures.Count <= AuthFailureCap)
         {
-            authFailures.Clear( );
+            return;
         }
 
-        return false;
+        foreach (var (key, (_, last)) in authFailures)
+        {
+            if (now - last > AuthFailureWindow)
+            {
+                authFailures.TryRemove(key, out _);
+            }
+        }
+
+        if (authFailures.Count <= AuthFailureCap)
+        {
+            return;
+        }
+
+        foreach (var key in authFailures.OrderBy(kv => kv.Value.Last)
+                     .Take(authFailures.Count - AuthFailureCap)
+                     .Select(kv => kv.Key)
+                     .ToList( ))
+        {
+            authFailures.TryRemove(key, out _);
+        }
     }
 }

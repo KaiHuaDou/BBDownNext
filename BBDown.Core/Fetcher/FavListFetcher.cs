@@ -54,8 +54,6 @@ public static class FavListFetcher
         var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
         var data = GetApiData(infoJson.RootElement, "收藏夹信息");
-        var totalCount = data.GetProperty("info").GetProperty("media_count").GetInt32( );
-        var totalPage = (int) Math.Ceiling((double) totalCount / pageSize);
         var title = data.GetProperty("info").GetProperty("title").GetString( )!;
         var intro = data.GetProperty("info").GetProperty("intro").GetString( )!;
         var pubTime = data.GetProperty("info").GetProperty("ctime").GetInt64( );
@@ -69,13 +67,24 @@ public static class FavListFetcher
             throw new InvalidOperationException($"收藏夹 {favId} 中没有可下载的视频");
         }
 
-        for (var page = 2; page <= totalPage; page++)
+        // 终止条件只看实际返回量，不看 media_count：该计数偏大时按页数翻会把空页一路请求到底
+        //（请求洪泛），偏小时又会漏掉后面的收藏。不满一页即已到底，空页同样命中
+        var page = 2;
+        while (true)
         {
             api = $"{BiliApi.FavResourceList}?media_id={favId}&pn={page}&ps={pageSize}&order=mtime&type=2&tid=0&platform=web";
             json = await GetWebSourceAsync(api, cfg, null, ct);
             // medias 元素要在循环外继续使用，Clone 后才能安全释放 jsonDoc
             using var jsonDoc = JsonDocument.Parse(json);
-            medias.AddRange(EnumerateArrayOrEmpty(GetApiData(jsonDoc.RootElement, "收藏夹信息").GetProperty("medias")).Select(m => m.Clone( )));
+            var batch = EnumerateArrayOrEmpty(GetApiData(jsonDoc.RootElement, "收藏夹信息").GetProperty("medias")).Select(m => m.Clone( )).ToList( );
+            medias.AddRange(batch);
+            // 不满一页即已到底（空页同样命中），继续翻只会拿到空响应
+            if (batch.Count < pageSize)
+            {
+                break;
+            }
+
+            page++;
         }
 
         // 多 P 视频此前逐个串行发 view 拿分 P 列表，N 个多 P = N 次串行 RTT；改为限并发并行拉取。

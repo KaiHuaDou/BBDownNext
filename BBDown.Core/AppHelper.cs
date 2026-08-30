@@ -52,7 +52,7 @@ internal static class AppHelper
     public static async Task<PlayViewReply> DoReqAsync(string aid, string cid, string epId, bool bangumi, string encoding, AppConfig cfg, CancellationToken ct = default)
     {
         var api = bangumi ? BiliApi.GrpcPgcPlayView : BiliApi.GrpcPlayView;
-        var headers = GetHeader(cfg, new Uri(api).Host);
+        var headers = GetHeader(cfg, api);
         // header 含 authorization(identify_v1 <token>) 等凭据，落盘前打码，避免明文 token 进调试日志
         LogDebug("App-Req-Headers: {0}", Redactor.Headers(headers));
         byte[] data;
@@ -97,11 +97,13 @@ internal static class AppHelper
         return GrpcUtil.PackMessage(obj.ToByteArray( ));
     }
 
-    internal static Dictionary<string, string> GetHeader(AppConfig cfg, string host)
+    // 入参是完整端点地址而非主机名：Host 头必须与 TLS 的 SNI 一致，
+    // 交给调用方传主机名就会出现「Host 写死、目标已迁移」的不一致（P1 遗留形态）
+    internal static Dictionary<string, string> GetHeader(AppConfig cfg, string api)
     {
         var headers = new Dictionary<string, string>( )
         {
-            ["Host"] = host,
+            ["Host"] = new Uri(api).Host,
             ["user-agent"] = $"Dalvik/{dalvikVer} (Linux; U; Android {osVer}; {brand} {model}) {appVer} os/android model/{brand} mobi_app/android build/{build} channel/{channel} innerVer/{build} osVer/{osVer} network/2 grpc-java-cronet/{cronet}",
             ["te"] = "trailers",
             ["x-bili-fawkes-req-bin"] = GenerateFawkesReqBin( ),

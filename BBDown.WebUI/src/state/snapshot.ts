@@ -36,7 +36,8 @@ export function handleEvent(store: TaskStore, taskId: string, event: WorkflowEve
           taskId: event.scope,
           prompt: event.prompt,
           options: event.options,
-          defaultOptionId: event.defaultOptionId
+          defaultOptionId: event.defaultOptionId,
+          deadline: event.deadline
         })
       }
 
@@ -102,4 +103,20 @@ export function applySnapshot(store: TaskStore, snapshot: TaskSnapshot): void {
 
   store.tasks.value = views
   syncSubscriptions(store, running)
+  pruneDeadState(
+    store,
+    running,
+    snapshot.finished.map((t) => t.id)
+  )
+}
+
+// 挂起提问与重试选项快照只属于存活任务：任务结束后剔除，避免交互 / 重试相关状态常驻堆积
+function pruneDeadState(store: TaskStore, runningIds: string[], finishedIds: string[]): void {
+  const alive = new Set([...runningIds, ...finishedIds])
+  store.pendingAsks.value = store.pendingAsks.value.filter((ask) => alive.has(ask.taskId))
+  for (const id of store.submittedOptions.keys()) {
+    if (!alive.has(id)) {
+      store.submittedOptions.delete(id)
+    }
+  }
 }

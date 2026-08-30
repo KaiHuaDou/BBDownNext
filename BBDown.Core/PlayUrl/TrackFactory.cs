@@ -2,9 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 using BBDown.Core.Entity;
+
+using static BBDown.Core.Util.Utils;
 
 namespace BBDown.Core.PlayUrl;
 
@@ -62,8 +63,7 @@ internal static partial class TrackFactory
         return urlList.FirstOrDefault(i => !PcdnRegex( ).IsMatch(i), urlList[0]);
     }
 
-    internal static string VideoCodec(string code)
-    {
+    internal static string VideoCodec(string code)    {
         return code switch
         {
             "13" => "AV1",
@@ -84,8 +84,4 @@ internal static partial class TrackFactory
             _ => codecs
         };
     }
-
-    // 仅当 authority 部分带显式端口（如 http://host:8080）才识别为 PCDN，避免误命中带数字查询参数的普通 URL（P2）
-    [GeneratedRegex("^https?://[^/]*:\\d+")]
-    private static partial Regex PcdnRegex( );
 }

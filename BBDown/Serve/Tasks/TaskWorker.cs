@@ -27,7 +27,7 @@ internal sealed partial class TaskWorker : BackgroundService
     private readonly TaskQueue queue;
     private readonly TaskStore store;
     private readonly SemaphoreSlim? gate;   // null = 不限制（历史行为）
-    // scope（task.Id 的 record ToString）→ 任务：进度样本按字符串匹配回写，不经 ResourceId 解析
+    // scope（ResourceIdJsonConverter.Format 规范串）→ 任务：进度样本按字符串匹配回写，不经 ResourceId 解析
     private readonly ConcurrentDictionary<string, DownloadTask> byScope = new( );
 
     public TaskWorker(TaskQueue queue, TaskStore store, int maxConcurrent)
@@ -106,12 +106,14 @@ internal sealed partial class TaskWorker : BackgroundService
         if (gate is null)
         {
             task.Status = DownloadStatus.Running;
+            store.NotifyChanged();
             await download( );
             return;
         }
 
         await gate.WaitAsync(token);
         task.Status = DownloadStatus.Running;
+        store.NotifyChanged();
         try
         {
             await download( );
@@ -213,7 +215,7 @@ internal sealed partial class TaskWorker : BackgroundService
     }
 
     // 按任务类型分发执行：直播 / 专栏走独立链路（不经 DownloadPipeline），消息 / 进度仍经总线 +
-    // scope（record ToString）路由进事件流，与普通下载一致；LiveTarget 由受理时解析出的房间号直接构造，
+    // scope（ResourceIdJsonConverter.Format 规范串）路由进事件流，与普通下载一致；LiveTarget 由受理时解析出的房间号直接构造，
     // 不重解析 URL（原始 URL 可能是 b23 短链，LiveInputResolver 认不出）
     private async Task RunDownloadAsync(DownloadTask task, TaskEnvelope envelope)
     {

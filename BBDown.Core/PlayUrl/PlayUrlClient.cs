@@ -53,6 +53,14 @@ internal static partial class PlayUrlClient
         return await FetchFromWebPageAsync(req, ct);
     }
 
+    // 播放页地址：主机随 --ep-host 走。镜像站用户命中大会员限制时，
+    // 若回退到硬编码的官方域名会被重定向回可能不可达的官方站，该兜底等于失效
+    internal static string BuildWebPageUrl(bool cheese, string epId, string epHost)
+    {
+        var host = epHost == BiliApi.MainHost ? BiliApi.Site : $"https://{epHost}";
+        return $"{host}{(cheese ? BiliApi.CheesePlayPath : BiliApi.BangumiPlayPath)}/ep{epId}";
+    }
+
     // 大会员专享限制时, 改从网页源码抠 window.__playinfo__。
     // 与正常 API 路径解耦为独立方法, 并按 cheese / 番剧构造正确的播放页地址,
     // 匹配失败时抛明确异常(而非返回空串导致后续 JSON 解析报莫名其妙的错)。
@@ -60,9 +68,7 @@ internal static partial class PlayUrlClient
     {
         // 调用方 FetchAsync 已保证仅番剧/课程走此兜底（UGC 无 ep_id 会提前抛可读错误），
         // 此处只负责按 ep 构造播放页地址并抠取 window.__playinfo__
-        var pageUrl = req.IsCheese
-            ? $"{BiliApi.CheesePlayPage}/ep{req.EpId}"
-            : $"{BiliApi.BangumiPlayPage}/ep{req.EpId}";
+        var pageUrl = BuildWebPageUrl(req.IsCheese, req.EpId, req.Cfg.EpHost);
         var webSource = await GetWebSourceAsync(pageUrl, req.Cfg, null, ct);
         var match = PlayerJsonRegex( ).Match(webSource);
         if (!match.Success)

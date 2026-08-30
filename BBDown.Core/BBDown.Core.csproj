@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>library</OutputType>
         <!-- 主项目的 AOT 配置在 BBDown/Directory.Build.props 里，不覆盖 Core；单独开启才能在编译 Core 时就跑 AOT/Trim 分析器 -->

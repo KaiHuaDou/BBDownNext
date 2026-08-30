@@ -58,6 +58,24 @@ public class SubUtilTests
         Assert.Empty(Read("[]", "lan", "subtitle_url", "1/1.2", false));
     }
 
+    // lan 由响应体给出（镜像站 / --insecure 下由对端控制），且会拼进落盘路径，
+    // 必须在产生处净化，否则可借 '..' 与分隔符把字幕写出工作目录
+    [Theory]
+    [InlineData("../../evil")]
+    [InlineData(@"..\\evil")]
+    [InlineData("a/b/c")]
+    public void ReadSubtitles_SanitizesLanBeforeBuildingPath(string lan)
+    {
+        var subs = Read($$"""[{"lan":"{{lan}}","subtitle_url":"https://x/a.json"}]""", "lan", "subtitle_url", "1/1.2", false);
+        var sub = Assert.Single(subs);
+        // 前缀 '1/1.2' 本身带目录分隔符，只看最后一段
+        var fileName = sub.Path[(sub.Path.LastIndexOf('/') + 1)..];
+
+        Assert.DoesNotContain('/', fileName);
+        Assert.DoesNotContain('\\', fileName);
+        Assert.EndsWith($"{sub.Lan}.srt", sub.Path);
+    }
+
     private static List<Subtitle> Subs(params string[] urls)
     {
         return urls.Select((url, i) => new Subtitle { Lan = $"l{i}", Url = url, Path = $"p{i}" }).ToList( );

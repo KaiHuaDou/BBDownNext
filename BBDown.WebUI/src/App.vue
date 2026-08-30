@@ -172,7 +172,9 @@ const onSavedCredential = (next: Credential): void => {
             ><input
               type="checkbox"
               :checked="contentChecked.has(item.ch)"
-              @change="toggleContent(item.ch, ($event.target as HTMLInputElement).checked)" />{{ item.name }}
+              @change="toggleContent(item.ch, ($event.target as HTMLInputElement).checked)" />{{
+              item.name
+            }}
             ({{ item.ch }})</label
           >
         </div>
@@ -186,7 +188,6 @@ const onSavedCredential = (next: Credential): void => {
             </div>
             <OptionsPanel
               v-model="options"
-              :interactive-available="eventStream !== 'disabled'"
               :class="{ 'pointer-events-none opacity-50': options.infoOnly }" />
           </div>
         </div>
@@ -237,12 +238,6 @@ const onSavedCredential = (next: Credential): void => {
         <!-- 日志区 -->
         <details open class="option-group">
           <summary class="option-header">日志</summary>
-          <p
-            v-if="eventStream === 'disabled'"
-            class="border-b border-[#3c3c3c] px-3 py-1.5 text-xs leading-relaxed text-[#c9a227]">
-            serve 以 --no-interactive
-            关闭事件流：下载日志与选项交互不可用，任务状态与进度由轮询提供。
-          </p>
           <LogPanel :log-lines="logLines" @export="exportLog" />
         </details>
       </div>

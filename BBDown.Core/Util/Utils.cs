@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -202,7 +203,9 @@ public static partial class Utils
     {
         try
         {
-            return ts == 0 ? "null" : DateTimeOffset.FromUnixTimeSeconds(ts).ToLocalTime( ).ToString(format);
+            // 格式串由用户书写，':' 等自定义格式符按 CurrentCulture 解析（如 fi-FI 的时间分隔符是 '.'），
+            // 产出的文件名会随机器区域设置漂移，故一律按不变文化格式化
+            return ts == 0 ? "null" : DateTimeOffset.FromUnixTimeSeconds(ts).ToLocalTime( ).ToString(format, CultureInfo.InvariantCulture);
         }
         catch (Exception ex)
         {
@@ -235,7 +238,8 @@ public static partial class Utils
         };
         p.Start( );
         p.BeginErrorReadLine( );
-        await using var _ = ct.Register(( ) => { try { p.Kill( ); } catch { } });
+        // 子进程可能派生继承句柄的孙进程，只杀直接进程会留下占用文件与带宽的孤儿
+        await using var _ = ct.Register(( ) => { try { p.Kill(true); } catch { } });
         await p.WaitForExitAsync(ct);
         return p.ExitCode;
     }
@@ -245,6 +249,18 @@ public static partial class Utils
         return string.Join(' ', args.Select(a => a.Length == 0 || a.Contains(' ') ? $"\"{a}\"" : a));
     }
 
-    [GeneratedRegex("(^|&)?(\\w+)=([^&]+)(&|$)?", RegexOptions.Compiled)]
+    /// <summary>
+    /// 提取番剧/播放页面源码中 window.__INITIAL_STATE__ 内嵌的 JSON。
+    /// </summary>
+    [GeneratedRegex("window.__INITIAL_STATE__=([\\s\\S].*?);\\(function\\(\\)")]
+    public static partial Regex InitialStateRegex( );
+
+    /// <summary>
+    /// 识别 authority 带显式端口（如 http://host:8080）的 PCDN 域名。
+    /// </summary>
+    [GeneratedRegex("://[^/]+:\\d+/")]
+    public static partial Regex PcdnRegex( );
+
+    [GeneratedRegex("(^|&)?(\\w+)=([^&]+)(&|$)?")]
     private static partial Regex QueryRegex( );
 }

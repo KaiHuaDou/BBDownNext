@@ -1,17 +1,21 @@
-import { fetchHealth, fetchTasks } from '../api/client'
+import { fetchHealth } from '../api/client'
 import { connectTaskSocket } from '../api/ws'
 import { errorMessage } from '../lib/errors'
 import { appendLog, applySnapshot, applySample, handleEvent } from './snapshot'
 import type { TaskStore } from './store'
 
-const POLL_INTERVAL_MS = 2000
-const HEALTH_INTERVAL_MS = 10000
-
 /**
- * 订阅失败文案哨兵：serve 以 --no-interactive 关闭时订阅返回该文案，据此降级为 disabled。
- * 与 serve TasksSocket 的 error 帧文案契约绑定，serve 改文案须同步此处。
+ * 任务状态完全由 WebSocket 事件流订阅驱动，不再有任何任务列表轮询：
+ * - taskList 帧（serve 结构变更时推送）提供全量任务列表，免轮询刷新；
+ * - snapshot / event 帧提供运行期进度与日志；
+ * serve 事件流始终启用（已移除 --no-interactive），故无 disabled 降级态。
+ *
+ * 仅保留「保活轮询」：每 60s 探一次 /healthz，仅用于感知 serve 存活（连接状态指示灯），
+ * 不参与任务列表——任务列表与完成态一律由 WS 推送。
  */
-const INTERACTIVE_DISABLED_MARKER = '未启用交互'
+
+/** 保活轮询间隔：仅探测 serve 存活，低频（60s）不影响实时性。 */
+const HEALTH_INTERVAL_MS = 60000
 
 /** 建立 / 重建事件流：清空订阅与挂起，按当前配置连接 WS。 */
 export function startSocket(store: TaskStore): void {
@@ -23,15 +27,17 @@ export function startSocket(store: TaskStore): void {
   store.socket = connectTaskSocket(store.config.value, {
     onEvent: (taskId, event) => handleEvent(store, taskId, event),
     onSnapshot: (taskId, snapshot) => applySample(store, taskId, snapshot),
+    // taskList 帧：serve 结构变更（增删 / 状态切换 / 完成 / 清空）时推送的全量列表，免轮询刷新
+    onTaskList: (snapshot) => applySnapshot(store, snapshot),
     onChoiceResult: (requestId, ok, error) => {
       if (!ok) {
         appendLog(store, `选项应答失败（${requestId}）：${error ?? '未知原因'}`, true)
       }
     },
-    // 连接生命周期与 REST 连接状态分离：WS 异常不污染 connectionError（healthz 轮询会覆盖）
+    // 连接生命周期即事件流状态：null = 已连接（active）；非 null = 断开 / 重连中。
+    // 注意：连接存活指示灯（connected）由保活轮询 probeHealth 负责，此处不改动，避免双写冲突。
     onStatus: (error) => {
       if (error) {
-        // 重连期间反复断开只在首次记录，避免日志区刷屏
         if (store.eventStream.value !== 'reconnecting') {
           appendLog(store, error, true)
         }
@@ -41,70 +47,38 @@ export function startSocket(store: TaskStore): void {
         store.eventStream.value = 'active'
       }
     },
-    // 订阅失败：事件流未启用时降级为禁用并停止重连，任务状态仍由轮询提供
+    // 订阅失败（任务不存在 / 已结束）：仅记录，不影响连接；任务状态仍由 taskList 帧推送
     onSubscribeError: (error) => {
-      if (error.includes(INTERACTIVE_DISABLED_MARKER)) {
-        store.eventStream.value = 'disabled'
-        store.socket?.disable()
-      } else {
-        appendLog(store, `任务订阅失败：${error}`, true)
-      }
+      appendLog(store, `任务订阅失败：${error}`, true)
     }
   })
   store.socket.connect()
 }
 
-/** 健康检查：连接状态 + 读 interactive 开关决定事件流启用。 */
+/** 保活轮询：仅探测 serve 存活，更新连接指示灯；不参与任务列表（任务由 WS 推送）。 */
 export async function probeHealth(store: TaskStore): Promise<void> {
   try {
-    const health = await fetchHealth(store.config.value)
+    await fetchHealth(store.config.value)
     store.connected.value = true
     store.connectionError.value = null
-    // healthz 暴露事件流开关：--no-interactive 关闭时无需保持 WS 连接（订阅探测依赖有运行任务，空列表时不可靠）；
-    // 旧版 serve 无该字段（undefined）时回退订阅探测行为
-    if (health.interactive === false) {
-      store.eventStream.value = 'disabled'
-      store.socket?.close()
-    } else if (store.eventStream.value === 'disabled') {
-      // serve 重启且未以 --no-interactive 关闭后自动重建事件流，无需手动改配置
-      startSocket(store)
-    }
   } catch (e) {
     store.connected.value = false
     store.connectionError.value = errorMessage(e)
   }
 }
 
-/** REST 轮询：拉全量快照并合并。 */
-export async function poll(store: TaskStore): Promise<void> {
-  try {
-    const snapshot = await fetchTasks(store.config.value)
-    store.connected.value = true
-    store.connectionError.value = null
-    applySnapshot(store, snapshot)
-  } catch (e) {
-    store.connected.value = false
-    store.connectionError.value = errorMessage(e)
-  }
-}
-
-/** 启动轮询与事件流定时器。 */
+/** 启动事件流与保活轮询。任务列表与完成态完全由 WS 订阅驱动，保活轮询仅用于存活探测。 */
 export function startTimers(store: TaskStore): void {
   void probeHealth(store)
-  void poll(store)
-  store.pollTimer = setInterval(() => void poll(store), POLL_INTERVAL_MS)
   store.healthTimer = setInterval(() => void probeHealth(store), HEALTH_INTERVAL_MS)
   startSocket(store)
 }
 
-/** 停止全部定时器并关闭事件流。 */
+/** 停止事件流与保活轮询。 */
 export function stopTimers(store: TaskStore): void {
-  if (store.pollTimer) {
-    clearInterval(store.pollTimer)
-  }
-
   if (store.healthTimer) {
     clearInterval(store.healthTimer)
+    store.healthTimer = null
   }
 
   store.socket?.close()

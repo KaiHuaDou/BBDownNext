@@ -24,9 +24,9 @@
     - 内容字符勾选：提交区补齐 12 个内容复选框（音频 / 视频 / 独立封面 / 封面嵌入 / 弹幕 / 专栏图片 / 嵌入元数据 / YAML front matter / 评论 / 全部评论 / AI 字幕 / 字幕），3 列网格布局对齐 GUI；`content` 字符串按 Core 规范顺序维护，专栏模式仅 `i` / `M` 生效，其余字符自然失效。
     - 任务类型标识：任务列表按规范 id 前缀显示资源类型（视频 / 番剧 / 专栏 / 直播 / 课程 / 空间 / 收藏 / 合集 / 系列 / 稍后再看），与 Core `ResourceId` 规范形态一致。
     - 提交拆为「加入并执行」与「加入队列」：后者经 `?mode=enqueue` 提交、`Pending` 状态可经任务项的「启动」按钮调 `startTask` 触发；任务列表状态栏新增 `Pending` 计数。
-    - 状态层重写：`state/` 拆分为 `store`（全局状态）/ `types` / `snapshot`（轮询快照归一）/ `taskView`（任务 → 视图模型，含 `ResourceId` 前缀识别）/ `connection`（WebSocket 订阅与重连）/ `actions`（提交 / 取消 / 移除 / 启动）/ `useTasks`（组合式封装），`useTasks.ts` 大幅瘦身。
-    - 网络层：`api/client.ts` 的 `submitTask` 接受 `mode` 参数并新增 `startTask`；`api/ws.ts` 重构为显式状态机并新增 `disable`（serve 声明不支持交互时停止重连、避免抖动）；新增 `lib/storage.ts`（localStorage 读写封装，取代散落的 `localStorage` 直接调用）。
-    - 选项面板接收 `interactive-available`（事件流关闭时禁用交互选项）；`lib/options.ts` 新增 `maxRetry`，`lib/format.ts` 修正 ETA 折算。
+    - 状态层重写：`state/` 拆分为 `store`（全局状态）/ `types` / `snapshot`（事件流帧 → 视图模型归一）/ `taskView`（任务 → 视图模型，含 `ResourceId` 前缀识别）/ `connection`（WebSocket 订阅与重连）/ `actions`（提交 / 取消 / 移除 / 启动）/ `useTasks`（组合式封装），`useTasks.ts` 大幅瘦身。
+    - 网络层：`api/client.ts` 的 `submitTask` 接受 `mode` 参数并新增 `startTask`；`api/ws.ts` 重构为显式状态机（connecting / active / reconnecting，无 `disabled` 降级态）；任务列表与完成态由 `taskList` 帧推送驱动，移除 REST 轮询；新增 `lib/storage.ts`（localStorage 读写封装，取代散落的 `localStorage` 直接调用）。
+    - 事件流始终开启：选项面板不再接收 `interactive-available`（无关闭通道的概念），任务交互选项恒可点击；`lib/options.ts` 新增 `maxRetry`，`lib/format.ts` 修正 ETA 折算。
 
 ### 重构
 
@@ -35,9 +35,10 @@
     - `MainWindow` 按职责拆分为分部类：`MainWindow.Download.cs`（单任务下载执行 `ExecuteTaskAsync`）、`MainWindow.Progress.cs`（进度 / ETA / 标题回投，含 `byIndex` 索引避免线性扫描任务列表）、`MainWindow.Tasks.cs`（任务列表刷新维护 `byIndex`）。
     - `QueueRunner` 执行循环拆入 `QueueRunner.Execute.cs`；`Concurrency` setter 调大时主动放行一个等待槽，使排队任务立即扩容而非等到有任务完成。`csproj` 的 `StartupObject` 改为 `BBDown.GUI.Program`。
 - **文档与配置**
-    - `ARCHITECTURE.md` 更新 GUI 文件树、新增 BBDown.WebUI 章节与 serve 任务状态机说明；`API.md` 同步 enqueue/start 与 `Pending` 状态、专栏导出、工作目录措辞；`README.md` / `docs/compared-to-upstream.md` 同步 `--no-interactive` 与「下载输出目录」措辞。
+    - `ARCHITECTURE.md` 更新 GUI 文件树、新增 BBDown.WebUI 章节与 serve 任务状态机说明；`API.md` 同步 enqueue/start 与 `Pending` 状态、专栏导出、工作目录措辞；`README.md` / `docs/compared-to-upstream.md` 同步「下载输出目录」措辞。
     - 新增 `Settings.XamlStyler` 统一 XAML 格式化规则；`AGENTS.md` 移除一段过时的测试范围说明尾注。
     - 新增 `BBDown.Core.Tests/WorkDirTests.cs` 覆盖 `WorkDirException` / `ValidateWorkDir` / `NormalizeWorkDir`。
+    - **正则收口**：下载初始态识别（`InitialStateRegex`）与 PCDN 主机识别（`PcdnRegex`）整合至 `BBDown.Core/Util/Utils.cs` 统一管理（改为 `partial` 源生成方法，调用点经 `Utils.` 引用）。
 
 ### 修复
 
@@ -58,10 +59,26 @@
 - opus 空段落仅当整项缺失才报错；SRT 正文转义换行 / 回车；速度除零回落 `0 B/s`。
 - serve 任务 `SavePaths` 加锁并快照枚举，并发保存不再触发 `InvalidOperationException`。
 - serve 任务 scope 统一：opus 多值 id 经 `ResourceIdJsonConverter.Format` 归一，任务查询 / 事件帧 / 启动取消按同一规范串定位，多值 id 不再漏判。
+- MP4Box 元数据改走 `-itags <文件>` 通道：命令行形态是冒号分隔的 `name=value` 列表，值里的 `:`（视频页 URL、含冒号的简介）会被当成字段分隔符且 GPAC 未定义转义语法；改为临时文件后值按行读取，多值不再错乱，简介换行也得以保留。
+- 字幕语言标识（`lan`）在产生处净化：此前直接拼进落盘路径，镜像站 / `--insecure` 下由对端控制的值可借 `..` 与分隔符把字幕写出工作目录。
+- ASS 字幕不再被改名 `.srt`：目标扩展名沿用源文件（INTL 非 json 接口下发的是 ASS 成品），播放器可正常渲染。
+- 文件名模板的 `<publishDate>` / `<videoDate>` 按不变文化格式化并净化：此前自定义格式串里的 `:` 按当前区域设置解析（部分区域设置下时间分隔符不是 `:`），产物路径随之漂移，含冒号的结果在 Windows 上还会让整条路径失效。
+- 大会员网页兜底跟随 `--ep-host`：此前播放页地址硬编码官方域名，镜像站用户命中大会员限制时兜底会被重定向回可能不可达的官方站。
+- 收藏夹翻页按实际返回量终止：此前按 `media_count` 折算的总页数翻页，计数畸形大或每页返回空时会把空页一路请求到底。
+- INTL 番剧信息不再对响应体做 `\/` 字符串替换：`\/` 是合法 JSON 转义，提前替换会把原文里 `\\` + `/` 的组合错误归并。
+- gRPC 请求 `Host` 头取目标地址：此前一处传死值，端点迁移即与 TLS 的 SNI 不一致。
+- 取消 / 超时杀外部进程时连带子进程树，避免 aria2c / ffmpeg 派生的孙进程继续占用带宽与文件句柄。
+
+### 安全
+
+- serve 免令牌时按 `Host` 头拒绝非回环请求：DNS rebinding 后攻击者页面发起的是「同源」请求，同源 GET 不携带 `Origin`，写端点的 Origin 校验覆盖不到读端点，只能按请求目标的 Host 判定；带令牌时跳过该校验以保留反向代理部署（此时认证才是边界）。同时修正了「rebinding 可由 Origin 判定拦截」的错误注释。
+- 响应体读取统一设 64 MB 上限：此前被攻破的端点或 `--insecure` 下的中间人可用 gzip 炸弹 / 分块慢发打满进程内存。全库响应体读取收口到 `HttpTransfer.ReadBody*` 单一入口。
+- 携带 Cookie 的请求逐跳校验重定向目标：此前 HttpClient 的自动重定向在库内部完成，凭据门只覆盖首跳，重定向到任意主机不受约束；改为手动逐跳后每跳均过 `IsTrustedCookieHost`，跳数上限 10（303 转 GET、307 / 308 保持原方法与请求体）。
+- serve 认证失败记录超限改为按最后失败时间裁剪：此前整体清空，等于周期性重置攻击者的失败计数、放宽爆破限速。
 
 ### 变更
 
-- 交互式选项更名与默认翻转：`--interactive` / `-ia` → `--no-interactive` / `-ni`；任务事件流默认开启（此前需显式 `--interactive` 才开启），指定 `--no-interactive` 才关闭通道，详见 [API.md](./API.md) WebSocket 事件流。
+- 任务事件流改为始终开启：移除 `--no-interactive` / `-ni` 选项（事件流不再有关闭通道），任务列表与完成态经 WebSocket `/hubs/tasks` 的 `taskList` 帧推送驱动，WebUI 移除 REST 轮询与 `disabled` 降级态；交互选项（`--interactive-quality` / `--interactive-pages`）仍经事件流送达，无订阅者时回落非交互。详见 [API.md](./API.md) WebSocket 事件流。
 - 工作目录措辞统一为「下载输出目录」：CLI `--work-dir`、serve `--work-dir`，以及 README / API.md / ARCHITECTURE.md / `docs/compared-to-upstream.md` 的对应描述。
 
 ## [v2.1.0]

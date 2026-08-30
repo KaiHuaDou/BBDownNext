@@ -40,7 +40,8 @@ public static class BBDownAria2c
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, hardStop.Token);
         await using var _ = linked.Token.Register(( ) =>
         {
-            try { p.Kill( ); } catch { }
+            // aria2c 会派生子进程，只杀直接进程会留下继续占用带宽与文件句柄的孤儿
+            try { p.Kill(true); } catch { }
         });
         try
         {
@@ -83,7 +84,7 @@ public static class BBDownAria2c
             "--auto-file-renaming=false", "--download-result=hide", "--allow-overwrite=true", "--continue=true",
             "--console-log-level=warn", singleThread ? "-x1" : $"-x{connections}", singleThread ? "-s1" : $"-s{connections}", "-j16", "-k5M"
         ];
-        if (!HTTPUtil.IsAndroidPlatformUrl(url))
+        if (!BiliHeaders.IsAndroidPlatformUrl(url))
         {
             args.Add($"--header=Referer: {BiliApi.Site}");
         }

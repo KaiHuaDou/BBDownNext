@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 using BBDown.Core;
@@ -19,6 +20,7 @@ namespace BBDown.Serve.Tasks;
 internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
 {
     private const int MaxFinishedTasks = 200;
+    private const int MaxEnqueued = 100;
 
     private readonly ConcurrentDictionary<ResourceId, DownloadTask> running = new( );
     private readonly ConcurrentDictionary<ResourceId, DownloadTask> finished = new( );
@@ -32,7 +34,16 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
     private readonly string? epHost = config.EpHost;
     private readonly string? tvHost = config.TvHost;
     private readonly TaskQueue queue = queue;
-    private readonly bool interactive = config.Interactive;
+
+    /// <summary>
+    /// 任务结构变更通知通道：任何 running / finished / pending 的增删改都写入一个标记项，
+    /// 由 WebSocket Hub 后台读取并广播全量列表帧（taskList）。这样前端可放弃轮询、改为事件流推送。
+    /// 单消费者（Hub 单例）读取，writer 用 TryWrite 保证变更点不抛。
+    /// </summary>
+    private readonly Channel<StoreChanged> changes = Channel.CreateUnbounded<StoreChanged>();
+    public ChannelReader<StoreChanged> Changes => changes.Reader;
+    internal readonly record struct StoreChanged;
+    internal void NotifyChanged() => changes.Writer.TryWrite(default);
 
     /// <summary>
     /// 受理任务：解析 URL → 去重 → 按模式处理。
@@ -65,20 +76,26 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
             return new EnqueueResult(claimed, true, false);
         }
 
-        // 交互开启时任务自受理起持有事件上下文。注册先于入队：任务被立即消费并收尾时
+        // 任务自受理起即持有事件上下文（事件流始终启用）。注册先于入队：任务被立即消费并收尾时
         // ReleaseContext 也能命中，避免上下文在收尾之后才写入造成僵尸条目
-        ChannelWorkflowContext? ctx = null;
-        if (interactive)
-        {
-            ctx = new ChannelWorkflowContext( );
-            contexts[ResourceIdJsonConverter.Format(task.Id)] = ctx;
-        }
+        var ctx = new ChannelWorkflowContext( );
+        contexts[ResourceIdJsonConverter.Format(task.Id)] = ctx;
 
         var envelope = new TaskEnvelope(task, option, req.CallBackWebHook);
-        // Enqueue 模式：仅存入暂停表，不写执行队列（WebUI「加入队列不执行」）；start 时再取出投入
+        // Enqueue 模式：仅存入暂停表，不写执行队列（WebUI「加入队列不执行」）；start 时再取出投入。
+        // 暂停表上限镜像执行队列，防止任务无限挂起累积事件上下文与取消源；超限回滚受理并返回 429
         if (mode == SubmitMode.Enqueue)
         {
+            if (pending.Count >= MaxEnqueued)
+            {
+                running.TryRemove(id, out _);
+                contexts.TryRemove(ResourceIdJsonConverter.Format(task.Id), out _);
+                task.Cts.Dispose( );
+                return new EnqueueResult(null, false, true);
+            }
+
             pending[id] = envelope;
+            NotifyChanged();
             return new EnqueueResult(task, false, false);
         }
 
@@ -87,15 +104,12 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
             // 入队失败回滚：任务尚未执行，从运行表、暂停表与上下文表移除并释放取消源
             pending.TryRemove(id, out _);
             running.TryRemove(id, out _);
-            if (ctx is not null)
-            {
-                contexts.TryRemove(ResourceIdJsonConverter.Format(task.Id), out _);
-            }
-
+            contexts.TryRemove(ResourceIdJsonConverter.Format(task.Id), out _);
             task.Cts.Dispose( );
             return new EnqueueResult(null, false, true);
         }
 
+        NotifyChanged();
         return new EnqueueResult(task, false, false);
     }
 
@@ -110,18 +124,23 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
             return StartResult.NotFound;
         }
 
+        // 先置等待态再入队：channel 写建立先后序，worker 取到的必然是 Queued 之后的状态；
+        // TryWrite 失败回退 Pending，任务保留暂停态可再次 start
+        envelope.Task.Status = DownloadStatus.Queued;
         if (!queue.Writer.TryWrite(envelope))
         {
             pending[id] = envelope;
+            envelope.Task.Status = DownloadStatus.Pending;
             return StartResult.QueueFull;
         }
 
+        NotifyChanged();
         return StartResult.Started;
     }
 
     /// <summary>
     /// 取任务的事件上下文；交互未开启或任务已结束为 null。scope 为总线消息携带的任务标识
-    /// （task.Id 的 record ToString）。
+    /// （ResourceIdJsonConverter.Format 规范串）。
     /// </summary>
     public ChannelWorkflowContext? GetContext(string scope)
     {
@@ -143,7 +162,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
     }
 
     /// <summary>
-    /// 按作用域字符串（task.Id 的 record ToString）查任务，运行中优先；事件流帧 TaskId 回发订阅时命中。
+    /// 按作用域字符串（ResourceIdJsonConverter.Format 规范串）查任务，运行中优先；事件流帧 TaskId 回发订阅时命中。
     /// </summary>
     public DownloadTask? GetByScope(string scope)
     {
@@ -213,6 +232,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
     public void ClearFinished( )
     {
         finished.Clear( );
+        NotifyChanged();
     }
 
     /// <summary>
@@ -227,6 +247,8 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
                 finished.TryRemove(id, out _);
             }
         }
+
+        NotifyChanged();
     }
 
     /// <summary>
@@ -242,6 +264,8 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
             ReleaseContext(ResourceIdJsonConverter.Format(envelope.Task.Id));
             envelope.Task.Cts.Dispose( );
         }
+
+        NotifyChanged();
     }
 
     /// <summary>
@@ -252,6 +276,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
         running.TryRemove(task.Id, out _);
         finished[task.Id] = task;
         TrimFinishedTasks( );
+        NotifyChanged();
     }
 
     // 已完成任务无上限增长会造成内存泄漏，超过阈值后按完成时间淘汰最旧的（P1-18）

@@ -13,6 +13,12 @@ describe('describeTarget', () => {
     expect(describeTarget('cv123')).toBe('专栏（cv 号）')
     expect(describeTarget('space402787936')).toBe('用户空间')
     expect(describeTarget('live123456')).toBe('直播间（live 号）')
+    expect(describeTarget('cheese/ep12345')).toBe('课程（ep 号）')
+    expect(describeTarget('cheese/ss2539')).toBe('课程（ss 号）')
+  })
+
+  it('裸合理简写与 URL 同义', () => {
+    expect(describeTarget('watchlater')).toBe('稍后再看列表')
   })
 
   it('裸数字视为 av 号', () => {
@@ -26,6 +32,7 @@ describe('describeTarget', () => {
     expect(describeTarget('https://www.bilibili.com/video/av170001')).toBe('视频（av 号）')
     expect(describeTarget('https://www.bilibili.com/bangumi/play/ep2539')).toBe('番剧（ep 号）')
     expect(describeTarget('https://www.bilibili.com/read/cv123456')).toBe('专栏（cv 号）')
+    expect(describeTarget('https://www.bilibili.com/cheese/play/ep12345')).toBe('课程地址')
     expect(describeTarget('https://live.bilibili.com/12345')).toBe('直播地址')
     expect(describeTarget('https://www.bilibili.com/watchlater')).toBe('稍后再看列表')
   })
@@ -37,5 +44,6 @@ describe('describeTarget', () => {
     expect(describeTarget('av')).toBeNull()
     expect(describeTarget('ep')).toBeNull()
     expect(describeTarget('live')).toBeNull()
+    expect(describeTarget('BV2xx411c7mD')).toBeNull()
   })
 })

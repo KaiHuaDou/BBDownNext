@@ -2,7 +2,7 @@
     "profiles": {
         "BBDown.Server": {
             "commandName": "Project",
-            "commandLineArgs": "serve --interactive",
+            "commandLineArgs": "serve",
             "environmentVariables": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
             },

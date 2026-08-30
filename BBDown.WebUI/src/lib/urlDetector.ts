@@ -1,12 +1,13 @@
 /** 下载目标识别，复刻 GUI UrlDetector 的逻辑与文案（前缀来源与 Core IdPrefix 一致）。 */
 
-/** 已知前缀，前缀后必须紧跟数字（BV 号亦以数字开头）。 */
+/** 已知前缀，前缀后必须紧跟数字（BV 号固定以 BV1 开头，单独判定）。 */
 const KNOWN_PREFIXES: [string, string][] = [
   ['av', '视频（av 号）'],
-  ['BV', '视频（BV 号）'],
   ['ep', '番剧（ep 号）'],
   ['ss', '番剧（ss 号）'],
   ['md', '番剧（md 号）'],
+  ['cheese/ep', '课程（ep 号）'],
+  ['cheese/ss', '课程（ss 号）'],
   ['opus', '专栏（opus 号）'],
   ['cv', '专栏（cv 号）'],
   ['space', '用户空间'],
@@ -46,8 +47,18 @@ function matchKnownPrefix(text: string): string | null {
     return '稍后再看列表'
   }
 
+  // 裸 watchlater 简写与 URL 形态同义（与 Core InputResolver 的相等判定对齐）
+  if (text.toLowerCase() === 'watchlater') {
+    return '稍后再看列表'
+  }
+
   if (text.toLowerCase().startsWith('https://live.bilibili.com')) {
     return '直播地址'
+  }
+
+  // BV 号固定以 BV1 开头且为纯 base58 字符，与 Core 的 bv1 前缀判定一致（BV2 等非 BV 号不应放行）
+  if (/^bv1[0-9a-z]+$/i.test(text)) {
+    return '视频（BV 号）'
   }
 
   for (const [prefix, label] of KNOWN_PREFIXES) {
@@ -60,6 +71,10 @@ function matchKnownPrefix(text: string): string | null {
 }
 
 function describeUrl(text: string): string {
+  if (/\/cheese\//.test(text)) {
+    return '课程地址'
+  }
+
   const bv = /BV[0-9A-Za-z]+/.exec(text)
   if (bv?.[0]) {
     return `视频（${bv[0]}）`

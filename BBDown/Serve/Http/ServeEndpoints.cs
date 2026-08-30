@@ -54,9 +54,9 @@ internal static class ServeEndpoints
                     ? Results.Ok(task)
                     : Results.Accepted($"/api/v1/tasks/{task.Id}", task);
             }
-            catch (ArgumentException)
+            catch (Exception e) when (e is ArgumentException or InvalidOperationException)
             {
-                // URL 无法识别（如非法输入），受理前返回 400
+                // URL 无法识别或资源不可解析（短链展开失败 / 页面缺 epList 等），受理前返回 400
                 return Results.BadRequest("输入有误");
             }
         }).RequireRateLimiting("taskSubmit");
@@ -139,10 +139,10 @@ internal static class ServeEndpoints
             }
         });
 
-        // 健康检查：匿名放行（探活不要求令牌）；携带事件流开关（--no-interactive 为 false）供前端判定通道可用性；
-        // 计数排除 enqueue 暂停态（Pending 尚未进入执行队列，不计入运行中）
-        app.MapGet("/healthz", (TaskStore store, ServeConfig config) =>
-                Results.Ok(new HealthStatus("ok", store.RunningSnapshot( ).FindAll(t => t.Status != DownloadStatus.Pending).Count, config.Interactive)))
+        // 健康检查：匿名放行（探活不要求令牌）；计数排除 enqueue 暂停态（Pending 尚未进入执行队列，不计入运行中）。
+        // 事件流（WebSocket /hubs/tasks）始终启用，无需开关字段；前端经 WS 推送感知任务状态，不再轮询。
+        app.MapGet("/healthz", (TaskStore store) =>
+                Results.Ok(new HealthStatus("ok", store.RunningSnapshot( ).FindAll(t => t.Status != DownloadStatus.Pending).Count)))
             .AllowAnonymous( );
     }
 }

@@ -4,7 +4,7 @@ import { readLocalStorage, writeLocalStorage } from '../lib/storage'
  * baseUrl 留空即直连本机 serve 默认地址（127.0.0.1:23333，默认免令牌且回环 Origin 默认可跨域）；
  * 若服务端以 --serve-token 启用了鉴权，则须在本页填入对应的 X-BBDown-Token 令牌（与回环 / 非回环无关）；跨机器访问时还须以 --cors-origin 允许本页来源。
  */
-import type { DownloadTask, HealthStatus, ServeRequestOptions, TaskSnapshot } from '../lib/types'
+import type { DownloadTask, HealthStatus, ServeRequestOptions } from '../lib/types'
 
 const BASE_URL_KEY = 'bbdown.serveBaseUrl'
 const TOKEN_KEY = 'bbdown.serveToken'
@@ -36,11 +36,17 @@ export function saveServeConfig(config: ServeConfig): void {
 
 /** 请求超时：serve 假死（进程挂起不响应）时避免连接状态停留在「已连接」。 */
 const RequestTimeoutMs = 5000
+/** 任务受理超时：服务端受理期解析 URL 可能触网（短链展开 / ss、md 换 season_id / 整页抓取），需更宽裕。 */
+const SubmitTimeoutMs = 60000
 
 /** 带超时的 fetch：超时抛「请求超时」错误（AbortController 中止）。 */
-async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs = RequestTimeoutMs
+): Promise<Response> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), RequestTimeoutMs)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     return await fetch(url, { ...init, signal: controller.signal })
   } catch (e) {
@@ -80,14 +86,9 @@ async function request<T>(config: ServeConfig, path: string, init?: RequestInit)
   return (await response.json()) as T
 }
 
-/** 健康检查：探测 serve 是否存活（匿名放行）。 */
+/** 健康检查（保活轮询用）：探测 serve 是否存活（匿名放行）。 */
 export function fetchHealth(config: ServeConfig): Promise<HealthStatus> {
   return request<HealthStatus>(config, '/healthz')
-}
-
-/** 整体快照：运行中 + 已完成任务。 */
-export function fetchTasks(config: ServeConfig): Promise<TaskSnapshot> {
-  return request<TaskSnapshot>(config, '/api/v1/tasks')
 }
 
 /**
@@ -106,11 +107,15 @@ export async function submitTask(
   }
 
   const url = `${baseUrl}/api/v1/tasks${mode === 'enqueue' ? '?mode=enqueue' : ''}`
-  const response = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body)
-  })
+  const response = await fetchWithTimeout(
+    url,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    },
+    SubmitTimeoutMs
+  )
   if (response.status === 429) {
     throw new Error('任务队列已满（429）')
   }

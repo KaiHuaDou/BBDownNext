@@ -1,7 +1,6 @@
 using System;
 using System.Globalization;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,6 +9,7 @@ using BBDown.Core.Entity;
 using static BBDown.Core.ResourceId;
 using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
+using static BBDown.Core.Util.Utils;
 
 namespace BBDown.Core.Fetcher;
 
@@ -21,7 +21,9 @@ public static partial class IntlBangumiInfoFetcher
         var host = cfg.Host == BiliApi.MainHost ? BiliApi.IntlAppHost : cfg.Host;
         var accessKey = cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "";
         var api = $"https://{host}{BiliApi.IntlSeasonAppPath}?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a{accessKey}";
-        var json = (await GetWebSourceAsync(api, cfg, null, ct)).Replace("\\/", "/");
+        // 不做任何字符串预处理：'\/' 是合法 JSON 转义，Parse 会正确解码，
+        // 提前替换反而会把原文里 '\\' + '/' 的组合错误归并
+        var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);
         if (!infoJson.RootElement.TryGetProperty("result", out var result))
         {
@@ -39,7 +41,7 @@ public static partial class IntlBangumiInfoFetcher
             var web = await GetWebSourceAsync(animeUrl, cfg, null, ct);
             if (web.Length != 0)
             {
-                var regex = StateRegex( );
+                var regex = InitialStateRegex( );
                 var m = regex.Match(web);
                 if (m.Success && m.Groups.Count > 1)
                 {
@@ -90,7 +92,4 @@ public static partial class IntlBangumiInfoFetcher
 
         return info;
     }
-
-    [GeneratedRegex("window.__INITIAL_STATE__=([\\s\\S].*?);\\(function\\(\\)")]
-    private static partial Regex StateRegex( );
 }

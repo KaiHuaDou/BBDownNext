@@ -73,7 +73,7 @@ Core 通过以下显式注入点向宿主（CLI / GUI）开放能力，宿主无
 | 注入点 | 说明 |
 | --- | --- |
 | `Logger.Output` | 日志输出目标。null 时写控制台（含颜色与 `BeforeWrite` 钩子）；GUI 等无控制台宿主替换为窗口日志区回调（参数为级别 + 完整渲染文本，需自行保证线程安全）。`BeforeWrite` 仅对默认控制台路径生效 |
-| `AppConfig.UserAgent` | 请求级 UA。`--user-agent` 由 `WorkSetup.ResolveConfig` 落入该字段，空串回落 `HTTPUtil.UserAgent` 进程级默认，并发任务互不覆盖 |
+| `AppConfig.UserAgent` | 请求级 UA。`--user-agent` 由 `WorkSetup.ResolveConfig` 落入该字段，空串回落 `BiliHeaders.UserAgent` 进程级默认，并发任务互不覆盖 |
 
 ## 委托回调清单
 

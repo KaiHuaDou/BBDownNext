@@ -144,21 +144,21 @@ public static partial class UrlDetector
     [GeneratedRegex(@"^[0-9]+$")]
     private static partial Regex AvNumberRegex( );
 
-    [GeneratedRegex(@"BV[0-9A-Za-z]+")]
+    [GeneratedRegex(@"BV[0-9A-Za-z]+", RegexOptions.IgnoreCase)]
     private static partial Regex BvRegex( );
 
-    [GeneratedRegex(@"av[0-9]+")]
+    [GeneratedRegex(@"av[0-9]+", RegexOptions.IgnoreCase)]
     private static partial Regex AvInUrlRegex( );
 
-    [GeneratedRegex(@"ep[0-9]+")]
+    [GeneratedRegex(@"ep[0-9]+", RegexOptions.IgnoreCase)]
     private static partial Regex EpRegex( );
 
-    [GeneratedRegex(@"ss[0-9]+")]
+    [GeneratedRegex(@"ss[0-9]+", RegexOptions.IgnoreCase)]
     private static partial Regex SsRegex( );
 
-    [GeneratedRegex(@"opus[0-9]+")]
+    [GeneratedRegex(@"opus[0-9]+", RegexOptions.IgnoreCase)]
     private static partial Regex OpusRegex( );
 
-    [GeneratedRegex(@"cv[0-9]+")]
+    [GeneratedRegex(@"cv[0-9]+", RegexOptions.IgnoreCase)]
     private static partial Regex CvRegex( );
 }

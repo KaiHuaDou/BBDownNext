@@ -7,11 +7,14 @@ using BBDown.Core.Entity;
 
 namespace BBDown.Core.Tests;
 
-public class MuxerArgsTests
+public class MuxArgsTests
 {
     // 普通的 BV 号（与生产中 p.Bvid 一致）。Build* 会把它拼成完整视频页 URL 写入 comment 元数据，
     // 故断言也按拼装后的形态校验，而不是传入的完整 URL 原样回声。
     private const string Bvid = "BV1hY411J7cA";
+
+    // mp4box 的标签走临时文件，BuildMp4boxArgs 只把它原样传给 -itags
+    private const string TagFile = "/tmp/itags.txt";
 
     private static Subtitle Sub(string lan, string path)
     {
@@ -72,7 +75,7 @@ public class MuxerArgsTests
     public void BuildFFmpegArgs_EmitsMinimalCommandForVideoPlusAudio( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", title: "标题", author: "UP主");
-        var args = Muxer.BuildFFmpegArgs(req, null, false);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, false);
 
         Assert.Equal([
             "-loglevel", "warning", "-y",
@@ -93,7 +96,7 @@ public class MuxerArgsTests
         const string evil = "恶意UP\" -f null - \"";
 
         var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.mp4", title: "t", author: evil);
-        var args = Muxer.BuildFFmpegArgs(req, null, false);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, false);
 
         Assert.Contains($"artist={evil}", args);
         Assert.Equal(1, args.Count(a => a == "-f"));
@@ -106,7 +109,7 @@ public class MuxerArgsTests
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", desc: "简介", title: "标题", author: "UP主", episodeId: "第1话", lang: "zh",
             content: DownloadContent.Audio | DownloadContent.Video);
-        var args = Muxer.BuildFFmpegArgs(req, null, false);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, false);
 
         Assert.DoesNotContain("-metadata", args);
         Assert.DoesNotContain("-metadata:s:a:0", args);
@@ -116,7 +119,7 @@ public class MuxerArgsTests
     public void BuildFFmpegArgs_WritesFullMetadataWhenNotSimplyMux( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", desc: "简介", title: "标题", author: "UP主", episodeId: "第1话", lang: "zh", pubTime: 1600000000);
-        var args = Muxer.BuildFFmpegArgs(req, null, false);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, false);
 
         Assert.Contains("title=第1话", args);
         Assert.Contains("album=标题", args);
@@ -132,7 +135,7 @@ public class MuxerArgsTests
 
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", audioMaterial: material, outPath: "/out/x.mp4",
             pic: "/tmp/c.jpg", subs: [Sub("zh-Hans", "/tmp/s0.srt"), Sub("en-US", "/tmp/s1.srt")]);
-        var args = Muxer.BuildFFmpegArgs(req, "/tmp/chapters", false);
+        var args = MuxArgs.BuildFFmpegArgs(req, "/tmp/chapters", false);
 
         // 6 路输入：视频、音频、配音、封面、两条字幕；章节文件是第 7 路，索引为 6
         Assert.Equal(7, args.Count(a => a == "-i"));
@@ -146,7 +149,7 @@ public class MuxerArgsTests
     {
         var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.mp4", title: "t",
             subs: [Sub("zh-Hans", "/tmp/s0.srt"), Sub("en-US", "/tmp/s1.srt")]);
-        var args = Muxer.BuildFFmpegArgs(req, null, false);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, false);
 
         Assert.Contains("title=中文（简体）", args);
         Assert.Contains("language=chi", args);
@@ -162,7 +165,7 @@ public class MuxerArgsTests
     public void BuildFFmpegArgs_AudioOnlyWithoutAudioTrackDropsVideo( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.m4a", title: "t", content: DownloadContent.Audio);
-        var args = Muxer.BuildFFmpegArgs(req, null, false);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, false);
 
         Assert.Contains("-vn", args);
     }
@@ -171,9 +174,9 @@ public class MuxerArgsTests
     public void BuildFFmpegArgs_CoverAddsAttachedPicDisposition( )
     {
         var withVideo = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", title: "t", pic: "/tmp/c.jpg");
-        var withVideoArgs = Muxer.BuildFFmpegArgs(withVideo, null, false);
+        var withVideoArgs = MuxArgs.BuildFFmpegArgs(withVideo, null, false);
         var audioOnly = Req(Bvid, "", "/tmp/a.m4a", outPath: "/out/x.m4a", title: "t", pic: "/tmp/c.jpg", content: DownloadContent.Audio);
-        var audioOnlyArgs = Muxer.BuildFFmpegArgs(audioOnly, null, false);
+        var audioOnlyArgs = MuxArgs.BuildFFmpegArgs(audioOnly, null, false);
 
         Assert.Equal("attached_pic", ValueAfter(withVideoArgs, "-disposition:v:1"));
         Assert.Equal("attached_pic", ValueAfter(audioOnlyArgs, "-disposition:v:0"));
@@ -185,7 +188,7 @@ public class MuxerArgsTests
     public void BuildFFmpegArgs_SwitchesLogLevelWithDebugFlag(bool debugLog, string expected)
     {
         var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.mp4", title: "t");
-        var args = Muxer.BuildFFmpegArgs(req, null, debugLog);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, debugLog);
 
         Assert.Equal(expected, ValueAfter(args, "-loglevel"));
     }
@@ -194,7 +197,7 @@ public class MuxerArgsTests
     public void BuildFFmpegArgs_MkvUsesMatroskaContainer( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mkv", title: "标题", mux: MuxMode.Mkv);
-        var args = Muxer.BuildFFmpegArgs(req, null, false);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, false);
 
         Assert.Equal("matroska", ValueAfter(args, "-f"));
         Assert.DoesNotContain("-movflags", args);
@@ -206,7 +209,7 @@ public class MuxerArgsTests
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mkv", title: "t",
             subs: [Sub("zh-Hans", "/tmp/s0.srt")], mux: MuxMode.Mkv);
-        var args = Muxer.BuildFFmpegArgs(req, null, false);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, false);
 
         // matroska 原生支持 srt/ass 文本字幕，直接复制，无需像 mp4 那样转 mov_text
         Assert.Equal("copy", ValueAfter(args, "-c:s"));
@@ -218,7 +221,7 @@ public class MuxerArgsTests
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", title: "t",
             subs: [Sub("zh-Hans", "/tmp/s0.srt")]);
-        var args = Muxer.BuildFFmpegArgs(req, null, false);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, false);
 
         Assert.Equal("mp4", ValueAfter(args, "-f"));
         Assert.Equal("mov_text", ValueAfter(args, "-c:s"));
@@ -229,13 +232,13 @@ public class MuxerArgsTests
     public void BuildMp4boxArgs_EmitsMinimalCommandForVideoPlusAudio( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", desc: "简介", title: "标题", author: "UP主");
-        var args = Muxer.BuildMp4boxArgs(req, null, false);
+        var args = MuxArgs.BuildMp4boxArgs(req, TagFile, null, false);
 
         Assert.Equal([
             "-inter", "500", "-noprog",
             "-add", "/tmp/v.mp4#trackID=1:name=",
             "-add", "/tmp/a.m4a:lang=und",
-            "-itags", $"tool=:title=标题:sdesc=简介:comment={BiliApi.VideoPage}/{Bvid}/:artist=UP主",
+            "-itags", TagFile,
             "-new", "--", "/out/x.mp4"
         ], args);
     }
@@ -244,7 +247,7 @@ public class MuxerArgsTests
     public void BuildMp4boxArgs_AudioWithoutAudioUsesTrackOne( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.m4a", title: "t", content: DownloadContent.Audio);
-        var args = Muxer.BuildMp4boxArgs(req, null, false);
+        var args = MuxArgs.BuildMp4boxArgs(req, TagFile, null, false);
 
         Assert.Contains("/tmp/v.mp4#trackID=1:name=", args);
     }
@@ -254,7 +257,7 @@ public class MuxerArgsTests
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", title: "t", lang: "zh",
             subs: [Sub("zh-Hans", "/tmp/s0.srt")]);
-        var args = Muxer.BuildMp4boxArgs(req, "/tmp/chapters", true);
+        var args = MuxArgs.BuildMp4boxArgs(req, TagFile, "/tmp/chapters", true);
 
         Assert.Equal("-v", args[0]);
         Assert.Contains("/tmp/a.m4a:lang=zh", args);
@@ -274,7 +277,7 @@ public class MuxerArgsTests
         ];
 
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", audioMaterial: material, outPath: "/out/x.mp4", title: "t");
-        var args = Muxer.BuildMp4boxArgs(req, null, false);
+        var args = MuxArgs.BuildMp4boxArgs(req, TagFile, null, false);
 
         Assert.Contains("/tmp/m1.m4a:lang=und", args);
         Assert.Contains("/tmp/m2.m4a:lang=und", args);
@@ -289,17 +292,24 @@ public class MuxerArgsTests
     public void BuildMp4boxArgs_EpisodeIdBecomesTitleAndAlbumHoldsSeries( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.mp4", desc: "d", title: "剧集名", author: "a", episodeId: "第1话", pic: "/tmp/c.jpg");
-        var args = Muxer.BuildMp4boxArgs(req, null, false);
 
-        Assert.Equal($"tool=:cover=/tmp/c.jpg:album=剧集名:title=第1话:sdesc=d:comment={BiliApi.VideoPage}/{Bvid}/:artist=a",
-            ValueAfter(args, "-itags"));
+        Assert.Equal($"""
+            tool=
+            cover=/tmp/c.jpg
+            album=剧集名
+            title=第1话
+            sdesc=d
+            comment={BiliApi.VideoPage}/{Bvid}/
+            artist=a
+
+            """.ReplaceLineEndings("\n"), MuxArgs.BuildMp4boxTagFile(req));
     }
 
     [Fact]
     public void BuildMp4boxArgs_KeepsInjectedQuotesInsideOneArgument( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "", outPath: "/out/x.mp4", title: "标题\" -new /etc/passwd \"");
-        var args = Muxer.BuildMp4boxArgs(req, null, false);
+        var args = MuxArgs.BuildMp4boxArgs(req, TagFile, null, false);
 
         Assert.Equal(1, args.Count(a => a == "-new"));
         Assert.DoesNotContain("/etc/passwd", args);
@@ -309,7 +319,7 @@ public class MuxerArgsTests
     public void BuildFFmpegArgs_WritesTrackNumberAndTotalWhenMultiPart( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", title: "标题", trackNumber: 3, totalTracks: 10);
-        var args = Muxer.BuildFFmpegArgs(req, null, false);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, false);
 
         Assert.Equal("3", MetaValue(args, "track"));
         Assert.Equal("10", MetaValue(args, "track_total"));
@@ -319,7 +329,7 @@ public class MuxerArgsTests
     public void BuildFFmpegArgs_SkipsTrackNumberWhenSinglePart( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", title: "标题", trackNumber: 1, totalTracks: 1);
-        var args = Muxer.BuildFFmpegArgs(req, null, false);
+        var args = MuxArgs.BuildFFmpegArgs(req, null, false);
 
         Assert.DoesNotContain("track=", args);
         Assert.DoesNotContain("track_total=", args);
@@ -329,19 +339,48 @@ public class MuxerArgsTests
     public void BuildMp4boxArgs_WritesTrackNumberAndTotalWhenMultiPart( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", desc: "简介", title: "标题", author: "UP主", trackNumber: 3, totalTracks: 10);
-        var args = Muxer.BuildMp4boxArgs(req, null, false);
 
-        Assert.Equal($"tool=:title=标题:sdesc=简介:comment={BiliApi.VideoPage}/{Bvid}/:artist=UP主:tracknum=3/10",
-            ValueAfter(args, "-itags"));
+        Assert.Equal($"""
+            tool=
+            title=标题
+            sdesc=简介
+            comment={BiliApi.VideoPage}/{Bvid}/
+            artist=UP主
+            tracknum=3/10
+
+            """.ReplaceLineEndings("\n"), MuxArgs.BuildMp4boxTagFile(req));
     }
 
     [Fact]
-    public void BuildMp4boxArgs_SkipsTrackNumberWhenSinglePart( )
+    public void BuildMp4boxTagFile_SkipsTrackNumberWhenSinglePart( )
     {
         var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", desc: "简介", title: "标题", author: "UP主", trackNumber: 1, totalTracks: 1);
-        var args = Muxer.BuildMp4boxArgs(req, null, false);
 
-        Assert.Equal($"tool=:title=标题:sdesc=简介:comment={BiliApi.VideoPage}/{Bvid}/:artist=UP主",
-            ValueAfter(args, "-itags"));
+        Assert.DoesNotContain("tracknum=", MuxArgs.BuildMp4boxTagFile(req));
+    }
+
+    // 命令行形态的 -itags 里，值中的 ':' 会被当成字段分隔符：URL 与 Windows 封面路径必然含它。
+    // 文件形态按行取值，原样保留
+    [Fact]
+    public void BuildMp4boxTagFile_KeepsColonAndBackslashVerbatim( )
+    {
+        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4",
+            desc: "要点:一二三", title: "标题", author: "UP主", pic: @"C:\cover\a.jpg");
+        var content = MuxArgs.BuildMp4boxTagFile(req);
+
+        Assert.Contains(@"cover=C:\cover\a.jpg", content);
+        Assert.Contains("sdesc=要点:一二三", content);
+        Assert.Contains($"comment={BiliApi.VideoPage}/{Bvid}/", content);
+    }
+
+    // 值是多行的：GPAC 把非 name=value 开头的行当作上一个标签的续行
+    [Fact]
+    public void BuildMp4boxTagFile_KeepsMultilineDescription( )
+    {
+        var req = Req(Bvid, "/tmp/v.mp4", "/tmp/a.m4a", outPath: "/out/x.mp4", desc: "第一行\r\n第二行", title: "标题", author: "UP主");
+        var content = MuxArgs.BuildMp4boxTagFile(req);
+
+        Assert.Contains("sdesc=第一行\n第二行\n", content);
+        Assert.DoesNotContain("\r", content);
     }
 }

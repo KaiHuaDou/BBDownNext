@@ -2,11 +2,12 @@ using System;
 using System.Linq;
 using System.Net.Http;
 
-using BBDown.Core.Util;
-
 namespace BBDown.Core.Tests;
 
-public class HTTPUtilTests
+/// <summary>
+/// 请求头构造与 Cookie 可信主机判定的纯函数测试。
+/// </summary>
+public class BiliHeadersTests
 {
     [Theory]
     [InlineData("https://www.bilibili.com/bangumi/play/ep123456", true)]
@@ -15,7 +16,7 @@ public class HTTPUtilTests
     [InlineData("https://www.bilibili.com/bangumi/play/ep123456/", true)]
     public void IsBangumiPlayPage_MatchesEpAndSsSegments(string url, bool expected)
     {
-        Assert.Equal(expected, HTTPUtil.IsBangumiPlayPage(url));
+        Assert.Equal(expected, BiliHeaders.IsBangumiPlayPage(url));
     }
 
     // 旧实现是裸 Contains("/ep") || Contains("/ss")，这些都会被误判
@@ -28,7 +29,7 @@ public class HTTPUtilTests
     [InlineData("not a url")]
     public void IsBangumiPlayPage_IgnoresIncidentalMatches(string url)
     {
-        Assert.False(HTTPUtil.IsBangumiPlayPage(url));
+        Assert.False(BiliHeaders.IsBangumiPlayPage(url));
     }
 
     [Theory]
@@ -41,7 +42,7 @@ public class HTTPUtilTests
     [InlineData("https://cn-cdn.bilivideo.com/v.m4s?trace=platform%3Dandroid", false)]
     public void IsAndroidPlatformUrl_ReadsPlatformQueryParam(string url, bool expected)
     {
-        Assert.Equal(expected, HTTPUtil.IsAndroidPlatformUrl(url));
+        Assert.Equal(expected, BiliHeaders.IsAndroidPlatformUrl(url));
     }
 
     // 番剧播放页 Cookie 必须带 CURRENT_FNVAL=12240，网页源码兜底的 __playinfo__ 才吐出智能修复源
@@ -49,7 +50,7 @@ public class HTTPUtilTests
     public void ApplyStandardGetHeaders_BangumiPlayPageCarriesFnvalPgc( )
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://www.bilibili.com/bangumi/play/ep249469");
-        HTTPUtil.ApplyStandardGetHeaders(request, "https://www.bilibili.com/bangumi/play/ep249469", AppConfig.Empty);
+        BiliHeaders.ApplyStandardGetHeaders(request, "https://www.bilibili.com/bangumi/play/ep249469", AppConfig.Empty);
         var cookie = request.Headers.GetValues("Cookie").Single( );
         Assert.Contains("CURRENT_FNVAL=12240", cookie);
     }
@@ -58,7 +59,7 @@ public class HTTPUtilTests
     public void ApplyStandardGetHeaders_NonBangumiPageOmitsFnval( )
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://www.bilibili.com/video/BV1GJ411x7h7");
-        HTTPUtil.ApplyStandardGetHeaders(request, "https://www.bilibili.com/video/BV1GJ411x7h7", AppConfig.Empty);
+        BiliHeaders.ApplyStandardGetHeaders(request, "https://www.bilibili.com/video/BV1GJ411x7h7", AppConfig.Empty);
         var cookie = request.Headers.GetValues("Cookie").Single( );
         Assert.DoesNotContain("CURRENT_FNVAL", cookie);
     }
@@ -86,7 +87,7 @@ public class HTTPUtilTests
     [InlineData("evilhdslb.com", false)]
     public void IsTrustedCookieHost_AcceptsOfficialDomainsOnly(string host, bool expected)
     {
-        Assert.Equal(expected, HTTPUtil.IsTrustedCookieHost(host, AppConfig.Empty));
+        Assert.Equal(expected, BiliHeaders.IsTrustedCookieHost(host, AppConfig.Empty));
     }
 
     // 用户自定义 host（--host / --ep-host / --tv-host 指向镜像站）属用户显式授权，必须放行
@@ -94,7 +95,7 @@ public class HTTPUtilTests
     public void IsTrustedCookieHost_AcceptsConfiguredCustomHost( )
     {
         var cfg = AppConfig.Empty with { EpHost = "mirror.example.com" };
-        Assert.True(HTTPUtil.IsTrustedCookieHost("mirror.example.com", cfg));
+        Assert.True(BiliHeaders.IsTrustedCookieHost("mirror.example.com", cfg));
     }
 
     // 凭据门必须在附加任何头之前生效，拒绝携带操作者 Cookie 的请求发往不可信主机
@@ -102,6 +103,6 @@ public class HTTPUtilTests
     public void ApplyStandardGetHeaders_RejectsUntrustedHost( )
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://evil.example.com/page");
-        Assert.Throws<InvalidOperationException>(() => HTTPUtil.ApplyStandardGetHeaders(request, "https://evil.example.com/page", AppConfig.Empty));
+        Assert.Throws<InvalidOperationException>(() => BiliHeaders.ApplyStandardGetHeaders(request, "https://evil.example.com/page", AppConfig.Empty));
     }
 }

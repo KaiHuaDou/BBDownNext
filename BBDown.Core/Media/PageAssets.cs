@@ -105,7 +105,9 @@ public static class PageAssets
             Directory.CreateDirectory(outDir);
         }
 
-        outSubPath = Path.ChangeExtension(outSubPath, $".{s.Lan}.srt");
+        // 扩展名沿用源文件：INTL 非 json 接口下发的是 ASS 成品，统一改成 .srt 会让播放器无法渲染。
+        // 语言段已在 SubUtil 产生时净化，此处不再重复处理
+        outSubPath = Path.ChangeExtension(outSubPath, $".{s.Lan}{Path.GetExtension(s.Path)}");
         File.Move(s.Path, outSubPath, true);
         // 移动后临时路径失效，回写输出路径供混流内嵌与收尾逻辑使用
         s.Path = outSubPath;

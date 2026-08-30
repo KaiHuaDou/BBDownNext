@@ -124,7 +124,7 @@ public static partial class NormalInfoFetcher
 
         //稿件被重定向到番剧播放页时，该稿件按番剧处理
         if (data.TryGetProperty("redirect_url", out var redirectUrl) && redirectUrl.ValueKind == JsonValueKind.String
-            && IsBangumiPlayPage(redirectUrl.GetString( ) ?? ""))
+            && BiliHeaders.IsBangumiPlayPage(redirectUrl.GetString( ) ?? ""))
         {
             bangumi = true;
             //番剧内容通常不会有分 P，如果有分 P 则不需要 epId 参数

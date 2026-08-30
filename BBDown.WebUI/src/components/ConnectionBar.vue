@@ -19,17 +19,14 @@ const editing = ref(false)
 const baseUrl = ref(props.config.baseUrl)
 const token = ref(props.config.token)
 
-/** 事件流状态展示：active 绿色，disabled 灰色（serve 以 --no-interactive 关闭），其余黄色（连接中/重连）。 */
+/** 事件流状态展示：active 绿色（已连接并推送），reconnecting/connecting 黄色，其余黄色（连接中/重连）。 */
 const eventStreamLabel = computed<{ text: string; cls: string; tip: string }>(() => {
   switch (props.eventStream) {
     case 'active': {
-      return { text: '事件流已开启', cls: 'bg-[#4caf50]', tip: '日志与选项交互可用' }
-    }
-    case 'disabled': {
       return {
-        text: '事件流未启用',
-        cls: 'bg-[#9e9e9e]',
-        tip: 'serve 以 --no-interactive 关闭：日志与选项交互不可用，任务状态由轮询提供'
+        text: '事件流已开启',
+        cls: 'bg-[#4caf50]',
+        tip: '任务列表 / 日志 / 选项交互均由事件流推送'
       }
     }
     case 'reconnecting': {

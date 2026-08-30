@@ -50,7 +50,7 @@ export function formatEta(ratio: number, speed: number, downloadedBytes: number)
 export function buildDetail(
   ratio: number,
   speed: number,
-  downloadedBytes: number,
+  totalBytes: number,
   stageDetail?: string
 ): string {
   if (stageDetail) {

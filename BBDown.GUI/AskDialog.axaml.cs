@@ -1,7 +1,5 @@
 #pragma warning disable CS8602 // Avalonia 源生成的 x:Name 控件字段可空
 
-using System;
-
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 

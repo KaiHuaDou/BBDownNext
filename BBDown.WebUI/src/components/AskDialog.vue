@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { onUnmounted, ref, watch } from 'vue'
+
 import type { PendingAsk } from '../state/useTasks'
 
-defineProps<{
+const props = defineProps<{
   ask: PendingAsk
 }>()
 
@@ -9,6 +11,33 @@ const emit = defineEmits<{
   answer: [choice: string]
   dismiss: []
 }>()
+
+const remaining = ref(0)
+let timer: ReturnType<typeof setTimeout> | null = null
+
+// 服务端 AskBus 超时后提问已回落（选项不可再应答），本地按默认项作答避免弹窗滞留；
+// 随 ask 切换重置计时，避免按上一任务的剩余时间误答当前提问
+function schedule(): void {
+  if (timer) {
+    clearTimeout(timer)
+  }
+
+  const millis = Date.parse(props.ask.deadline) - Date.now()
+  remaining.value = Math.max(0, Math.ceil(millis / 1000))
+  if (millis <= 0) {
+    emit('answer', props.ask.defaultOptionId ?? props.ask.options[0]?.id ?? '')
+    return
+  }
+
+  timer = setTimeout(schedule, 1000)
+}
+
+watch(() => props.ask, schedule, { immediate: true })
+onUnmounted(() => {
+  if (timer) {
+    clearTimeout(timer)
+  }
+})
 </script>
 
 <template>
@@ -33,6 +62,9 @@ const emit = defineEmits<{
       </div>
       <p v-if="ask.defaultOptionId" class="text-center text-xs text-[#6e6e6e]">
         未选择将回落默认选项
+      </p>
+      <p class="text-center text-xs text-[#6e6e6e]">
+        {{ remaining }}s 后自动{{ ask.defaultOptionId ? '选择默认选项' : '应答首项' }}
       </p>
     </div>
   </div>

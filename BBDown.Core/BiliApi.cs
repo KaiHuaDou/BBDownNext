@@ -63,8 +63,9 @@ public static class BiliApi
     // 站点页面
     public const string Site = "https://www.bilibili.com";
     public const string VideoPage = $"{Site}/video";
-    public const string BangumiPlayPage = $"{Site}/bangumi/play";
-    public const string CheesePlayPage = $"{Site}/cheese/play";
+    // 播放页主机随 --ep-host 走（镜像站提供同样的路径），故只登记路径
+    public const string BangumiPlayPath = "/bangumi/play";
+    public const string CheesePlayPath = "/cheese/play";
     public const string SpacePage = "https://space.bilibili.com";
     public const string AnimePage = "https://bangumi.bilibili.com/anime";
     public const string DanmakuXml = "https://comment.bilibili.com";

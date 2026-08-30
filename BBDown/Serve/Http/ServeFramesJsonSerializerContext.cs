@@ -10,6 +10,7 @@ namespace BBDown.Serve.Http;
 /// </summary>
 [JsonSerializable(typeof(EventFrame))]
 [JsonSerializable(typeof(ClientFrame))]
+[JsonSerializable(typeof(DownloadTaskSnapshot))]
 [JsonSerializable(typeof(WorkflowEvent))]
 [JsonSerializable(typeof(MessageEvent))]
 [JsonSerializable(typeof(ProgressRangeStartEvent))]

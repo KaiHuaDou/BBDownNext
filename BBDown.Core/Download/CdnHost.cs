@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using BBDown.Core.Entity;
 
 using static BBDown.Core.Logger;
+using static BBDown.Core.Util.Utils;
 
 namespace BBDown.Core.Download;
 
@@ -90,9 +91,6 @@ public static partial class CdnHost
             return pattern.Replace(url, $"://{host}/", 1);
         }
     }
-
-    [GeneratedRegex("://[^/]+:\\d+/")]
-    private static partial Regex PcdnRegex( );
 
     [GeneratedRegex("://[^/]*akamaized\\.net/")]
     private static partial Regex AkamRegex( );

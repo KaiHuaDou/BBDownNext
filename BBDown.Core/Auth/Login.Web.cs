@@ -84,7 +84,7 @@ public static partial class Login
                     setCookies.AddRange(setCookieHeaders);
                 }
 
-                using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+                using var doc = JsonDocument.Parse(await HttpTransfer.ReadBodyAsync(response.Content, cancellationToken));
                 return doc.RootElement.Clone( );
             },
             Interpret: root =>

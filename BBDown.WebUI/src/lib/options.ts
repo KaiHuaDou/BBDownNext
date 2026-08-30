@@ -39,7 +39,6 @@ export interface TaskOptions {
   api: ApiType
   area: string
   uposHost: string
-  callBackWebHook: string
   /** 每个下载项的额外重试次数，缺省回落 3（与 serve MaxRetry 对齐）。 */
   maxRetry: number
 }
@@ -77,7 +76,6 @@ export const DEFAULT_OPTIONS: TaskOptions = {
   api: 'web',
   area: '',
   uposHost: '',
-  callBackWebHook: '',
   maxRetry: 3
 }
 
@@ -136,7 +134,6 @@ export function toServeRequest(
     uposHost: options.uposHost,
     delayPerPage: options.delayPerPage,
     area: options.area,
-    callBackWebHook: orUndefined(options.callBackWebHook),
     // 数值输入清空/非法时回落 0（不重试）；负数经 Math.max 夹为 0
     maxRetry: Math.max(0, Math.trunc(options.maxRetry) || 0)
   }

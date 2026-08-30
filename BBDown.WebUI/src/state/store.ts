@@ -22,7 +22,7 @@ export interface TaskStore {
   /** 已应答过的选项请求 id，防止重复弹出。 */
   answeredAsks: Set<string>
   socket: TaskSocket | null
-  pollTimer: ReturnType<typeof setInterval> | null
+  /** 保活轮询定时器（60s 探 /healthz 感知 serve 存活），任务列表不依赖它。 */
   healthTimer: ReturnType<typeof setInterval> | null
 }
 
@@ -39,7 +39,6 @@ export function createStore(): TaskStore {
     subscribed: new Set(),
     answeredAsks: new Set(),
     socket: null,
-    pollTimer: null,
     healthTimer: null
   }
 }

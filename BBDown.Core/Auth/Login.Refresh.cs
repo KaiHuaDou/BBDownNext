@@ -69,7 +69,7 @@ public static partial class Login
 
         // 1) /cookie/info 是否需要刷新（B 站官方信号，避免无谓刷新）
         using var infoResp = await HTTPUtil.GetRawResponseAsync(CookieInfoUrl, cfg, token);
-        using var infoDoc = JsonDocument.Parse(await infoResp.Content.ReadAsStringAsync(token));
+        using var infoDoc = JsonDocument.Parse(await HttpTransfer.ReadBodyAsync(infoResp.Content, token));
         var data = infoDoc.RootElement.GetProperty("data");
         if (!data.GetProperty("refresh").GetBoolean( ))
         {
@@ -83,7 +83,7 @@ public static partial class Login
 
         // 3) 取实时刷新口令 refresh_csrf
         using var csrfResp = await HTTPUtil.GetRawResponseAsync($"https://www.bilibili.com/correspond/1/{correspondPath}", cfg, token);
-        var html = await csrfResp.Content.ReadAsStringAsync(token);
+        var html = await HttpTransfer.ReadBodyAsync(csrfResp.Content, token);
         var m = CorrespondRegex( ).Match(html);
         if (!m.Success)
         {
@@ -101,7 +101,7 @@ public static partial class Login
             ["refresh_token"] = refreshToken,
         };
         using var refreshResp = await HTTPUtil.PostFormRawAsync(RefreshUrl, form, cfg, token);
-        using var refreshDoc = JsonDocument.Parse(await refreshResp.Content.ReadAsStringAsync(token));
+        using var refreshDoc = JsonDocument.Parse(await HttpTransfer.ReadBodyAsync(refreshResp.Content, token));
         if (refreshDoc.RootElement.GetProperty("code").GetInt32( ) != 0)
         {
             throw new InvalidOperationException($"Cookie 刷新失败：{refreshDoc.RootElement.GetProperty("message").GetString( )}");

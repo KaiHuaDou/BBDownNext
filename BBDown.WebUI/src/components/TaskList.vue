@@ -36,6 +36,11 @@ function statusColor(status: TaskView['status']): string {
     }
   }
 }
+
+/** 仅收尾态可移除：pending 暂停态与 finished 三态由服务端 RemoveTask 处理，运行与排队须先取消。 */
+function removable(status: TaskView['status']): boolean {
+  return ['Pending', 'Success', 'Failed', 'Cancelled'].includes(status)
+}
 </script>
 
 <template>
@@ -74,7 +79,7 @@ function statusColor(status: TaskView['status']): string {
             停止
           </button>
           <button
-            v-if="task.status === 'Running'"
+            v-if="task.status === 'Running' || task.status === 'Waiting'"
             class="btn-task"
             type="button"
             @click="emit('cancel', task)">
@@ -95,7 +100,7 @@ function statusColor(status: TaskView['status']): string {
             启动
           </button>
           <button
-            v-if="task.status !== 'Running'"
+            v-if="removable(task.status)"
             class="btn-task"
             type="button"
             @click="emit('remove', task)">

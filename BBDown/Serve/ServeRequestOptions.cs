@@ -51,7 +51,7 @@ internal sealed class ServeRequestOptions
     public bool StopOnError { get; set; }
     /// <summary>交互式逐集确认（--interactive-pages）。经 AskBus 发布选项请求，由 WebSocket 事件流送达客户端应答；无订阅者时回落非交互。</summary>
     public bool InteractivePages { get; set; }
-    /// <summary>交互式选择清晰度（--interactive-quality）。同上，依赖事件流（默认开启，--no-interactive 可关闭）。</summary>
+    /// <summary>交互式选择清晰度（--interactive-quality）。同上，依赖事件流（始终开启）。</summary>
     public bool InteractiveQuality { get; set; }
     /// <summary>直播录制清晰度（qn），缺省回落原画。其它选项受控于服务端固定 host，本项随任务变化无注入风险。</summary>
     public int LiveQuality { get; set; } = BBDown.Core.Download.LiveQuality.Original;

@@ -55,7 +55,7 @@ internal static partial class OpusRegexes
     [GeneratedRegex(@"<[^>]+>", RegexOptions.Singleline)]
     public static partial Regex AnyTag( );
 
-    [GeneratedRegex(@"\n{3,}", RegexOptions.Singleline)]
+    [GeneratedRegex(@"\n{3,}")]
     public static partial Regex MultipleBlankLines( );
 
     // OpusFetcher.Friendly：从异常消息里抽取 code= 数值

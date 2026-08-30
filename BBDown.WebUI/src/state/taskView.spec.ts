@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { DownloadTask, DownloadStatus } from '../lib/types'
 import { kindOfId, toView } from './taskView'
 
-function makeTask(overrides: Partial<DownloadTask> = { }): DownloadTask {
+function makeTask(overrides: Partial<DownloadTask> = {}): DownloadTask {
   return {
     id: 'av1',
     url: 'https://example.com',
@@ -13,7 +13,7 @@ function makeTask(overrides: Partial<DownloadTask> = { }): DownloadTask {
     totalDownloadedBytes: 0,
     isSuccessful: false,
     status: 'Queued',
-    savePaths: [ ],
+    savePaths: [],
     ...overrides
   }
 }
@@ -44,10 +44,10 @@ describe('kindOfId', () => {
 })
 
 describe('toView 状态映射', () => {
-  const cases: Array<[DownloadStatus, Partial<DownloadTask>, string, string]> = [
-    ['Pending', { }, 'Pending', '待启动'],
-    ['Queued', { }, 'Waiting', '等待中'],
-    ['Running', { }, 'Running', '运行中'],
+  const cases: [DownloadStatus, Partial<DownloadTask>, string, string][] = [
+    ['Pending', {}, 'Pending', '待启动'],
+    ['Queued', {}, 'Waiting', '等待中'],
+    ['Running', {}, 'Running', '运行中'],
     ['Finished', { isSuccessful: true }, 'Success', '成功'],
     ['Finished', { isSuccessful: false, errorMessage: '任务已取消' }, 'Cancelled', '已取消'],
     ['Finished', { isSuccessful: false, errorMessage: '下载失败' }, 'Failed', '失败']
@@ -60,7 +60,9 @@ describe('toView 状态映射', () => {
   })
 
   it('运行态带进度与速度时构造详情文本', () => {
-    const view = toView(makeTask({ status: 'Running', progress: 0.5, downloadSpeed: 100, totalDownloadedBytes: 100 }))
+    const view = toView(
+      makeTask({ status: 'Running', progress: 0.5, downloadSpeed: 100, totalDownloadedBytes: 100 })
+    )
     expect(view.detail).toContain('剩余')
   })
 })

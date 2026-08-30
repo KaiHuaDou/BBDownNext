@@ -153,9 +153,9 @@ public static partial class Login
                 ApplySign(parms, appSecret);
                 using var loginContent = new FormUrlEncodedContent(parms.ToDictionary( ));
                 using var loginRequest = new HttpRequestMessage(HttpMethod.Post, loginUrl) { Content = loginContent };
-                loginRequest.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
+                loginRequest.Headers.TryAddWithoutValidation("User-Agent", BiliHeaders.UserAgent);
                 using var response = await HTTPUtil.AppHttpClient.SendAsync(loginRequest, cancellationToken);
-                using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(cancellationToken));
+                using var doc = JsonDocument.Parse(await HttpTransfer.ReadBodyBytesAsync(response.Content, cancellationToken));
                 var data = ReadData(doc.RootElement, "获取登录二维码失败");
                 var url = data.GetProperty("url").GetString( )!;
                 var authCode = data.GetProperty("auth_code").GetString( )!;
@@ -170,9 +170,9 @@ public static partial class Login
                 Uri pollUrl = new(BiliApi.TvQrCodePoll);
                 using var pollContent = new FormUrlEncodedContent(tvParms!.ToDictionary( ));
                 using var pollRequest = new HttpRequestMessage(HttpMethod.Post, pollUrl) { Content = pollContent };
-                pollRequest.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
+                pollRequest.Headers.TryAddWithoutValidation("User-Agent", BiliHeaders.UserAgent);
                 using var response = await HTTPUtil.AppHttpClient.SendAsync(pollRequest, cancellationToken);
-                using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(cancellationToken));
+                using var doc = JsonDocument.Parse(await HttpTransfer.ReadBodyBytesAsync(response.Content, cancellationToken));
                 return doc.RootElement.Clone( );
             },
             Interpret: InterpretTv,

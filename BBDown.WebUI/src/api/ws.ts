@@ -1,11 +1,11 @@
 import { errorMessage } from '../lib/errors'
-import type { ClientFrame, EventFrame, WorkflowEvent } from '../lib/types'
+import type { ClientFrame, EventFrame, TaskSnapshot, WorkflowEvent } from '../lib/types'
 import { resolveBaseUrl, type ServeConfig } from './client'
 
 /**
- * 任务事件 WebSocket 通道（/hubs/tasks）：订阅任务后接收消息 / 进度快照 / 选项请求，
+ * 任务事件 WebSocket 通道（/hubs/tasks）：订阅任务后接收消息 / 进度快照 / 选项请求 / 全量列表（taskList），
  * 经 submitChoice 帧应答选项。握手令牌经 query 传（浏览器无法自定义请求头）。
- * 依赖 serve 事件流（--no-interactive 关闭），否则订阅返回 error 帧。
+ * 事件流始终启用（已移除 --no-interactive），任务列表与完成态均由推送驱动，无需轮询。
  */
 
 /** 快照样本（ProgressSampleEvent 子集）。 */
@@ -23,6 +23,8 @@ const PingIntervalMs = 30000
 export interface SocketHandlers {
   onEvent: (taskId: string, event: WorkflowEvent) => void
   onSnapshot: (taskId: string, snapshot: ProgressSnapshot) => void
+  /** taskList 帧：全量任务列表（running + finished），用于免轮询刷新。 */
+  onTaskList: (snapshot: TaskSnapshot) => void
   onChoiceResult: (requestId: string, ok: boolean, error?: string) => void
   /** 连接生命周期通知：null 表示已连接，非 null 为连接错误 / 断开信息。 */
   onStatus: (error: string | null) => void
@@ -33,7 +35,6 @@ export interface SocketHandlers {
 export interface TaskSocket {
   connect: () => void
   close: () => void
-  disable: () => void
   subscribe: (taskId: string) => void
   unsubscribe: (taskId: string) => void
   submitChoice: (taskId: string, requestId: string, choice: string) => void
@@ -45,7 +46,6 @@ interface SocketState {
   handlers: SocketHandlers
   socket: WebSocket | null
   closed: boolean
-  disabled: boolean
   retryDelay: number
   retryTimer: ReturnType<typeof setTimeout> | null
   pingTimer: ReturnType<typeof setInterval> | null
@@ -59,7 +59,7 @@ function stopPing(state: SocketState): void {
 }
 
 function scheduleReconnect(state: SocketState): void {
-  if (state.closed || state.disabled || state.retryTimer) {
+  if (state.closed || state.retryTimer) {
     return
   }
 
@@ -117,6 +117,12 @@ function onMessage(state: SocketState, message: MessageEvent): void {
       state.handlers.onSubscribeError(frame.error ?? '未知错误')
       break
     }
+    case 'taskList': {
+      if (frame.tasks) {
+        state.handlers.onTaskList(frame.tasks)
+      }
+      break
+    }
   }
 }
 
@@ -167,7 +173,6 @@ export function connectTaskSocket(config: ServeConfig, handlers: SocketHandlers)
     handlers,
     socket: null,
     closed: false,
-    disabled: false,
     retryDelay: 1000,
     retryTimer: null,
     pingTimer: null
@@ -176,19 +181,6 @@ export function connectTaskSocket(config: ServeConfig, handlers: SocketHandlers)
   return {
     connect: () => open(state),
     close: () => {
-      state.closed = true
-      if (state.retryTimer) {
-        clearTimeout(state.retryTimer)
-        state.retryTimer = null
-      }
-
-      stopPing(state)
-      state.socket?.close()
-      state.socket = null
-    },
-    // 事件流被服务端禁用（--no-interactive）时调用：标记禁用并关闭，后续不再重连
-    disable: () => {
-      state.disabled = true
       state.closed = true
       if (state.retryTimer) {
         clearTimeout(state.retryTimer)

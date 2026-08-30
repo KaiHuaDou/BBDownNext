@@ -4,12 +4,6 @@ import { API_CHOICES, MUX_CHOICES, type TaskOptions } from '../lib/options'
 
 const options = defineModel<TaskOptions>({ required: true })
 
-/** 事件流（serve --no-interactive 关闭）是否可用；不可用时间选项交互类选项无意义。 */
-const props = defineProps<{
-  interactiveAvailable?: boolean
-}>()
-const interactiveAvailable = props.interactiveAvailable ?? true
-
 const fmtHas = (formats: string, value: string): boolean => formats.split(',').includes(value)
 const toggleFmt = (formats: string, value: string, on: boolean): string => {
   const set = new Set(formats.split(',').filter((s) => s.length > 0))
@@ -123,13 +117,12 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
           </div>
         </div>
         <div class="flex flex-col gap-1 pt-0.5">
-          <label class="check-row" :class="{ 'opacity-50': !interactiveAvailable }">
+          <label class="check-row">
             <input
               v-model="options.interactivePages"
               type="checkbox"
-              :disabled="!interactiveAvailable"
-              title="需 serve 事件流（--no-interactive 关闭）" />
-            逐集确认（每集询问是否下载，需 serve 开启事件流）
+              title="逐集确认：每集询问是否下载（需 serve 事件流）" />
+            逐集确认（每集询问是否下载）
           </label>
           <label class="check-row">
             <input v-model="options.showAll" type="checkbox" />
@@ -241,13 +234,12 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
             <input v-model="options.audioAscending" type="checkbox" />
             音频升序（体积小优先）
           </label>
-          <label class="check-row" :class="{ 'opacity-50': !interactiveAvailable }">
+          <label class="check-row">
             <input
               v-model="options.interactiveQuality"
               type="checkbox"
-              :disabled="!interactiveAvailable"
-              title="需 serve 事件流（--no-interactive 关闭）" />
-            交互选清晰度 / 轨道（需 serve 开启事件流）
+              title="交互选清晰度 / 轨道（需 serve 事件流）" />
+            交互选清晰度 / 轨道
           </label>
         </div>
         <div class="flex flex-col gap-1">
@@ -308,14 +300,6 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
               v-model="options.uposHost"
               class="field-input"
               title="自定义 upos 服务器" />
-          </div>
-          <div class="field-row">
-            <label class="field-label" for="callback-webhook">完成回调 URL</label>
-            <input
-              id="callback-webhook"
-              v-model="options.callBackWebHook"
-              class="field-input"
-              title="任务完成后回调的公网 http/https 地址（服务端做 SSRF 校验）" />
           </div>
         </div>
       </div>

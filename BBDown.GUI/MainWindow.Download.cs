@@ -65,7 +65,10 @@ public partial class MainWindow
         }
     }
 
-    private PipelineSink MakeSink(TaskState state) => new(
+    private PipelineSink MakeSink(TaskState state)
+    {
+        return new(
         Meta: info => SetTaskTitle(state, info.Title),
         Saved: path => AppendProcessLog(state.Index, $"已保存：{path}", false));
+    }
 }

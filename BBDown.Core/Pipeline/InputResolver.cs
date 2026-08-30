@@ -291,7 +291,7 @@ public static partial class InputResolver
     {
         var web = await GetWebSourceAsync(input, cfg, ct: ct);
         // 兜底路径：匹配不到 __INITIAL_STATE__ 或页面不含 epList 时给可读错误，而不是 JsonDocument/GetProperty 抛晦涩异常
-        if (StateRegex( ).Match(web) is not { Success: true } stateMatch)
+        if (InitialStateRegex( ).Match(web) is not { Success: true } stateMatch)
         {
             throw new InvalidOperationException("无法从页面源码解析出番剧播放信息（epList 缺失），请使用 ep/ss 链接直接下载");
         }
@@ -360,8 +360,6 @@ public static partial class InputResolver
     private static partial Regex GlobalEpRegex( );
     [GeneratedRegex("bangumi/media/md(\\d+)")]
     private static partial Regex BangumiMdRegex( );
-    [GeneratedRegex(@"window.__INITIAL_STATE__=([\s\S].*?);\(function\(\)")]
-    private static partial Regex StateRegex( );
     [GeneratedRegex("md(\\d+)")]
     private static partial Regex MdRegex( );
 }

@@ -32,6 +32,10 @@ internal sealed class TaskSocketHub(TaskStore store)
     private readonly ConcurrentDictionary<WebSocket, SemaphoreSlim> socketGates = new( );
     private readonly ConcurrentDictionary<string, int> connections = new( );
     private readonly TaskStore store = store;
+    // 全局连接表：所有已建立 WS 的连接，用于广播任务列表（taskList）帧，与按任务订阅的表分离
+    private readonly ConcurrentDictionary<WebSocket, byte> allSockets = new( );
+    // 后台泵启动标记：首次连接建立时启动一次，订阅 store 变更通道向所有连接广播列表帧
+    private int pumpStarted;
 
     /// <summary>
     /// 每 IP 并发连接上限判定（升级前调用，超限返回 false 由端点回 429）。
@@ -70,12 +74,17 @@ internal sealed class TaskSocketHub(TaskStore store)
     /// </summary>
     public async Task HandleAsync(WebSocket socket, CancellationToken token)
     {
+        allSockets[socket] = 0;
+        EnsurePump();
         try
         {
+            // 连接建立即推送当前全量列表，前端无需先轮询即可渲染（事件流初始同步）
+            await SendAsync(socket, TaskListFrame( ), token);
             await ReceiveLoopAsync(socket, token);
         }
         finally
         {
+            allSockets.TryRemove(socket, out _);
             RemoveAllSubscriptions(socket);
             socketGates.TryRemove(socket, out var gate);
             gate?.Dispose( );
@@ -93,7 +102,18 @@ internal sealed class TaskSocketHub(TaskStore store)
                 break;   // 关闭帧或帧超限
             }
 
-            var frame = JsonSerializer.Deserialize<ClientFrame>(json, ServeFramesJsonSerializerContext.Default.ClientFrame);
+            ClientFrame? frame;
+            try
+            {
+                frame = JsonSerializer.Deserialize<ClientFrame>(json, ServeFramesJsonSerializerContext.Default.ClientFrame);
+            }
+            catch (JsonException)
+            {
+                // 非法 JSON 只影响单帧：发错误帧并继续读，不终止整条连接
+                await SendAsync(socket, new EventFrame("error", Error: "帧格式无效"), token);
+                continue;
+            }
+
             if (frame is null || frame.Kind is null)
             {
                 continue;
@@ -143,14 +163,14 @@ internal sealed class TaskSocketHub(TaskStore store)
 
     private async Task SubscribeAsync(WebSocket socket, string? taskId, CancellationToken token)
     {
-        // taskId 兼容两种形态：规范 id（/get-tasks 返回，经 TryParse 还原）与 record ToString
-        // （事件帧 TaskId 回发，字符串直配），统一转 scope 后按字符串匹配
+        // taskId 统一先转 scope（规范 id 经 TryParse 还原后取 Format；record ToString 形式兜底直配），
+        // 再按字符串匹配任务
         var scope = ResolveScope(taskId);
         // 任务已结束（含收尾窗口内）不提供订阅：事件流只覆盖任务执行期间，结束后的残留事件无意义
         if (scope is null || store.GetByScope(scope) is not { } task
             || task.Status == DownloadStatus.Finished || store.GetContext(scope) is not { } ctx)
         {
-            await SendAsync(socket, new EventFrame("error", Error: "任务不存在、已结束或未启用交互"), token);
+            await SendAsync(socket, new EventFrame("error", Error: "任务不存在或已结束"), token);
             return;
         }
 
@@ -178,7 +198,7 @@ internal sealed class TaskSocketHub(TaskStore store)
 
     private void Unsubscribe(WebSocket socket, string? taskId)
     {
-        // 与订阅同源解析：规范 id 或 record ToString 统一转 scope 后按字符串查任务
+        // 与订阅同源解析：统一转 scope 后按字符串查任务
         if (ResolveScope(taskId) is { } scope && store.GetByScope(scope) is { } task)
         {
             RemoveSubscription(socket, task.Id);
@@ -247,7 +267,7 @@ internal sealed class TaskSocketHub(TaskStore store)
             if (state?.Sample is { } sample && !ReferenceEquals(sample, last))
             {
                 last = sample;
-                await writer.WriteAsync(new EventFrame("snapshot", TaskId: id.ToString( ), Snapshot: sample), token);
+                await writer.WriteAsync(new EventFrame("snapshot", TaskId: ResourceIdJsonConverter.Format(id), Snapshot: sample), token);
             }
         }
     }
@@ -286,7 +306,7 @@ internal sealed class TaskSocketHub(TaskStore store)
         if (frame.TaskId is null || frame.RequestId is null || frame.Choice is null
             || ResolveScope(frame.TaskId) is not { } scope || store.GetContext(scope) is not { })
         {
-            await SendAsync(socket, new EventFrame("choiceResult", RequestId: frame.RequestId, Ok: false, Error: "任务不存在或未启用交互"), token);
+            await SendAsync(socket, new EventFrame("choiceResult", RequestId: frame.RequestId, Ok: false, Error: "任务不存在"), token);
             return;
         }
 
@@ -306,6 +326,55 @@ internal sealed class TaskSocketHub(TaskStore store)
         finally
         {
             gate.Release( );
+        }
+    }
+
+    // 当前全量列表帧：running + finished，供连接建立时初始同步与每次结构变更广播
+    private EventFrame TaskListFrame( )
+    {
+        return new EventFrame("taskList", Tasks: new DownloadTaskSnapshot(store.RunningSnapshot( ), store.FinishedSnapshot( )));
+    }
+
+    // 后台泵仅启动一次（单例生命周期内）：首次连接建立时触发，避免多连接重复开泵。
+    // 连接建立前发生的结构变更已缓存在 store 的变更通道里，泵启动时一并重放，不丢变更。
+    private void EnsurePump()
+    {
+        if (Interlocked.Exchange(ref pumpStarted, 1) == 0)
+        {
+            _ = PumpStoreChangesAsync(AppEnv.CancellationToken);
+        }
+    }
+
+    // 订阅 store 变更通道：每次结构变更（增删 / 状态切换 / 完成 / 清空）向所有连接广播最新列表。
+    // 进度不在此列（由按任务的 snapshot 帧高频推送），故列表帧仅在结构变化时发送，开销极低。
+    private async Task PumpStoreChangesAsync(CancellationToken token)
+    {
+        try
+        {
+            await foreach (var _ in store.Changes.ReadAllAsync(token))
+            {
+                await BroadcastGlobalAsync(TaskListFrame( ), token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // serve 关停导致的取消，泵结束属正常路径
+        }
+    }
+
+    // 向所有连接广播一帧；发送失败的连接视为断开，移出全局表
+    private async Task BroadcastGlobalAsync(EventFrame frame, CancellationToken token)
+    {
+        foreach (var (socket, _) in allSockets)
+        {
+            try
+            {
+                await SendAsync(socket, frame, token);
+            }
+            catch (Exception)
+            {
+                allSockets.TryRemove(socket, out _);
+            }
         }
     }
 
@@ -369,7 +438,8 @@ internal sealed class TaskSocketHub(TaskStore store)
 internal sealed record ClientFrame(string? Kind, string? TaskId, Guid? RequestId, string? Choice);
 
 /// <summary>
-/// 服务端 → 客户端帧：kind 为 event / snapshot / choiceResult / error。
+/// 服务端 → 客户端帧：kind 为 event / snapshot / choiceResult / error / taskList。
+/// taskList 携带全量任务列表（running + finished），由 store 结构变更时广播，使前端免轮询。
 /// </summary>
 internal sealed record EventFrame(
     string Kind,
@@ -378,4 +448,5 @@ internal sealed record EventFrame(
     ProgressSampleEvent? Snapshot = null,
     Guid? RequestId = null,
     bool Ok = false,
-    string? Error = null);
+    string? Error = null,
+    DownloadTaskSnapshot? Tasks = null);

@@ -12,7 +12,7 @@ namespace BBDown.GUI;
 /// <summary>进度 / ETA / 标题回投，控制 MainWindow.axaml.cs 行数。</summary>
 public partial class MainWindow
 {
-    private readonly Dictionary<int, TaskState> byIndex = new( );
+    private readonly Dictionary<int, TaskState> byIndex = [];
     private readonly Lock indexGate = new( );
 
     // 进度事件在下载线程回调，按 Scope 解析为任务序号后回投 UI 线程更新，避免每次线性扫描任务列表
