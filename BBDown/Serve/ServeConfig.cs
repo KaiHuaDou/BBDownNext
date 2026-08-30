@@ -12,4 +12,6 @@ internal sealed record ServeConfig(
     string? EpHost = null,
     string? TvHost = null,
     string? CorsOrigin = null,
-    int MaxConcurrent = 0);
+    int MaxConcurrent = 0,
+    // 内嵌 WebUI 同源托管开关：启用后 BBDown.Serve 在同一端口托管前端（详见 WebUiEndpoints）
+    bool EnableWebUi = false);

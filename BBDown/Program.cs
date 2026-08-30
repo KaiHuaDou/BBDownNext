@@ -175,6 +175,10 @@ internal sealed class Program
             {
                 Description = "同时下载的任务数上限，默认 0 表示不限制；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队，单个任务内部的下载并行度由多线程下载器自行决定",
                 DefaultValueFactory = _ => 0,
+            },
+            new Option<bool>("--webui")
+            {
+                Description = "将内嵌的 Web 前端与 API 同源托管在同一端口（静态资源根路径托管，前端自动以同源地址调用 API）。需构建时已将 WebUI dist 嵌入，否则该选项无效果。"
             }
         };
         command.SetAction(result => Task.FromResult(StartServer(new ServeConfig(
@@ -185,7 +189,8 @@ internal sealed class Program
             result.GetValue<string>("--ep-host"),
             result.GetValue<string>("--tv-host"),
             result.GetValue<string>("--cors-origin"),
-            result.GetValue<int>("--max-concurrent")))));
+            result.GetValue<int>("--max-concurrent"),
+            result.GetValue<bool>("--webui")))));
         return command;
     }
 
@@ -322,8 +327,9 @@ internal sealed class Program
         Console.BackgroundColor = ConsoleColor.Red;
         Console.ForegroundColor = ConsoleColor.White;
         var msg = Config.DebugLog ? e.ToString( ) : e.Message;
-        Console.Write($"{msg}{Environment.NewLine}");
+        Console.Write(msg);
         Console.ResetColor( );
+        Console.WriteLine( );
         Console.WriteLine( );
         return 1;
     }

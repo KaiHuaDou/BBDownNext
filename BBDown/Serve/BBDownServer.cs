@@ -52,10 +52,11 @@ public class BBDownServer
         var nonLoopback = !SsrfGuard.IsLoopbackUrl(url);
         Console.BackgroundColor = ConsoleColor.DarkYellow;
         Console.ForegroundColor = ConsoleColor.Black;
-        Console.WriteLine(nonLoopback
+        Console.Write(nonLoopback
             ? "serve 未设置鉴权令牌且绑定到非回环地址：任何能访问本端口的客户端均可无令牌调用，存在被公网 / 局域网滥用的高风险，请立即以 --serve-token 指定令牌或加反向代理。"
             : "serve 未设置鉴权令牌：任何能访问本监听端口的客户端均可无令牌调用，请勿暴露到公网 / 局域网。如需鉴权请以 --serve-token 指定令牌。");
         Console.ResetColor( );
+        Console.WriteLine( );
     }
 
     internal void SetUpServer(ServeConfig config)
@@ -156,7 +157,10 @@ public class BBDownServer
             context.Response.Headers.XFrameOptions = "DENY";
             context.Response.Headers["Referrer-Policy"] = "no-referrer";
             context.Response.Headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
-            context.Response.Headers.ContentSecurityPolicy = "default-src 'none'";
+            // 启用 WebUI 时放开为 'self' 族，否则 SPA 自身的脚本与样式会被 default-src 'none' 拦掉；其余安全头不变
+            context.Response.Headers.ContentSecurityPolicy = config.EnableWebUi
+                ? "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'"
+                : "default-src 'none'";
             await next( );
         });
 
@@ -209,6 +213,19 @@ public class BBDownServer
         // SlimBuilder 不注册 WebSocket 中间件，须显式启用（IsWebSocketRequest 依赖其 feature）
         app.UseWebSockets( );
         app.MapServeEndpoints( );
+
+        // 内嵌 WebUI：扫描 webui.* 资源并建立查表映射；未嵌入却启用 --webui 时仅警告，不阻断服务
+        var webUiResources = WebUiEndpoints.BuildResourceMap(typeof(BBDownServer).Assembly);
+        if (config.EnableWebUi && webUiResources.Count == 0)
+        {
+            Console.BackgroundColor = ConsoleColor.DarkYellow;
+            Console.ForegroundColor = ConsoleColor.Black;
+            Console.Write("已启用 --webui，但可执行文件构建时未嵌入 WebUI dist（请先构建 BBDown.WebUI 再构建 BBDown），前端将无法提供。");
+            Console.ResetColor( );
+            Console.WriteLine( );
+        }
+
+        app.MapWebUiEndpoints(config, webUiResources);
     }
 
     public void Run(Uri url)
@@ -231,8 +248,12 @@ public class BBDownServer
         {
             Console.BackgroundColor = ConsoleColor.Red;
             Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"{url} 不是合法的 http URL，url 示例：http://0.0.0.0:5000");
-            Console.WriteLine("如果您需要 https，请额外配置反向代理");
+            Console.Write($"{url} 不是合法的 http URL，url 示例：http://0.0.0.0:5000");
+            Console.ResetColor( );
+            Console.WriteLine( );
+            Console.BackgroundColor = ConsoleColor.Red;
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write("如果您需要 https，请额外配置反向代理");
             Console.ResetColor( );
             Console.WriteLine( );
             Environment.Exit(1);

@@ -11,6 +11,7 @@
 | 维度 | 原版 nilaoda/BBDown | 本分支（KaiHuaDou/BBDownNext） |
 | --- | --- | --- |
 | **顶层子命令** | 主命令 + `logintv` 等离散命令 | `login`（统一 `--tv` / `--app`）、`serve` 两个子命令，主命令解析视频/番剧/课程/收藏/空间/稍后再看，并自动识别专栏地址 |
+| **CLI 选项设计** | 多布尔开关（`--audio-only` / `--video-only` / `--danmaku` / `--sub-only` / `--no-cover` 等），语义分散 | 下载内容统一为 `-g` / `-w` / `-W` 字符集（get ∪ with − without），旧选项全部映射为字符组合；交互式 `-iaq`（选清晰度）/ `-iap`（逐集确认）；退出码 0 / 1 / 2 / 130 语义化；`--audio-quality` / `-aq` 音频档位选择 |
 | **WEB Cookie 续期** | 仅列于 TODO（「自动刷新 cookie」未实现） | 登录保存 `refresh_token`，下载前尝试用 **RSA-OAEP(SHA-256)** 加密请求主动续期 `cookie` |
 | **扫码登录健壮性** | 单次轮询失败即中断 | 轮询接入全局取消（`Ctrl+C` 立即终止）与失败重试（单次失败自动重试至多 3 次）；WEB 登录成功后 best-effort 校验凭据并打印账号名 |
 | **凭据存储** | 分离文件 `BBDownTV.data` / `BBDownApp.data`（APP 还需抓包后复制） | 单一 **`BBDown.data`**（同一 JSON 对象，源生成器序列化，AOT 安全）；WEB/TV/APP 分别落盘、互不覆盖 |
@@ -25,6 +26,7 @@
 | **UP 主空间投稿列表** | 无 | 新增 `SpaceListFetcher` 与 space URL 解析，可下载某 UP 全部投稿 |
 | **充电专属试看识别** | 无专门处理（按普通失败或下载残缺片段） | `IsTruncatedPreview` 双条件判定，命中抛 `ChargedPreviewException`，退出码 2 表示全部为试看（可 `--allow-preview` 放行） |
 | **外部后处理** | 无 | `--post-process <exe>` 对所有 DASH 轨统一调起外部进程，是否加密由处理方自行判断（退出码 0 且无产物视为无需处理）；成功产物覆盖原轨参与混流，未配置 / 失败 / 超时静默保留原文件。主程序不解析任何加密特征（`widevine_pssh` / `bilidrm_uri`），密钥与加密信息由外部进程自行获取管理 |
+| **DRM 解密插件** | 内置 `--drm-key` 选项 | 官方插件 `Plugins/BBDown.DRM`（独立仓库，`plugins/DRM` 分支）：bili_drm 通道 clearkey 自动取钥，widevine 通道经 Widevine CDM 向 license 服务器取钥（需自备 `device.wvd`），解密产物经 `--post-process` 协议回填参与混流 |
 | **断点续传** | 基础续传 | 下载统一走 downloader 库（v5.9.5，AOT 兼容），自动续传元数据内嵌 `<路径>.download` 临时文件末尾，服务端内容变化自动重下；多线程分片（默认 32 连接）与 `--single-thread` 均由 downloader 实现 |
 | **文件名日期格式** | 固定 `yyyy-MM-dd_HH-mm-ss` | 支持自定义 `<publishDate:格式>` / `<videoDate:格式>`（任意 .NET `DateTime` 格式串） |
 | **文件名长度** | 无特殊处理，超长路径易写入失败 | 按 **UTF-8 字节数截断，上限 200 字节**，并清理非法字符 / 保留设备名 / 处理首尾点 |
@@ -32,7 +34,7 @@
 | **解析模式选择** | 未明确文档化 | 单选 `--api web | tv | app | intl`（忽略大小写），取代多布尔开关的隐式优先级 |
 | **FLV / DASH 封装** | 通用说明 | DASH 先按 `-q` 请求再额外以 `MaxQn(127)` 取原始画质轨（两次并集）；FLV 固定 `qn=127`、忽略 `-q` |
 | **归档记录** | `--save-archives-to-file`（旧竖线格式） | `--save-records` 写 Tab 分隔 `BBDown.archives`（`<aid>\t<cid>\t<路径>`），键为 `(aid, cid)` |
-| **测试覆盖** | 较少 | **950+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名、直播加密流跳过、Opus 渲染等） |
+| **测试覆盖** | 较少 | **980+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名、直播加密流跳过、Opus 渲染等） |
 | **代码结构** | 传统结构 | 深度重构：下载能力整体下沉 `BBDown.Core`，按职责拆分命名空间（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`，CLI 与 serve 留在 `BBDown`），依赖单向成树（`just check-deps` 守护）；god-class 拆分（如 `BBDownUtil` 按归属拆分）、现代化命名、`System.Threading.Lock`、`[GeneratedRegex]`、`Nullable enable` + `TreatWarningsAsErrors`、net9.0 |
 | **直播录制** | 无 | 新增独立直播链路，直播间地址直录（`live:` / `live.bilibili.com`），`--live-quality` 选清晰度（默认原画 10000，可选 250 超清 / 400 蓝光 / 15000 2K / 20000 4K / 30000 杜比），分段 FLV 落盘后合并为 mp4（`Ctrl+Break` 停录合并 / `Ctrl+C` 中断保留分段）；录制状态机具备断流退避重连、CDN failover、编码锁定 |
 | **图形界面** | 无 | 新增 BBDown.GUI（Avalonia，跨平台）：单窗口封装下载，直接引用 `BBDown.Core` 下载库（非子进程调用 BBDown.exe），任务队列与并发控制（1–8）、日志实时显示、选项随 exe 便携保存；独立 CI（`gui.yml`）发布单文件自包含产物 |
@@ -152,7 +154,7 @@
 
 ### 2.13 测试与工程化
 
-- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **950+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、直播加密流跳过、空间列表与稍后再看等。
+- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **980+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、直播加密流跳过、空间列表与稍后再看等。
 - **AOT 与现代化**：
     - `BBDown/Directory.Build.props`：`<PublishAot>true</PublishAot>`，直接 `dotnet publish BBDown -r <RID> -c Release`（CI 命令见 `.github/workflows/ci.yml`，RID 矩阵 8 个）。
     - `Directory.Build.props`：`<TargetFramework>net9.0</TargetFramework>`、`<Nullable>enable</Nullable>`、`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`、`<AnalysisLevel>latest-all</AnalysisLevel>`。
@@ -173,6 +175,7 @@
 - **主程序不判断加密**：是否加密由外部进程自行判断，主程序不解析任何加密特征（`widevine_pssh` / `bilidrm_uri`），也不感知其语义。
 - **调起外部进程**（`BBDown.Core/Download/PostProcessClient.cs`：`Configure` / `TryProcessAsync`）：`--post-process <exe>` 由 `CommandLineInvoker` 注册；对每条轨写请求 JSON（`PostProcessRequest`：`Aid` / `Cid` / `Kind` / `TrackPath` / `DestPath` / `Ffmpeg`），以请求文件路径为唯一参数调起进程，20 秒超时。请求只携带轨道定位与本地路径，**不携带任何加密特征与凭据**。
 - **接入点与降级**（`BBDown.Core/Media/DashDownload.cs`：`TryPostProcessAsync`）：DASH 轨下载完成后统一处理视频轨 / 音频轨 / 背景音 / 配音轨——进程退出码为 0 且产物非空时产物覆盖原轨参与混流；退出码 0 且无产物视为无需处理；未配置 / 进程不可用 / 超时 / 失败一律静默保留原文件，原文件照常参与混流。FLV 分支与直播录制不经此路径（直播对带加密标记的流直接跳过）。
+- **官方 DRM 插件**（`Plugins/BBDown.DRM`，独立 git 仓库，`plugins/DRM` 分支，主仓库未跟踪）：bili_drm 通道默认 clearkey 自动取钥（公开 RSA 公钥即可换 key，零配置），密钥表（环境变量 `BBDOWN_DRM_KEYS` 或 exe 同目录 `BBDown.DRM.json`）作为自动取钥失败时的回退；widevine 通道解析 PSSH 提取 KID → 构建 LicenseRequest 并以设备私钥签名（RSASSA-PKCS1-v1_5 + SHA-1）→ 请求 license 服务器 → 校验响应签名后解出内容密钥，与 bili_drm 通道同样以 ffmpeg 执行 cbcs 解密。`device.wvd` 不随发布产物附带，需自行下载；取钥失败按通道不支持处理，保留加密原件。
 
 ### 2.16 稍后再看列表
 

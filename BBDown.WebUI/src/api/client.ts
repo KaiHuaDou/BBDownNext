@@ -19,6 +19,11 @@ export interface ServeConfig {
 
 /** baseUrl 留空归一化为本机 serve 默认地址，直连不依赖任何 dev server 代理。 */
 export function resolveBaseUrl(baseUrl: string): string {
+  // 内嵌托管：服务端注入 window.__BBDOWN_SERVE_EMBEDDED__，前端按同源调用 API（任意 --listen 均生效）
+  if ((globalThis as { __BBDOWN_SERVE_EMBEDDED__?: boolean }).__BBDOWN_SERVE_EMBEDDED__) {
+    return location.origin
+  }
+
   return baseUrl.trim() || DEFAULT_BASE_URL
 }
 

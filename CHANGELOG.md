@@ -27,6 +27,7 @@
     - 状态层重写：`state/` 拆分为 `store`（全局状态）/ `types` / `snapshot`（事件流帧 → 视图模型归一）/ `taskView`（任务 → 视图模型，含 `ResourceId` 前缀识别）/ `connection`（WebSocket 订阅与重连）/ `actions`（提交 / 取消 / 移除 / 启动）/ `useTasks`（组合式封装），`useTasks.ts` 大幅瘦身。
     - 网络层：`api/client.ts` 的 `submitTask` 接受 `mode` 参数并新增 `startTask`；`api/ws.ts` 重构为显式状态机（connecting / active / reconnecting，无 `disabled` 降级态）；任务列表与完成态由 `taskList` 帧推送驱动，移除 REST 轮询；新增 `lib/storage.ts`（localStorage 读写封装，取代散落的 `localStorage` 直接调用）。
     - 事件流始终开启：选项面板不再接收 `interactive-available`（无关闭通道的概念），任务交互选项恒可点击；`lib/options.ts` 新增 `maxRetry`，`lib/format.ts` 修正 ETA 折算。
+    - **内嵌 WebUI（`--webui`）**：`serve` 新增 `--webui`，在同一监听端口同源托管 BBDown.WebUI 的前端产物（dist 在 CI 构建并以嵌入式资源打进可执行文件），访问监听地址即可使用，无需单独部署前端或配置跨域；任意 `--listen` 端口均同源（前端以 `location.origin` 调用 API）；构建时未嵌入 dist 则启动告警并不托管前端。静态资源匿名放行（不触发 `--serve-token` 鉴权），CSP 在 `--webui` 启用时由 `default-src 'none'` 放宽至 `'self'` 族。
 
 ### 重构
 
@@ -68,6 +69,7 @@
 - INTL 番剧信息不再对响应体做 `\/` 字符串替换：`\/` 是合法 JSON 转义，提前替换会把原文里 `\\` + `/` 的组合错误归并。
 - gRPC 请求 `Host` 头取目标地址：此前一处传死值，端点迁移即与 TLS 的 SNI 不一致。
 - 取消 / 超时杀外部进程时连带子进程树，避免 aria2c / ffmpeg 派生的孙进程继续占用带宽与文件句柄。
+- 工作目录环境变量展开支持 Unix 的 `$VAR` / `${VAR}`：`.NET` 原生的 `Environment.ExpandEnvironmentVariables` 只展开 `%VAR%`（Windows / Unix 均适用），不处理 `$VAR` / `${VAR}`；新增仅对 Unix 生效的最小替换，把 `$NAME` / `${NAME}` 换成对应环境变量的值（缺失则替换为空），不处理通配 / 命令 / 转义。此前该分支缺失，导致 Linux 下 `NormalizeWorkDir_ExpandsEnvironmentVariables` 未展开、被当成相对路径。
 
 ### 安全
 

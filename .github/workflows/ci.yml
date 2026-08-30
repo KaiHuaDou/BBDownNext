@@ -106,9 +106,36 @@ jobs:
           print(text, end="")
           PY
 
+  build-webui:
+    name: Build WebUI (dist)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+          cache-dependency-path: BBDown.WebUI/pnpm-lock.yaml
+      - name: Install
+        working-directory: BBDown.WebUI
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        working-directory: BBDown.WebUI
+        run: pnpm build
+      - name: Upload dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: webui-dist
+          path: BBDown.WebUI/dist
+          retention-days: 7
+
   build-windows:
     name: Build Windows (${{ matrix.rid }})
-    needs: [test]
+    needs: [test, build-webui]
     runs-on: windows-latest
     timeout-minutes: 30
     strategy:
@@ -122,6 +149,12 @@ jobs:
             buildWin7: false
     steps:
       - uses: actions/checkout@v7
+
+      - name: Download WebUI dist
+        uses: actions/download-artifact@v7
+        with:
+          name: webui-dist
+          path: BBDown.WebUI/dist
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -163,7 +196,7 @@ jobs:
 
   build-macos:
     name: Build macOS (${{ matrix.rid }})
-    needs: [test]
+    needs: [test, build-webui]
     runs-on: macos-latest
     timeout-minutes: 45
     strategy:
@@ -172,6 +205,12 @@ jobs:
         rid: [osx-x64, osx-arm64]
     steps:
       - uses: actions/checkout@v7
+
+      - name: Download WebUI dist
+        uses: actions/download-artifact@v7
+        with:
+          name: webui-dist
+          path: BBDown.WebUI/dist
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -195,7 +234,7 @@ jobs:
 
   build-linux:
     name: Build Linux (glibc) (${{ matrix.rid }})
-    needs: [test]
+    needs: [test, build-webui]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:
@@ -208,6 +247,12 @@ jobs:
             runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
+
+      - name: Download WebUI dist
+        uses: actions/download-artifact@v7
+        with:
+          name: webui-dist
+          path: BBDown.WebUI/dist
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -248,7 +293,7 @@ jobs:
 
   build-linux-musl:
     name: Build Linux (musl) (${{ matrix.rid }})
-    needs: [test]
+    needs: [test, build-webui]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:
@@ -261,6 +306,12 @@ jobs:
             runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
+
+      - name: Download WebUI dist
+        uses: actions/download-artifact@v7
+        with:
+          name: webui-dist
+          path: BBDown.WebUI/dist
 
       # musl 目标在 Alpine 容器内按宿主架构原生编译。宿主 Ubuntu 既无 musl sysroot，
       # 其 ld.bfd 也不支持 aarch64；交叉链接要么直接失败，要么悄悄链到 glibc 产出假 musl 二进制。

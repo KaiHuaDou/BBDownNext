@@ -6,6 +6,8 @@ BBDown 的网页前端，直连 `BBDown serve`（`BBDown serve` 启动的服务�
 
 需先以 `BBDown serve` 启动服务端。默认监听 `127.0.0.1:23333`（回环免令牌、回环 Origin 默认可跨域）。
 
+也可以不单独部署前端：以 `BBDown serve --webui` 启动时，服务端会在同一端口同源托管内嵌的前端（即本仓库 `dist` 构建产物），直接访问监听地址即可使用，无需配置跨域或令牌。构建 BBDown 时若未先构建 BBDown.WebUI，`--webui` 仅告警、不托管前端。
+
 ## 开发命令
 
 ```sh

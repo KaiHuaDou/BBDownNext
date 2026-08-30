@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 
 using BBDown.Core.Auth;
@@ -274,6 +275,11 @@ public static class WorkSetup
         }
 
         var expanded = Environment.ExpandEnvironmentVariables(raw.Trim( ));
+        if (!OperatingSystem.IsWindows( ))
+        {
+            expanded = ExpandUnixEnvVars(expanded);
+        }
+
         if (expanded.Length > 0 && expanded[0] == '~')
         {
             var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -284,4 +290,42 @@ public static class WorkSetup
 
         return Path.GetFullPath(expanded);
     }
+
+    // .NET 的 Environment.ExpandEnvironmentVariables 只展开 %VAR%（Windows / Unix 均适用），
+    // 不处理 Unix 的 $VAR / ${VAR}。这里仅对 Unix 补一个最小替换：把 $NAME / ${NAME} 换成对应
+    // 环境变量的值（缺失则替换为空），不处理通配 / 命令 / 转义。Windows 端由上面的原生调用负责，不走这里。
+    private static string ExpandUnixEnvVars(string s)
+    {
+        var builder = new StringBuilder(s.Length);
+        for (var i = 0; i < s.Length; i++)
+        {
+            if (s[i] != '$' || i + 1 >= s.Length)
+            {
+                builder.Append(s[i]);
+                continue;
+            }
+
+            if (s[i + 1] == '{')
+            {
+                var end = s.IndexOf('}', i + 2);
+                if (end < 0) { builder.Append(s[i]); continue; }
+                builder.Append(Environment.GetEnvironmentVariable(s[(i + 2)..end]));
+                i = end;
+                continue;
+            }
+
+            if (!IsEnvNameStart(s[i + 1])) { builder.Append(s[i]); continue; }
+
+            var j = i + 1;
+            while (j < s.Length && IsEnvNameChar(s[j])) { j++; }
+            builder.Append(Environment.GetEnvironmentVariable(s[(i + 1)..j]));
+            i = j - 1;
+        }
+
+        return builder.ToString( );
+    }
+
+    private static bool IsEnvNameStart(char c) => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+
+    private static bool IsEnvNameChar(char c) => IsEnvNameStart(c) || (c >= '0' && c <= '9');
 }

@@ -31,4 +31,10 @@
     <ItemGroup>
         <InternalsVisibleTo Include="BBDown.Tests" />
     </ItemGroup>
+    <!-- WebUI 内嵌：dist 存在才嵌入（本地未构建 WebUI 时 dotnet build 不报错）；
+         资源名形如 webui.assets/index-xxx.js、webui.index.html -->
+    <ItemGroup Condition="Exists('../BBDown.WebUI/dist')">
+        <EmbeddedResource Include="../BBDown.WebUI/dist/**"
+                          LogicalName="webui.%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
 </Project>
