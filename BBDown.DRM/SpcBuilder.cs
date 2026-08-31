@@ -13,8 +13,8 @@ namespace BBDown.DRM;
 //   40 RSA-OAEP(SHA1) 加密的会话密钥（128）
 //   168 公钥 PEM 全文 SHA1（20）
 //   188 KID 上下文长度 = 48（4）
-//   192 AES-CBC(会话密钥, IV) 加密的 KID 上下文（48）
-// KID 上下文明文 = 固定 salt（16）+ AES-ECB(会话密钥, kid 前 16 字节) + kid 后 16 字节明文。
+//   192 AES-CBC(会话密钥，IV) 加密的 KID 上下文（48）
+// KID 上下文明文 = 固定 salt（16）+ AES-ECB(会话密钥，kid 前 16 字节) + kid 后 16 字节明文。
 // 协议强制：SHA1 摘要、OAEP-SHA1 加密、ECB 加密 kid 前段、自定义 IV 的 CBC（均为 biliDRM 协议要求）
 #pragma warning disable CA5350, CA5358, CA5401
 internal static class SpcBuilder
@@ -49,7 +49,7 @@ internal static class SpcBuilder
         return Convert.ToBase64String(raw);
     }
 
-    // salt + ECB(会话密钥, kid 前 16 字节) + kid 后 16 字节，整体按 CBC(会话密钥, IV) 加密
+    // salt + ECB(会话密钥，kid 前 16 字节) + kid 后 16 字节，整体按 CBC(会话密钥，IV) 加密
     private static byte[] BuildKidContext(byte[] kid, byte[] sessionKey, byte[] iv)
     {
         var plain = new byte[Salt.Length + 16 + 16];

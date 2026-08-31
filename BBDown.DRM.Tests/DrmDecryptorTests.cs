@@ -1,5 +1,3 @@
-using Xunit;
-
 namespace BBDown.DRM.Tests;
 
 public class DrmDecryptorTests

@@ -78,7 +78,7 @@ internal static class WidevineLicense
         using var content = new ByteArrayContent(challenge);
         content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/x-protobuf");
         using var request = new HttpRequestMessage(HttpMethod.Post, LicenseUrl) { Content = content };
-        request.Headers.TryAddWithoutValidation("User-Agent", HTTPUtil.UserAgent);
+        request.Headers.TryAddWithoutValidation("User-Agent", BiliHeaders.UserAgent);
         request.Headers.TryAddWithoutValidation("Referer", "https://www.bilibili.com");
         using var response = await HTTPUtil.AppHttpClient.SendAsync(request, token);
         response.EnsureSuccessStatusCode( );

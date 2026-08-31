@@ -38,19 +38,18 @@ internal static class PlayUrlFetcher
         var url = await BuildPlayUrlAsync(aid, cid, cfg, drmTechType, token);
         using var json = await HTTPUtil.GetJsonAsync(url, cfg, token);
         var dash = json.RootElement.GetProperty("data").GetProperty("dash");
-        foreach (var listName in kind == "video" ? new[] { "video" } : new[] { "audio" })
+        // background / role 等伴音轨同在 audio 列表下发；KID 与轨类型无关，取首个加密轨即够用
+        var listName = kind == "video" ? "video" : "audio";
+        foreach (var track in dash.GetProperty(listName).EnumerateArray( ))
         {
-            foreach (var track in dash.GetProperty(listName).EnumerateArray( ))
+            var uri = ReadString(track, "bilidrm_uri");
+            var pssh = ReadString(track, "widevine_pssh");
+            if (uri == null && pssh == null)
             {
-                var uri = ReadString(track, "bilidrm_uri");
-                var pssh = ReadString(track, "widevine_pssh");
-                if (uri == null && pssh == null)
-                {
-                    continue;
-                }
-
-                return (ReadString(track, "drm_type") ?? (pssh != null ? "widevine" : "bili_drm"), uri, pssh);
+                continue;
             }
+
+            return (ReadString(track, "drm_type") ?? (pssh != null ? "widevine" : "bili_drm"), uri, pssh);
         }
 
         return (null, null, null);

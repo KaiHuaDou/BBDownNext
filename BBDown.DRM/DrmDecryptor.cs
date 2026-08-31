@@ -24,9 +24,14 @@ internal static class DrmDecryptor
         }
 
         var code = await Utils.RunExe(ffmpeg, BuildArgs(key!, sourcePath, destPath), token);
-        return code == 0 && File.Exists(destPath) && new FileInfo(destPath).Length > 0
-            ? DrmResult.Decrypted
-            : DrmResult.Failed;
+        if (code == 0 && File.Exists(destPath) && new FileInfo(destPath).Length > 0)
+        {
+            return DrmResult.Decrypted;
+        }
+
+        // 清理 ffmpeg 失败时残留的半截产物，协议约定 destPath 只在解密成功时存在
+        File.Delete(destPath);
+        return DrmResult.Failed;
     }
 
     // 单 key 解密（cbcs 常量 IV，ffmpeg 自行从 tenc/senc 读取 KID 与子样本信息）
