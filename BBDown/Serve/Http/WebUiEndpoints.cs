@@ -108,9 +108,11 @@ internal static class WebUiEndpoints
                 return Results.NotFound( );
             }
 
-            // 注入同源标记：前端据此以 location.origin 调用 API，任意 --listen 均生效
+            // 注入同源标记：前端据此以 location.origin 调用 API，任意 --listen 均生效。
+            // 入口文档禁缓存：资源由带哈希的 /assets 引用，index 滞留旧版会指向已 404 的旧资源
             using var reader = new StreamReader(stream, Encoding.UTF8);
             var html = (await reader.ReadToEndAsync( )).Replace("</head>", "<script>window.__BBDOWN_SERVE_EMBEDDED__=true</script></head>");
+            context.Response.Headers.CacheControl = "no-cache";
             return Results.Content(html, "text/html; charset=utf-8");
         }).AllowAnonymous( );
     }

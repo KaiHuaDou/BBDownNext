@@ -61,6 +61,8 @@ public partial class MainWindow
             Content = ReadContent( ),
             UseAria2c = UseAria2cCheckBox.IsChecked == true,
             SingleThread = SingleThreadCheckBox.IsChecked == true,
+            HideStreams = HideStreamsCheckBox.IsChecked == true,
+            EncodingFirst = EncodingFirstCheckBox.IsChecked == true,
             InfoOnly = InfoOnlyCheckBox.IsChecked == true,
             ShowAll = ShowAllCheckBox.IsChecked == true,
             AllowPreview = AllowPreviewCheckBox.IsChecked == true,
@@ -173,6 +175,8 @@ public partial class MainWindow
         ApplyContent(options.Content);
         UseAria2cCheckBox.IsChecked = options.UseAria2c;
         SingleThreadCheckBox.IsChecked = options.SingleThread;
+        HideStreamsCheckBox.IsChecked = options.HideStreams;
+        EncodingFirstCheckBox.IsChecked = options.EncodingFirst;
         InfoOnlyCheckBox.IsChecked = options.InfoOnly;
         ShowAllCheckBox.IsChecked = options.ShowAll;
         AllowPreviewCheckBox.IsChecked = options.AllowPreview;

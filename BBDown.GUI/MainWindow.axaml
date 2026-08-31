@@ -152,6 +152,8 @@
                                 <CheckBox x:Name="SingleThreadCheckBox" Classes="CheckBoxItem" Content="单线程下载" />
                                 <CheckBox x:Name="SaveRecordsCheckBox" Classes="CheckBoxItem" Content="下载记录去重" />
                                 <CheckBox x:Name="StopOnErrorCheckBox" Classes="CheckBoxItem" Content="失败即停止" />
+                                <CheckBox x:Name="HideStreamsCheckBox" Classes="CheckBoxItem" Content="隐藏可用音视频流" />
+                                <CheckBox x:Name="EncodingFirstCheckBox" Classes="CheckBoxItem" Content="编码优先于清晰度" />
                                 <CheckBox x:Name="DebugCheckBox"
                                           Classes="CheckBoxItem" Content="调试日志" IsCheckedChanged="DebugCheckBoxChecked" />
                                 <CheckBox x:Name="AllowPcdnCheckBox" Classes="CheckBoxItem" Content="允许 PCDN" />

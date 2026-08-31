@@ -6,6 +6,40 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
+## [v2.2.0]
+
+### 新增
+
+- **纯函数测试补充**
+    - `SsrfGuard.IsPrivateAddress`：覆盖私网各段 / CGNAT / 基准网络 / 多播与保留段 / 受限广播 / IPv4-mapped IPv6 / 公网白名单共 31 个用例。
+    - WebUI：任务状态映射新增「错误文案含『已取消』但无结构化字段时判为失败」回归用例；`maxRetry` 新增负数、小数、NaN 兜底用例。
+
+### 重构
+
+- **serve 任务执行链（无用户可见行为变化）**
+    - 删除 `TaskQueue` 包装层：`TaskStore` / `TaskWorker` 直接持有执行队列 `Channel` 的读写端，`TaskEnvelope` 移至 `TaskStore.cs`。
+    - `DownloadTask` 新增 `Scope`（构造时定格 `ResourceId` 规范串），替换各处每次调用的 `ResourceIdJsonConverter.Format` 字符串分配。
+    - `TaskSocketHub` 拆分：连接生命周期与帧收发留在 `TasksSocket.cs`，转发与广播泵移入 `TasksSocket.Forward.cs`，帧记录移至序列化上下文文件。
+    - `BBDownServer.SetUpServer` 拆出限流注册（`AddServeRateLimiting`）与请求管线装配（`ConfigurePipeline`）两个方法。
+
+### 修复
+
+- GUI 配置与队列文件改为原子写入（同目录临时文件 + 原子替换）：写入途中崩溃或断电不再损坏既有文件，恢复队列与用户配置不会被静默清空。
+- GUI 关闭窗口时已完成任务不再被误存为未完成：执行器退出码先于 UI 回投落位，已返回的任务不进入恢复队列，下次启动不会重复下载。
+- GUI 队列调度收尾竞态：调度标志复位与滞留重查收拢到 UI 线程执行，关窗后标志不再永久卡死，极端时序下入队任务不再永久滞留；恢复队列启动后直接拉起调度，不再静滞在等待列表。
+- serve 停止端点与任务收尾的并发竞态：取消源统一经任务对象的 `Cancel` / `DisposeCts` 串行化，不再抛 `ObjectDisposedException` 导致 500。
+- serve 任务收尾段整体兜底，收尾异常不再击穿后台执行器的聚合等待拖垮消费者；完成回调（CallBackWebHook）在服务器关停中断重试等待时静默放弃，不再上抛。
+- WebUI 任务取消态判定改用结构化 `isCancelled` 字段，不再解析错误文案：含「已取消」字样的普通失败不再被误判为取消。
+- 内嵌 WebUI 的 SPA 入口 `index.html` 加 `Cache-Control: no-cache`，升级后不再因浏览器缓存旧入口而引用已下线的旧资源。
+
+### 安全
+
+- serve 回调地址（CallBackWebHook）私网过滤补齐保留段 `240.0.0.0/4` 与受限广播 `255.255.255.255`。
+
+### 变更
+
+- 内部 API：`TaskStore` 构造参数由 `TaskQueue` 改为 `ChannelWriter<TaskEnvelope>`，`TaskWorker` 由 `TaskQueue` 改为 `ChannelReader<TaskEnvelope>`；`DownloadTask` 的取消源不再对外直接 `Dispose`。
+
 ## [v2.1.1]
 
 ### 新增
@@ -466,3 +500,4 @@
 [v2.0.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.0...v2.0.1
 [v2.1.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.1...v2.1.0
 [v2.1.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.1.0...v2.1.1
+[v2.2.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.1.1...v2.2.0

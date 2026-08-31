@@ -37,7 +37,8 @@ public partial class MainWindow
 
     private void ExportLogButtonClicked(object? o, RoutedEventArgs e)
     {
-        var path = Path.Combine(AppContext.BaseDirectory, $"BBDown.GUI.log.{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+        // 与配置 / 队列持久化同目录（exe 所在目录，portable），避免导出到随安装位置变化的 BaseDirectory
+        var path = Path.Combine(GuiPaths.ExeDirectory( ), $"BBDown.GUI.log.{DateTime.Now:yyyyMMdd_HHmmss}.txt");
         try
         {
             File.WriteAllLines(path, logLines.Select(line => line.Text));

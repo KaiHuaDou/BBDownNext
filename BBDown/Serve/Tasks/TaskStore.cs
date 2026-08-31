@@ -17,7 +17,7 @@ namespace BBDown.Serve.Tasks;
 /// 任务状态容器与受理入口：running / finished 两表、按 ResourceId 去重、完成后裁剪。
 /// host 三兄弟与工作目录由服务端启动参数固定，经 ApplyServe* 注入每个任务（P0-1 / P0-2）。
 /// </summary>
-internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
+internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> queueWriter)
 {
     private const int MaxFinishedTasks = 200;
     private const int MaxEnqueued = 100;
@@ -26,14 +26,13 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
     private readonly ConcurrentDictionary<ResourceId, DownloadTask> finished = new( );
     // enqueue（不立即执行）任务的执行信封暂存：start 时取出写入执行队列，故暂停态任务不占执行队列
     private readonly ConcurrentDictionary<ResourceId, TaskEnvelope> pending = new( );
-    // 事件上下文按 scope（ResourceIdJsonConverter.Format 规范串）键存：规范串与 /get-tasks 返回的 id 形态一致，
+    // 事件上下文按 scope（ResourceId 规范串，见 DownloadTask.Scope）键存：规范串与 /get-tasks 返回的 id 形态一致，
     // 经 ResourceId.TryParse 可往返，避免 record ToString 与规范串不对称导致 opus 等任务订阅/交互失效
     private readonly ConcurrentDictionary<string, ChannelWorkflowContext> contexts = new( );
     private readonly string? workDir = config.WorkDir;
     private readonly string? host = config.Host;
     private readonly string? epHost = config.EpHost;
     private readonly string? tvHost = config.TvHost;
-    private readonly TaskQueue queue = queue;
 
     /// <summary>
     /// 任务结构变更通知通道：任何 running / finished / pending 的增删改都写入一个标记项，
@@ -61,7 +60,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
         if (!ReferenceEquals(claimed, task))
         {
             // 重复提交同资源：新建任务的白费掉，其 linked CTS 必须释放，否则重复请求会累积泄漏
-            task.Cts.Dispose( );
+            task.DisposeCts( );
             // enqueue 暂停态任务遇到执行模式提交：直接触发启动，避免被判 Duplicate 后永不执行
             if (claimed.Status == DownloadStatus.Pending)
             {
@@ -79,7 +78,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
         // 任务自受理起即持有事件上下文（事件流始终启用）。注册先于入队：任务被立即消费并收尾时
         // ReleaseContext 也能命中，避免上下文在收尾之后才写入造成僵尸条目
         var ctx = new ChannelWorkflowContext( );
-        contexts[ResourceIdJsonConverter.Format(task.Id)] = ctx;
+        contexts[task.Scope] = ctx;
 
         var envelope = new TaskEnvelope(task, option, req.CallBackWebHook);
         // Enqueue 模式：仅存入暂停表，不写执行队列（WebUI「加入队列不执行」）；start 时再取出投入。
@@ -99,13 +98,13 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
             return new EnqueueResult(task, false, false);
         }
 
-        if (!queue.Writer.TryWrite(envelope))
+        if (!queueWriter.TryWrite(envelope))
         {
             // 入队失败回滚：任务尚未执行，从运行表、暂停表与上下文表移除并释放取消源
             pending.TryRemove(id, out _);
             running.TryRemove(id, out _);
-            contexts.TryRemove(ResourceIdJsonConverter.Format(task.Id), out _);
-            task.Cts.Dispose( );
+            contexts.TryRemove(task.Scope, out _);
+            task.DisposeCts( );
             return new EnqueueResult(null, false, true);
         }
 
@@ -127,7 +126,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
         // 先置等待态再入队：channel 写建立先后序，worker 取到的必然是 Queued 之后的状态；
         // TryWrite 失败回退 Pending，任务保留暂停态可再次 start
         envelope.Task.Status = DownloadStatus.Queued;
-        if (!queue.Writer.TryWrite(envelope))
+        if (!queueWriter.TryWrite(envelope))
         {
             pending[id] = envelope;
             envelope.Task.Status = DownloadStatus.Pending;
@@ -140,7 +139,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
 
     /// <summary>
     /// 取任务的事件上下文；交互未开启或任务已结束为 null。scope 为总线消息携带的任务标识
-    /// （ResourceIdJsonConverter.Format 规范串）。
+    /// （ResourceId 规范串，见 DownloadTask.Scope）。
     /// </summary>
     public ChannelWorkflowContext? GetContext(string scope)
     {
@@ -162,13 +161,13 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
     }
 
     /// <summary>
-    /// 按作用域字符串（ResourceIdJsonConverter.Format 规范串）查任务，运行中优先；事件流帧 TaskId 回发订阅时命中。
+    /// 按作用域字符串（ResourceId 规范串）查任务，运行中优先；事件流帧 TaskId 回发订阅时命中。
     /// </summary>
     public DownloadTask? GetByScope(string scope)
     {
         foreach (var task in running.Values)
         {
-            if (ResourceIdJsonConverter.Format(task.Id) == scope)
+            if (task.Scope == scope)
             {
                 return task;
             }
@@ -176,7 +175,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
 
         foreach (var task in finished.Values)
         {
-            if (ResourceIdJsonConverter.Format(task.Id) == scope)
+            if (task.Scope == scope)
             {
                 return task;
             }
@@ -206,7 +205,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
     }
 
     /// <summary>
-    /// 取消运行中任务（经任务级 Cts，不影响其他任务），返回是否命中。
+    /// 取消运行中任务（经任务级取消源，不影响其他任务），返回是否命中。
     /// </summary>
     public bool CancelRunning(ResourceId id)
     {
@@ -215,7 +214,7 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
             return false;
         }
 
-        task.Cts.Cancel( );
+        task.Cancel( );
         return true;
     }
 
@@ -261,8 +260,8 @@ internal sealed class TaskStore(ServeConfig config, TaskQueue queue)
         if (pending.TryRemove(id, out var envelope))
         {
             running.TryRemove(id, out _);
-            ReleaseContext(ResourceIdJsonConverter.Format(envelope.Task.Id));
-            envelope.Task.Cts.Dispose( );
+            ReleaseContext(envelope.Task.Scope);
+            envelope.Task.DisposeCts( );
         }
 
         NotifyChanged();
@@ -332,6 +331,11 @@ internal enum SubmitMode
     Execute,
     Enqueue,
 }
+
+/// <summary>
+/// 排队中的任务执行单元：Request 供下载管线消费，CallBackWebHook 为任务完成回调地址。
+/// </summary>
+internal sealed record TaskEnvelope(DownloadTask Task, DownloadRequest Request, string? CallBackWebHook);
 
 /// <summary>
 /// Start 结果：Started 已投入执行队列；NotFound 表示不在暂停表（已运行 / 未知 / 已结束）；QueueFull 表示执行队列写满。

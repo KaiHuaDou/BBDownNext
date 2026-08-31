@@ -37,10 +37,10 @@ public static class QueueStore
         }
     }
 
-    /// <summary>保存待恢复队列；失败抛异常由调用方记录。</summary>
+    /// <summary>保存待恢复队列（原子写）；失败抛异常由调用方记录。</summary>
     public static void Save(IEnumerable<QueuedTask> tasks)
     {
         Directory.CreateDirectory(GuiPaths.ExeDirectory( ));
-        File.WriteAllText(FilePath, JsonSerializer.Serialize([.. tasks], QueueJsonContext.Default.ListQueuedTask));
+        AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize([.. tasks], QueueJsonContext.Default.ListQueuedTask));
     }
 }

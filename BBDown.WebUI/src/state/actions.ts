@@ -36,13 +36,13 @@ export async function submit(
   }
 }
 
-/** 取消运行中 / 排队中任务。 */
+/** 停止任务：直播任务为「停止录制并合并」，其余为取消运行中 / 排队中任务。 */
 export async function stop(store: TaskStore, view: TaskView): Promise<void> {
   try {
     await stopTask(store.config.value, view.id)
-    appendLog(store, `任务${view.id} 已请求取消`)
+    appendLog(store, `任务${view.id} 已请求停止`)
   } catch (e) {
-    appendLog(store, `取消失败：${errorMessage(e)}`, true)
+    appendLog(store, `停止失败：${errorMessage(e)}`, true)
   }
 }
 

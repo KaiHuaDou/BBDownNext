@@ -12,6 +12,8 @@ public sealed record TaskParams
     // 常用布尔选项
     public bool UseAria2c { get; init; }
     public bool SingleThread { get; init; }
+    public bool HideStreams { get; init; }
+    public bool EncodingFirst { get; init; }
     public bool InfoOnly { get; init; }
     public bool ShowAll { get; init; }
     public bool AllowPreview { get; init; }
@@ -75,11 +77,11 @@ public static class TaskParamsMapper
             EncodingPriority = NullIfEmpty(options.EncodingPriority),
             DfnPriority = NullIfEmpty(options.DfnPriority),
             AudioQuality = NullIfEmpty(options.AudioQuality),
-            EncodingFirst = false,
+            EncodingFirst = options.EncodingFirst,
             OnlyShowInfo = options.InfoOnly,
             ShowAll = options.ShowAll,
             UseAria2c = options.UseAria2c,
-            HideStreams = false,
+            HideStreams = options.HideStreams,
             SingleThread = options.SingleThread,
             Debug = options.Debug,
             NoForceHttp = options.NoForceHttp,

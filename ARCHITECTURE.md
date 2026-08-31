@@ -61,7 +61,11 @@ BBDown/
 │       ├── AppJsonSerializerContext.cs # serve 响应 DTO 源生成器上下文
 │       ├── HealthStatus.cs             # /healthz 响应 record（Status / Running）
 │       ├── SsrfGuard.cs                # SSRF 防护静态类（IsSafeWebHook / IsPrivateAddress / IsLoopbackUrl / WebHookClient）
+│       ├── Auth/                       # 命名空间 BBDown.Serve.Auth — serve 侧扫码登录会话
+│       │   ├── QrLoginStore.cs          # 会话容器（并发上限 / 过期淘汰 / 后台跑 Core 登录编排）
+│       │   └── QrLoginModels.cs         # 登录起点 / 状态轮询 DTO
 │       ├── Http/ServeEndpoints.cs      # Minimal API 路由（/api/v1/tasks*、/healthz）
+│       ├── Http/LoginEndpoints.cs      # 扫码登录端点（POST /api/v1/login/qr 起点 + GET 轮询）
 │       ├── Http/TasksSocket.cs         # WebSocket hub（/hubs/tasks 事件流）
 │       ├── Http/TaskMessageBridge.cs   # Core 总线 → WebSocket 帧桥接
 │       ├── Http/ServeFramesJsonSerializerContext.cs # 帧 DTO 源生成器上下文
@@ -220,9 +224,9 @@ BBDown/
 │   ├── src/main.ts         # 应用入口（挂 App.vue，注入状态层）
 │   ├── src/App.vue         # 根组件（连接设置 / 任务提交 / 选项面板 / 任务列表 / 日志区）
 │   ├── src/lib/            # 纯函数与工具：content（内容字符表）/ options（选项映射）/ format（ETA 与耗时格式化）/ urlDetector（目标识别）/ errors / storage（localStorage）/ live（直播清晰度）
-│   ├── src/api/            # 网络层：client（REST 轮询）/ ws（WebSocket 事件流，含 disabled 停用态）/ login（登录态查询）
-│   ├── src/state/          # 状态层：store（全局状态）/ types / snapshot（轮询快照归一）/ taskView（任务 → 视图模型，含 ResourceId 前缀识别）/ connection（WS 订阅与重连）/ actions（提交 / 取消 / 移除 / 启动）/ useTasks（组合式封装）
-│   └── src/components/      # 视图组件：ConnectionBar / OptionsPanel / TaskList / LogPanel / AskDialog / LoginDialog
+│   ├── src/api/            # 网络层：client（REST 任务控制 + 扫码登录客户端）/ ws（WebSocket 事件流状态机，任务列表经 taskList 帧推送）/ login（凭据读写与登录通道）
+│   ├── src/state/          # 状态层：store（全局状态）/ types / snapshot（任务列表快照归一）/ taskView（任务 → 视图模型，含 ResourceId 前缀识别）/ connection（WS 订阅与重连）/ actions（提交 / 取消 / 移除 / 启动）/ useTasks（组合式封装）
+│   └── src/components/      # 视图组件：ConnectionBar（状态栏）/ OptionsPanel / TaskList / LogPanel / AskDialog / LoginDialog / ServeSettingsDialog（连接设置弹窗）
 ├── BBDown.Tests/           # 针对 BBDown 的 xUnit 测试
 ├── BBDown.Core.Tests/      # 针对 BBDown.Core 的 xUnit 测试
 └── Plugins/                # 插件（BBDown.Sample 内置模板；其余为独立 git 仓库，不进主构建）
@@ -449,9 +453,9 @@ v1 的 `serve` JSON API 面向音视频、直播与专栏（opus / cv）任务�
 
 `BBDown.WebUI` 是 serve 模式的 Web 前端（Vue 3 + Vite + TypeScript，pnpm workspace），目标复刻 GUI 业务功能，当前为 WIP（尚未生产可用）。它不内置下载能力，全部经 serve 的 REST（任务提交 / 取消 / 移除 / 清空 / 启动）与始终开启的 WebSocket 事件流（`/hubs/tasks`，任务列表与完成态由 `taskList` 帧推送驱动）与 `BBDown serve` 通信。设计要点：
 
-- **状态层与视图分离**：`state/` 持有全局状态（`store` + `types`），`snapshot` 把轮询快照归一到统一视图模型，`taskView` 把 `DownloadTask` 映射为视图模型（按 `ResourceId` 规范 id 前缀识别资源类型）；`connection` 管理 WebSocket 订阅与重连，`actions` 收口提交 / 取消 / 移除 / 启动，`useTasks` 为组合式封装。
-- **网络层**：`api/client` 负责 REST 任务控制（提交 / 取消 / 移除 / 清空 / 启动），`api/ws` 维护始终开启的 WebSocket 事件流连接（任务列表与完成态由 `taskList` 帧推送，断线指数退避自动重连），`api/login` 查询登录态。
+- **状态层与视图分离**：`state/` 持有全局状态（`store` + `types`），`snapshot` 把 WS 推送的 `taskList` 快照归一到统一视图模型，`taskView` 把 `DownloadTask` 映射为视图模型（按 `ResourceId` 规范 id 前缀识别资源类型）；`connection` 管理 WebSocket 订阅与重连，`actions` 收口提交 / 取消 / 移除 / 启动，`useTasks` 为组合式封装。
+- **网络层**：`api/client` 负责 REST 任务控制（提交 / 取消 / 移除 / 清空 / 启动）与扫码登录调用（`fetchLoginQr` / `pollLoginStatus`），`api/ws` 维护始终开启的 WebSocket 事件流连接（任务列表与完成态由 `taskList` 帧推送，断线指数退避自动重连），`api/login` 负责凭据读写（localStorage）、登录通道定义与去桩后的扫码登录流程。
 - **纯函数优先**：`lib/` 下 `content`（内容字符表与顺序）、`options`（选项映射）、`format`（ETA 与耗时格式化）、`urlDetector`（下载目标识别）、`live`（直播清晰度）均为可单测纯函数，测试在 `src/__tests__/` 与 `src/state/*.spec.ts`。
-- **视图组件**：`ConnectionBar`（连接设置，地址与令牌 localStorage 持久化）、`OptionsPanel`（内容 / 下载 / 解析选项，serve 契约排除的字段禁用并标注原因）、`TaskList`（任务队列与状态）、`LogPanel`（日志区）、`AskDialog`（交互选项弹窗）、`LoginDialog`（登录入口）。
+- **视图组件**：`ConnectionBar`（纯状态栏，地址 / 令牌展示与「设置」入口）、`OptionsPanel`（内容 / 下载 / 解析选项，serve 契约排除的字段禁用并标注原因）、`TaskList`（任务队列与状态）、`LogPanel`（日志区）、`AskDialog`（交互选项弹窗）、`LoginDialog`（扫码登录弹窗，内部 1.5 秒轮询，成功后凭据上报 App 并联动 API 通道）、`ServeSettingsDialog`（连接设置弹窗，地址与令牌 localStorage 持久化）。三枚弹窗均由 App 根层持有，避免组件内部 `Teleport`。
 
 构建与运行见 [README](./README.md)「Web 前端」节。

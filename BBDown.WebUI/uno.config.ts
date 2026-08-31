@@ -188,6 +188,7 @@ export default defineConfig({
     badge:
       'inline-flex shrink-0 items-center rounded-md border border-[var(--hairline)] bg-[var(--glass-2)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-dim)]',
     stat: 'inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] bg-[var(--glass-2)] px-2 py-0.5 text-xs text-[var(--text-dim)]',
+    'stat-text': 'inline-flex items-center gap-1.5 text-xs text-[var(--text-dim)]',
     'stat-dot': 'h-1.5 w-1.5 rounded-full'
   }
 })

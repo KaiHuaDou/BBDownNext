@@ -104,8 +104,8 @@ internal static class SsrfGuard
                 (bytes[0] == 192 && bytes[1] == 0 && bytes[2] == 0) ||
                 // 198.18.0.0/15 基准网络（benchmark，原实现漏网，§2.4）
                 (bytes[0] == 198 && bytes[1] is >= 18 and <= 19) ||
-                // 多播 224.0.0.0/4（原实现漏网，§2.4）
-                (bytes[0] is >= 224 and <= 239),
+                // 多播 224.0.0.0/4 与保留段 240.0.0.0/4（含受限广播 255.255.255.255），作为出向 webhook 目标均无意义且可疑
+                bytes[0] >= 224,
             AddressFamily.InterNetworkV6 =>
                 ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal ||
                 // 用内建判定替代脆弱的字符串前缀比较（原实现对 fc/fd 做 StartsWith，§2.4）

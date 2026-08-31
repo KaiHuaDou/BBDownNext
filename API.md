@@ -46,6 +46,8 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | DELETE | `/api/v1/tasks/finished/failed` | 移除所有已失败（`IsSuccessful == false`）的已完成任务 |
 | DELETE | `/api/v1/tasks/{id}`            | 移除指定已完成任务                                    |
 | POST   | `/api/v1/tasks/{id}/stop`       | 取消指定运行中 / 排队中任务（不影响其他任务）         |
+| POST   | `/api/v1/login/qr`              | 起点扫码登录：返回二维码 PNG（base64）与轮询键（见 [扫码登录](#扫码登录)） |
+| GET    | `/api/v1/login/qr/{qrcodeKey}`  | 轮询扫码登录状态，成功时一次性携带凭据（见 [扫码登录](#扫码登录)） |
 | GET    | `/healthz`                      | 健康检查（匿名放行，不要求令牌）                      |
 
 ---
@@ -143,12 +145,39 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 - **Endpoint：** `/api/v1/tasks/{id}/stop`
 - **Method：** POST
 - **Auth：** 显式传入 `--serve-token` 时需携带鉴权令牌（见上文鉴权说明）；未传入则默认免令牌。
-- **Description：** 取消指定 id 的运行中或排队中任务，不影响其他任务。每个任务持有与进程级关停令牌 `Link` 的 `CancellationTokenSource`，调用该接口即触发其 `Cancel()`，只终止目标任务；`Ctrl+C`（全局令牌）仍会取消所有进行中的任务。
+- **Description：** 取消指定 id 的运行中或排队中任务，不影响其他任务。每个任务持有与进程级关停令牌 `Link` 的 `CancellationTokenSource`，调用该接口即触发其 `Cancel()`，只终止目标任务；`Ctrl+C`（全局令牌）仍会取消所有进行中的任务。直播任务特殊：该接口对正在录制的直播间是「停止录制并合并」——录音结束、分段合并且保存成品后按成功收尾（未在录制时退化为整任务取消）。
 - **Parameters：**
     - `{id}`（路径参数）：任务的规范 id（如 `av170001`、`season2539`），见 [任务标识](#任务标识)。
 - **Response：**
     - 找到匹配的运行中 / 排队中任务：取消该任务，返回 `200 OK`。
     - 未找到：返回 `404 Not Found`。
+
+### 扫码登录
+
+WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录链路（`Login` / `CredentialStore`）的会话编排：凭据（WEB 为 Cookie，TV / APP 为 access_token）在 `success` 态一次性随轮询响应返回，同时写入本机 `BBDown.data`（与 CLI / GUI 登录一致）；前端另将凭据存于浏览器 localStorage，随任务请求的 `ServeRequestOptions` 附带。
+
+- **Endpoint：** `/api/v1/login/qr`
+- **Method：** POST
+- **Auth：** 与所有 serve 接口一致（默认免令牌；`--serve-token` 下需携带令牌）。额外受 `loginSubmit` 限流（每 IP 每分钟 10 次）。
+- **Description：** 发起一次扫码登录会话，后台开始生成二维码。返回二维码 PNG（base64，可直接置入 `<img src="data:image/png;base64,...">`）与轮询键 `qrcodeKey`。会话在服务端内存持有，并发上限 8，10 分钟过期。
+- **Request Body：** `{ "channel": "web" | "tv" | "app" }`，忽略大小写（`web` 得 Cookie，`tv` / `app` 得 access_token）。
+- **Response：**
+    - `200 OK`：`QrLoginStartResponse`，含 `qrcodeKey`、`qrPngBase64`、`channel`。
+    - `400 Bad Request`：`channel` 不是 web / tv / app。
+    - `504 Gateway Timeout`：10 秒内未拿到登录地址（多为网络故障），会话已销毁，客户端应重试。
+    - `429 Too Many Requests`：触发 `loginSubmit` 限流。
+
+- **Endpoint：** `/api/v1/login/qr/{qrcodeKey}`
+- **Method：** GET
+- **Auth：** 与所有 serve 接口一致。
+- **Description：** 轮询一次扫码状态；成功后凭据仅随本次响应下发一次，客户端应立即保存并停止轮询。
+- **Parameters：**
+    - `{qrcodeKey}`（路径参数）：`POST /api/v1/login/qr` 返回的轮询键。
+- **Response：** `QrLoginStatusResponse`：
+    - `state`：`waitingScan` / `waitingConfirm` / `expired` / `success` / `failed`（小写枚举名，与 serve 全局 camelCase 序列化一致）。
+    - `success` 时携带：`cookie`（web 通道）、`accessToken`（tv / app 通道），以及可能为空的 `refreshToken`（web 通道）与 `accountName`（web 通道探测到的账号名）；其余状态这些字段为空。
+    - `failed` 时携带 `error`（失败原因）。
+    - 会话不存在 / 已淘汰：`404 Not Found`（客户端应重新发起登录）。
 
 ---
 
@@ -214,6 +243,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | `series`（系列）           | `series789`                       |
 | `space`（UP 主空间）       | `space402787936`                  |
 | `watchLater`（稍后再看）   | `watchLater`                      |
+| `live`（直播间录制）       | `live502144`                      |
 
 > 注意：旧版 `Aid` 字段（字符串）与「裸 AID 数字」路径参数已废弃。规范编码只接受上表形态，`/api/v1/tasks` 的 `Url` 仍使用命令行输入写法（`av|bv|BV|ep|ss` 等），两者互不通用。
 
@@ -239,6 +269,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | `TotalDownloadedBytes` | `long`               | 总下载字节数（Byte）；完成后的数值比实际文件略小（见下方注意事项）                                                                                     |
 | `ErrorMessage`         | `string?`            | 失败原因（本机绝对路径已替换为 `<redacted-path>`）；任务成功或未失败时为 `null`                                                                        |
 | `IsSuccessful`         | `bool`               | 任务是否成功完成                                                                                                                                       |
+| `IsCancelled`          | `bool`               | 任务是否被取消（用户停止 / 服务器退出）；取消的任务 `IsSuccessful == false` 且此字段为 `true`，客户端据此区分「已取消」与真实失败                  |
 | `Status`               | `string`             | 任务状态：`Pending`（已受理、等待手动启动，仅 `?mode=enqueue` 提交时出现）/ `Queued`（已提交执行、等待并发额度，仅 `--max-concurrent > 0` 时出现）/ `Running`（下载中）/ `Finished`（已结束，成败见 `IsSuccessful`）     |
 | `SavePaths`            | `Collection<string>` | 已生成文件的本地路径集合（可能包含视频、音频、弹幕、封面等）                                                                                           |
 
@@ -278,13 +309,13 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 ## 使用例
 
-> 以下示例使用默认的 `23333` 端口；若以其他地址启动 `serve`，请相应替换 URL。
+> 以下示例使用默认的 `23333` 端口；若以其他地址启动 `serve`，请相应替换 URL。请求体字段名在 JSON 中使用 camelCase（与 serve 的序列化格式一致）；服务端反序列化不区分大小写，传入 PascalCase 同样有效。
 
 ### 用 BV 号添加任务
 
 ```shell
 curl -X POST -H 'Content-Type: application/json' \
-  -d '{ "Url": "BV1qt4y1X7TW" }' \
+  -d '{ "url": "BV1qt4y1X7TW" }' \
   http://localhost:23333/api/v1/tasks
 ```
 
@@ -292,7 +323,7 @@ curl -X POST -H 'Content-Type: application/json' \
 
 ```shell
 curl -X POST -H 'Content-Type: application/json' \
-  -d '{ "Url": "av170001" }' \
+  -d '{ "url": "av170001" }' \
   http://localhost:23333/api/v1/tasks
 ```
 
@@ -300,7 +331,7 @@ curl -X POST -H 'Content-Type: application/json' \
 
 ```shell
 curl -X POST -H 'Content-Type: application/json' \
-  -d '{ "Url": "https://www.bilibili.com/opus/1230485246732926996" }' \
+  -d '{ "url": "https://www.bilibili.com/opus/1230485246732926996" }' \
   http://localhost:23333/api/v1/tasks
 ```
 
@@ -308,33 +339,25 @@ curl -X POST -H 'Content-Type: application/json' \
 
 ```shell
 curl -X POST -H 'Content-Type: application/json' \
-  -d '{ "Url": "cv123", "Content": "i" }' \
+  -d '{ "url": "cv123", "content": "i" }' \
   http://localhost:23333/api/v1/tasks
 ```
 
-### 下载到指定目录
-
-Windows：
+### 下载指定分 P
 
 ```shell
 curl -X POST -H 'Content-Type: application/json' \
-  -d '{ "Url": "BV1qt4y1X7TW", "FilePattern": "C:\\Downloads\\<videoTitle>[<dfn>]" }' \
+  -d '{ "url": "BV1qt4y1X7TW", "pages": "1,2" }' \
   http://localhost:23333/api/v1/tasks
 ```
 
-Unix-Like：
-
-```shell
-curl -X POST -H 'Content-Type: application/json' \
-  -d '{ "Url": "BV1qt4y1X7TW", "FilePattern": "/Downloads/<videoTitle>[<dfn>]" }' \
-  http://localhost:23333/api/v1/tasks
-```
+下载输出目录与文件名模式由服务端启动参数控制（`serve --work-dir`；`FilePattern` 等字段不在请求契约内，传入会被忽略）。
 
 ### 带任务完成回调
 
 ```shell
 curl -X POST -H 'Content-Type: application/json' \
-  -d '{ "Url": "BV1qt4y1X7TW", "CallBackWebHook": "http://my-service.example.com/bbdown/callback" }' \
+  -d '{ "url": "BV1qt4y1X7TW", "callBackWebHook": "http://my-service.example.com/bbdown/callback" }' \
   http://localhost:23333/api/v1/tasks
 ```
 

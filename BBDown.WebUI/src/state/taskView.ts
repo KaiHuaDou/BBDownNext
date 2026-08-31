@@ -1,13 +1,7 @@
 import { buildDetail } from '../lib/format'
 import type { DownloadTask, TaskView, TaskViewStatus } from '../lib/types'
 
-/**
- * 服务端以错误文案标记取消（serve 的 DownloadTask 无结构化 isCancelled 字段，
- * 取消的任务收尾为 Finished + 失败且文案含「已取消」）。此哨兵与 serve 文案契约绑定，
- * 若 serve 改文案须同步此处。
- */
-const CANCELLED_MARKER = '已取消'
-
+/** 取消态只消费服务端的结构化 isCancelled 字段，不解析错误文案。 */
 function statusOf(task: DownloadTask): { status: TaskViewStatus; statusText: string } {
   if (task.status === 'Pending') {
     return { status: 'Pending', statusText: '待启动' }
@@ -25,7 +19,7 @@ function statusOf(task: DownloadTask): { status: TaskViewStatus; statusText: str
     return { status: 'Success', statusText: '成功' }
   }
 
-  if (task.errorMessage?.includes(CANCELLED_MARKER)) {
+  if (task.isCancelled) {
     return { status: 'Cancelled', statusText: '已取消' }
   }
 

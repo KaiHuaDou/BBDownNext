@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 
-import { loadCredential, type Credential } from './api/login'
+import type { ServeConfig } from './api/client'
+import { loadCredential, type Credential, type LoginChannel } from './api/login'
 import AskDialog from './components/AskDialog.vue'
 import ConnectionBar from './components/ConnectionBar.vue'
 import LoginDialog from './components/LoginDialog.vue'
 import LogPanel from './components/LogPanel.vue'
 import OptionsPanel from './components/OptionsPanel.vue'
+import ServeSettingsDialog from './components/ServeSettingsDialog.vue'
 import TaskList from './components/TaskList.vue'
 import { CONTENT_ORDER, checkedFromContent, contentFromChecked } from './lib/content'
-import { DEFAULT_OPTIONS, type TaskOptions } from './lib/options'
+import { DEFAULT_OPTIONS, loadOptions, saveOptions, type TaskOptions } from './lib/options'
 import { describeTarget } from './lib/urlDetector'
 import { useTasks, type PendingAsk } from './state/useTasks'
 
@@ -35,10 +37,13 @@ const {
 } = useTasks()
 
 const target = ref('')
-let options = reactive<TaskOptions>({ ...DEFAULT_OPTIONS })
+let options = reactive<TaskOptions>(loadOptions())
 const loginVisible = ref(false)
+const serveSettingsVisible = ref(false)
 const credential = ref<Credential>(loadCredential())
 const submitting = ref(false)
+// 选项变化即持久化，刷新后保留（凭据 / serve 配置各有独立存储，不经此键）
+watch(options, () => saveOptions(options), { deep: true })
 
 const targetHint = computed(() => describeTarget(target.value))
 const contentChecked = computed<Set<string>>({
@@ -128,10 +133,21 @@ const dismissAsk = (): void => {
   )
 }
 
-const onSavedCredential = (next: Credential): void => {
+const onSavedCredential = (next: Credential, channel?: LoginChannel): void => {
   credential.value = next
   loginVisible.value = false
+  if (channel) {
+    // 与 GUI 登录成功后自动切换 ApiBox 对齐：扫码通道即 API 通道
+    options.api = channel
+    appendLog(`已按登录通道切换 API 通道：${channel}`)
+  }
+
   appendLog('登录凭据已保存')
+}
+
+const onSaveServeSettings = (next: ServeConfig): void => {
+  setConfig(next)
+  serveSettingsVisible.value = false
 }
 </script>
 
@@ -149,7 +165,7 @@ const onSavedCredential = (next: Credential): void => {
           :connected="connected"
           :event-stream="eventStream"
           :error="connectionError"
-          @save="setConfig" />
+          @settings="serveSettingsVisible = true" />
         <button class="btn-ghost" type="button" @click="reset">重置选项</button>
       </div>
     </header>
@@ -277,6 +293,7 @@ const onSavedCredential = (next: Credential): void => {
     <!-- 弹窗 -->
     <LoginDialog
       v-if="loginVisible"
+      :config="config"
       :credential="credential"
       @close="loginVisible = false"
       @saved="onSavedCredential" />
@@ -285,5 +302,10 @@ const onSavedCredential = (next: Credential): void => {
       :ask="currentAsk"
       @answer="(choice) => currentAsk && void answerAsk(currentAsk, choice)"
       @dismiss="dismissAsk" />
+    <ServeSettingsDialog
+      v-if="serveSettingsVisible"
+      :config="config"
+      @save="onSaveServeSettings"
+      @close="serveSettingsVisible = false" />
   </div>
 </template>

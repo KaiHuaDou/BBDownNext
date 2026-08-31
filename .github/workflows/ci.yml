@@ -112,20 +112,27 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
         with:
           version: 11
-      - uses: actions/setup-node@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
           node-version: 26
           cache: pnpm
           cache-dependency-path: BBDown.WebUI/pnpm-lock.yaml
+
       - name: Install
         working-directory: BBDown.WebUI
         run: pnpm install --frozen-lockfile
+
       - name: Build
         working-directory: BBDown.WebUI
         run: pnpm build
+
       - name: Upload dist
         uses: actions/upload-artifact@v7
         with:

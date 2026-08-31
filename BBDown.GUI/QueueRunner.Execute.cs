@@ -11,45 +11,65 @@ public sealed partial class QueueRunner
 {
     private async Task RunScheduleAsync( )
     {
-        while (true)
+        try
         {
-            await AcquireSlotAsync( );
-            TaskState? state = null;
-            dispatch(( ) =>
+            while (true)
             {
-                if (waiting.Count > 0)
+                await AcquireSlotAsync( );
+                TaskState? state = null;
+                dispatch(( ) =>
                 {
-                    state = waiting[0];
-                    waiting.RemoveAt(0);
-                    running.Add(state);
-                    state.Status = TaskStatus.Running;
-                    state.TokenSource = new CancellationTokenSource( );
-                    Changed?.Invoke(this, EventArgs.Empty);
-                }
-            });
+                    if (waiting.Count > 0)
+                    {
+                        state = waiting[0];
+                        waiting.RemoveAt(0);
+                        running.Add(state);
+                        state.Status = TaskStatus.Running;
+                        state.TokenSource = new CancellationTokenSource( );
+                        Changed?.Invoke(this, EventArgs.Empty);
+                    }
+                });
 
-            if (state is null)
-            {
-                ReleaseSlot( );
-                var hasWaiting = false;
-                dispatch(( ) => hasWaiting = waiting.Count > 0);
-                if (hasWaiting)
+                if (state is null)
                 {
-                    continue;
+                    ReleaseSlot( );
+                    var hasWaiting = false;
+                    dispatch(( ) => hasWaiting = waiting.Count > 0);
+                    if (hasWaiting)
+                    {
+                        continue;
+                    }
+
+                    break;
                 }
 
-                break;
+                _ = ExecuteAndReleaseAsync(state);
             }
-
-            _ = ExecuteAndReleaseAsync(state);
         }
-
-        scheduling = false;
-        // 置 false 与消费最后一个等待任务之间存在窗口：窗口内入队并调用 StartSchedule 会因 scheduling 仍为 true 提前返回，
-        // 导致新任务永久滞留。置 false 后重查，存在等待任务则重新拉起调度
-        if (HasWaiting)
+        catch (Exception)
         {
-            StartSchedule( );
+            // 窗口关闭后 dispatch 回投失败属预期：调度随进程终止，无需记录
+        }
+        finally
+        {
+            // 复位与滞留重查收拢到 UI 线程：与 RunNow/Enqueue/StartSchedule 的入队同线程串行执行，
+            // 消除后台裸读 waiting.Count 的可见性窗口（可能漏看 UI 线程刚入队的任务，导致永久滞留）
+            try
+            {
+                dispatch(( ) =>
+                {
+                    scheduling = false;
+                    if (waiting.Count > 0)
+                    {
+                        StartSchedule( );
+                    }
+                });
+            }
+            catch (Exception)
+            {
+                // 窗口已关闭且 dispatch 不可用：直接复位标志，调度随进程终止
+                scheduling = false;
+            }
         }
     }
 
@@ -84,6 +104,8 @@ public sealed partial class QueueRunner
 
             var token = state.TokenSource?.Token ?? CancellationToken.None;
             var exitCode = await Executor(state, token);
+            // 先于 UI 回投落位：关窗导致 dispatch 失败时，落盘逻辑仍能凭 exitCode 排除已收尾任务
+            state.exitCode = exitCode;
             dispatch(( ) =>
             {
                 state.Status = exitCode == 0 ? TaskStatus.Success : TaskStatus.Failed;
@@ -115,6 +137,9 @@ public sealed partial class QueueRunner
     private void MoveToFinished(TaskState state)
     {
         running.Remove(state);
+        // 收尾即释放取消源：无内核句柄不强制，但保持生命周期与任务一致（Retry 会重建）
+        state.TokenSource?.Dispose( );
+        state.TokenSource = null;
         finished.Add(state);
     }
 

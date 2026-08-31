@@ -8,8 +8,8 @@ const KNOWN_PREFIXES: [string, string][] = [
   ['md', '番剧（md 号）'],
   ['cheese/ep', '课程（ep 号）'],
   ['cheese/ss', '课程（ss 号）'],
-  ['opus', '专栏（opus 号）'],
-  ['cv', '专栏（cv 号）'],
+  ['opus', '专栏（opus）'],
+  ['cv', '专栏（cv）'],
   ['space', '用户空间'],
   ['live', '直播间（live 号）']
 ]
@@ -95,11 +95,11 @@ function describeUrl(text: string): string {
 
   // opus / cv 的路径形态为 .../opus/123...、.../cv/123...，关键字与数字间带斜杠（裸形态 opus123 同样成立）
   if (/opus\/?[0-9]+/i.test(text)) {
-    return '专栏（opus 号）'
+    return '专栏（opus）'
   }
 
   if (/cv\/?[0-9]+/i.test(text)) {
-    return '专栏（cv 号）'
+    return '专栏（cv）'
   }
 
   return '视频地址'

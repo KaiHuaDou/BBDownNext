@@ -42,6 +42,9 @@ public sealed class TaskState : INotifyPropertyChanged
     /// <summary>上一次采样进度（0..1），用于检测分 P 切换导致的进度回退。</summary>
     internal double lastRatio;
 
+    /// <summary>执行器返回码，后台线程在 UI 回投前写入；-1 表示未收尾，关窗落盘时据此排除已完成的任务。</summary>
+    internal volatile int exitCode = -1;
+
     public required TaskParams Params { get; init; }
     public required string Url { get; init; }
     public required TaskKind Kind { get; init; }
@@ -214,6 +217,7 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
         state.Status = TaskStatus.Waiting;
         state.Progress = 0;
         state.TokenSource = null;
+        state.exitCode = -1;
         waiting.Add(state);
         Changed?.Invoke(this, EventArgs.Empty);
         StartSchedule( );

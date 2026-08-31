@@ -2,8 +2,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Text.Json.Serialization.Metadata;
+using System.Threading.Channels;
 using System.Threading.RateLimiting;
 
+using BBDown.Serve.Auth;
 using BBDown.Serve.Http;
 using BBDown.Serve.Tasks;
 
@@ -89,7 +91,7 @@ public class BBDownServer
         // CORS：放行回环来源（127.0.0.1 / localhost）与显式 --cors-origin 的浏览器请求。
         // 安全前提：CORS 校验的是请求方 Origin 而非目标地址，恶意网页（非回环 Origin）依旧无 ACAO 头被浏览器拦截。
         // 注意它挡不住 DNS rebinding——攻击者域名解析到 127.0.0.1 后，页面发起的是「同源」请求，
-        // 同源 GET 不携带 Origin。该场景由下面的 Host 头白名单兜底。
+        // 同源 GET 不携带 Origin。该场景由 Host 头白名单中间件兜底（见 ConfigurePipeline）。
         builder.Services.AddCors((options) =>
         {
             options.AddPolicy("AllowSpecificOrigin",
@@ -99,8 +101,49 @@ public class BBDownServer
                     .AllowAnyHeader( ));
         });
 
-        // 全局限流（per-IP 固定窗口）兜底滥用；任务提交独立策略（防批量拉任务）
-        builder.Services.AddRateLimiter(options =>
+        AddServeRateLimiting(builder.Services);
+
+        builder.Services.AddAuthentication(ApiKeyAuthenticationOptions.DefaultScheme)
+            .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+                ApiKeyAuthenticationOptions.DefaultScheme,
+                options => options.ExpectedToken = serveToken);
+        // UseAuthorization 要求授权服务始终注册；FallbackPolicy 默认拒绝仅鉴权模式启用，
+        // 未启用强制鉴权（authRequired == false）时无 FallbackPolicy，匿名全放行
+        builder.Services.AddAuthorization(options =>
+        {
+            if (authRequired)
+            {
+                options.FallbackPolicy = new AuthorizationPolicyBuilder( ).RequireAuthenticatedUser( ).Build( );
+            }
+        });
+
+        builder.Services.AddSingleton(config);
+        // 有界（100）执行队列提供背压：写满时受理返回 429（见 TaskStore.EnqueueAsync）
+        var taskChannel = Channel.CreateBounded<TaskEnvelope>(new BoundedChannelOptions(100)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = false,
+            SingleWriter = false,
+        });
+        builder.Services.AddSingleton(sp => new TaskStore(config, taskChannel.Writer));
+        builder.Services.AddSingleton(sp => new TaskWorker(taskChannel.Reader, sp.GetRequiredService<TaskStore>( ), config.MaxConcurrent));
+        builder.Services.AddHostedService(sp => sp.GetRequiredService<TaskWorker>( ));
+        builder.Services.AddSingleton(sp => new TaskSocketHub(sp.GetRequiredService<TaskStore>( )));
+        builder.Services.AddSingleton<QrLoginStore>( );
+
+        app = builder.Build( );
+
+        // 日志消息经桥接器按任务路由进事件流（WebSocket）。事件流始终启用，桥接器被静态订阅强持有，
+        // 存活至进程退出，无需字段引用或释放。
+        _ = new TaskMessageBridge(app.Services.GetRequiredService<TaskStore>( ));
+
+        ConfigurePipeline(app, config);
+    }
+
+    // 全局限流（per-IP 固定窗口）兜底滥用；任务提交 / 登录二维码起点各自独立策略（防批量触发）
+    private static void AddServeRateLimiting(IServiceCollection services)
+    {
+        services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
@@ -121,35 +164,25 @@ public class BBDownServer
                         Window = TimeSpan.FromMinutes(1),
                         AutoReplenishment = true,
                     }));
+            // 登录二维码起点限流：扫码系低频操作但生成动作昂贵（双请求 + 本地 PNG），独立策略防批量触发
+            options.AddPolicy("loginSubmit", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString( ) ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1),
+                        AutoReplenishment = true,
+                    }));
         });
+    }
 
-        builder.Services.AddAuthentication(ApiKeyAuthenticationOptions.DefaultScheme)
-            .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
-                ApiKeyAuthenticationOptions.DefaultScheme,
-                options => options.ExpectedToken = serveToken);
-        // UseAuthorization 要求授权服务始终注册；FallbackPolicy 默认拒绝仅鉴权模式启用，
-        // 未启用强制鉴权（authRequired == false）时无 FallbackPolicy，匿名全放行
-        builder.Services.AddAuthorization(options =>
-        {
-            if (authRequired)
-            {
-                options.FallbackPolicy = new AuthorizationPolicyBuilder( ).RequireAuthenticatedUser( ).Build( );
-            }
-        });
-
-        builder.Services.AddSingleton(config);
-        builder.Services.AddSingleton<TaskQueue>(new TaskQueue( ));
-        builder.Services.AddSingleton(sp => new TaskStore(config, sp.GetRequiredService<TaskQueue>( )));
-        builder.Services.AddSingleton(sp => new TaskWorker(sp.GetRequiredService<TaskQueue>( ), sp.GetRequiredService<TaskStore>( ), config.MaxConcurrent));
-        builder.Services.AddHostedService(sp => sp.GetRequiredService<TaskWorker>( ));
-        builder.Services.AddSingleton(sp => new TaskSocketHub(sp.GetRequiredService<TaskStore>( )));
-
-        app = builder.Build( );
-
-        // 日志消息经桥接器按任务路由进事件流（WebSocket）。事件流始终启用，桥接器被静态订阅强持有，
-        // 存活至进程退出，无需字段引用或释放。
-        _ = new TaskMessageBridge(app.Services.GetRequiredService<TaskStore>( ));
-
+    /// <summary>
+    /// 请求管线装配：安全响应头 → 回环 Host 边界 → CORS → 限流 → 写端点 Origin 校验 →
+    /// 认证授权 → 认证失败限速 → WebSocket → 端点映射。
+    /// </summary>
+    private void ConfigurePipeline(WebApplication app, ServeConfig config)
+    {
         // 安全响应头：所有响应（含 4xx）统一携带
         app.Use(async (context, next) =>
         {
@@ -213,6 +246,7 @@ public class BBDownServer
         // SlimBuilder 不注册 WebSocket 中间件，须显式启用（IsWebSocketRequest 依赖其 feature）
         app.UseWebSockets( );
         app.MapServeEndpoints( );
+        app.MapLoginEndpoints( );
 
         // 内嵌 WebUI：扫描 webui.* 资源并建立查表映射；未嵌入却启用 --webui 时仅警告，不阻断服务
         var webUiResources = WebUiEndpoints.BuildResourceMap(typeof(BBDownServer).Assembly);

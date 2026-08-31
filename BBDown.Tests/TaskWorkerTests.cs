@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 using BBDown.Core;
@@ -16,7 +17,8 @@ public class TaskWorkerTests
 {
     private static TaskWorker NewWorker(int maxConcurrent)
     {
-        return new TaskWorker(new TaskQueue( ), new TaskStore(new ServeConfig( ), new TaskQueue( )), maxConcurrent);
+        var channel = Channel.CreateUnbounded<TaskEnvelope>( );
+        return new TaskWorker(channel.Reader, new TaskStore(new ServeConfig( ), channel.Writer), maxConcurrent);
     }
 
     [Fact]
@@ -24,7 +26,7 @@ public class TaskWorkerTests
     {
         const int cap = 2;
         const int total = 5;
-        var store = new TaskStore(new ServeConfig( ), new TaskQueue( ));
+        var store = new TaskStore(new ServeConfig( ), Channel.CreateUnbounded<TaskEnvelope>( ).Writer);
         using var worker = NewWorker(cap);
 
         var running = 0;
@@ -60,7 +62,7 @@ public class TaskWorkerTests
     [Fact]
     public async Task RunGatedAsync_Unlimited_RunsAllConcurrently( )
     {
-        var store = new TaskStore(new ServeConfig( ), new TaskQueue( ));
+        var store = new TaskStore(new ServeConfig( ), Channel.CreateUnbounded<TaskEnvelope>( ).Writer);
         using var worker = NewWorker(0);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -83,7 +85,7 @@ public class TaskWorkerTests
     [Fact]
     public async Task RunGatedAsync_CancelledWhileQueued_DoesNotRunDownload( )
     {
-        var store = new TaskStore(new ServeConfig( ), new TaskQueue( ));
+        var store = new TaskStore(new ServeConfig( ), Channel.CreateUnbounded<TaskEnvelope>( ).Writer);
         using var worker = NewWorker(1);
         using var cts = new CancellationTokenSource( );
         var block = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

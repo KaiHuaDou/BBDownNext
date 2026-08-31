@@ -63,14 +63,25 @@ public static partial class UrlDetector
             return "番剧（md 号）";
         }
 
+        // 课程简写格式为 cheese/ep 号 / cheese/ss 号（与 Core 的 IdPrefix.CheeseSlash 前缀一致）
+        if (StartsWithId(text, "cheese/ep"))
+        {
+            return "课程（ep 号）";
+        }
+
+        if (StartsWithId(text, "cheese/ss"))
+        {
+            return "课程（ss 号）";
+        }
+
         if (StartsWithId(text, "opus"))
         {
-            return "专栏（opus 号）";
+            return "专栏（opus）";
         }
 
         if (StartsWithId(text, "cv"))
         {
-            return "专栏（cv 号）";
+            return "专栏（cv）";
         }
 
         if (StartsWithId(text, "space"))
@@ -98,6 +109,11 @@ public static partial class UrlDetector
 
     private static string? DescribeUrl(string text)
     {
+        if (text.Contains("/cheese/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "课程地址";
+        }
+
         if (BvRegex( ).Match(text) is { Success: true } bv)
         {
             return $"视频（{bv.Value}）";
@@ -120,12 +136,12 @@ public static partial class UrlDetector
 
         if (OpusRegex( ).IsMatch(text))
         {
-            return "专栏（opus 号）";
+            return "专栏（opus）";
         }
 
         if (CvRegex( ).IsMatch(text))
         {
-            return "专栏（cv 号）";
+            return "专栏（cv）";
         }
 
         return "视频地址";

@@ -44,10 +44,10 @@ public static class ConfigStore
         }
     }
 
-    /// <summary>保存配置，失败抛异常由调用方记录。</summary>
+    /// <summary>保存配置（原子写），失败抛异常由调用方记录。</summary>
     public static void Save(ConfigData config)
     {
         Directory.CreateDirectory(GuiPaths.ExeDirectory( ));
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(config, ConfigJsonContext.Default.ConfigData));
+        AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(config, ConfigJsonContext.Default.ConfigData));
     }
 }

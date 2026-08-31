@@ -45,4 +45,22 @@ describe('toServeRequest', () => {
     expect('ffmpegPath' in request).toBe(false)
     expect('debug' in request).toBe(false)
   })
+
+  it('maxRetry 数值兜底：负数夹 0、小数截断、非法回落 0', () => {
+    const cases: [number, number][] = [
+      [-5, 0],
+      [2.7, 2],
+      [Number.NaN, 0],
+      [0, 0],
+      [4, 4]
+    ]
+    for (const [input, expected] of cases) {
+      const request = toServeRequest(
+        { ...DEFAULT_OPTIONS, maxRetry: input },
+        'av170001',
+        { cookie: '', accessToken: '' }
+      )
+      expect(request.maxRetry).toBe(expected)
+    }
+  })
 })

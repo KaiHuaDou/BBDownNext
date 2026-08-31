@@ -17,7 +17,8 @@ namespace BBDown.Core.Download;
 // 避免 GUI 并发任务互相覆盖配置）。
 public static class PostProcessClient
 {
-    private const int ProcessTimeoutMs = 20000;
+    // 插件需完成 playurl 重抓（可能含 drm_tech_type=2 重试）、license 取钥与 ffmpeg 解密，20 秒在慢网络下不够
+    private const int ProcessTimeoutMs = 60000;
 
     /// <summary>
     /// 通过请求文件调起外部进程处理已下载的轨道。任何失败（未配置 / 进程异常 / 超时 /

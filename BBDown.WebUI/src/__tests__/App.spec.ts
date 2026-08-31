@@ -39,8 +39,8 @@ describe('App', () => {
     const wrapper = mount(App)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('目标')
-    expect(wrapper.text()).toContain('未能识别')
+    expect(wrapper.text()).toContain('粘贴链接后将自动识别类型')
+    expect(wrapper.text()).toContain('未配置凭据')
     expect(wrapper.text()).toContain('内容选项')
     expect(wrapper.text()).toContain('下载选项')
     expect(wrapper.text()).toContain('解析选项')

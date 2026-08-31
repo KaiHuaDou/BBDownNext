@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 using BBDown.Core;
@@ -20,19 +21,19 @@ using Microsoft.Extensions.Hosting;
 namespace BBDown.Serve.Tasks;
 
 /// <summary>
-/// 后台任务消费者：从 TaskQueue 取已受理任务，经并发闸门后执行下载，收尾回写 TaskStore 并触发回调。
+/// 后台任务消费者：从执行队列取已受理任务，经并发闸门后执行下载，收尾回写 TaskStore 并触发回调。
 /// </summary>
 internal sealed partial class TaskWorker : BackgroundService
 {
-    private readonly TaskQueue queue;
+    private readonly ChannelReader<TaskEnvelope> queueReader;
     private readonly TaskStore store;
     private readonly SemaphoreSlim? gate;   // null = 不限制（历史行为）
-    // scope（ResourceIdJsonConverter.Format 规范串）→ 任务：进度样本按字符串匹配回写，不经 ResourceId 解析
+    // scope（ResourceId 规范串）→ 任务：进度样本按字符串匹配回写，不经 ResourceId 解析
     private readonly ConcurrentDictionary<string, DownloadTask> byScope = new( );
 
-    public TaskWorker(TaskQueue queue, TaskStore store, int maxConcurrent)
+    public TaskWorker(ChannelReader<TaskEnvelope> queueReader, TaskStore store, int maxConcurrent)
     {
-        this.queue = queue;
+        this.queueReader = queueReader;
         this.store = store;
         // <=0 一律视为不限制：不建闸门，行为与旧版一致；>0 时仅限制同时下载的任务数，
         // 多余任务排队，单个任务内部的下载并行度交给多线程下载器自行决定（不再压到 1）
@@ -75,7 +76,7 @@ internal sealed partial class TaskWorker : BackgroundService
         var pending = new List<Task>( );
         try
         {
-            await foreach (var envelope in queue.Reader.ReadAllAsync(stoppingToken))
+            await foreach (var envelope in queueReader.ReadAllAsync(stoppingToken))
             {
                 pending.Add(RunTaskAsync(envelope));
                 if (pending.Count >= PendingDrainBatch)
@@ -127,9 +128,9 @@ internal sealed partial class TaskWorker : BackgroundService
     private async Task RunTaskAsync(TaskEnvelope envelope)
     {
         var task = envelope.Task;
-        // 消息作用域：下载期间 Logger 的业务消息经 MessageBus 携带本任务 id（ResourceIdJsonConverter.Format 规范串，
+        // 消息作用域：下载期间 Logger 的业务消息经 MessageBus 携带本任务 id（ResourceId 规范串，
         // 与 /get-tasks 返回的 id 形态一致，桥接器 / 进度回写据此字符串匹配），收尾后退出作用域
-        var scope = ResourceIdJsonConverter.Format(task.Id);
+        var scope = task.Scope;
         byScope[scope] = task;
         using (MessageBus.BeginScope(scope))
         {
@@ -142,8 +143,9 @@ internal sealed partial class TaskWorker : BackgroundService
             {
                 // 关服（Ctrl+C）或单独停止任务都会取消 task.Cts：前者走进程级令牌，后者走停止端点。
                 // 排队中的任务会在闸门处被取消，属正常退出路径，不该刷成"下载失败"
-                // ErrorMessage 供客户端区分「已取消」与真实失败（前端据此显示任务状态）
+                // ErrorMessage 供客户端区分「已取消」与真实失败；IsCancelled 为结构化标记，避免前端解析文案
                 task.ErrorMessage = "任务已取消";
+                task.IsCancelled = true;
                 if (AppEnv.CancellationToken.IsCancellationRequested)
                 {
                     Logger.LogWarn($"{task.Id} 已取消（服务器正在退出）");
@@ -163,22 +165,30 @@ internal sealed partial class TaskWorker : BackgroundService
             }
         }
 
-        byScope.TryRemove(scope, out _);
-
-        task.Status = DownloadStatus.Finished;
-        task.TaskFinishTime = DateTimeOffset.Now.ToUnixTimeMilliseconds( );
-        if (task.IsSuccessful)
+        // 收尾段整体兜底：任何异常上抛都会击穿 ExecuteAsync 的 Task.WhenAll 聚合、拖垮 BackgroundService
+        try
         {
-            task.Progress = 1f;
-            var elapsedMs = task.TaskFinishTime.Value - task.TaskCreateTime;
-            task.DownloadSpeed = elapsedMs > 0 ? task.TotalDownloadedBytes * 1000 / elapsedMs : 0;
-        }
+            byScope.TryRemove(scope, out _);
 
-        store.MoveToFinished(task);
-        // 任务已结束，释放与进程级令牌的链接注册（不取消任何下载，仅释放资源）
-        task.Cts.Dispose( );
-        store.ReleaseContext(ResourceIdJsonConverter.Format(task.Id));
-        await NotifyCallbackAsync(task, envelope.CallBackWebHook);
+            task.Status = DownloadStatus.Finished;
+            task.TaskFinishTime = DateTimeOffset.Now.ToUnixTimeMilliseconds( );
+            if (task.IsSuccessful)
+            {
+                task.Progress = 1f;
+                var elapsedMs = task.TaskFinishTime.Value - task.TaskCreateTime;
+                task.DownloadSpeed = elapsedMs > 0 ? task.TotalDownloadedBytes * 1000 / elapsedMs : 0;
+            }
+
+            store.MoveToFinished(task);
+            // 任务已结束，释放与进程级令牌的链接注册（不取消任何下载，仅释放资源）
+            task.DisposeCts( );
+            store.ReleaseContext(task.Scope);
+            await NotifyCallbackAsync(task, envelope.CallBackWebHook);
+        }
+        catch (Exception e)
+        {
+            Logger.LogError($"{task.Id} 收尾失败：{e.Message}");
+        }
     }
 
     // 错误消息路径脱敏：替换绝对路径，避免 /get-tasks 或事件流泄露本机目录结构（improvement-review 草案 C）
@@ -233,13 +243,13 @@ internal sealed partial class TaskWorker : BackgroundService
         switch (task.Id)
         {
             case ResourceId.LiveRoom room:
-                await LiveDownload.RunAsync(envelope.Request, new LiveTarget(room.RoomId.ToString( )), ResourceIdJsonConverter.Format(task.Id), SinkFor(task), token);
+                await LiveDownload.RunAsync(envelope.Request, new LiveTarget(room.RoomId.ToString( )), task.Scope, SinkFor(task), token);
                 break;
             case ResourceId.OpusArticle:
                 await OpusDownload.RunAsync(envelope.Request, SinkFor(task), token);
                 break;
             default:
-                await DownloadPipeline.RunAsync(envelope.Request, SinkFor(task), store.GetContext(ResourceIdJsonConverter.Format(task.Id)), token);
+                await DownloadPipeline.RunAsync(envelope.Request, SinkFor(task), store.GetContext(task.Scope), token);
                 break;
         }
     }
@@ -259,25 +269,32 @@ internal sealed partial class TaskWorker : BackgroundService
 
         var jsonContent = JsonSerializer.Serialize(task, AppJsonSerializerContext.Default.DownloadTask);
         // 有界重试：瞬态网络失败退避重试，通知语义下最后一次失败仅记日志不抛
-        for (var attempt = 1; ; attempt++)
+        try
         {
-            try
+            for (var attempt = 1; ; attempt++)
             {
-                using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-                // 走专用 WebHookClient：关重定向 + 连接前二次校验私网（§2.3），不使用共享的 AppHttpClient
-                using var response = await SsrfGuard.WebHookClient.PostAsync(hookUri, content, AppEnv.CancellationToken);
-                return;
+                try
+                {
+                    using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    // 走专用 WebHookClient：关重定向 + 连接前二次校验私网（§2.3），不使用共享的 AppHttpClient
+                    using var response = await SsrfGuard.WebHookClient.PostAsync(hookUri, content, AppEnv.CancellationToken);
+                    return;
+                }
+                catch (Exception e) when (attempt < MaxCallbackAttempts)
+                {
+                    Logger.LogDebug("回调失败（第 {0} 次）：{1}", attempt, e.Message);
+                    await Task.Delay(TimeSpan.FromSeconds(2) * attempt, AppEnv.CancellationToken);
+                }
+                catch (Exception e)
+                {
+                    Logger.LogDebug("回调失败：{0}", e.Message);
+                    return;
+                }
             }
-            catch (Exception e) when (attempt < MaxCallbackAttempts)
-            {
-                Logger.LogDebug("回调失败（第 {0} 次）：{1}", attempt, e.Message);
-                await Task.Delay(TimeSpan.FromSeconds(2) * attempt, AppEnv.CancellationToken);
-            }
-            catch (Exception e)
-            {
-                Logger.LogDebug("回调失败：{0}", e.Message);
-                return;
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 关服中断重试等待：通知为尽力语义，静默放弃
         }
     }
 

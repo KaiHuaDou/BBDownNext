@@ -49,7 +49,11 @@ describe('toView 状态映射', () => {
     ['Queued', {}, 'Waiting', '等待中'],
     ['Running', {}, 'Running', '运行中'],
     ['Finished', { isSuccessful: true }, 'Success', '成功'],
-    ['Finished', { isSuccessful: false, errorMessage: '任务已取消' }, 'Cancelled', '已取消'],
+    ['Finished', { isCancelled: true }, 'Cancelled', '已取消'],
+    ['Finished', { isSuccessful: false, isCancelled: true }, 'Cancelled', '已取消'],
+
+    // 取消态只看结构化字段：错误文案含「已取消」字样但无 isCancelled 时仍判为失败
+    ['Finished', { isSuccessful: false, errorMessage: '任务已取消' }, 'Failed', '失败'],
     ['Finished', { isSuccessful: false, errorMessage: '下载失败' }, 'Failed', '失败']
   ]
 

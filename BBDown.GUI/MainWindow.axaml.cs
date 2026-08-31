@@ -137,16 +137,19 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>把未完成（等待 / 运行中）的任务落盘，下次启动恢复。</summary>
+    /// <summary>
+    /// 把未完成的任务落盘，下次启动恢复。exitCode 排除执行器已返回但 UI 回投被关窗打断的任务，
+    /// 避免已完成的下载下次启动被当作未完成重新执行。
+    /// </summary>
     private void SaveQueue( )
     {
         var pending = queue.All
-            .Where(t => t.Status is TaskStatus.Waiting or TaskStatus.Running)
+            .Where(t => t.Status is TaskStatus.Waiting or TaskStatus.Running && t.exitCode < 0)
             .Select(t => new QueuedTask(t.Params, t.Url));
         QueueStore.Save(pending);
     }
 
-    /// <summary>恢复上次未完成的任务到等待队列。</summary>
+    /// <summary>恢复上次未完成的任务到等待队列并直接拉起调度。</summary>
     private void RestoreQueue( )
     {
         var pending = QueueStore.Load( );
@@ -157,7 +160,8 @@ public partial class MainWindow : Window
 
         if (pending.Count > 0)
         {
-            AppendLog($"已恢复 {pending.Count} 个未完成任务到队列");
+            queue.StartSchedule( );
+            AppendLog($"已恢复 {pending.Count} 个未完成任务并开始调度");
         }
     }
 

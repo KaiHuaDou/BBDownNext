@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 using BBDown.Core;
@@ -16,7 +17,7 @@ public class TaskStoreTests
 {
     private static TaskStore NewStore(ServeConfig config)
     {
-        return new TaskStore(config, new TaskQueue( ));
+        return new TaskStore(config, Channel.CreateUnbounded<TaskEnvelope>( ).Writer);
     }
 
     [Fact]

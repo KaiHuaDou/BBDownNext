@@ -83,10 +83,10 @@ function removable(status: TaskView['status']): boolean {
             class="btn-task"
             type="button"
             @click="emit('stop', task)">
-            停止
+            停止录制
           </button>
           <button
-            v-if="task.status === 'Running' || task.status === 'Waiting'"
+            v-if="task.status === 'Waiting' || (task.status === 'Running' && !task.isLive)"
             class="btn-task"
             type="button"
             @click="emit('cancel', task)">

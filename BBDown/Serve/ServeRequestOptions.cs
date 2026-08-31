@@ -3,18 +3,19 @@ using System.Text.Json.Serialization;
 
 using BBDown.Core;
 using BBDown.Core.Download;
+using BBDown.Serve.Tasks;
 
 namespace BBDown.Serve;
 
 /// <summary>
-/// serve 模式的任务请求契约（<c>/add-task</c> 的 JSON 请求体）。
+/// serve 模式的任务请求契约（<c>POST /api/v1/tasks</c> 的 JSON 请求体）。
 /// 它是 <see cref="DownloadRequest"/> 的「受控子集」：只包含客户端允许提交的字段，
 /// 主动排除主机可控字段（FFmpegPath / Mp4boxPath / Aria2cPath / Aria2cArgs / WorkDir / FilePattern / MultiFilePattern / Host / EpHost / TvHost）、
-/// 进程级全局字段（Debug / UserAgent）、本地配置文件（ConfigFile）与交互式选项（InteractiveQuality / InteractivePages）——
-/// serve 进程没有可交互的 stdin，远程开启交互式选项只会让任务阻塞在 Console.ReadLine。
+/// 进程级全局字段（Debug / UserAgent）与本地配置文件（ConfigFile）——
 /// 这样新增一个下载选项时不会自动变成 serve 的可注入点，也不必再维护一份「清零列表」。
+/// 交互式选项（InteractivePages / InteractiveQuality）经 WebSocket 事件流送达客户端应答，随任务提交。
 /// 其中 Host/EpHost/TvHost 因「请求不带 cookie 时回落本机 SESSDATA、host 又由请求体控制」会形成凭据外泄链（P0-1），
-/// 已整体移出请求契约，改为 serve 启动参数（--host/--ep-host/--tv-host）固定，详见 <see cref="BBDownServer.ApplyServeHost"/>。
+/// 已整体移出请求契约，改为 serve 启动参数（--host/--ep-host/--tv-host）固定，详见 <see cref="TaskStore.ApplyServeHost"/>。
 /// </summary>
 internal sealed class ServeRequestOptions
 {

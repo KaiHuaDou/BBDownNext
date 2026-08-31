@@ -162,3 +162,46 @@ export function clearFinished(config: ServeConfig): Promise<void> {
 export function clearFailed(config: ServeConfig): Promise<void> {
   return request<void>(config, '/api/v1/tasks/finished/failed', { method: 'DELETE' })
 }
+
+/** 扫码登录状态（与 serve QrLoginState 对齐，camelCase 序列化）。 */
+export type QrLoginState = 'waitingScan' | 'waitingConfirm' | 'expired' | 'success' | 'failed'
+
+export interface QrLoginStartRequest {
+  channel: 'web' | 'tv' | 'app'
+}
+
+/** 扫码登录起点响应：二维码 PNG（base64）与轮询键。 */
+export interface QrLoginStartResult {
+  qrcodeKey: string
+  qrPngBase64: string
+  channel: string
+}
+
+/** 扫码登录状态轮询响应；success 时携带凭据（WEB 为 cookie，TV / APP 为 accessToken）。 */
+export interface QrLoginStatusResult {
+  state: QrLoginState
+  accountName?: string | null
+  cookie?: string | null
+  accessToken?: string | null
+  refreshToken?: string | null
+  error?: string | null
+}
+
+/** 起点扫码登录：指定通道，返回二维码 PNG（base64）与轮询键。 */
+export function fetchLoginQr(
+  config: ServeConfig,
+  channel: 'web' | 'tv' | 'app'
+): Promise<QrLoginStartResult> {
+  return request<QrLoginStartResult>(config, '/api/v1/login/qr', {
+    method: 'POST',
+    body: JSON.stringify({ channel } satisfies QrLoginStartRequest)
+  })
+}
+
+/** 轮询扫码登录状态；success 后凭据由本函数返回一次，调用方负责保存与联动通道。 */
+export function pollLoginStatus(
+  config: ServeConfig,
+  qrcodeKey: string
+): Promise<QrLoginStatusResult> {
+  return request<QrLoginStatusResult>(config, `/api/v1/login/qr/${encodeURIComponent(qrcodeKey)}`)
+}

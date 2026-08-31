@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 
 using BBDown.Core;
+using BBDown.Core.Live;
 using BBDown.Serve.Tasks;
 
 using Microsoft.AspNetCore.Builder;
@@ -77,12 +78,19 @@ internal static class ServeEndpoints
         // 变更类端点必须用 POST/DELETE，不能暴露为 GET，否则与本就全开的 CORS 叠加形成 CSRF（P1-15）
         tasks.MapPost("/{id}/stop", (string id, TaskStore store) =>
         {
-            if (!ResourceId.TryParse(id, out var rid) || !store.CancelRunning(rid))
+            if (!ResourceId.TryParse(id, out var rid))
             {
                 return Results.NotFound( );
             }
 
-            return Results.Ok( );
+            // 直播任务的「停止」＝停止录制并合并（与 GUI 停止录制按钮一致）：先请求录制端停录，
+            // 未在录制（排队中 / 尚未开录）时退化为整任务取消
+            if (rid is ResourceId.LiveRoom && LiveSignal.TryRequestStop(ResourceIdJsonConverter.Format(rid)))
+            {
+                return Results.Ok( );
+            }
+
+            return store.CancelRunning(rid) ? Results.Ok( ) : Results.NotFound( );
         });
         tasks.MapDelete("/finished", (TaskStore store) =>
         {

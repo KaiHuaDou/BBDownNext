@@ -1,5 +1,6 @@
 import { DEFAULT_CONTENT } from './content'
 import { DEFAULT_LIVE_QUALITY } from './live'
+import { readLocalStorage, writeLocalStorage } from './storage'
 import type { ApiType, MuxMode, ServeRequestOptions } from './types'
 
 /**
@@ -77,6 +78,28 @@ export const DEFAULT_OPTIONS: TaskOptions = {
   area: '',
   uposHost: '',
   maxRetry: 3
+}
+
+const OPTIONS_STORAGE_KEY = 'bbdown.options'
+
+/** 从 localStorage 载入面板选项；无存储或内容损坏时回落默认值。 */
+export function loadOptions(): TaskOptions {
+  const raw = readLocalStorage(OPTIONS_STORAGE_KEY)
+  if (raw.length === 0) {
+    return { ...DEFAULT_OPTIONS }
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<TaskOptions>
+    return { ...DEFAULT_OPTIONS, ...parsed }
+  } catch {
+    return { ...DEFAULT_OPTIONS }
+  }
+}
+
+/** 面板选项持久化到 localStorage（凭据 / serve 配置各自独立存储，不在此键内）。 */
+export function saveOptions(options: TaskOptions): void {
+  writeLocalStorage(OPTIONS_STORAGE_KEY, JSON.stringify(options))
 }
 
 /** 混流方式选项（值 + 显示名，与 GUI MuxChoices 一致）。 */

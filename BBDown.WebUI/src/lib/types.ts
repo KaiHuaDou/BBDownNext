@@ -20,6 +20,8 @@ export interface DownloadTask {
   errorMessage?: string | null
   totalDownloadedBytes: number
   isSuccessful: boolean
+  /** 任务是否被取消（用户停止 / 服务器退出），与真实失败区分 */
+  isCancelled?: boolean
   status: DownloadStatus
   savePaths: string[]
 }
@@ -44,8 +46,8 @@ export type ApiType = 'web' | 'tv' | 'app' | 'intl'
 
 /**
  * 任务提交契约（POST /api/v1/tasks 请求体）。
- * 为 ServeRequestOptions 的前端镜像：serve 明确排除的字段（主机可控路径、进程级开关、
- * 交互式选项）不在此列，见 lib/options.ts 的排除标注。
+ * 为 ServeRequestOptions 的前端镜像：serve 明确排除的字段（主机可控路径、进程级开关）不在此列，
+ * 交互式选项随请求提交，应答经 WebSocket 事件流完成，见 lib/options.ts。
  */
 export interface ServeRequestOptions {
   url: string
