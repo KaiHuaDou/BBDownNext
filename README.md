@@ -39,7 +39,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
 
 面向追求 **稳定、安全、拿来即用** 的用户与开发者：
 
-- **下载可靠**：下载引擎统一由 Downloader 库实现多线程分片与断点续传，分片级重试、续传元数据自愈校验、下载请求头统一注入，配套 980+ 单元测试守护。
+- **下载可靠**：下载引擎统一由 Downloader 库实现多线程分片与断点续传，分片级重试、续传元数据自愈校验、下载请求头统一注入，配套 1100+ 单元测试守护。
 - **serve 开箱即用**：`/api/v1/tasks` 规范 REST（202 受理 / 200 重复 / 400 非法 / 429 限流）+ 任务队列与并发闸门 + 始终开启的 WebSocket 事件流（消息 / 进度快照 / 选项远程应答）；安全侧 SSRF 防护、CORS 默认仅回环放行、请求凭据门、令牌鉴权、限流与认证失败滑动窗口、错误脱敏，详见 [服务器模式](#服务器模式)
 - **日志与进度总线化**：Core 只产生消息与进度事件，CLI 控制台 / GUI 窗口日志区 / serve 事件流各自决定展示——CLI、GUI、serve 三形态共享同一下载链路；交互请求（逐集确认 / 选清晰度 / 选轨）统一经 `AskBus` 发布，各宿主自行应答。
 - **工程规范**：下载能力集中 `BBDown.Core`、依赖单向无环（`check-deps` 守护）、`ResourceId` 判别联合缺分支编译报错、单文件 / 单方法行数上限、Microsoft Testing Platform 现代测试栈。
@@ -111,7 +111,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
 
 - 工程品质
     - **消息 / 进度 / 交互总线** · `MessageBus` / `ProgressBus` / `AskBus` 三总线：Core 只产生值对象消息与交互请求，CLI / GUI / serve 宿主订阅展示与应答；进度按阶段划分，高频快照不进事件队列、低频事件不丢失
-    - **980+ 单元测试**，覆盖解析、混流、serve 安全等全部核心路径
+    - **1100+ 单元测试**，覆盖解析、混流、serve 安全等全部核心路径
     - **分层清晰** · 下载能力集中在 `BBDown.Core`（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`），CLI 与 serve 留在 `BBDown`（`Cli` / `Serve`）；依赖单向成树（`check-deps` 守护）
     - **代码规模约束** · 单文件 ≤ 384 行、单方法 ≤ 128 行（`just tokei` 守护），超出即拆分
     - **类型安全** · `ResourceId` 判别联合（12 个 sealed 子类型：Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater / LiveRoom / OpusArticle）取代字符串前缀打标，按类型分发、缺分支编译报错
@@ -132,7 +132,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
 | serve      | `/add-task` 散点端点 + 基础令牌                    | `/api/v1/tasks` 规范 REST（202 受理 / 200 重复 / 400 非法 / 429 限流）+ WebSocket 事件流 + SSRF / CORS / 凭据门 / 限流 / 脱敏全套安全 |
 | DRM 解密   | 内置 `--drm-key`                                   | 外部后处理协议 + 官方插件 `Plugins/BBDown.DRM`（bili_drm clearkey 自动取钥 / Widevine CDM 自动取钥）                                  |
 | 形态与发布 | 仅 CLI，无 AOT 产物                                | CLI + GUI（Avalonia）+ serve + WebUI + 插件生态；AOT 单文件、Win7 兼容、musl 静态产物                                                 |
-| 工程与测试 | VSTest，测试较少                                   | 980+ 单元测试（Microsoft Testing Platform）、依赖单向无环、单文件 / 单方法行数约束、日志脱敏                                          |
+| 工程与测试 | VSTest，测试较少                                   | 1100+ 单元测试（Microsoft Testing Platform）、依赖单向无环、单文件 / 单方法行数约束、日志脱敏                                          |
 
 逐项对照与源码位置见 [docs/compared-to-upstream.md](./docs/compared-to-upstream.md)。
 

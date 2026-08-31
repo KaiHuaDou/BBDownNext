@@ -133,7 +133,7 @@ public class DownloadTests
     public void ShouldDeleteCover_SinglePage( )
     {
         var p = MakePage( );
-        Assert.True(PageDownload.ShouldDeleteCover(p, [p]));
+        Assert.True(PageDownload.ShouldDeleteCover(p, [p], sharedCover: false));
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public class DownloadTests
     {
         var p1 = MakePage(1);
         var p2 = MakePage(2, cid: "2");
-        Assert.True(PageDownload.ShouldDeleteCover(p2, [p1, p2]));
+        Assert.True(PageDownload.ShouldDeleteCover(p2, [p1, p2], sharedCover: false));
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class DownloadTests
     {
         var p1 = MakePage(1);
         var p2 = MakePage(2, cid: "2");
-        Assert.False(PageDownload.ShouldDeleteCover(p1, [p1, p2]));
+        Assert.False(PageDownload.ShouldDeleteCover(p1, [p1, p2], sharedCover: false));
     }
 
     [Fact]
@@ -157,7 +157,7 @@ public class DownloadTests
     {
         var p1 = MakePage(1, aid: "1");
         var p2 = MakePage(2, aid: "2");
-        Assert.True(PageDownload.ShouldDeleteCover(p1, [p1, p2]));
+        Assert.True(PageDownload.ShouldDeleteCover(p1, [p1, p2], sharedCover: false));
     }
 
     [Fact]

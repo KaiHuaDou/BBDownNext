@@ -88,7 +88,13 @@ async function request<T>(config: ServeConfig, path: string, init?: RequestInit)
     throw new Error(`HTTP ${response.status}：${await response.text().catch(() => '')}`)
   }
 
-  return (await response.json()) as T
+  // 部分端点（移除 / 清空 / 停止等）仅返回 200 空响应体（Results.Ok()），无 JSON 可解析，直接给默认值
+  const text = await response.text()
+  if (text.length === 0) {
+    return undefined as unknown as T
+  }
+
+  return JSON.parse(text) as T
 }
 
 /** 健康检查（保活轮询用）：探测 serve 是否存活（匿名放行）。 */

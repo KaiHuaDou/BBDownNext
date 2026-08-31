@@ -42,16 +42,15 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fixed inset-0 z-40 flex items-center justify-center bg-black/60"
+    class="fixed inset-0 z-40 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
     @click.self="emit('dismiss')">
-    <div
-      class="flex w-[26rem] max-w-[90vw] flex-col gap-3 rounded border border-[#3c3c3c] bg-[#252526] p-5">
-      <div class="break-all text-sm text-[#eee]">{{ ask.prompt }}</div>
-      <div class="flex max-h-72 flex-col gap-1 overflow-y-auto">
+    <div class="card flex w-[26rem] max-w-[90vw] flex-col gap-3 p-5">
+      <div class="break-all text-sm text-[var(--text)]">{{ ask.prompt }}</div>
+      <div class="flex max-h-72 flex-col gap-1.5 overflow-y-auto">
         <button
           v-for="option in ask.options"
           :key="option.id"
-          class="rounded border border-transparent px-3 py-1.5 text-left text-sm text-[#ddd] hover:border-[#2f6feb] hover:bg-[#2f6feb]/10"
+          class="rounded-[var(--radius-sm)] border border-[var(--hairline)] bg-[var(--glass-2)] px-3 py-2 text-left text-sm text-[var(--text-dim)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--text)]"
           type="button"
           @click="emit('answer', option.id)">
           {{ option.label }}
@@ -60,10 +59,10 @@ onUnmounted(() => {
       <div class="flex justify-center">
         <button class="btn-ghost" type="button" @click="emit('dismiss')">取消</button>
       </div>
-      <p v-if="ask.defaultOptionId" class="text-center text-xs text-[#6e6e6e]">
+      <p v-if="ask.defaultOptionId" class="text-center text-xs text-[var(--text-faint)]">
         未选择将回落默认选项
       </p>
-      <p class="text-center text-xs text-[#6e6e6e]">
+      <p class="text-center text-xs text-[var(--text-faint)]">
         {{ remaining }}s 后自动{{ ask.defaultOptionId ? '选择默认选项' : '应答首项' }}
       </p>
     </div>

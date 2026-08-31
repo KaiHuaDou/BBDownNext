@@ -20,20 +20,20 @@ const baseUrl = ref(props.config.baseUrl)
 const token = ref(props.config.token)
 
 /** 事件流状态展示：active 绿色（已连接并推送），reconnecting/connecting 黄色，其余黄色（连接中/重连）。 */
-const eventStreamLabel = computed<{ text: string; cls: string; tip: string }>(() => {
+const eventStreamLabel = computed<{ text: string; dot: string; tip: string }>(() => {
   switch (props.eventStream) {
     case 'active': {
       return {
         text: '事件流已开启',
-        cls: 'bg-[#4caf50]',
+        dot: 'var(--st-success)',
         tip: '任务列表 / 日志 / 选项交互均由事件流推送'
       }
     }
     case 'reconnecting': {
-      return { text: '事件流重连中', cls: 'bg-[#c9a227]', tip: 'WebSocket 断开，正在重连' }
+      return { text: '事件流重连中', dot: 'var(--st-waiting)', tip: 'WebSocket 断开，正在重连' }
     }
     default: {
-      return { text: '事件流连接中', cls: 'bg-[#c9a227]', tip: '正在建立 WebSocket 连接' }
+      return { text: '事件流连接中', dot: 'var(--st-waiting)', tip: '正在建立 WebSocket 连接' }
     }
   }
 })
@@ -48,58 +48,67 @@ const displayUrl = computed(() => props.config.baseUrl.trim() || '默认直连�
 </script>
 
 <template>
-  <div class="flex items-center gap-2 text-sm">
+  <div class="relative flex items-center gap-2.5 text-sm">
+    <span class="stat" :title="connected ? 'REST 连接正常' : 'REST 连接失败'">
+      <i
+        class="stat-dot"
+        :style="{ background: connected ? 'var(--st-success)' : 'var(--st-failed)' }" />
+      {{ connected ? '已连接' : '未连接' }}
+    </span>
+    <span class="stat" :title="eventStreamLabel.tip">
+      <i class="stat-dot" :style="{ background: eventStreamLabel.dot }" />
+      {{ eventStreamLabel.text }}
+    </span>
     <span
-      class="inline-block h-2.5 w-2.5 rounded-full"
-      :class="connected ? 'bg-[#4caf50]' : 'bg-[#e53935]'"
-      :title="connected ? 'REST 连接正常' : 'REST 连接失败'" />
-    <span class="text-[#9e9e9e]">{{ connected ? '已连接' : '未连接' }}</span>
+      v-if="error"
+      class="max-w-[220px] truncate text-xs text-[var(--st-failed)]"
+      :title="error"
+      >{{ error }}</span
+    >
     <span
-      class="inline-block h-2.5 w-2.5 rounded-full"
-      :class="eventStreamLabel.cls"
-      :title="eventStreamLabel.tip" />
-    <span class="text-xs text-[#9e9e9e]" :title="eventStreamLabel.tip">{{
-      eventStreamLabel.text
-    }}</span>
-    <span v-if="error" class="truncate text-xs text-[#e53935]" :title="error">{{ error }}</span>
-    <span class="ml-auto truncate text-xs text-[#9e9e9e]" :title="config.baseUrl">{{
-      displayUrl
-    }}</span>
+      class="hidden truncate text-xs text-[var(--text-faint)] md:inline"
+      :title="config.baseUrl"
+      >{{ displayUrl }}</span
+    >
     <button class="btn-ghost" type="button" @click="editing = !editing">设置</button>
 
-    <div
-      v-if="editing"
-      class="absolute right-3 top-12 z-30 w-96 rounded border border-[#3c3c3c] bg-[#252526] p-4 shadow-lg">
-      <div class="mb-2 text-sm font-semibold text-[#eee]">serve 连接设置</div>
-      <label class="mb-1 block text-xs text-[#9e9e9e]" for="base-url"
-        >服务器地址（留空直连本机 127.0.0.1:23333）</label
-      >
-      <input
-        id="base-url"
-        v-model="baseUrl"
-        class="field-input mb-3"
-        placeholder="留空：直连本机 127.0.0.1:23333（默认免令牌）；或填 http://&lt;ip&gt;:23333（需 serve --cors-origin，且若服务端启用了 --serve-token 则还需令牌）"
-        @keydown.enter="save" />
-      <label class="mb-1 block text-xs text-[#9e9e9e]" for="serve-token">鉴权令牌（可选）</label>
-      <input
-        id="serve-token"
-        v-model="token"
-        class="field-input mb-3"
-        placeholder="默认免令牌，传入 --serve-token 后需 X-BBDown-Token"
-        @keydown.enter="save" />
-      <div class="flex justify-end gap-2">
-        <button class="btn-ghost" type="button" @click="editing = false">取消</button>
-        <button class="btn-action" type="button" @click="save">保存</button>
+    <Teleport to="body">
+      <div
+        v-if="editing"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+        @click.self="editing = false">
+        <div class="card card-pad w-96 max-w-full">
+          <div class="mb-3 text-sm font-semibold">serve 连接设置</div>
+          <label class="label mb-1.5" for="base-url">服务器地址</label>
+          <input
+            id="base-url"
+            v-model="baseUrl"
+            class="field mb-3"
+            placeholder="留空：直连本机 127.0.0.1:23333（默认免令牌）；或填 http://<ip>:23333"
+            @keydown.enter="save" />
+          <label class="label mb-1.5" for="serve-token">鉴权令牌（可选）</label>
+          <input
+            id="serve-token"
+            v-model="token"
+            class="field mb-4"
+            placeholder="默认免令牌，传入 --serve-token 后需 X-BBDown-Token"
+            @keydown.enter="save" />
+          <div class="flex justify-end gap-2">
+            <button class="btn-ghost" type="button" @click="editing = false">取消</button>
+            <button class="btn-primary" type="button" @click="save">保存</button>
+          </div>
+          <p class="mt-3 text-xs leading-relaxed text-[var(--text-dim)]">
+            需先以
+            <code class="text-[var(--accent)]">BBDown serve</code> 启动服务端。地址留空即直连本机
+            <code class="text-[var(--accent)]">127.0.0.1:23333</code>（默认免令牌，且回环 Origin
+            默认可跨域）；若服务端以
+            <code class="text-[var(--accent)]">--serve-token</code> 启用了鉴权，须在此填入对应的
+            <code class="text-[var(--accent)]">X-BBDown-Token</code> 令牌。跨机器访问时还须以
+            <code class="text-[var(--accent)]">--cors-origin</code>
+            允许本页来源。事件流默认开启（推送日志与选项交互）。
+          </p>
+        </div>
       </div>
-      <p class="mt-2 text-xs leading-relaxed text-[#9e9e9e]">
-        需先以 <code class="text-[#c9a227]">BBDown serve</code> 启动服务端。地址留空即直连本机
-        <code class="text-[#c9a227]">127.0.0.1:23333</code>（默认免令牌，且回环 Origin
-        默认可跨域）；若服务端以
-        <code class="text-[#c9a227]">--serve-token</code> 启用了鉴权，须在此填入对应的
-        <code class="text-[#c9a227]">X-BBDown-Token</code> 令牌。跨机器访问时还须以
-        <code class="text-[#c9a227]">--cors-origin</code>
-        允许本页来源。事件流默认开启（推送日志与选项交互）。
-      </p>
-    </div>
+    </Teleport>
   </div>
 </template>

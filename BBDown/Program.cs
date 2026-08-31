@@ -102,7 +102,7 @@ internal sealed class Program
             if (!HasUrlArgument(rootResult) && (rootResult.Errors.Count > 0 || string.IsNullOrEmpty(rootResult.GetValue<string>("--config"))))
             {
                 PrintUsageExample( );
-                return 0;
+                // return 0;
             }
         }
 
@@ -227,6 +227,7 @@ internal sealed class Program
           BBDown <视频地址> -g av -W s     不下载字幕
           BBDown <专栏地址|cv 号>          导出专栏为 Markdown
           BBDown --help                    查看全部参数说明
+
         """);
     }
 

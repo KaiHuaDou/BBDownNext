@@ -136,91 +136,112 @@ const onSavedCredential = (next: Credential): void => {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col bg-[#1e1e1e] p-5 text-[#eee]">
-    <!-- 顶部连接栏 -->
-    <div class="relative mb-2 flex items-center">
-      <ConnectionBar
-        :config="config"
-        :connected="connected"
-        :event-stream="eventStream"
-        :error="connectionError"
-        @save="setConfig" />
-    </div>
-
-    <div class="flex min-h-0 flex-1 gap-2.5">
-      <!-- 左侧主区 -->
-      <div class="flex min-w-0 flex-1 flex-col gap-2.5">
-        <!-- 顶部：下载目标 -->
-        <div>
-          <div class="flex items-center gap-1.5">
-            <span class="text-sm text-[#ddd]">目标</span>
-            <input
-              v-model="target"
-              class="field-input flex-1"
-              placeholder="粘贴链接，或输入 av / BV / live / opus 等号…" />
-          </div>
-          <div class="mt-2 text-sm" :class="targetHint ? 'text-[#4caf50]' : 'text-[#9e9e9e]'">
-            {{ targetHint ? `✓ ${targetHint}` : '未能识别' }}
-          </div>
-        </div>
-
-        <!-- 内容复选框：布局对齐 GUI 的 3 列网格；字符与名称由 CONTENT_ORDER 单一来源驱动，opus 模式仅 i / M 生效 -->
-        <div
-          class="grid grid-cols-3 gap-x-3 gap-y-1 rounded border border-[#3c3c3c] bg-[#252526] p-2.5"
-          :class="{ 'pointer-events-none opacity-50': options.infoOnly }">
-          <label v-for="item in CONTENT_ORDER" :key="item.ch" class="check-row"
-            ><input
-              type="checkbox"
-              :checked="contentChecked.has(item.ch)"
-              @change="toggleContent(item.ch, ($event.target as HTMLInputElement).checked)" />{{
-              item.name
-            }}
-            ({{ item.ch }})</label
-          >
-        </div>
-
-        <!-- 中部滚动区：登录 + 选项 -->
-        <div class="min-h-0 flex-1 overflow-y-auto pr-0.5">
-          <div class="flex flex-col gap-1.5">
-            <div class="flex items-center gap-2.5">
-              <button class="btn-ghost" type="button" @click="loginVisible = true">登录</button>
-              <span class="text-sm text-[#9e9e9e]">{{ loginStatusText }}</span>
-            </div>
-            <OptionsPanel
-              v-model="options"
-              :class="{ 'pointer-events-none opacity-50': options.infoOnly }" />
-          </div>
-        </div>
-
-        <!-- 底部：操作按钮 -->
-        <div class="flex gap-2.5">
-          <button
-            class="btn-action"
-            type="button"
-            :disabled="submitting"
-            @click="enqueue('execute')">
-            加入并执行
-          </button>
-          <button
-            class="btn-action"
-            type="button"
-            :disabled="submitting"
-            @click="enqueue('enqueue')">
-            加入队列
-          </button>
-          <button class="btn-action" type="button" @click="reset">重置选项</button>
-        </div>
+  <div class="flex h-screen flex-col text-[var(--text)]">
+    <!-- 顶栏 -->
+    <header
+      class="flex h-10 shrink-0 items-center bg-[var(--glass)] px-3 backdrop-blur-[var(--blur)]">
+      <span class="select-none text-sm font-semibold text-[var(--text)]"
+        >BBDown<span class="text-[var(--accent)]">.WebUI</span></span
+      >
+      <div class="ml-auto flex items-center gap-2">
+        <ConnectionBar
+          :config="config"
+          :connected="connected"
+          :event-stream="eventStream"
+          :error="connectionError"
+          @save="setConfig" />
+        <button class="btn-ghost" type="button" @click="reset">重置选项</button>
       </div>
+    </header>
 
-      <!-- 右侧边栏：任务队列 + 日志 -->
-      <div class="flex w-80 min-w-0 shrink-0 flex-col gap-2.5">
-        <div class="flex min-h-0 flex-1 flex-col gap-1.5">
-          <div class="text-xs text-[#9e9e9e]">
-            待启动 {{ statusCounts.pending }} · 等待 {{ statusCounts.waiting }} · 运行
-            {{ statusCounts.running }} · 成功 {{ statusCounts.success }} · 失败
-            {{ statusCounts.failed }} · 已取消 {{ statusCounts.cancelled }}
+    <!-- 主体 -->
+    <main class="flex min-h-0 flex-1 gap-2.5 p-2.5">
+      <!-- 左侧工作区 -->
+      <section class="flex min-w-0 flex-1 flex-col gap-2.5">
+        <!-- 提交区 -->
+        <div class="card card-pad">
+          <div class="flex items-end gap-2.5">
+            <div class="flex-1">
+              <input
+                id="target"
+                v-model="target"
+                class="field"
+                placeholder="粘贴 B 站链接，或输入 av / BV / live / opus 等号…" />
+            </div>
+            <button
+              class="btn-primary"
+              type="button"
+              :disabled="submitting"
+              @click="enqueue('execute')">
+              加入并执行
+            </button>
+            <button
+              class="btn-subtle"
+              type="button"
+              :disabled="submitting"
+              @click="enqueue('enqueue')">
+              加入队列
+            </button>
           </div>
-          <div class="min-h-0 flex-1 overflow-y-auto pr-0.5">
+
+          <div
+            class="mt-1.5 text-xs"
+            :class="targetHint ? 'text-[var(--st-success)]' : 'text-[var(--text-faint)]'">
+            <template v-if="targetHint">✓ {{ targetHint }}</template>
+            <template v-else>粘贴链接后将自动识别类型</template>
+          </div>
+
+          <!-- 内容选择（12 项，3 列紧凑布局） -->
+          <div class="mt-2.5">
+            <div
+              class="grid grid-cols-3 gap-x-3 gap-y-1"
+              :class="{ 'pointer-events-none opacity-50': options.infoOnly }">
+              <label v-for="item in CONTENT_ORDER" :key="item.ch" class="check">
+                <input
+                  type="checkbox"
+                  :checked="contentChecked.has(item.ch)"
+                  @change="toggleContent(item.ch, ($event.target as HTMLInputElement).checked)" />
+                {{ item.name }}
+                <span class="text-[var(--text-faint)]">({{ item.ch }})</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 登录 + 选项（整体滚动） -->
+        <div class="card card-pad flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div class="mb-1.5 flex shrink-0 items-center gap-2.5">
+            <button class="btn-ghost" type="button" @click="loginVisible = true">登录</button>
+            <span class="text-sm text-[var(--text-dim)]">{{ loginStatusText }}</span>
+          </div>
+          <OptionsPanel
+            v-model="options"
+            :class="{ 'pointer-events-none opacity-50': options.infoOnly }" />
+        </div>
+      </section>
+
+      <!-- 右侧边栏 -->
+      <aside class="flex w-[360px] shrink-0 flex-col gap-2.5">
+        <!-- 任务队列 -->
+        <div class="card flex min-h-0 flex-1 flex-col">
+          <div class="flex items-center gap-2 px-3.5 py-2.5">
+            <span class="text-sm font-semibold">任务队列</span>
+            <div class="ml-auto flex flex-wrap items-center justify-end gap-1.5">
+              <span class="stat"
+                ><i class="stat-dot bg-[var(--st-running)]" />{{ statusCounts.running }}</span
+              >
+              <span class="stat"
+                ><i class="stat-dot bg-[var(--st-success)]" />{{ statusCounts.success }}</span
+              >
+              <span class="stat"
+                ><i class="stat-dot bg-[var(--st-failed)]" />{{ statusCounts.failed }}</span
+              >
+              <span class="stat"
+                ><i class="stat-dot bg-[var(--st-cancelled)]" />{{ statusCounts.cancelled }}</span
+              >
+            </div>
+          </div>
+          <div class="min-h-0 flex-1 overflow-y-auto px-2.5 py-2.5">
             <TaskList
               :tasks="tasks"
               @stop="(view) => void stop(view)"
@@ -229,19 +250,29 @@ const onSavedCredential = (next: Credential): void => {
               @start="(view) => void start(view)"
               @remove="(view) => void remove(view)" />
           </div>
-        </div>
-        <div class="flex items-center gap-2.5">
-          <button class="btn-ghost" type="button" @click="clearAll">清空已完成</button>
-          <button class="btn-ghost" type="button" @click="clearFailed">清空失败</button>
+          <div class="flex items-center gap-2 px-2.5 py-2">
+            <button class="btn-ghost" type="button" @click="clearAll">清空已完成</button>
+            <button class="btn-ghost" type="button" @click="clearFailed">清空失败</button>
+          </div>
         </div>
 
-        <!-- 日志区 -->
-        <details open class="option-group">
-          <summary class="option-header">日志</summary>
-          <LogPanel :log-lines="logLines" @export="exportLog" />
+        <!-- 日志 -->
+        <details open class="expander">
+          <summary class="exp-head">
+            <span>日志</span>
+            <button
+              class="btn-ghost px-2.5 py-1 text-xs"
+              type="button"
+              @click.stop.prevent="exportLog">
+              导出日志
+            </button>
+          </summary>
+          <div class="p-1 pt-0">
+            <LogPanel :log-lines="logLines" />
+          </div>
         </details>
-      </div>
-    </div>
+      </aside>
+    </main>
 
     <!-- 弹窗 -->
     <LoginDialog

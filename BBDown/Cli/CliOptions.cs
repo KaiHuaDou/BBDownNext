@@ -7,7 +7,7 @@ namespace BBDown.Cli;
 
 /// <summary>
 /// 全部 CLI 选项与别名的静态定义，供根命令注册。
-/// 按 README 「参数说明」 的分组排列，注册顺序即 --help 显示顺序。
+/// 按 README「参数说明」的分组排列，注册顺序即 --help 显示顺序。
 /// </summary>
 internal static class CliOptions
 {

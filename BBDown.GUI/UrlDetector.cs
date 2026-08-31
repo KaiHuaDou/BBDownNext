@@ -156,9 +156,9 @@ public static partial class UrlDetector
     [GeneratedRegex(@"ss[0-9]+", RegexOptions.IgnoreCase)]
     private static partial Regex SsRegex( );
 
-    [GeneratedRegex(@"opus[0-9]+", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"opus/?[0-9]+", RegexOptions.IgnoreCase)]
     private static partial Regex OpusRegex( );
 
-    [GeneratedRegex(@"cv[0-9]+", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"cv/?[0-9]+", RegexOptions.IgnoreCase)]
     private static partial Regex CvRegex( );
 }

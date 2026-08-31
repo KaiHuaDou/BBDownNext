@@ -80,23 +80,25 @@ function describeUrl(text: string): string {
     return `视频（${bv[0]}）`
   }
 
-  if (/av[0-9]+/.test(text)) {
+  // av / ep / ss 的路径形态为 .../video/av123、.../bangumi/play/ep123 等，关键字与数字直接相连
+  if (/av[0-9]+/i.test(text)) {
     return '视频（av 号）'
   }
 
-  if (/ep[0-9]+/.test(text)) {
+  if (/ep[0-9]+/i.test(text)) {
     return '番剧（ep 号）'
   }
 
-  if (/ss[0-9]+/.test(text)) {
+  if (/ss[0-9]+/i.test(text)) {
     return '番剧（ss 号）'
   }
 
-  if (/opus[0-9]+/.test(text)) {
+  // opus / cv 的路径形态为 .../opus/123...、.../cv/123...，关键字与数字间带斜杠（裸形态 opus123 同样成立）
+  if (/opus\/?[0-9]+/i.test(text)) {
     return '专栏（opus 号）'
   }
 
-  if (/cv[0-9]+/.test(text)) {
+  if (/cv\/?[0-9]+/i.test(text)) {
     return '专栏（cv 号）'
   }
 

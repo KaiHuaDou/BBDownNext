@@ -6,4 +6,4 @@
 - [ ] UP 主/合集/收藏夹订阅。
 - [ ] 合集下载 P1 给到时间最早。
 - [ ] 评论图片下载支持
-- [ ] 强化 README.md
+- [ ] 支持 <https://www.bilibili.com/read/readlist/rl75249>、<https://space.bilibili.com/213741/upload/opus>、<https://space.bilibili.com/213741/upload/audio>、<https://space.bilibili.com/213741/dynamic>

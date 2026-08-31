@@ -7,10 +7,6 @@ const props = defineProps<{
   logLines: LogLine[]
 }>()
 
-const emit = defineEmits<{
-  export: []
-}>()
-
 const listEl = ref<HTMLDivElement | null>(null)
 
 watch(
@@ -25,19 +21,16 @@ watch(
 </script>
 
 <template>
-  <div class="flex flex-col gap-1.5">
+  <div
+    ref="listEl"
+    class="max-h-52 overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--hairline)] bg-[var(--glass-2)] p-2.5 font-mono text-xs leading-relaxed">
     <div
-      ref="listEl"
-      class="max-h-64 overflow-y-auto rounded border border-[#3c3c3c] bg-[#1a1a1c] p-2 font-mono text-xs leading-relaxed">
-      <div
-        v-for="(line, index) in logLines"
-        :key="index"
-        class="break-all whitespace-pre-wrap"
-        :class="line.isError ? 'text-[#e53935]' : 'text-[#ddd]'">
-        {{ line.text }}
-      </div>
-      <div v-if="logLines.length === 0" class="text-[#6e6e6e]">（空）</div>
+      v-for="(line, index) in logLines"
+      :key="index"
+      class="break-all whitespace-pre-wrap"
+      :class="line.isError ? 'text-[var(--st-failed)]' : 'text-[var(--text-dim)]'">
+      {{ line.text }}
     </div>
-    <button class="btn-ghost w-fit" type="button" @click="emit('export')">导出日志</button>
+    <div v-if="logLines.length === 0" class="text-[var(--text-faint)]">（空）</div>
   </div>
 </template>

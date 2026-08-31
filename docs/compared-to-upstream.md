@@ -34,7 +34,7 @@
 | **解析模式选择** | 未明确文档化 | 单选 `--api web | tv | app | intl`（忽略大小写），取代多布尔开关的隐式优先级 |
 | **FLV / DASH 封装** | 通用说明 | DASH 先按 `-q` 请求再额外以 `MaxQn(127)` 取原始画质轨（两次并集）；FLV 固定 `qn=127`、忽略 `-q` |
 | **归档记录** | `--save-archives-to-file`（旧竖线格式） | `--save-records` 写 Tab 分隔 `BBDown.archives`（`<aid>\t<cid>\t<路径>`），键为 `(aid, cid)` |
-| **测试覆盖** | 较少 | **980+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名、直播加密流跳过、Opus 渲染等） |
+| **测试覆盖** | 较少 | **1100+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名、直播加密流跳过、Opus 渲染等） |
 | **代码结构** | 传统结构 | 深度重构：下载能力整体下沉 `BBDown.Core`，按职责拆分命名空间（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`，CLI 与 serve 留在 `BBDown`），依赖单向成树（`just check-deps` 守护）；god-class 拆分（如 `BBDownUtil` 按归属拆分）、现代化命名、`System.Threading.Lock`、`[GeneratedRegex]`、`Nullable enable` + `TreatWarningsAsErrors`、net9.0 |
 | **直播录制** | 无 | 新增独立直播链路，直播间地址直录（`live:` / `live.bilibili.com`），`--live-quality` 选清晰度（默认原画 10000，可选 250 超清 / 400 蓝光 / 15000 2K / 20000 4K / 30000 杜比），分段 FLV 落盘后合并为 mp4（`Ctrl+Break` 停录合并 / `Ctrl+C` 中断保留分段）；录制状态机具备断流退避重连、CDN failover、编码锁定 |
 | **图形界面** | 无 | 新增 BBDown.GUI（Avalonia，跨平台）：单窗口封装下载，直接引用 `BBDown.Core` 下载库（非子进程调用 BBDown.exe），任务队列与并发控制（1–8）、日志实时显示、选项随 exe 便携保存；独立 CI（`gui.yml`）发布单文件自包含产物 |
@@ -154,7 +154,7 @@
 
 ### 2.13 测试与工程化
 
-- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **980+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、直播加密流跳过、空间列表与稍后再看等。
+- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **1100+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、直播加密流跳过、空间列表与稍后再看等。
 - **AOT 与现代化**：
     - `BBDown/Directory.Build.props`：`<PublishAot>true</PublishAot>`，直接 `dotnet publish BBDown -r <RID> -c Release`（CI 命令见 `.github/workflows/ci.yml`，RID 矩阵 8 个）。
     - `Directory.Build.props`：`<TargetFramework>net9.0</TargetFramework>`、`<Nullable>enable</Nullable>`、`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`、`<AnalysisLevel>latest-all</AnalysisLevel>`。

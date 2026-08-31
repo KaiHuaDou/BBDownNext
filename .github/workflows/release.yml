@@ -29,13 +29,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Resolve latest green ci.yml run for this commit
+      - name: Resolve latest green ci.yml run
         id: ci
         run: |
           RUN=$(gh run list --workflow ci.yml --commit "${{ github.sha }}" --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -z "$RUN" ]; then
+            # 该 commit 上无绿色 ci.yml 运行（常见于仅改文档而 paths-ignore 跳过 CI）：
+            # 代码与上次绿色运行一致，退而复用 main 上最近一次成功运行，避免发版直接中止。
+            echo "::warning::该 commit 无成功的 ci.yml 运行，改用 main 上最近一次绿色 ci.yml 运行复用产物"
+            RUN=$(gh run list --workflow ci.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          fi
           echo "run=$RUN" >> "$GITHUB_OUTPUT"
           if [ -z "$RUN" ]; then
-            echo "::error::未找到该 commit 上成功的 ci.yml 运行，无法复用产物（请先等 main 上的 CI 变绿）"
+            echo "::error::未找到任何成功的 ci.yml 运行，无法复用产物（请先等 main 上的 CI 变绿）"
             exit 1
           fi
 

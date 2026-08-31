@@ -32,6 +32,7 @@ describe('describeTarget', () => {
     expect(describeTarget('https://www.bilibili.com/video/av170001')).toBe('视频（av 号）')
     expect(describeTarget('https://www.bilibili.com/bangumi/play/ep2539')).toBe('番剧（ep 号）')
     expect(describeTarget('https://www.bilibili.com/read/cv123456')).toBe('专栏（cv 号）')
+    expect(describeTarget('https://www.bilibili.com/opus/1226618629457444872')).toBe('专栏（opus 号）')
     expect(describeTarget('https://www.bilibili.com/cheese/play/ep12345')).toBe('课程地址')
     expect(describeTarget('https://live.bilibili.com/12345')).toBe('直播地址')
     expect(describeTarget('https://www.bilibili.com/watchlater')).toBe('稍后再看列表')

@@ -75,6 +75,15 @@ public static class OpusDownload
         {
             baseName = string.IsNullOrEmpty(doc.CvId) ? $"opus_{doc.OpusId}" : $"cv{doc.CvId}";
         }
+        else
+        {
+            // 不同动态/专栏可能标题相同，追加动态号（cv 优先，否则 opus id）保证命名唯一，避免被自动跳过
+            var idTag = doc.CvId.Length > 0 ? doc.CvId : doc.OpusId;
+            if (idTag.Length > 0)
+            {
+                baseName = $"{baseName}_{idTag}";
+            }
+        }
 
         var mdPath = Path.Combine(workDir, baseName + ".md");
 

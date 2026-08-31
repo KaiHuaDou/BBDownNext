@@ -124,8 +124,11 @@ public static class PageDownload
     internal static PageContext BuildPageContext(Page p, WorkContext ctx, List<Page> selectedPagesInfo)
     {
         var vInfo = ctx.Fetch.VInfo!;
+        var coverUrl = ResolveCoverUrl(vInfo, p);
         var selectedPagesCount = selectedPagesInfo.Count;
         var tempDir = Path.Combine(ctx.Run.WorkDir, p.Aid);
+        // 共用同一封面 URL 的分集多于一个时不删除：删的是共享文件，否则后续分集会重新下载
+        var sharedCover = selectedPagesInfo.Count(x => ResolveCoverUrl(vInfo, x) == coverUrl) > 1;
         return new PageContext(
             Page: p,
             // 原始标题，落盘前统一交给 GetValidFileName 清洗；这里保持原样是因为它还要写进容器元数据
@@ -135,11 +138,13 @@ public static class PageDownload
             TempDir: tempDir,
             VideoPath: Path.Combine(tempDir, $"{p.Aid}.P{p.Index}.{p.Cid}.mp4"),
             AudioPath: Path.Combine(tempDir, $"{p.Aid}.P{p.Index}.{p.Cid}.m4a"),
-            CoverPath: Path.Combine(tempDir, $"{p.Aid}.jpg"),
-            CoverUrl: vInfo.Pic is { Length: 0 } ? p.Cover ?? "" : vInfo.Pic,
+            // 封面按 URL 派生路径、落到共享目录：同 URL 的分集命中 PageAssets 的 File.Exists 短路只下载一次
+            //（番剧/课程整季共用 vInfo.Pic、合集复用封面、多 P 视频均受益）
+            CoverPath: Path.Combine(ctx.Run.WorkDir, ".covers", $"{CoverKey(coverUrl)}.jpg"),
+            CoverUrl: coverUrl,
             PubTime: vInfo.PubTime,
             PagesCount: selectedPagesCount,
-            DeleteCoverAfterMux: ShouldDeleteCover(p, selectedPagesInfo));
+            DeleteCoverAfterMux: ShouldDeleteCover(p, selectedPagesInfo, sharedCover));
     }
 
     internal static string BuildEpisodeTitle(Page p, int pagesCount, bool isBangumi, bool isBangumiEnd)
@@ -147,11 +152,38 @@ public static class PageDownload
         return pagesCount > 1 || (isBangumi && !isBangumiEnd) ? p.Title : "";
     }
 
-    internal static bool ShouldDeleteCover(Page p, List<Page> selectedPagesInfo)
+    // 封面 URL 解析：集合类（合集/收藏夹/空间/稍后再看）的 Pic 为空，退回每页 Cover；其余取整季/视频封面
+    internal static string ResolveCoverUrl(VInfo vInfo, Page p)
     {
-        return selectedPagesInfo.Count == 1
-            || p.Index == selectedPagesInfo[^1].Index
-            || p.Aid != selectedPagesInfo[^1].Aid;
+        return vInfo.Pic is { Length: 0 } ? p.Cover ?? "" : vInfo.Pic;
+    }
+
+    // 封面 URL → 稳定文件名：FNV-1a 64 位 → 16 进制，AOT 兼容、无反射/加密哈希
+    internal static string CoverKey(string url)
+    {
+        if (url.Length == 0)
+        {
+            return "empty";
+        }
+
+        const ulong offset = 1469598103934665603;
+        const ulong prime = 1099511628211;
+        var hash = offset;
+        foreach (var ch in url)
+        {
+            hash ^= ch;
+            hash *= prime;
+        }
+
+        return hash.ToString("x");
+    }
+
+    internal static bool ShouldDeleteCover(Page p, List<Page> selectedPagesInfo, bool sharedCover)
+    {
+        return !sharedCover
+            && (selectedPagesInfo.Count == 1
+                || p.Index == selectedPagesInfo[^1].Index
+                || p.Aid != selectedPagesInfo[^1].Aid);
     }
 
     internal static DownloadConfig BuildDownloadConfig(DownloadRequest myOption, AppConfig cfg, ToolPaths tools)
