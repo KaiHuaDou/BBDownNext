@@ -46,6 +46,23 @@ export function kindOfId(id: string): string {
     return '课程'
   }
 
+  // 集合前缀须在 space 之前判定（spaceOpus 等以 space 开头）
+  if (starts('readlist')) {
+    return '文集'
+  }
+
+  if (starts('spaceopus')) {
+    return '空间图文'
+  }
+
+  if (starts('spaceaudio')) {
+    return '空间音频'
+  }
+
+  if (starts('spacedynamic')) {
+    return '空间动态'
+  }
+
   if (starts('space')) {
     return '空间'
   }

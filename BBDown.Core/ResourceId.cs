@@ -50,6 +50,18 @@ public abstract record ResourceId
     /// <summary>专栏（opus 动态 id 与 cv id 是同一文章的两个 id，至少一个非 0）</summary>
     public sealed record OpusArticle(long OpusId, long CvId) : ResourceId;
 
+    /// <summary>文集（专栏合集）rlid</summary>
+    public sealed record ReadList(long RlId) : ResourceId;
+
+    /// <summary>UP 主空间全部图文 / 专栏投稿（动态流过滤，仅 MAJOR_TYPE_OPUS）</summary>
+    public sealed record SpaceOpus(long Mid) : ResourceId;
+
+    /// <summary>UP 主空间全部音频投稿（AU 号列表）</summary>
+    public sealed record SpaceAudio(long Mid) : ResourceId;
+
+    /// <summary>UP 主空间动态流（仅提取图文动态，与 <see cref="SpaceOpus"/> 同一数据源）</summary>
+    public sealed record SpaceDynamic(long Mid) : ResourceId;
+
     /// <summary>
     /// 解析 serve API 路径参数的规范 id（"&lt;type&gt;&lt;值&gt;" 无冒号形态，如 "season2539"；
     /// fav 双值为 "fav&lt;fid&gt;_&lt;mid&gt;"，watchLater 无值）。仅接受规范形态，不接受用户输入简写。
@@ -165,6 +177,39 @@ public abstract record ResourceId
                 }
 
                 break;
+            case "readlist":
+            case "rl":
+                if (TryLong(rest, out var rlId))
+                {
+                    id = new ReadList(rlId);
+                    return true;
+                }
+
+                break;
+            case "spaceOpus":
+                if (TryLong(rest, out var spaceOpusMid))
+                {
+                    id = new SpaceOpus(spaceOpusMid);
+                    return true;
+                }
+
+                break;
+            case "spaceAudio":
+                if (TryLong(rest, out var spaceAudioMid))
+                {
+                    id = new SpaceAudio(spaceAudioMid);
+                    return true;
+                }
+
+                break;
+            case "spaceDynamic":
+                if (TryLong(rest, out var spaceDynamicMid))
+                {
+                    id = new SpaceDynamic(spaceDynamicMid);
+                    return true;
+                }
+
+                break;
             case "cv":
                 if (TryLong(rest, out var cvId))
                 {
@@ -187,9 +232,11 @@ public abstract record ResourceId
         return false;
     }
 
-    // 前缀按长度降序（cheeseSeason 11 > mediaList 9 > cheeseEp 8 > season 6 > series/space 5 > opus/live 4 > fav 3 > ep/cv/av 2），
+    // 前缀按长度降序（spaceDynamic 12 / cheeseSeason 12 > spaceAudio 10 > mediaList 9 / spaceOpus 9 > cheeseEp 8 / readlist 8
+    // > season 6 > series/space 5 > opus/live 4 > fav 3 > ep/cv/av/rl 2），
     // 未来若出现包含关系（如新增 "cheese" 前缀），长前缀仍优先匹配
-    private static readonly string[] TypePrefixes = ["cheeseSeason", "mediaList", "cheeseEp", "season", "series", "space", "opus", "live", "fav", "ep", "cv", "av"];
+    private static readonly string[] TypePrefixes =
+        ["spaceDynamic", "cheeseSeason", "spaceAudio", "mediaList", "spaceOpus", "cheeseEp", "readlist", "season", "series", "space", "opus", "live", "fav", "ep", "cv", "av", "rl"];
 
     // 仅接受纯数字（无符号/空白/千分位），保证规范形态与非法输入严格区分
     private static bool TryLong(string value, out long result)

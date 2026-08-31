@@ -10,12 +10,23 @@
 
 ### 新增
 
+- **文集 / 空间图文 / 空间音频 / 空间动态下载**
+    - 文集：`https://www.bilibili.com/read/readlist/rl{id}`（简写 `rl{id}` / `readlist{id}`），逐篇复用专栏导出链路产出 Markdown，落在 `工作目录/文集名/` 下。
+    - 空间图文投稿：`https://space.bilibili.com/{mid}/upload/opus`（简写 `spaceOpus{mid}`），拉取动态流仅提取图文动态（`MAJOR_TYPE_OPUS`），逐条导出 Markdown，落在 `工作目录/UP 名/` 下；接口带 WBI 签名与 buvid3，未登录被风控时提示登录后重试。
+    - 空间动态：`https://space.bilibili.com/{mid}/dynamic`（简写 `spaceDynamic{mid}`），与空间图文投稿共用实现（仅提取图文，视频 / 转发等类型跳过）。
+    - 空间音频投稿：`https://space.bilibili.com/{mid}/upload/audio`（旧版 `/audio` 页同义，简写 `spaceAudio{mid}`），新增音乐域（`BBDown.Core.Music`）经 music-service 接口逐条下载音频流（web 端恒 192K）与歌词 `.lrc`；付费 / 大会员曲目未登录时下载试听片段并提示；逐条失败跳过，末尾汇总抛出。
+    - `ResourceId` 新增 `ReadList` / `SpaceOpus` / `SpaceAudio` / `SpaceDynamic` 四个子类型（规范串 `readlist{id}` 等可经 serve API 往返）；`ContentMode` 新增 `Audio`；GUI / WebUI 的 URL 识别与任务类型标签同步。
 - **纯函数测试补充**
     - `SsrfGuard.IsPrivateAddress`：覆盖私网各段 / CGNAT / 基准网络 / 多播与保留段 / 受限广播 / IPv4-mapped IPv6 / 公网白名单共 31 个用例。
     - WebUI：任务状态映射新增「错误文案含『已取消』但无结构化字段时判为失败」回归用例；`maxRetry` 新增负数、小数、NaN 兜底用例。
+    - 本次新增纯函数全覆盖：`InputResolver.TryDispatch`（集合 URL / 简写 / 视频与合集形态不误吞 / 非法输入拒绝）；`ResourceId` 新类型规范串往返与前缀长度优先（`spaceOpus` 等长前缀不被 `space` 误吞）；`ContentSelector.ModeOf` 全类型矩阵与 `ContentMode.Audio` 的失效提示；`SpaceOpusDownload.TryGetOpus`（`MAJOR_TYPE_OPUS` 提取 / 非图文类型拒绝 / 结构缺失拒绝，`OpusItem` 与该方法改 internal 以便测试）；`AudioDownload.ResolveExt`（扩展名推断与 `.m4a` 兜底）。
 
 ### 重构
 
+- **执行域统一分发**
+    - 新增 `WorkerDispatcher`（`BBDown.Core/Pipeline/`）作为资源类型 → 执行器的唯一分发点：CLI（`Program.RunApp`）与 serve（`TaskWorker`）共用，直播 / 专栏 / 文集 / 空间集合走独立链路，其余走视频下载管道。
+    - CLI 移除 `RunApp` 顶部的 `OpusInputResolver` / `LiveInputResolver` 字符串早分流，改用纯字符串探测 `InputResolver.TryDispatch`（新 partial 文件 `InputResolver.Dispatch.cs`）；serve 删除 `TaskWorker` 内重复的 switch 分发。
+    - `TaskWorker.ContentModeOf` 提升为 `ContentSelector.ModeOf(ResourceId)`，CLI 与 serve 共用同一内容适用域判定。
 - **serve 任务执行链（无用户可见行为变化）**
     - 删除 `TaskQueue` 包装层：`TaskStore` / `TaskWorker` 直接持有执行队列 `Channel` 的读写端，`TaskEnvelope` 移至 `TaskStore.cs`。
     - `DownloadTask` 新增 `Scope`（构造时定格 `ResourceId` 规范串），替换各处每次调用的 `ResourceIdJsonConverter.Format` 字符串分配。

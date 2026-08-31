@@ -89,6 +89,32 @@ public static partial class UrlDetector
             return "用户空间";
         }
 
+        // 集合简写（spaceOpus123 等）：space 分支要求 space 后紧跟数字，spaceOpus123 不会命中 space 分支
+        if (StartsWithId(text, IdPrefix.SpaceOpus))
+        {
+            return "空间图文投稿";
+        }
+
+        if (StartsWithId(text, IdPrefix.SpaceAudio))
+        {
+            return "空间音频投稿";
+        }
+
+        if (StartsWithId(text, IdPrefix.SpaceDynamic))
+        {
+            return "空间动态（图文）";
+        }
+
+        if (StartsWithId(text, IdPrefix.ReadList))
+        {
+            return "文集";
+        }
+
+        if (StartsWithId(text, IdPrefix.Rl))
+        {
+            return "文集";
+        }
+
         if (StartsWithId(text, "live"))
         {
             return "直播间（live 号）";
@@ -112,6 +138,29 @@ public static partial class UrlDetector
         if (text.Contains("/cheese/", StringComparison.OrdinalIgnoreCase))
         {
             return "课程地址";
+        }
+
+        if (text.Contains("/read/readlist/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "文集地址";
+        }
+
+        // 空间子页限定 host（与 Core 的 TryParseCollection 守卫一致），非空间域的 /audio 等路径不误标
+        var spaceHost = text.Contains("/space.bilibili.com/", StringComparison.OrdinalIgnoreCase);
+        if (spaceHost && text.Contains("/upload/opus", StringComparison.OrdinalIgnoreCase))
+        {
+            return "空间图文投稿地址";
+        }
+
+        // 旧版音频页 space.bilibili.com/{mid}/audio 与新版 /upload/audio 同义（/audio 判定两者通吃）
+        if (spaceHost && text.Contains("/audio", StringComparison.OrdinalIgnoreCase))
+        {
+            return "空间音频投稿地址";
+        }
+
+        if (spaceHost && text.Contains("/dynamic", StringComparison.OrdinalIgnoreCase))
+        {
+            return "空间动态地址（图文）";
         }
 
         if (BvRegex( ).Match(text) is { Success: true } bv)

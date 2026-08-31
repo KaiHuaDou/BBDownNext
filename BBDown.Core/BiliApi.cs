@@ -44,6 +44,16 @@ public static class BiliApi
     public const string ReplyReply = $"https://{MainHost}/x/v2/reply/reply";
     public const string ToviewList = $"https://{MainHost}/x/v2/history/toview";
 
+    // 文集（专栏合集）与空间动态流：动态流需 WBI 签名，见 SpaceListFetcher
+    public const string ReadListArticles = $"https://{MainHost}/x/article/list/web/articles";
+    public const string SpaceDynamicFeed = $"https://{MainHost}/x/polymer/web-dynamic/v1/feed/space";
+
+    // 音频投稿（music-service 独立域，主机固定不可代理）
+    public const string SpaceAudioList = $"https://{MainHost}/audio/music-service/web/song/upper";
+    public const string AudioSongInfo = "https://www.bilibili.com/audio/music-service-c/web/song/info";
+    public const string AudioSongUrl = "https://www.bilibili.com/audio/music-service-c/web/url";
+    public const string AudioLyric = "https://www.bilibili.com/audio/music-service-c/web/song/lyric";
+
     // 直播（均无需 Cookie 与 WBI 签名）
     public const string LiveRoomInit = $"https://{LiveApiHost}/room/v1/Room/room_init";
     public const string LiveRoomBaseInfo = $"https://{LiveApiHost}/xlive/web-room/v1/index/getRoomBaseInfo";

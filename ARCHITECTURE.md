@@ -99,13 +99,18 @@ BBDown/
 │   │
 │   ├── Pipeline/           # 命名空间 BBDown.Core.Pipeline — 下载编排主干（CLI 与 serve 共用）
 │   │   ├── DownloadPipeline.cs     # RunAsync 三段下载主干
+│   │   ├── WorkerDispatcher.cs     # 资源类型 → 执行器的唯一分发点（CLI 与 serve 共用；独立链路 / 视频管道在此分流）
 │   │   ├── WorkSetup.cs            # 进程级初始化 → RunConfig (Build / ResolveConfig / ResolveToolPaths)
 │   │   ├── VideoInfo.cs            # FetchAsync 解析视频信息（标题/分 P /封面/账号探测）
 │   │   ├── PageQueue.cs            # 逐分 P 编排 (RunAsync；-iap 逐集交互确认走 PageSelect.ResolveInteractive)
 │   │   ├── PageSelect.cs           # 分 P 选择/范围 + 逐集交互选择
-│   │   ├── InputResolver.cs        # URL/编号 → 内部 avid 解析（含稍后再看 /watchlater/ 与分享链接 bvid/oid）
+│   │   ├── InputResolver.cs        # URL/编号 → ResourceId 解析（含稍后再看 /watchlater/ 与分享链接 bvid/oid）
+│   │   ├── InputResolver.Dispatch.cs # 纯字符串形态探测 TryDispatch（直播/专栏/文集/空间集合，CLI 早分流复用）
 │   │   ├── LiveDownload.cs         # 直播录制编排 (RunAsync)：独立链路，不走 WorkContext
-│   │   └── OpusDownload.cs         # 专栏导出入口 (RunAsync)：在 RunApp 内于 WorkSetup.Build 之前分流，不经混流
+│   │   ├── OpusDownload.cs         # 专栏导出入口 (RunAsync)：独立链路，不经混流（集合运行器逐条复用）
+│   │   ├── ReadListDownload.cs     # 文集导出编排：拉文章列表 → 逐篇 OpusDownload，产物落 工作目录/文集名/
+│   │   ├── SpaceOpusDownload.cs    # 空间图文/动态导出：动态流(WBI)过滤 MAJOR_TYPE_OPUS → 逐条 OpusDownload
+│   │   └── SpaceAudioDownload.cs   # 空间音频投稿：AU 列表分页 → 逐条 AudioDownload
 │   │
 │   ├── Media/              # 命名空间 BBDown.Core.Media — 单分 P 下载与封装
 │   │   ├── PageDownload.cs         # 单分 P 下载入口，分派 DASH/FLV (RunAsync / DispatchAsync)
@@ -172,6 +177,11 @@ BBDown/
 │   │   ├── OpusRegexes.cs          # [GeneratedRegex] 集中声明
 │   │   └── OpusDocument.cs         # 域模型
 │   │
+│   ├── Music/               # 命名空间 BBDown.Core.Music — 音频投稿（命名空间用 Music 对齐 music-service，
+│   │   │                     避免 Audio 与 Entity.Audio 音轨实体同名冲突）
+│   │   ├── AudioFetcher.cs         # song/info（元信息）/ web/url（播放流，恒 192K）/ song/lyric（歌词文本）
+│   │   └── AudioDocument.cs        # AudioInfo / AudioPlayUrl record
+│   │
 │   ├── Comment/            # 命名空间 BBDown.Core.Comment — 评论区
 │   │   ├── CommentFetcher.cs       # WBI 分页抓取
 │   │   ├── CommentRenderer.cs      # JSON / TXT 渲染
@@ -235,7 +245,7 @@ BBDown/
 
 **依赖方向**：`BBDown` → `BBDown.Core`；两个测试项目分别依赖对应实现。Core 不反向依赖入口项目，保证核心逻辑可独立测试。`BBDown.GUI` 只依赖 `BBDown.Core`，不引用 CLI 项目，其测试由独立 CI（`gui.yml`）覆盖构建。`Plugins/BBDown.Sample` 引用 `BBDown.Core`（协议 record 对齐），以独立进程被主程序按需调起，不在主构建链路上；其余插件为独立仓库。
 
-**入口项目职责**：`BBDown` 主项目只保留命令行解析（`Cli`）、serve 服务器（`Serve`）与入口编排（`Program`：login/serve 子命令装配、专栏/直播分流、异常→退出码映射）。下载链路全部在 `BBDown.Core`，`Program.RunApp` 仅做三条链路的分流后调用 Core 的 `OpusDownload` / `LiveDownload` / `DownloadPipeline`。子命名空间之间的引用一律显式 `using`；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。
+**入口项目职责**：`BBDown` 主项目只保留命令行解析（`Cli`）、serve 服务器（`Serve`）与入口编排（`Program`：login/serve 子命令装配、独立链路早分流、异常→退出码映射）。下载链路全部在 `BBDown.Core`，`Program.RunApp` 经纯字符串探测 `InputResolver.TryDispatch` 识别独立链路形态后统一交 `WorkerDispatcher` 分发（直播 `LiveDownload` / 专栏 `OpusDownload` / 文集与空间集合 `ReadListDownload` 等运行器 / 视频管道 `DownloadPipeline`）。子命名空间之间的引用一律显式 `using`；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。
 
 ---
 
@@ -247,7 +257,9 @@ BBDown/
 用户输入
   │
   ▼
-InputResolver.ResolveIdAsync      URL/av/BV/ep/ss/md/合集/系列/收藏夹/空间/稍后再看/b23.tv → ResourceId
+InputResolver.ResolveIdAsync      URL/av/BV/ep/ss/md/合集/系列/收藏夹/空间/稍后再看/b23.tv/文集/空间集合 → ResourceId
+  │  直播 / 专栏 / 文集 / 空间集合形态在入口经 TryDispatch 识别（见「独立链路分支」），
+  │  视频形态继续走本链路
   │  md{数字} 详情页 → pgc/review/user 映射出 season_id → 解析为 Season(season_id)（整季形态）
   │  ss{数字} 季号 → pgc/view/web/season 取 season_id → 同样解析为 Season(season_id)（整季形态，与 md 对称）
   │  /watchlater/ 系列地址 → WatchLater（分享链接带 bvid/oid 时只取单个视频）
@@ -278,7 +290,9 @@ PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分�
 落盘 (SavePath 经 FileNameUtil 截断) + 写入 BBDown.archives (--save-records)
 ```
 
-**直播录制分支**：当输入命中 `LiveInputResolver.TryParse`（`live:` / `live.bilibili.com/{数字}` / `m.live.bilibili.com`），`RunApp` 在 `WorkSetup.Build` 之前分流到 `LiveDownload.RunAsync`，这是一条不经 `WorkContext` / 混流主干的独立链路：
+**独立链路分支**：输入命中 `InputResolver.TryDispatch`（纯字符串探测：直播 / 专栏 opus|cv / 文集 readlist / 空间图文 spaceOpus / 空间音频 spaceAudio / 空间动态 spaceDynamic）时，`RunApp` 早于 `WorkSetup.Build` 交 `WorkerDispatcher` 分发到对应独立链路。`WorkerDispatcher` 是 CLI 与 serve 共用的唯一分发点（serve 端 `TaskWorker.RunDownloadAsync` 亦经它执行），非视频链路不构造 `WorkContext`。集合运行器（文集 / 空间图文 / 空间音频）逐条复用单条链路（`OpusDownload` / `AudioDownload`）并聚合失败。
+
+**直播录制分支**：直播形态（`live:` / `live.bilibili.com/{数字}` / `m.live.bilibili.com`）同样经 `WorkerDispatcher` 分流到 `LiveDownload.RunAsync`，这是一条不经 `WorkContext` / 混流主干的独立链路：
 
 ```
 用户输入（直播间地址）
@@ -412,7 +426,7 @@ playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）�
 
 ### 11.1 分流点
 
-分流发生在 `Program.RunApp` 顶部，**早于** `DownloadPipeline.RunAsync` 内的 `WorkSetup.Build`：
+分流发生在 `Program.RunApp` 顶部（`InputResolver.TryDispatch` 命中专栏形态）并经 `WorkerDispatcher` 派发，**早于** `DownloadPipeline.RunAsync` 内的 `WorkSetup.Build`。文集与空间图文 / 空间动态作为集合输入复用本链路：`ReadListDownload` / `SpaceOpusDownload` 拉取列表后逐条构造专栏地址调用 `OpusDownload`，产物落在 `工作目录/{文集名|UP 名}/` 下：
 
 ```
 用户输入
@@ -445,7 +459,7 @@ OpusDownload.RunAsync (BBDown.Core.Pipeline)  不走 WorkSetup.Build / 不构造
 
 ### 11.3 serve 模式说明
 
-v1 的 `serve` JSON API 面向音视频、直播与专栏（opus / cv）任务：`TaskWorker` 按 `ResourceId` 分发，`LiveRoom` 走直播录制链路、`OpusArticle` 走专栏导出链路，与 CLI 根命令识别的目标类型一致。
+v1 的 `serve` JSON API 面向音视频、直播、专栏（opus / cv）与集合（文集 / 空间图文 / 空间音频 / 空间动态）任务：`TaskWorker.RunDownloadAsync` 经 `WorkerDispatcher` 按 `ResourceId` 分发（与 CLI 同一分发点），`LiveRoom` 走直播录制链路、`OpusArticle` 走专栏导出链路、集合类型走各集合运行器，其余走视频管道。
 
 ---
 

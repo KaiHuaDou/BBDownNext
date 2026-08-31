@@ -17,6 +17,7 @@ namespace BBDown.Core.Pipeline;
 
 /// <summary>
 /// 把用户输入（URL / av / BV / ep / ss / 合集 / 系列 / 收藏 / 空间等）解析为内部统一的 <see cref="ResourceId"/>。
+/// 形态分发（TryDispatch，见 InputResolver.Dispatch.cs）与 URL / 简写解析拆为两个 partial 文件。
 /// </summary>
 public static partial class InputResolver
 {
@@ -42,15 +43,11 @@ public static partial class InputResolver
             input = tmp;
         }
 
-        // 直播 / 专栏为独立链路（不经 ResourceId 的 fetcher 分发），serve 受理时在此识别并打标
-        if (LiveInputResolver.TryParse(input, out var live))
+        // 直播 / 专栏 / 集合（文集、空间图文 / 音频 / 动态）为独立链路（不经 ResourceId 的 fetcher 分发），
+        // 在此识别并打标；视频形态返回 false 继续走通用解析
+        if (TryDispatch(input, out var directId))
         {
-            return new LiveRoom(long.Parse(live.RoomId));
-        }
-
-        if (OpusInputResolver.TryParse(input, out var opus))
-        {
-            return new OpusArticle(long.TryParse(opus.OpusId, out var opusId) ? opusId : 0, long.TryParse(opus.CvId, out var cvId) ? cvId : 0);
+            return directId;
         }
 
         // 前缀检查防误匹配（sav123 之类含 av+数字的串），正则 Success 防 Match 失败后取空组抛 FormatException
@@ -212,15 +209,11 @@ public static partial class InputResolver
             return new Space(long.Parse(spaceRest));
         }
 
-        // 直播 / 专栏简写（live123 / cv123 / opus123）：与 URL 形态同一识别器，serve 受理与 CLI 分流语义一致
-        if (LiveInputResolver.TryParse(input, out var live))
+        // 直播 / 专栏 / 集合简写（live123 / cv123 / opus123 / rl75249 / spaceOpus213741 等）：
+        // 与 URL 形态同一识别器，serve 受理与 CLI 分流语义一致
+        if (TryDispatch(input, out var directId))
         {
-            return new LiveRoom(long.Parse(live.RoomId));
-        }
-
-        if (OpusInputResolver.TryParse(input, out var opus))
-        {
-            return new OpusArticle(long.TryParse(opus.OpusId, out var opusId) ? opusId : 0, long.TryParse(opus.CvId, out var cvId) ? cvId : 0);
+            return directId;
         }
 
         // 裸数字按 av 号识别；若该 av 实际被重定向到番剧播放页，FixAvidAsync 会探测并转 Ep

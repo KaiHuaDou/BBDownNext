@@ -43,6 +43,10 @@ public sealed class ResourceIdJsonConverter : JsonConverter<ResourceId>
             ResourceId.WatchLater => "watchLater",
             ResourceId.LiveRoom l => $"live{l.RoomId}",
             ResourceId.OpusArticle o => o.CvId > 0 ? $"cv{o.CvId}" : $"opus{o.OpusId}",
+            ResourceId.ReadList rl => $"readlist{rl.RlId}",
+            ResourceId.SpaceOpus so => $"spaceOpus{so.Mid}",
+            ResourceId.SpaceAudio sa => $"spaceAudio{sa.Mid}",
+            ResourceId.SpaceDynamic sd => $"spaceDynamic{sd.Mid}",
             _ => throw new ArgumentOutOfRangeException(nameof(id))
         };
     }

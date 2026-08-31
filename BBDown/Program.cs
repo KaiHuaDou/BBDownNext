@@ -9,7 +9,6 @@ using BBDown.Core;
 using BBDown.Core.Auth;
 using BBDown.Core.Download;
 using BBDown.Core.Live;
-using BBDown.Core.Opus;
 using BBDown.Core.Pipeline;
 using BBDown.Core.Util;
 using BBDown.Serve;
@@ -233,7 +232,7 @@ internal sealed class Program
 
     private static async Task<int> RunApp(DownloadRequest myOption)
     {
-        // b23.tv 短链需展开后再识别形态：专栏/直播为独立链路，展开到对应 URL 才能正确分流
+        // b23.tv 短链需展开后再识别形态：独立链路（直播 / 专栏 / 集合）展开到对应 URL 才能正确分流
         // （否则落入通用解析抛"未知 id 类型"）。展开幂等，下游 OpusDownload 二次展开无副作用
         var url = myOption.Url;
         if (url.Contains("b23.tv", StringComparison.OrdinalIgnoreCase))
@@ -251,44 +250,41 @@ internal sealed class Program
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         try
         {
-            // 专栏导出走独立链路：不构造 WorkContext，也就不会因为缺少 ffmpeg 而失败
-            if (OpusInputResolver.TryParse(myOption.Url, out _))
+            // 独立链路（直播 / 专栏 / 文集 / 空间图文 / 音频）：形态识别为纯字符串逻辑（TryDispatch），
+            // 不构造 WorkContext 也就不会因为缺少 ffmpeg 而失败；执行统一经 WorkerDispatcher 分发
+            if (InputResolver.TryDispatch(myOption.Url, out var dispatchId))
             {
-                foreach (var debug in ContentSelector.DescribeInactive(myOption.Content, ContentMode.Opus))
+                foreach (var debug in ContentSelector.DescribeInactive(myOption.Content, ContentSelector.ModeOf(dispatchId)))
                 {
                     LogDebug(debug);
                 }
 
-                // 图片可能上百张，进度条比逐条日志更直观（OpusDownload 按张数上报 ProgressBus 样本）
-                using var opusProgressBar = new ProgressBar(AppEnv.CancellationToken);
-                await OpusDownload.RunAsync(myOption, ct: AppEnv.CancellationToken);
+                if (dispatchId is ResourceId.LiveRoom)
+                {
+                    // 直播录制产物是无限增长的流，分 P 选择、清晰度优先级那套解析对它无意义；
+                    // liveSessionId 与 WorkerDispatcher 内 LiveSignal 注册键（规范串）一致，Ctrl+Break 据此停录
+                    try
+                    {
+                        using var liveProgress = new LiveProgress( );
+                        liveSessionId = ResourceIdJsonConverter.Format(dispatchId);
+                        await WorkerDispatcher.RunAsync(dispatchId, myOption, default, null, AppEnv.CancellationToken);
+                        return 0;
+                    }
+                    catch (OperationCanceledException) when (AppEnv.CancellationToken.IsCancellationRequested)
+                    {
+                        LogWarn("录制已中断，已录制的分段文件保留在工作目录中（未混流）。");
+                        return 130;
+                    }
+                    finally
+                    {
+                        liveSessionId = null;
+                    }
+                }
+
+                // 图片 / 音频可能上百条，进度条比逐条日志更直观（按条数上报 ProgressBus 样本）
+                using var itemProgressBar = new ProgressBar(AppEnv.CancellationToken);
+                await WorkerDispatcher.RunAsync(dispatchId, myOption, default, null, AppEnv.CancellationToken);
                 return 0;
-            }
-
-            // 直播录制同样走独立链路：产物是无限增长的流，分 P 选择、清晰度优先级那套解析对它无意义
-            if (LiveInputResolver.TryParse(myOption.Url, out var liveTarget))
-            {
-                foreach (var debug in ContentSelector.DescribeInactive(myOption.Content, ContentMode.Live))
-                {
-                    LogDebug(debug);
-                }
-
-                try
-                {
-                    using var liveProgress = new LiveProgress( );
-                    liveSessionId = liveTarget.RoomId;
-                    await LiveDownload.RunAsync(myOption, liveTarget, liveSessionId, ct: AppEnv.CancellationToken);
-                    return 0;
-                }
-                catch (OperationCanceledException) when (AppEnv.CancellationToken.IsCancellationRequested)
-                {
-                    LogWarn("录制已中断，已录制的分段文件保留在工作目录中（未混流）。");
-                    return 130;
-                }
-                finally
-                {
-                    liveSessionId = null;
-                }
             }
 
             // 交互消费端先于进度条装配：AskBus 订阅在解析期即可能触发（逐集确认），进度条钩子由 CliInteraction 静态属性承载

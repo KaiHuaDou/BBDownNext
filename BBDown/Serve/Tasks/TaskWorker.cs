@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 
 using BBDown.Core;
 using BBDown.Core.Download;
-using BBDown.Core.Live;
 using BBDown.Core.Logging;
 using BBDown.Core.Pipeline;
 using BBDown.Core.Workflow;
@@ -200,17 +199,6 @@ internal sealed partial class TaskWorker : BackgroundService
         return AbsolutePathRegex( ).Replace(text, "<redacted-path>");
     }
 
-    // 由资源类型推导内容适用域：专栏 / 直播模式需要按模式提示不生效的内容标志（与 CLI 的 ContentMode 映射一致）
-    private static ContentMode ContentModeOf(ResourceId id)
-    {
-        return id switch
-        {
-            ResourceId.LiveRoom => ContentMode.Live,
-            ResourceId.OpusArticle => ContentMode.Opus,
-            _ => ContentMode.Video,
-        };
-    }
-
     // 把可变的任务对象收束在 serve 内部：下载链路只拿到回调，不持有 DownloadTask 引用
     internal static PipelineSink SinkFor(DownloadTask task)
     {
@@ -224,14 +212,14 @@ internal sealed partial class TaskWorker : BackgroundService
             task.AddSavePath);
     }
 
-    // 按任务类型分发执行：直播 / 专栏走独立链路（不经 DownloadPipeline），消息 / 进度仍经总线 +
-    // scope（ResourceIdJsonConverter.Format 规范串）路由进事件流，与普通下载一致；LiveTarget 由受理时解析出的房间号直接构造，
-    // 不重解析 URL（原始 URL 可能是 b23 短链，LiveInputResolver 认不出）
+    // 执行统一经 WorkerDispatcher（与 CLI 同一分发点）：直播 / 专栏 / 集合走独立链路（不经
+    // DownloadPipeline），消息 / 进度仍经总线 + scope（task.Scope 规范串）路由进事件流；
+    // LiveTarget 由受理时解析出的房间号直接构造，不重解析 URL（原始 URL 可能是 b23 短链）
     private async Task RunDownloadAsync(DownloadTask task, TaskEnvelope envelope)
     {
         var token = task.Cts.Token;
-        // 与 CLI 一致：专栏 / 直播模式下输出非活跃内容标志的调试提示（视频模式不提示，避免误导）
-        var mode = ContentModeOf(task.Id);
+        // 与 CLI 一致：非视频模式下输出非活跃内容标志的调试提示（视频模式不提示，避免误导）
+        var mode = ContentSelector.ModeOf(task.Id);
         if (mode != ContentMode.Video)
         {
             foreach (var warn in ContentSelector.DescribeInactive(envelope.Request.Content, mode))
@@ -240,18 +228,9 @@ internal sealed partial class TaskWorker : BackgroundService
             }
         }
 
-        switch (task.Id)
-        {
-            case ResourceId.LiveRoom room:
-                await LiveDownload.RunAsync(envelope.Request, new LiveTarget(room.RoomId.ToString( )), task.Scope, SinkFor(task), token);
-                break;
-            case ResourceId.OpusArticle:
-                await OpusDownload.RunAsync(envelope.Request, SinkFor(task), token);
-                break;
-            default:
-                await DownloadPipeline.RunAsync(envelope.Request, SinkFor(task), store.GetContext(task.Scope), token);
-                break;
-        }
+        // 事件流上下文仅视频管道消费；独立链路不构造 WorkContext，传 null
+        var ctx = mode == ContentMode.Video ? store.GetContext(task.Scope) : null;
+        await WorkerDispatcher.RunAsync(task.Id, envelope.Request, SinkFor(task), ctx, token);
     }
 
     private static async Task NotifyCallbackAsync(DownloadTask task, string? callBackWebHook)

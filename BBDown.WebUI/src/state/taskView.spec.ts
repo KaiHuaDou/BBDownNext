@@ -34,6 +34,10 @@ describe('kindOfId', () => {
     expect(kindOfId('medialist123')).toBe('合集')
     expect(kindOfId('series123')).toBe('系列')
     expect(kindOfId('watchlater123')).toBe('稍后再看')
+    expect(kindOfId('readlist123')).toBe('文集')
+    expect(kindOfId('spaceopus123')).toBe('空间图文')
+    expect(kindOfId('spaceaudio123')).toBe('空间音频')
+    expect(kindOfId('spacedynamic123')).toBe('空间动态')
   })
 
   it('无匹配前缀回落视频', () => {

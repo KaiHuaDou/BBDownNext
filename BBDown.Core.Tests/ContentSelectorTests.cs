@@ -233,4 +233,54 @@ public class ContentSelectorTests
         Assert.Single(list);
         Assert.Contains("弹幕", list[0]);
     }
+
+    [Fact]
+    public void DescribeInactive_Audio_OnlyAudioActive( )
+    {
+        // 音频下载恒产出音频文件：其余标志（含视频轨 v）在音频模式下均提示不生效。
+        // 用带字符标记的形式断言（模式名「音频下载」本身含「音频」，裸关键词会误判）
+        var list = ContentSelector.DescribeInactive(
+            DownloadContent.Audio | DownloadContent.Video | DownloadContent.Danmaku, ContentMode.Audio);
+        Assert.Equal(2, list.Count);
+        Assert.Contains(list, d => d.Contains("视频（v）", System.StringComparison.Ordinal));
+        Assert.Contains(list, d => d.Contains("弹幕（d）", System.StringComparison.Ordinal));
+        Assert.DoesNotContain(list, d => d.Contains("音频（a）", System.StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DescribeInactive_Audio_AudioFlagOnly_Empty( )
+    {
+        var list = ContentSelector.DescribeInactive(DownloadContent.Audio, ContentMode.Audio);
+        Assert.Empty(list);
+    }
+
+    // ---- 资源类型 → 内容适用域（ModeOf 为纯函数，CLI 与 serve 共用判定点） ----
+
+    public static TheoryData<ResourceId, ContentMode> ModeOfCases => new( )
+    {
+        { new ResourceId.LiveRoom(123), ContentMode.Live },
+        { new ResourceId.OpusArticle(123, 0), ContentMode.Opus },
+        { new ResourceId.OpusArticle(0, 123), ContentMode.Opus },
+        { new ResourceId.ReadList(75249), ContentMode.Opus },
+        { new ResourceId.SpaceOpus(213741), ContentMode.Opus },
+        { new ResourceId.SpaceDynamic(213741), ContentMode.Opus },
+        { new ResourceId.SpaceAudio(213741), ContentMode.Audio },
+        { new ResourceId.Av(170001), ContentMode.Video },
+        { new ResourceId.Ep(68540), ContentMode.Video },
+        { new ResourceId.Season(2539), ContentMode.Video },
+        { new ResourceId.CheeseEp(1), ContentMode.Video },
+        { new ResourceId.CheeseSeason(1), ContentMode.Video },
+        { new ResourceId.Fav(123, 3), ContentMode.Video },
+        { new ResourceId.MediaList(1560264), ContentMode.Video },
+        { new ResourceId.Series(1560264), ContentMode.Video },
+        { new ResourceId.Space(402787936), ContentMode.Video },
+        { new ResourceId.WatchLater( ), ContentMode.Video },
+    };
+
+    [Theory]
+    [MemberData(nameof(ModeOfCases))]
+    public void ModeOf_ResourceId_MapsToContentMode(ResourceId id, ContentMode expected)
+    {
+        Assert.Equal(expected, ContentSelector.ModeOf(id));
+    }
 }

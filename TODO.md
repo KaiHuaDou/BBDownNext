@@ -6,4 +6,5 @@
 - [ ] UP 主/合集/收藏夹订阅。
 - [ ] 合集下载 P1 给到时间最早。
 - [ ] 评论图片下载支持
-- [ ] 支持 <https://www.bilibili.com/read/readlist/rl75249>、<https://space.bilibili.com/213741/upload/opus>、<https://space.bilibili.com/213741/upload/audio>、<https://space.bilibili.com/213741/dynamic>
+- [ ] GUI（桌面端）对文集 / 空间图文 / 空间音频 / 空间动态集合输入的功能性下载（CLI 与 serve 已支持，GUI 目前仍按视频管道解析）
+- [ ] 单音频输入（`au{数字}`）与空间动态内视频 / 转发类型的下载

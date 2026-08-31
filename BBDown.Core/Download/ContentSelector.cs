@@ -34,6 +34,7 @@ public enum ContentMode
     Video,
     Opus,
     Live,
+    Audio,
 }
 
 /// <summary>内容字符条目：字符、对应标志与中文名。GUI 内容复选框与警告文案共用此表，避免字符集合多处硬编码。</summary>
@@ -117,6 +118,7 @@ public static class ContentSelector
         {
             ContentMode.Opus => DownloadContent.OpusImage | DownloadContent.FrontMatter,
             ContentMode.Live => DownloadContent.Audio | DownloadContent.Video,
+            ContentMode.Audio => DownloadContent.Audio,
             _ => ~(DownloadContent.OpusImage | DownloadContent.FrontMatter),
         };
         var list = new List<string>( );
@@ -209,12 +211,28 @@ public static class ContentSelector
         return flags;
     }
 
+    /// <summary>
+    /// 由资源类型推导内容适用域：CLI 与 serve 共用的唯一判定点，
+    /// 各执行域（视频管道 / 专栏 / 直播 / 音频）据此提示不生效的内容标志。
+    /// </summary>
+    public static ContentMode ModeOf(ResourceId id)
+    {
+        return id switch
+        {
+            ResourceId.LiveRoom => ContentMode.Live,
+            ResourceId.OpusArticle or ResourceId.ReadList or ResourceId.SpaceOpus or ResourceId.SpaceDynamic => ContentMode.Opus,
+            ResourceId.SpaceAudio => ContentMode.Audio,
+            _ => ContentMode.Video,
+        };
+    }
+
     private static string ModeName(ContentMode mode)
     {
         return mode switch
         {
             ContentMode.Opus => "专栏导出",
             ContentMode.Live => "直播录制",
+            ContentMode.Audio => "音频下载",
             _ => "视频下载",
         };
     }

@@ -1,6 +1,6 @@
 /** 下载目标识别，复刻 GUI UrlDetector 的逻辑与文案（前缀来源与 Core IdPrefix 一致）。 */
 
-/** 已知前缀，前缀后必须紧跟数字（BV 号固定以 BV1 开头，单独判定）。 */
+/** 已知前缀，前缀后必须紧跟数字（BV 号固定以 BV1 开头，单独判定）。集合简写在 space 之前（前缀更长）。 */
 const KNOWN_PREFIXES: [string, string][] = [
   ['av', '视频（av 号）'],
   ['ep', '番剧（ep 号）'],
@@ -10,6 +10,11 @@ const KNOWN_PREFIXES: [string, string][] = [
   ['cheese/ss', '课程（ss 号）'],
   ['opus', '专栏（opus）'],
   ['cv', '专栏（cv）'],
+  ['readlist', '文集'],
+  ['rl', '文集'],
+  ['spaceOpus', '空间图文投稿'],
+  ['spaceAudio', '空间音频投稿'],
+  ['spaceDynamic', '空间动态（图文）'],
   ['space', '用户空间'],
   ['live', '直播间（live 号）']
 ]
@@ -73,6 +78,25 @@ function matchKnownPrefix(text: string): string | null {
 function describeUrl(text: string): string {
   if (/\/cheese\//.test(text)) {
     return '课程地址'
+  }
+
+  if (/\/read\/readlist\//i.test(text)) {
+    return '文集地址'
+  }
+
+  // 空间子页限定 host（与 Core 的 TryParseCollection 守卫一致），非空间域的 /audio 等路径不误标
+  const spaceHost = /\/space\.bilibili\.com\//i.test(text)
+  if (spaceHost && /\/upload\/opus/i.test(text)) {
+    return '空间图文投稿地址'
+  }
+
+  // 旧版音频页 space.bilibili.com/{mid}/audio 与新版 /upload/audio 同义（/audio 判定两者通吃）
+  if (spaceHost && /\/audio/i.test(text)) {
+    return '空间音频投稿地址'
+  }
+
+  if (spaceHost && /\/dynamic/i.test(text)) {
+    return '空间动态地址（图文）'
   }
 
   const bv = /BV[0-9A-Za-z]+/.exec(text)

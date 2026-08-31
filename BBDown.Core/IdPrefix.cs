@@ -47,4 +47,19 @@ public static class IdPrefix
 
     /// <summary>简写 md 前缀，无切片</summary>
     public const string Md = "md";
+
+    /// <summary>文集简写前缀（rl75249），切片长度 2</summary>
+    public const string Rl = "rl";
+
+    /// <summary>文集规范前缀（readlist75249），切片长度 8</summary>
+    public const string ReadList = "readlist";
+
+    /// <summary>空间图文简写前缀（spaceOpus75249），切片长度 9</summary>
+    public const string SpaceOpus = "spaceOpus";
+
+    /// <summary>空间音频简写前缀（spaceAudio75249），切片长度 10</summary>
+    public const string SpaceAudio = "spaceAudio";
+
+    /// <summary>空间动态简写前缀（spaceDynamic75249），切片长度 12</summary>
+    public const string SpaceDynamic = "spaceDynamic";
 }
