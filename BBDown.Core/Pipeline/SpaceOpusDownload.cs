@@ -5,12 +5,10 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core.Auth;
 using BBDown.Core.Download;
 using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;
-using static BBDown.Core.Util.HTTPUtil;
 using static BBDown.Core.Util.JsonUtil;
 
 namespace BBDown.Core.Pipeline;
@@ -18,24 +16,17 @@ namespace BBDown.Core.Pipeline;
 /// <summary>
 /// UP 主空间图文 / 专栏投稿导出编排：翻页拉取动态流，仅提取图文动态（MAJOR_TYPE_OPUS），
 /// 逐条复用 <see cref="OpusDownload"/> 导出 Markdown，产物落在 workDir/{UP 名}/ 下。
-/// SpaceOpus（/upload/opus）与 SpaceDynamic（/dynamic）共用本实现（同一数据源）；
-/// 视频 / 转发 / 直播 / 笔记等动态类型不在提取范围。与音视频链路独立，不构造 WorkContext。
+/// 视频 / 转发 / 直播 / 笔记等动态类型不在提取范围（空间动态页的全类型分发见 <see cref="SpaceDynamicDownload"/>）。
+/// 与音视频链路独立，不构造 WorkContext。
 /// </summary>
 public static class SpaceOpusDownload
 {
-    private const int PageSize = 20;
-    private const int MaxItems = 1000;
-
     // internal 供单测构造断言（TryGetOpus 的 out 形态）
     internal readonly record struct OpusItem(string OpusId, string Title, string Author);
 
     public static async Task RunAsync(long mid, DownloadRequest myOption, PipelineSink sink = default, CancellationToken ct = default)
     {
-        var cfg = WorkSetup.ResolveConfig(myOption, ApiType.Web);
-        await Buvid.InitAsync(ct);
-        // feed/space 需要 WBI 签名：nav 探测取密钥（未登录也能拿到，签名缺失会被服务端拒绝）
-        var (_, wbi) = await Account.ProbeAccountAsync(cfg, ct);
-        cfg = cfg with { Wbi = wbi };
+        var cfg = await SpaceDynamicFeed.ResolveConfigAsync(myOption, ct);
 
         Log($"获取 UP 主 {mid} 的图文动态...");
         var items = await CollectItemsAsync(mid, cfg, ct);
@@ -82,45 +73,16 @@ public static class SpaceOpusDownload
         Log("图文导出完成");
     }
 
-    // 按 offset 游标翻页拉取动态流，过滤出图文动态；上限兜底防 has_more 异常导致死循环
+    // 拉取全部动态 entry 后仅保留图文（MAJOR_TYPE_OPUS）
     private static async Task<List<OpusItem>> CollectItemsAsync(long mid, AppConfig cfg, CancellationToken ct)
     {
         List<OpusItem> items = [];
-        string? offset = null;
-        while (items.Count < MaxItems)
+        foreach (var entry in await SpaceDynamicFeed.CollectEntriesAsync(mid, cfg, ct))
         {
-            var query = offset is null
-                ? $"host_mid={mid}&page_size={PageSize}"
-                : $"host_mid={mid}&page_size={PageSize}&offset={offset}";
-            var api = $"{BiliApi.SpaceDynamicFeed}?{SignUtil.WbiSignNow(query, cfg)}";
-            using var doc = JsonDocument.Parse(await GetWebSourceAsync(api, cfg, null, ct));
-            var data = GetApiData(doc.RootElement, "空间动态流");
-
-            // 风控时接口可能只回 has_more 而无 items（未登录 + 无 buvid3 / 签名失效等）
-            if (!TryGetArray(data, "items", out var feed))
+            if (TryGetOpus(entry, out var item))
             {
-                throw new InvalidOperationException("获取空间动态流失败：接口未返回 items（可能被风控拦截，请登录后重试）");
+                items.Add(item);
             }
-
-            var got = 0;
-            string? lastId = null;
-            foreach (var entry in feed.EnumerateArray( ))
-            {
-                got++;
-                lastId = ReadStr(entry, "id_str");
-                if (TryGetOpus(entry, out var item))
-                {
-                    items.Add(item);
-                }
-            }
-
-            var hasMore = data.TryGetProperty("has_more", out var more) && more.ValueKind == JsonValueKind.True;
-            if (got == 0 || !hasMore || lastId is null)
-            {
-                break;
-            }
-
-            offset = lastId;
         }
 
         return items;

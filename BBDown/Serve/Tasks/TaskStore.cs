@@ -39,10 +39,13 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
     /// 由 WebSocket Hub 后台读取并广播全量列表帧（taskList）。这样前端可放弃轮询、改为事件流推送。
     /// 单消费者（Hub 单例）读取，writer 用 TryWrite 保证变更点不抛。
     /// </summary>
-    private readonly Channel<StoreChanged> changes = Channel.CreateUnbounded<StoreChanged>();
+    private readonly Channel<StoreChanged> changes = Channel.CreateUnbounded<StoreChanged>( );
     public ChannelReader<StoreChanged> Changes => changes.Reader;
     internal readonly record struct StoreChanged;
-    internal void NotifyChanged() => changes.Writer.TryWrite(default);
+    internal void NotifyChanged( )
+    {
+        changes.Writer.TryWrite(default);
+    }
 
     /// <summary>
     /// 受理任务：解析 URL → 去重 → 按模式处理。
@@ -94,7 +97,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
             }
 
             pending[id] = envelope;
-            NotifyChanged();
+            NotifyChanged( );
             return new EnqueueResult(task, false, false);
         }
 
@@ -108,7 +111,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
             return new EnqueueResult(null, false, true);
         }
 
-        NotifyChanged();
+        NotifyChanged( );
         return new EnqueueResult(task, false, false);
     }
 
@@ -133,7 +136,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
             return StartResult.QueueFull;
         }
 
-        NotifyChanged();
+        NotifyChanged( );
         return StartResult.Started;
     }
 
@@ -231,7 +234,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
     public void ClearFinished( )
     {
         finished.Clear( );
-        NotifyChanged();
+        NotifyChanged( );
     }
 
     /// <summary>
@@ -247,7 +250,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
             }
         }
 
-        NotifyChanged();
+        NotifyChanged( );
     }
 
     /// <summary>
@@ -264,7 +267,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
             envelope.Task.DisposeCts( );
         }
 
-        NotifyChanged();
+        NotifyChanged( );
     }
 
     /// <summary>
@@ -275,7 +278,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
         running.TryRemove(task.Id, out _);
         finished[task.Id] = task;
         TrimFinishedTasks( );
-        NotifyChanged();
+        NotifyChanged( );
     }
 
     // 已完成任务无上限增长会造成内存泄漏，超过阈值后按完成时间淘汰最旧的（P1-18）

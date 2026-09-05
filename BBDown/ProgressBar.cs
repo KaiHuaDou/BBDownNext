@@ -15,7 +15,7 @@ public sealed class ProgressBar : IDisposable
     private const int BarWidth = 40;
     private const string SpinnerFrames = @"|/-\";
     private static readonly TimeSpan RenderInterval = TimeSpan.FromSeconds(1.0 / 8);
-    // 采样间隔 200ms；超过 1 秒无新采样视为下载已结束（进入混流等阶段），清行停止渲染
+    // 采样间隔 125ms（与渲染帧率一致）；超过 1 秒无新采样视为下载已结束（进入混流等阶段），清行停止渲染
     private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(1);
 
     private readonly Lock gate = new( );

@@ -49,6 +49,44 @@ public class InputResolverCollectionTests
         Assert.Equal(expected, result);
     }
 
+    // 单音频（au）URL 与简写
+    public static TheoryData<string, ResourceId> AudioInputCases => new( )
+    {
+        { "https://www.bilibili.com/audio/au12345", new ResourceId.Audio(12345) },
+        { "https://www.bilibili.com/audio/au12345?spm_id_from=333", new ResourceId.Audio(12345) },
+        { "au12345", new ResourceId.Audio(12345) },
+        { "AU12345", new ResourceId.Audio(12345) },
+    };
+
+    [Theory]
+    [MemberData(nameof(AudioInputCases))]
+    public async Task ResolveIdAsync_AudioInput_ResolvesCorrectly(string input, ResourceId expected)
+    {
+        var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty, TestContext.Current.CancellationToken);
+        Assert.Equal(expected, result);
+    }
+
+    // 回归护栏：空间音频列表页（/audio 无 au 尾段）不被单音频分支误吞
+    [Theory]
+    [InlineData("https://space.bilibili.com/213741/upload/audio")]
+    [InlineData("https://space.bilibili.com/213741/audio")]
+    public void TryDispatch_SpaceAudioList_NotAudio(string input)
+    {
+        Assert.True(InputResolver.TryDispatch(input, out var id));
+        Assert.IsType<ResourceId.SpaceAudio>(id);
+    }
+
+    // 非法单音频形态不命中：纯前缀 / 非数字尾段 / 音频别字（audio123）一律拒绝
+    [Theory]
+    [InlineData("au")]
+    [InlineData("auabc")]
+    [InlineData("audio123")]
+    [InlineData("https://www.bilibili.com/audio/au")]
+    public void TryDispatch_MalformedAudio_DoesNotMatch(string input)
+    {
+        Assert.False(InputResolver.TryDispatch(input, out _));
+    }
+
     [Fact]
     public void TryDispatch_CollectionInput_Matches( )
     {

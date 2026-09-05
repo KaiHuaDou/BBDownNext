@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Channels;
@@ -7,7 +6,6 @@ using System.Threading.Tasks;
 
 using BBDown.Core;
 using BBDown.Core.Workflow;
-using BBDown.Serve.Tasks;
 
 namespace BBDown.Serve.Http;
 
@@ -123,7 +121,7 @@ internal sealed partial class TaskSocketHub
 
     // 后台泵仅启动一次（单例生命周期内）：首次连接建立时触发，避免多连接重复开泵。
     // 连接建立前发生的结构变更已缓存在 store 的变更通道里，泵启动时一并重放，不丢变更。
-    private void EnsurePump()
+    private void EnsurePump( )
     {
         if (Interlocked.Exchange(ref pumpStarted, 1) == 0)
         {

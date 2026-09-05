@@ -46,7 +46,7 @@ public sealed partial class QueueRunner
                 _ = ExecuteAndReleaseAsync(state);
             }
         }
-        catch (Exception)
+        catch
         {
             // 窗口关闭后 dispatch 回投失败属预期：调度随进程终止，无需记录
         }

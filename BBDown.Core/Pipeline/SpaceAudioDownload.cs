@@ -79,8 +79,7 @@ public static class SpaceAudioDownload
     private static async Task<List<SongItem>> CollectSongsAsync(long mid, AppConfig cfg, CancellationToken ct)
     {
         List<SongItem> items = [];
-        var pn = 1;
-        while (items.Count < MaxItems)
+        for (var pn = 1; items.Count < MaxItems; pn++)
         {
             // song/upper 的用户参数名为 uid（BAC 文档表格标注 mid 有误，实测传 mid 静默返回空列表）
             var api = $"{BiliApi.SpaceAudioList}?uid={mid}&pn={pn}&ps={PageSize}&order=1";
@@ -117,8 +116,6 @@ public static class SpaceAudioDownload
             {
                 break;
             }
-
-            pn++;
         }
 
         return items;

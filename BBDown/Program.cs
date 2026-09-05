@@ -250,7 +250,11 @@ internal sealed class Program
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         try
         {
-            // 独立链路（直播 / 专栏 / 文集 / 空间图文 / 音频）：形态识别为纯字符串逻辑（TryDispatch），
+            // 交互消费端先于一切装配：独立链路的空间动态会复用视频管道（-iap / -iaq 提问需有应答端），
+            // 视频管道的解析期（逐集确认）同样可能触发；进度条钩子由 CliInteraction 静态属性承载
+            using var interaction = new CliInteraction( );
+
+            // 独立链路（直播 / 专栏 / 文集 / 空间图文 / 音频 / 空间动态）：形态识别为纯字符串逻辑（TryDispatch），
             // 不构造 WorkContext 也就不会因为缺少 ffmpeg 而失败；执行统一经 WorkerDispatcher 分发
             if (InputResolver.TryDispatch(myOption.Url, out var dispatchId))
             {
@@ -287,8 +291,6 @@ internal sealed class Program
                 return 0;
             }
 
-            // 交互消费端先于进度条装配：AskBus 订阅在解析期即可能触发（逐集确认），进度条钩子由 CliInteraction 静态属性承载
-            using var interaction = new CliInteraction( );
             using var progressBar = new ProgressBar(AppEnv.CancellationToken);
             await DownloadPipeline.RunAsync(myOption, ct: AppEnv.CancellationToken);
             return 0;

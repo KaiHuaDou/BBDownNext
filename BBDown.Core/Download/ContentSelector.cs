@@ -35,6 +35,9 @@ public enum ContentMode
     Opus,
     Live,
     Audio,
+
+    /// <summary>空间动态：图文导出与视频下载混合，全部内容字符都可能生效</summary>
+    Mixed,
 }
 
 /// <summary>内容字符条目：字符、对应标志与中文名。GUI 内容复选框与警告文案共用此表，避免字符集合多处硬编码。</summary>
@@ -119,6 +122,8 @@ public static class ContentSelector
             ContentMode.Opus => DownloadContent.OpusImage | DownloadContent.FrontMatter,
             ContentMode.Live => DownloadContent.Audio | DownloadContent.Video,
             ContentMode.Audio => DownloadContent.Audio,
+            // 图文项用 i / M、视频项用其余字符，混合域内不存在自然失效的标志
+            ContentMode.Mixed => ~DownloadContent.None,
             _ => ~(DownloadContent.OpusImage | DownloadContent.FrontMatter),
         };
         var list = new List<string>( );
@@ -220,8 +225,9 @@ public static class ContentSelector
         return id switch
         {
             ResourceId.LiveRoom => ContentMode.Live,
-            ResourceId.OpusArticle or ResourceId.ReadList or ResourceId.SpaceOpus or ResourceId.SpaceDynamic => ContentMode.Opus,
-            ResourceId.SpaceAudio => ContentMode.Audio,
+            ResourceId.OpusArticle or ResourceId.ReadList or ResourceId.SpaceOpus => ContentMode.Opus,
+            ResourceId.SpaceAudio or ResourceId.Audio => ContentMode.Audio,
+            ResourceId.SpaceDynamic => ContentMode.Mixed,
             _ => ContentMode.Video,
         };
     }
@@ -233,6 +239,7 @@ public static class ContentSelector
             ContentMode.Opus => "专栏导出",
             ContentMode.Live => "直播录制",
             ContentMode.Audio => "音频下载",
+            ContentMode.Mixed => "空间动态（图文 + 视频）",
             _ => "视频下载",
         };
     }

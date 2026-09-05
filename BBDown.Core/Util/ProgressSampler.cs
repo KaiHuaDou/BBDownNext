@@ -3,31 +3,28 @@ using System.Threading;
 
 namespace BBDown.Core.Util;
 
-// 进度采样器：把下载线程高频的 Report 降频为每 200 毫秒一次的 onSample 回吐（总进度，本周期新增字节数），
-// 供 serve / GUI 等控制台之外的观察者获取进度；onSample 为 null 时只记录进度不再采样。
+// 进度采样器：把下载线程高频的 Report 降频为每 125 毫秒一次的 onSample 回吐（总进度，本周期新增字节数），
+// 供 serve / GUI 等控制台之外的观察者获取进度。
 public sealed class ProgressSampler : IDisposable
 {
-    // 每秒 5 次。速度类消费方按此周期把 delta 折算成每秒速率
-    public static readonly TimeSpan SampleInterval = TimeSpan.FromMilliseconds(200);
+    // 每秒 8 次，与 CLI 渲染帧率一致。速度类消费方按此周期把 delta 折算成每秒速率
+    public static readonly TimeSpan SampleInterval = TimeSpan.FromMilliseconds(125);
 
     // 下载线程高频写、定时器线程读，只能通过 Interlocked/Volatile 访问
     private double progressRatio;
     private long downloadedBytes;
 
     private readonly Lock gate = new( );
-    private readonly Timer? sampleTimer;
-    private readonly Action<double, long>? onSample;
+    private readonly Timer sampleTimer;
+    private readonly Action<double, long> onSample;
     private long lastSampledBytes;
     private bool disposed;
 
-    public ProgressSampler(Action<double, long>? onSample = null)
+    public ProgressSampler(Action<double, long> onSample)
     {
         this.onSample = onSample;
-        if (onSample is not null)
-        {
-            sampleTimer = new Timer(_ => Sample( ));
-            sampleTimer.Change(SampleInterval, Timeout.InfiniteTimeSpan);
-        }
+        sampleTimer = new Timer(_ => Sample( ));
+        sampleTimer.Change(SampleInterval, Timeout.InfiniteTimeSpan);
     }
 
     public void Report(double value)
@@ -60,8 +57,8 @@ public sealed class ProgressSampler : IDisposable
             var total = Interlocked.Read(ref downloadedBytes);
             var delta = Math.Max(total - lastSampledBytes, 0);
             lastSampledBytes = total;
-            onSample?.Invoke(Volatile.Read(ref progressRatio), delta);
-            sampleTimer?.Change(SampleInterval, Timeout.InfiniteTimeSpan);
+            onSample(Volatile.Read(ref progressRatio), delta);
+            sampleTimer.Change(SampleInterval, Timeout.InfiniteTimeSpan);
         }
     }
 
@@ -75,7 +72,7 @@ public sealed class ProgressSampler : IDisposable
             }
 
             disposed = true;
-            sampleTimer?.Dispose( );
+            sampleTimer.Dispose( );
         }
     }
 }

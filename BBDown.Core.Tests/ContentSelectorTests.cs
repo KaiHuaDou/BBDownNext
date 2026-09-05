@@ -254,6 +254,14 @@ public class ContentSelectorTests
         Assert.Empty(list);
     }
 
+    [Fact]
+    public void DescribeInactive_Mixed_AllFlagsActive_Empty( )
+    {
+        // 空间动态混合图文与视频：全部内容字符都可能生效，默认内容集无失效提示
+        var list = ContentSelector.DescribeInactive(ContentSelector.DefaultFlags, ContentMode.Mixed);
+        Assert.Empty(list);
+    }
+
     // ---- 资源类型 → 内容适用域（ModeOf 为纯函数，CLI 与 serve 共用判定点） ----
 
     public static TheoryData<ResourceId, ContentMode> ModeOfCases => new( )
@@ -263,8 +271,9 @@ public class ContentSelectorTests
         { new ResourceId.OpusArticle(0, 123), ContentMode.Opus },
         { new ResourceId.ReadList(75249), ContentMode.Opus },
         { new ResourceId.SpaceOpus(213741), ContentMode.Opus },
-        { new ResourceId.SpaceDynamic(213741), ContentMode.Opus },
+        { new ResourceId.SpaceDynamic(213741), ContentMode.Mixed },
         { new ResourceId.SpaceAudio(213741), ContentMode.Audio },
+        { new ResourceId.Audio(12345), ContentMode.Audio },
         { new ResourceId.Av(170001), ContentMode.Video },
         { new ResourceId.Ep(68540), ContentMode.Video },
         { new ResourceId.Season(2539), ContentMode.Video },

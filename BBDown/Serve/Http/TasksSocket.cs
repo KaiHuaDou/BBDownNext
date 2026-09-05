@@ -74,7 +74,7 @@ internal sealed partial class TaskSocketHub(TaskStore store)
     public async Task HandleAsync(WebSocket socket, CancellationToken token)
     {
         allSockets[socket] = 0;
-        EnsurePump();
+        EnsurePump( );
         try
         {
             // 连接建立即推送当前全量列表，前端无需先轮询即可渲染（事件流初始同步）

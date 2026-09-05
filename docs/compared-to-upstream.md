@@ -27,14 +27,14 @@
 | **充电专属试看识别** | 无专门处理（按普通失败或下载残缺片段） | `IsTruncatedPreview` 双条件判定，命中抛 `ChargedPreviewException`，退出码 2 表示全部为试看（可 `--allow-preview` 放行） |
 | **外部后处理** | 无 | `--post-process <exe>` 对所有 DASH 轨统一调起外部进程，是否加密由处理方自行判断（退出码 0 且无产物视为无需处理）；成功产物覆盖原轨参与混流，未配置 / 失败 / 超时静默保留原文件。主程序不解析任何加密特征（`widevine_pssh` / `bilidrm_uri`），密钥与加密信息由外部进程自行获取管理 |
 | **DRM 解密插件** | 内置 `--drm-key` 选项 | 官方插件 `Plugins/BBDown.DRM`（独立仓库，`plugins/DRM` 分支）：bili_drm 通道 clearkey 自动取钥，widevine 通道经 Widevine CDM 向 license 服务器取钥（需自备 `device.wvd`），解密产物经 `--post-process` 协议回填参与混流 |
-| **断点续传** | 基础续传 | 下载统一走 downloader 库（v5.9.5，AOT 兼容），自动续传元数据内嵌 `<路径>.download` 临时文件末尾，服务端内容变化自动重下；多线程分片（默认 32 连接）与 `--single-thread` 均由 downloader 实现 |
+| **断点续传** | 基础续传 | 下载统一走 downloader 库（v5.9.6，AOT 兼容），自动续传元数据内嵌 `<路径>.download` 临时文件末尾，服务端内容变化自动重下；多线程分片（默认 32 连接）与 `--single-thread` 均由 downloader 实现 |
 | **文件名日期格式** | 固定 `yyyy-MM-dd_HH-mm-ss` | 支持自定义 `<publishDate:格式>` / `<videoDate:格式>`（任意 .NET `DateTime` 格式串） |
 | **文件名长度** | 无特殊处理，超长路径易写入失败 | 按 **UTF-8 字节数截断，上限 200 字节**，并清理非法字符 / 保留设备名 / 处理首尾点 |
 | **cheese 课程** | 仅 Web；存在冗余 `ss` 请求 | 消除冗余 `ss` 请求；`--api intl` 对其**自动回退 WEB**；**过滤锁定分集**（`BuildPages` status==2） |
 | **解析模式选择** | 未明确文档化 | 单选 `--api web | tv | app | intl`（忽略大小写），取代多布尔开关的隐式优先级 |
 | **FLV / DASH 封装** | 通用说明 | DASH 先按 `-q` 请求再额外以 `MaxQn(127)` 取原始画质轨（两次并集）；FLV 固定 `qn=127`、忽略 `-q` |
 | **归档记录** | `--save-archives-to-file`（旧竖线格式） | `--save-records` 写 Tab 分隔 `BBDown.archives`（`<aid>\t<cid>\t<路径>`），键为 `(aid, cid)` |
-| **测试覆盖** | 较少 | **1100+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名、直播加密流跳过、Opus 渲染等） |
+| **测试覆盖** | 较少 | **1200+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名、直播加密流跳过、Opus 渲染等） |
 | **代码结构** | 传统结构 | 深度重构：下载能力整体下沉 `BBDown.Core`，按职责拆分命名空间（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`，CLI 与 serve 留在 `BBDown`），依赖单向成树（`just check-deps` 守护）；god-class 拆分（如 `BBDownUtil` 按归属拆分）、现代化命名、`System.Threading.Lock`、`[GeneratedRegex]`、`Nullable enable` + `TreatWarningsAsErrors`、net9.0 |
 | **直播录制** | 无 | 新增独立直播链路，直播间地址直录（`live:` / `live.bilibili.com`），`--live-quality` 选清晰度（默认原画 10000，可选 250 超清 / 400 蓝光 / 15000 2K / 20000 4K / 30000 杜比），分段 FLV 落盘后合并为 mp4（`Ctrl+Break` 停录合并 / `Ctrl+C` 中断保留分段）；录制状态机具备断流退避重连、CDN failover、编码锁定 |
 | **图形界面** | 无 | 新增 BBDown.GUI（Avalonia，跨平台）：单窗口封装下载，直接引用 `BBDown.Core` 下载库（非子进程调用 BBDown.exe），任务队列与并发控制（1–8）、日志实时显示、选项随 exe 便携保存；独立 CI（`gui.yml`）发布单文件自包含产物 |
@@ -122,7 +122,7 @@
 
 ### 2.8 断点续传
 
-- **机制**（`BBDown.Core/Download/DownloaderAdapter.cs` / `DownloadUtil.cs`）：下载统一走 [Downloader](https://www.nuget.org/packages/Downloader) 库（v5.9.5，`IsAotCompatible`），多线程分片与断点续传均由库实现：续传元数据（`DownloadPackage` JSON）周期性内嵌在 `<路径>.download` 临时文件末尾，下载完成截断元数据并改名收尾。
+- **机制**（`BBDown.Core/Download/DownloaderAdapter.cs` / `DownloadUtil.cs`）：下载统一走 [Downloader](https://www.nuget.org/packages/Downloader) 库（v5.9.6，`IsAotCompatible`），多线程分片与断点续传均由库实现：续传元数据（`DownloadPackage` JSON）周期性内嵌在 `<路径>.download` 临时文件末尾，下载完成截断元数据并改名收尾。
 - **恢复判定**：重跑时 downloader 先探测服务端文件大小，与元数据一致则从各块断点续下；不一致（URL 指向的内容已变，如换画质）自动删除临时文件重下。
 - **并行控制**：`ParallelCount` 默认 32 条连接；`--single-thread` 或 CMCC 域名强制单块；FLV 片段间并行（上限 4）× 片段内连接合计不超过 32。
 - **粒度**：每条音视频轨 / 分 P 独立临时文件，支持单流与合集/多 P 粒度续传。
@@ -154,7 +154,7 @@
 
 ### 2.13 测试与工程化
 
-- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **1100+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、直播加密流跳过、空间列表与稍后再看等。
+- **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **1200+ 单元测试**（按 `[Fact]`/`[Theory]` 展开后测试用例数），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、直播加密流跳过、空间列表与稍后再看等。
 - **AOT 与现代化**：
     - `BBDown/Directory.Build.props`：`<PublishAot>true</PublishAot>`，直接 `dotnet publish BBDown -r <RID> -c Release`（CI 命令见 `.github/workflows/ci.yml`，RID 矩阵 8 个）。
     - `Directory.Build.props`：`<TargetFramework>net9.0</TargetFramework>`、`<Nullable>enable</Nullable>`、`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`、`<AnalysisLevel>latest-all</AnalysisLevel>`。

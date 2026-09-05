@@ -7,6 +7,7 @@ using BBDown.Core.Download;
 using BBDown.Core.Live;
 using BBDown.Core.Logging;
 using BBDown.Core.Pipeline;
+using BBDown.Core.Util;
 
 namespace BBDown.GUI;
 
@@ -28,25 +29,35 @@ public partial class MainWindow
         {
             try
             {
-                switch (state.Kind)
+                // 直播录制以任务序号注册会话（LiveSignal），停止按钮按序号精准停录，不经统一分发
+                if (state.Kind == TaskKind.Live)
                 {
-                    case TaskKind.Opus:
-                        await OpusDownload.RunAsync(req, ct: token);
-                        break;
-                    case TaskKind.Live:
-                        if (!LiveInputResolver.TryParse(state.Url, out var live))
-                        {
-                            throw new InvalidOperationException("直播地址解析失败");
-                        }
-
-                        var liveSink = MakeSink(state);
-                        await LiveDownload.RunAsync(req, live, state.Index.ToString( ), liveSink, ct: token);
-                        break;
-                    default:
+                    if (!LiveInputResolver.TryParse(state.Url, out var live))
                     {
-                        var sink = MakeSink(state);
-                        await DownloadPipeline.RunAsync(req, sink, workflow: null, token);
-                        break;
+                        throw new InvalidOperationException("直播地址解析失败");
+                    }
+
+                    var liveSink = MakeSink(state);
+                    await LiveDownload.RunAsync(req, live, state.Index.ToString( ), liveSink, ct: token);
+                }
+                else
+                {
+                    // b23 短链先展开再识别形态（与 CLI RunApp 一致），否则集合形态的短链会误入视频管道
+                    var url = state.Url;
+                    if (url.Contains("b23.tv", StringComparison.OrdinalIgnoreCase))
+                    {
+                        url = await HTTPUtil.GetWebLocationAsync(url, token);
+                        req = req with { Url = url };
+                    }
+
+                    // 独立链路（专栏 / 文集 / 空间图文 / 音频 / 动态）统一经 WorkerDispatcher，与 CLI / serve 同一分发点
+                    if (InputResolver.TryDispatch(url, out var id))
+                    {
+                        await WorkerDispatcher.RunAsync(id, req, MakeSink(state), null, token);
+                    }
+                    else
+                    {
+                        await DownloadPipeline.RunAsync(req, MakeSink(state), null, token);
                     }
                 }
 

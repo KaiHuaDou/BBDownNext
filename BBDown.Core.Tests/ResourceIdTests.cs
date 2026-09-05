@@ -11,6 +11,7 @@ public class ResourceIdTests
         { new ResourceId.SpaceOpus(213741), "spaceOpus213741" },
         { new ResourceId.SpaceAudio(213741), "spaceAudio213741" },
         { new ResourceId.SpaceDynamic(213741), "spaceDynamic213741" },
+        { new ResourceId.Audio(12345), "au12345" },
     };
 
     [Theory]
@@ -67,6 +68,10 @@ public class ResourceIdTests
     [InlineData("spaceOpus123a")]
     [InlineData("rl-1")]
     [InlineData("readlist 1")]
+    [InlineData("au")]
+    [InlineData("auabc")]
+    [InlineData("au-1")]
+    [InlineData("audio123")]
     public void TryParse_InvalidInput_Rejected(string input)
     {
         // 仅接受纯数字（无符号 / 空白），规范形态与非法输入严格区分

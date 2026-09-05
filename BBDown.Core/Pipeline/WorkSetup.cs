@@ -309,6 +309,7 @@ public static class WorkSetup
             {
                 var end = s.IndexOf('}', i + 2);
                 if (end < 0) { builder.Append(s[i]); continue; }
+
                 builder.Append(Environment.GetEnvironmentVariable(s[(i + 2)..end]));
                 i = end;
                 continue;
@@ -318,6 +319,7 @@ public static class WorkSetup
 
             var j = i + 1;
             while (j < s.Length && IsEnvNameChar(s[j])) { j++; }
+
             builder.Append(Environment.GetEnvironmentVariable(s[(i + 1)..j]));
             i = j - 1;
         }
@@ -325,7 +327,13 @@ public static class WorkSetup
         return builder.ToString( );
     }
 
-    private static bool IsEnvNameStart(char c) => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+    private static bool IsEnvNameStart(char c)
+    {
+        return c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or '_';
+    }
 
-    private static bool IsEnvNameChar(char c) => IsEnvNameStart(c) || (c >= '0' && c <= '9');
+    private static bool IsEnvNameChar(char c)
+    {
+        return IsEnvNameStart(c) || (c >= '0' && c <= '9');
+    }
 }

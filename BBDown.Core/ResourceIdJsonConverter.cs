@@ -47,6 +47,7 @@ public sealed class ResourceIdJsonConverter : JsonConverter<ResourceId>
             ResourceId.SpaceOpus so => $"spaceOpus{so.Mid}",
             ResourceId.SpaceAudio sa => $"spaceAudio{sa.Mid}",
             ResourceId.SpaceDynamic sd => $"spaceDynamic{sd.Mid}",
+            ResourceId.Audio a => $"au{a.AuId}",
             _ => throw new ArgumentOutOfRangeException(nameof(id))
         };
     }

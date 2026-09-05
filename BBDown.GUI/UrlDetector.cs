@@ -102,7 +102,7 @@ public static partial class UrlDetector
 
         if (StartsWithId(text, IdPrefix.SpaceDynamic))
         {
-            return "空间动态（图文）";
+            return "空间动态";
         }
 
         if (StartsWithId(text, IdPrefix.ReadList))
@@ -113,6 +113,11 @@ public static partial class UrlDetector
         if (StartsWithId(text, IdPrefix.Rl))
         {
             return "文集";
+        }
+
+        if (StartsWithId(text, IdPrefix.Au))
+        {
+            return "音频（au 号）";
         }
 
         if (StartsWithId(text, "live"))
@@ -160,7 +165,13 @@ public static partial class UrlDetector
 
         if (spaceHost && text.Contains("/dynamic", StringComparison.OrdinalIgnoreCase))
         {
-            return "空间动态地址（图文）";
+            return "空间动态地址";
+        }
+
+        // 单音频页 www.bilibili.com/audio/au12345（space 域的 /audio 列表页已在上面先行识别）
+        if (text.Contains("/audio/au", StringComparison.OrdinalIgnoreCase))
+        {
+            return "音频地址（au 号）";
         }
 
         if (BvRegex( ).Match(text) is { Success: true } bv)

@@ -59,8 +59,11 @@ public abstract record ResourceId
     /// <summary>UP 主空间全部音频投稿（AU 号列表）</summary>
     public sealed record SpaceAudio(long Mid) : ResourceId;
 
-    /// <summary>UP 主空间动态流（仅提取图文动态，与 <see cref="SpaceOpus"/> 同一数据源）</summary>
+    /// <summary>UP 主空间动态流（图文 / 视频 / 转发混合分发）</summary>
     public sealed record SpaceDynamic(long Mid) : ResourceId;
+
+    /// <summary>单条音频投稿 au 号</summary>
+    public sealed record Audio(long AuId) : ResourceId;
 
     /// <summary>
     /// 解析 serve API 路径参数的规范 id（"&lt;type&gt;&lt;值&gt;" 无冒号形态，如 "season2539"；
@@ -210,6 +213,15 @@ public abstract record ResourceId
                 }
 
                 break;
+
+            case "au":
+                if (TryLong(rest, out var auId))
+                {
+                    id = new Audio(auId);
+                    return true;
+                }
+
+                break;
             case "cv":
                 if (TryLong(rest, out var cvId))
                 {
@@ -233,10 +245,10 @@ public abstract record ResourceId
     }
 
     // 前缀按长度降序（spaceDynamic 12 / cheeseSeason 12 > spaceAudio 10 > mediaList 9 / spaceOpus 9 > cheeseEp 8 / readlist 8
-    // > season 6 > series/space 5 > opus/live 4 > fav 3 > ep/cv/av/rl 2），
+    // > season 6 > series/space 5 > opus/live 4 > fav 3 > ep/cv/av/au/rl 2），
     // 未来若出现包含关系（如新增 "cheese" 前缀），长前缀仍优先匹配
     private static readonly string[] TypePrefixes =
-        ["spaceDynamic", "cheeseSeason", "spaceAudio", "mediaList", "spaceOpus", "cheeseEp", "readlist", "season", "series", "space", "opus", "live", "fav", "ep", "cv", "av", "rl"];
+        ["spaceDynamic", "cheeseSeason", "spaceAudio", "mediaList", "spaceOpus", "cheeseEp", "readlist", "season", "series", "space", "opus", "live", "fav", "ep", "cv", "au", "av", "rl"];
 
     // 仅接受纯数字（无符号/空白/千分位），保证规范形态与非法输入严格区分
     private static bool TryLong(string value, out long result)

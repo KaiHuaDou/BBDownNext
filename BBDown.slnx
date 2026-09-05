@@ -3,15 +3,15 @@
         <File Path=".editorconfig" />
         <File Path=".gitattributes" />
         <File Path=".gitignore" />
-        <File Path="API.md" />
-        <File Path="ARCHITECTURE.md" />
         <File Path="CHANGELOG.md" />
         <File Path="Directory.Build.props" />
         <File Path="Directory.Packages.props" />
+        <File Path="docs/API.md" />
+        <File Path="docs/ARCHITECTURE.md" />
+        <File Path="docs/PROTOCOL.md" />
         <File Path="global.json" />
         <File Path="justfile" />
         <File Path="LICENSE" />
-        <File Path="PROTOCOL.md" />
         <File Path="README.md" />
         <File Path="TODO.md" />
     </Folder>

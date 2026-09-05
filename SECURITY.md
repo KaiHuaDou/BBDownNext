@@ -19,4 +19,4 @@
 - **凭据**：统一存于本地 `BBDown.data`，类 Unix 系统落盘权限收紧为 600。
 - **外部后处理**：主程序不解析任何加密特征，密钥与加密信息由外部进程自行管理。
 
-设计细节见 [ARCHITECTURE.md](./ARCHITECTURE.md)。
+设计细节见 [ARCHITECTURE.md](./docs/ARCHITECTURE.md)。

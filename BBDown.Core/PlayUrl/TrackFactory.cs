@@ -63,7 +63,8 @@ internal static partial class TrackFactory
         return urlList.FirstOrDefault(i => !PcdnRegex( ).IsMatch(i), urlList[0]);
     }
 
-    internal static string VideoCodec(string code)    {
+    internal static string VideoCodec(string code)
+    {
         return code switch
         {
             "13" => "AV1",

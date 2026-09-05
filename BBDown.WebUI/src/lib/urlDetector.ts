@@ -14,7 +14,8 @@ const KNOWN_PREFIXES: [string, string][] = [
   ['rl', '文集'],
   ['spaceOpus', '空间图文投稿'],
   ['spaceAudio', '空间音频投稿'],
-  ['spaceDynamic', '空间动态（图文）'],
+  ['spaceDynamic', '空间动态'],
+  ['au', '音频（au 号）'],
   ['space', '用户空间'],
   ['live', '直播间（live 号）']
 ]
@@ -96,7 +97,12 @@ function describeUrl(text: string): string {
   }
 
   if (spaceHost && /\/dynamic/i.test(text)) {
-    return '空间动态地址（图文）'
+    return '空间动态地址'
+  }
+
+  // 单音频页 www.bilibili.com/audio/au12345（space 域的 /audio 列表页已在上面先行识别）
+  if (/\/audio\/au/i.test(text)) {
+    return '音频地址（au 号）'
   }
 
   const bv = /BV[0-9A-Za-z]+/.exec(text)

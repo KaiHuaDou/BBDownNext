@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Live;
-using BBDown.Core.Opus;
 
 namespace BBDown.GUI;
 
@@ -21,12 +20,11 @@ public enum TaskStatus
     Cancelled,
 }
 
-/// <summary>任务执行链路：视频下载 / 直播录制 / 专栏导出，决定 ExecuteTaskAsync 的分流。</summary>
+/// <summary>任务执行链路：直播录制单独成类（录制会话以任务序号注册，停止按钮按序号停录），其余统一走 Core 分发。</summary>
 public enum TaskKind
 {
     Video,
     Live,
-    Opus,
 }
 
 /// <summary>队列任务单元：参数快照 + 目标 + 状态 + 日志序号。</summary>
@@ -263,16 +261,8 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
 
     private static TaskKind DetectKind(string url)
     {
-        if (LiveInputResolver.TryParse(url, out _))
-        {
-            return TaskKind.Live;
-        }
-
-        if (OpusInputResolver.TryParse(url, out _))
-        {
-            return TaskKind.Opus;
-        }
-
-        return TaskKind.Video;
+        // 直播单独成类：录制会话以任务序号注册（LiveSignal），停止按钮按序号精准停录；
+        // 其余（视频 / 专栏 / 文集 / 空间图文 / 音频 / 动态）在执行期统一经 InputResolver.TryDispatch 分流
+        return LiveInputResolver.TryParse(url, out _) ? TaskKind.Live : TaskKind.Video;
     }
 }

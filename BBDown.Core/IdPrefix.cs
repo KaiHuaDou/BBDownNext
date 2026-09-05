@@ -62,4 +62,7 @@ public static class IdPrefix
 
     /// <summary>空间动态简写前缀（spaceDynamic75249），切片长度 12</summary>
     public const string SpaceDynamic = "spaceDynamic";
+
+    /// <summary>单音频投稿简写前缀（au12345），切片长度 2</summary>
+    public const string Au = "au";
 }

@@ -55,11 +55,10 @@ describe('toServeRequest', () => {
       [4, 4]
     ]
     for (const [input, expected] of cases) {
-      const request = toServeRequest(
-        { ...DEFAULT_OPTIONS, maxRetry: input },
-        'av170001',
-        { cookie: '', accessToken: '' }
-      )
+      const request = toServeRequest({ ...DEFAULT_OPTIONS, maxRetry: input }, 'av170001', {
+        cookie: '',
+        accessToken: ''
+      })
       expect(request.maxRetry).toBe(expected)
     }
   })

@@ -18,7 +18,7 @@ namespace BBDown.Core.Pipeline;
 public static partial class InputResolver
 {
     /// <summary>
-    /// 识别需走独立链路（非视频管道）的输入形态：直播、专栏（opus / cv）、文集、空间图文 / 音频 / 动态。
+    /// 识别需走独立链路（非视频管道）的输入形态：直播、专栏（opus / cv）、文集、空间图文 / 音频 / 动态、单音频（au）。
     /// CLI（RunApp）在视频管道之前调用它做早分流；ResolveUrlAsync / ResolveShorthandAsync 亦复用。
     /// </summary>
     public static bool TryDispatch(string input, [NotNullWhen(true)] out ResourceId? id)
@@ -36,7 +36,51 @@ public static partial class InputResolver
             return true;
         }
 
+        if (TryParseAudio(input, out var auId))
+        {
+            id = new Audio(auId);
+            return true;
+        }
+
         return TryParseCollection(input, out id);
+    }
+
+    // 单音频形态：URL（https://www.bilibili.com/audio/au12345，忽略 query / fragment）与简写（au12345）。
+    // space.bilibili.com/{mid}/audio 是空间音频列表（TryParseCollection 域），路径无 au 尾段不会被此处误吞
+    private static bool TryParseAudio(string input, out long auId)
+    {
+        auId = 0;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        var path = input.Trim( ).Split('?', '#')[0];
+        var idx = path.IndexOf("/audio/au", StringComparison.OrdinalIgnoreCase);
+        string rest;
+        if (idx >= 0)
+        {
+            rest = path[(idx + "/audio/au".Length)..];
+        }
+        else if (path.Length > IdPrefix.Au.Length
+            && path.StartsWith(IdPrefix.Au, StringComparison.OrdinalIgnoreCase)
+            && char.IsAsciiDigit(path[IdPrefix.Au.Length]))
+        {
+            rest = path[IdPrefix.Au.Length..];
+        }
+        else
+        {
+            return false;
+        }
+
+        // 取前导数字段（容忍 URL 尾随斜杠等杂字符），与 OpusInputResolver 的 TryTakeDigits 同语义
+        var end = 0;
+        while (end < rest.Length && char.IsAsciiDigit(rest[end]))
+        {
+            end++;
+        }
+
+        return end > 0 && long.TryParse(rest[..end], NumberStyles.None, CultureInfo.InvariantCulture, out auId);
     }
 
     // 集合形态（文集 / 空间图文 / 空间音频 / 空间动态）的纯字符串识别：URL 与简写共用

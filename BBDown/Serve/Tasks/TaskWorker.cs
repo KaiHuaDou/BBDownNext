@@ -106,14 +106,14 @@ internal sealed partial class TaskWorker : BackgroundService
         if (gate is null)
         {
             task.Status = DownloadStatus.Running;
-            store.NotifyChanged();
+            store.NotifyChanged( );
             await download( );
             return;
         }
 
         await gate.WaitAsync(token);
         task.Status = DownloadStatus.Running;
-        store.NotifyChanged();
+        store.NotifyChanged( );
         try
         {
             await download( );
@@ -228,8 +228,9 @@ internal sealed partial class TaskWorker : BackgroundService
             }
         }
 
-        // 事件流上下文仅视频管道消费；独立链路不构造 WorkContext，传 null
-        var ctx = mode == ContentMode.Video ? store.GetContext(task.Scope) : null;
+        // 事件流上下文由视频管道消费：纯视频域（mode == Video）与空间动态（Mixed，视频项复用管道）需要，
+        // 其余独立链路不构造 WorkContext，传 null
+        var ctx = mode is ContentMode.Video or ContentMode.Mixed ? store.GetContext(task.Scope) : null;
         await WorkerDispatcher.RunAsync(task.Id, envelope.Request, SinkFor(task), ctx, token);
     }
 

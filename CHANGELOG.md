@@ -10,16 +10,19 @@
 
 ### 新增
 
-- **文集 / 空间图文 / 空间音频 / 空间动态下载**
+- **文集 / 空间图文 / 空间音频 / 空间动态 / 单音频下载**
     - 文集：`https://www.bilibili.com/read/readlist/rl{id}`（简写 `rl{id}` / `readlist{id}`），逐篇复用专栏导出链路产出 Markdown，落在 `工作目录/文集名/` 下。
     - 空间图文投稿：`https://space.bilibili.com/{mid}/upload/opus`（简写 `spaceOpus{mid}`），拉取动态流仅提取图文动态（`MAJOR_TYPE_OPUS`），逐条导出 Markdown，落在 `工作目录/UP 名/` 下；接口带 WBI 签名与 buvid3，未登录被风控时提示登录后重试。
-    - 空间动态：`https://space.bilibili.com/{mid}/dynamic`（简写 `spaceDynamic{mid}`），与空间图文投稿共用实现（仅提取图文，视频 / 转发等类型跳过）。
+    - 空间动态：`https://space.bilibili.com/{mid}/dynamic`（简写 `spaceDynamic{mid}`），按动态类型分发：图文动态导出 Markdown、视频动态（`MAJOR_TYPE_ARCHIVE`）复用视频管道下载（`-g` / `-W` 等选项对视频项全部适用）、转发动态取原动态按其类型处理；直播 / 剧集更新等其余类型跳过，逐条失败继续（末尾汇总抛出）。
     - 空间音频投稿：`https://space.bilibili.com/{mid}/upload/audio`（旧版 `/audio` 页同义，简写 `spaceAudio{mid}`），新增音乐域（`BBDown.Core.Music`）经 music-service 接口逐条下载音频流（web 端恒 192K）与歌词 `.lrc`；付费 / 大会员曲目未登录时下载试听片段并提示；逐条失败跳过，末尾汇总抛出。
-    - `ResourceId` 新增 `ReadList` / `SpaceOpus` / `SpaceAudio` / `SpaceDynamic` 四个子类型（规范串 `readlist{id}` 等可经 serve API 往返）；`ContentMode` 新增 `Audio`；GUI / WebUI 的 URL 识别与任务类型标签同步。
+    - 单音频输入：`https://www.bilibili.com/audio/au{au_id}` 或简写 `au{au_id}`，下载该条音频（含歌词 `.lrc`），CLI / serve / GUI 三端一致支持。
+    - `ResourceId` 新增 `ReadList` / `SpaceOpus` / `SpaceAudio` / `SpaceDynamic` / `Audio` 子类型（规范串 `readlist{id}` 等可经 serve API 往返）；`ContentMode` 新增 `Audio` 与 `Mixed`（空间动态混合域，内容字符无失效提示）；GUI / WebUI 的 URL 识别与任务类型标签同步。
+    - GUI（桌面端）对文集 / 空间图文 / 空间音频 / 空间动态输入支持功能性下载：执行统一经 `WorkerDispatcher`（与 CLI / serve 同一分发点），b23 短链先展开再识别形态；`TaskKind` 精简为视频 / 直播两类（直播保留独立会话注册供停止按钮）。
+    - serve 空间动态任务（`Mixed` 模式）同样构造事件流上下文，视频项的进度经事件流正常回发。
 - **纯函数测试补充**
     - `SsrfGuard.IsPrivateAddress`：覆盖私网各段 / CGNAT / 基准网络 / 多播与保留段 / 受限广播 / IPv4-mapped IPv6 / 公网白名单共 31 个用例。
     - WebUI：任务状态映射新增「错误文案含『已取消』但无结构化字段时判为失败」回归用例；`maxRetry` 新增负数、小数、NaN 兜底用例。
-    - 本次新增纯函数全覆盖：`InputResolver.TryDispatch`（集合 URL / 简写 / 视频与合集形态不误吞 / 非法输入拒绝）；`ResourceId` 新类型规范串往返与前缀长度优先（`spaceOpus` 等长前缀不被 `space` 误吞）；`ContentSelector.ModeOf` 全类型矩阵与 `ContentMode.Audio` 的失效提示；`SpaceOpusDownload.TryGetOpus`（`MAJOR_TYPE_OPUS` 提取 / 非图文类型拒绝 / 结构缺失拒绝，`OpusItem` 与该方法改 internal 以便测试）；`AudioDownload.ResolveExt`（扩展名推断与 `.m4a` 兜底）。
+    - 本次新增纯函数全覆盖：`InputResolver.TryDispatch`（集合 URL / 简写 / 视频与合集形态不误吞 / 非法输入拒绝；单音频 `au` URL / 简写 / 空间音频列表不误吞）；`ResourceId` 新类型规范串往返与前缀长度优先（`spaceOpus` 等长前缀不被 `space` 误吞，`au` / `av` 同长互不误吞）；`ContentSelector.ModeOf` 全类型矩阵（含 `Audio` / `Mixed`）与 `ContentMode.Audio` 的失效提示；`SpaceOpusDownload.TryGetOpus`（`MAJOR_TYPE_OPUS` 提取 / 非图文类型拒绝 / 结构缺失拒绝，`OpusItem` 与该方法改 internal 以便测试）；`SpaceDynamicDownload.TryResolveItem`（图文 / 视频 / 转发分发与转发深度上限，`DynamicItem` 同改 internal 以便测试）；`AudioDownload.ResolveExt`（扩展名推断与 `.m4a` 兜底）；WebUI `urlDetector` 单音频标签用例。
 
 ### 重构
 
@@ -50,6 +53,7 @@
 ### 变更
 
 - 内部 API：`TaskStore` 构造参数由 `TaskQueue` 改为 `ChannelWriter<TaskEnvelope>`，`TaskWorker` 由 `TaskQueue` 改为 `ChannelReader<TaskEnvelope>`；`DownloadTask` 的取消源不再对外直接 `Dispose`。
+- 进度采样由每秒 5 次提升到 8 次，与 CLI 进度条渲染帧率一致；`ProgressSampler` 采样回调改为必传（内部 API），删除无回调时只记录不采样的分支。
 
 ## [v2.1.1]
 
@@ -125,7 +129,7 @@
 
 ### 变更
 
-- 任务事件流改为始终开启：移除 `--no-interactive` / `-ni` 选项（事件流不再有关闭通道），任务列表与完成态经 WebSocket `/hubs/tasks` 的 `taskList` 帧推送驱动，WebUI 移除 REST 轮询与 `disabled` 降级态；交互选项（`--interactive-quality` / `--interactive-pages`）仍经事件流送达，无订阅者时回落非交互。详见 [API.md](./API.md) WebSocket 事件流。
+- 任务事件流改为始终开启：移除 `--no-interactive` / `-ni` 选项（事件流不再有关闭通道），任务列表与完成态经 WebSocket `/hubs/tasks` 的 `taskList` 帧推送驱动，WebUI 移除 REST 轮询与 `disabled` 降级态；交互选项（`--interactive-quality` / `--interactive-pages`）仍经事件流送达，无订阅者时回落非交互。详见 [API.md](./docs/API.md) WebSocket 事件流。
 - 工作目录措辞统一为「下载输出目录」：CLI `--work-dir`、serve `--work-dir`，以及 README / API.md / ARCHITECTURE.md / `docs/compared-to-upstream.md` 的对应描述。
 
 ## [v2.1.0]

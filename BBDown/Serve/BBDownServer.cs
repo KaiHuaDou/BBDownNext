@@ -125,7 +125,7 @@ public class BBDownServer
             SingleReader = false,
             SingleWriter = false,
         });
-        builder.Services.AddSingleton(sp => new TaskStore(config, taskChannel.Writer));
+        builder.Services.AddSingleton(_ => new TaskStore(config, taskChannel.Writer));
         builder.Services.AddSingleton(sp => new TaskWorker(taskChannel.Reader, sp.GetRequiredService<TaskStore>( ), config.MaxConcurrent));
         builder.Services.AddHostedService(sp => sp.GetRequiredService<TaskWorker>( ));
         builder.Services.AddSingleton(sp => new TaskSocketHub(sp.GetRequiredService<TaskStore>( )));

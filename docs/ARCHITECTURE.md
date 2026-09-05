@@ -359,7 +359,7 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 
 ## 6. 断点续传
 
-下载统一走 [Downloader](https://www.nuget.org/packages/Downloader) 库（v5.9.5，`IsAotCompatible`），多线程分片与续传均由库实现（适配层 `DownloaderAdapter`）：
+下载统一走 [Downloader](https://www.nuget.org/packages/Downloader) 库（v5.9.6，`IsAotCompatible`），多线程分片与续传均由库实现（适配层 `DownloaderAdapter`）：
 
 - 每条流先写入 `<目标路径>.download` 临时文件，续传元数据（`DownloadPackage` JSON：总大小 + 各块位置）周期性内嵌在文件末尾；下载完成截断元数据并改名收尾。
 - 重跑时 downloader 先探测服务端文件大小，与元数据一致则从各块断点续下；不一致（URL 指向的内容已变，如换画质）自动删除临时文件重下。
