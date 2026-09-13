@@ -30,10 +30,6 @@ public enum TaskKind
 /// <summary>队列任务单元：参数快照 + 目标 + 状态 + 日志序号。</summary>
 public sealed class TaskState : INotifyPropertyChanged
 {
-    private double progress;
-    private string? title;
-    private string? detail;
-
     /// <summary>速度 / 剩余时间采样的基准时刻，仅 UI 线程由采样回调读写。</summary>
     internal DateTime etaStart;
 
@@ -53,35 +49,35 @@ public sealed class TaskState : INotifyPropertyChanged
     /// <summary>解析出的视频标题（Meta 回吐后填充）；空则列表回退显示 Url。</summary>
     public string? Title
     {
-        get => title;
+        get;
         set
         {
-            if (title == value)
+            if (field == value)
             {
                 return;
             }
 
-            title = value;
+            field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Title)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Display)));
         }
     }
 
     /// <summary>任务列表展示文本：有标题显标题，否则显 Url。</summary>
-    public string Display => title ?? Url;
+    public string Display => Title ?? Url;
 
     /// <summary>运行中的速度 / 剩余时间文本（如「12.3 MB/s · 剩余 1m23s」），空则隐藏。</summary>
     public string? Detail
     {
-        get => detail;
+        get;
         set
         {
-            if (detail == value)
+            if (field == value)
             {
                 return;
             }
 
-            detail = value;
+            field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Detail)));
         }
     }
@@ -89,15 +85,15 @@ public sealed class TaskState : INotifyPropertyChanged
     /// <summary>当前分片下载进度（0..1）；仅在 UI 线程变更。</summary>
     public double Progress
     {
-        get => progress;
+        get;
         set
         {
-            if (progress == value)
+            if (field == value)
             {
                 return;
             }
 
-            progress = value;
+            field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Progress)));
         }
     }

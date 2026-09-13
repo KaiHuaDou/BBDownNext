@@ -11,17 +11,17 @@
     "lint:fix": "oxlint src scripts --fix",
     "lint": "oxlint src scripts",
     "preview": "vite preview",
-    "test:unit": "vitest",
+    "test:unit": "vitest --run",
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
-    "unocss": "^66.8.1",
+    "unocss": "^66.10.2",
     "vue": "rc"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.5",
     "@types/jsdom": "^30.0.0",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.5.1",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/test-utils": "^2.5.0",
     "@vue/tsconfig": "^0.9.1",
@@ -30,9 +30,9 @@
     "oxlint": "latest",
     "oxlint-tsgolint": "latest",
     "typescript": "~6.0.3",
-    "vite": "^8.2.2",
+    "vite": "^8.3.0",
     "vite-plugin-vue-devtools": "^8.2.1",
-    "vitest": "^4.1.11",
+    "vitest": "^5.0.0",
     "vue-tsc": "^3.3.11"
   }
 }

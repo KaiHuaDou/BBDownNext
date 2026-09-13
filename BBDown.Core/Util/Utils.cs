@@ -163,7 +163,7 @@ public static partial class Utils
         var mc = re.Matches(url);
         foreach (var m in mc.Cast<Match>( ))
         {
-            if (m.Result("$2").Equals(name, StringComparison.Ordinal))
+            if (m.Result("$2").Equals(name, StringComparison.OrdinalIgnoreCase))
             {
                 return m.Result("$3");
             }

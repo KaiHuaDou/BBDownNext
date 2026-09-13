@@ -96,22 +96,28 @@ public static partial class InputResolver
 
         if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_collection")) // 列表类型是合集
         {
-            return new MediaList(long.Parse(GetQueryString("business_id", input)));
+            return new MediaList(RequireQueryLong(input, "business_id", "无法从合集链接解析出 business_id"));
         }
 
         if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_series")) // 列表类型是系列
         {
-            return new Series(long.Parse(GetQueryString("business_id", input)));
+            return new Series(RequireQueryLong(input, "business_id", "无法从合集链接解析出 business_id"));
         }
 
-        if (input.Contains("/channel/collectiondetail?sid="))
+        // 老版合集分享链接（medialist/play/mlXXX、medialist/detail/mlXXX），ml 号即 biz_id
+        if (MedialistMlRegex( ).Match(input) is { Success: true } mlMatch)
         {
-            return new MediaList(long.Parse(GetQueryString("sid", input)));
+            return new MediaList(long.Parse(mlMatch.Groups[1].Value));
         }
 
-        if (input.Contains("/channel/seriesdetail?sid="))
+        if (input.Contains("/channel/collectiondetail") && input.Contains("sid="))
         {
-            return new Series(long.Parse(GetQueryString("sid", input)));
+            return new MediaList(RequireQueryLong(input, "sid", "无法从合集链接解析出 sid"));
+        }
+
+        if (input.Contains("/channel/seriesdetail") && input.Contains("sid="))
+        {
+            return new Series(RequireQueryLong(input, "sid", "无法从合集链接解析出 sid"));
         }
 
         if (input.Contains("/space.bilibili.com/") && input.Contains("/lists/"))
@@ -268,14 +274,31 @@ public static partial class InputResolver
     //   系列：https://space.bilibili.com/392959666/lists/1560264?type=series
     private static ResourceId ResolveSpaceList(string input)
     {
-        // path 最后一个 / 后到 ? 前即为 sid
-        var path = input.Split('?', '#')[0];
+        // path 最后一个 / 后到 ? 前即为 sid；TrimEnd('/') 容忍 lists/{sid}/ 尾斜杠
+        var path = input.Split('?', '#')[0].TrimEnd('/');
         var sid = path[(path.LastIndexOf('/') + 1)..];
+        if (!long.TryParse(sid, out var sidValue))
+        {
+            throw new InvalidOperationException($"无法从合集链接解析出 sid：{input}");
+        }
+
         var type = GetQueryString("type", input);
         // 未知类型按合集处理，至少不会识别失败
         return type.Equals("series", StringComparison.OrdinalIgnoreCase)
-            ? new Series(long.Parse(sid))
-            : new MediaList(long.Parse(sid));
+            ? new Series(sidValue)
+            : new MediaList(sidValue);
+    }
+
+    // query 参数值解析失败（缺失 / 非数字）时给可读错误，避免 long.Parse 抛晦涩 FormatException
+    private static long RequireQueryLong(string input, string name, string message)
+    {
+        var value = GetQueryString(name, input);
+        if (!long.TryParse(value, out var result))
+        {
+            throw new InvalidOperationException($"{message}：{input}");
+        }
+
+        return result;
     }
 
     private static async Task<long> ScrapeFirstEpIdAsync(string input, Core.AppConfig cfg, CancellationToken ct = default)
@@ -353,4 +376,6 @@ public static partial class InputResolver
     private static partial Regex BangumiMdRegex( );
     [GeneratedRegex("md(\\d+)")]
     private static partial Regex MdRegex( );
+    [GeneratedRegex(@"medialist/(?:play|detail)/ml(\d+)", RegexOptions.IgnoreCase)]
+    private static partial Regex MedialistMlRegex( );
 }

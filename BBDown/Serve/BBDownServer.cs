@@ -92,14 +92,12 @@ public class BBDownServer
         // 安全前提：CORS 校验的是请求方 Origin 而非目标地址，恶意网页（非回环 Origin）依旧无 ACAO 头被浏览器拦截。
         // 注意它挡不住 DNS rebinding——攻击者域名解析到 127.0.0.1 后，页面发起的是「同源」请求，
         // 同源 GET 不携带 Origin。该场景由 Host 头白名单中间件兜底（见 ConfigurePipeline）。
-        builder.Services.AddCors((options) =>
-        {
-            options.AddPolicy("AllowSpecificOrigin",
+        builder.Services.AddCors(options => options.AddPolicy("AllowSpecificOrigin",
                 policy => policy
                     .SetIsOriginAllowed(origin => TaskSocketHub.IsAllowedOrigin(origin, config))
                     .AllowAnyMethod( )
-                    .AllowAnyHeader( ));
-        });
+                    .AllowAnyHeader( ))
+        );
 
         AddServeRateLimiting(builder.Services);
 

@@ -11,6 +11,7 @@ using static BBDown.Core.Logger;
 using static BBDown.Core.Util.FileNameUtil;
 
 namespace BBDown.Core.Download;
+
 public static partial class SavePath
 {
     public static string SinglePageDefaultSavePath { get; } = "<videoTitle>";

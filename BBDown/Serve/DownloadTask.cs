@@ -23,30 +23,31 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
     public long? TaskFinishTime { get; set; }
     public double Progress
     {
-        get => Volatile.Read(ref progress);
-        set => Volatile.Write(ref progress, value);
+        get => Volatile.Read(ref field);
+        set => Volatile.Write(ref field, value);
     }
 
     public double DownloadSpeed
     {
-        get => Volatile.Read(ref downloadSpeed);
-        set => Volatile.Write(ref downloadSpeed, value);
+        get => Volatile.Read(ref field);
+        set => Volatile.Write(ref field, value);
     }
 
     /// <summary>失败原因（路径已脱敏）；成功或未失败为 null。</summary>
     public string? ErrorMessage { get; set; }
     /// <summary>任务是否被取消（用户停止 / 服务器退出）；与真实失败区分，供客户端直接判定而不必解析文案。</summary>
     public bool IsCancelled { get; set; }
+
     // 进度字段由 TaskWorker 订阅 ProgressBus 更新（原子读写，多线程采样安全）
-    private double progress;
-    private double downloadSpeed;
-    private long totalBytes;
+
     public long TotalDownloadedBytes
     {
-        get => Interlocked.Read(ref totalBytes);
-        set => Interlocked.Exchange(ref totalBytes, value);
+        get => Interlocked.Read(ref field);
+        set => Interlocked.Exchange(ref field, value);
     }
+
     public bool IsSuccessful { get; set; }
+
     public DownloadStatus Status { get; set; }
 
     /// <summary>任务作用域（ResourceId 规范串）：总线消息路由与事件流订阅的匹配键，随构造一次定型，替代各处重复 Format。</summary>

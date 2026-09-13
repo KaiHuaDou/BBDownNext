@@ -126,7 +126,7 @@ public static class Muxer
         }
 
         // 只合并本次转出的分段：扫目录取 .ts 会混入并发任务或上次残留的文件，且顺序不受控（P1-22）
-        List<string> tsFiles = new(files.Length);
+        List<string> tsFiles = [with(files.Length)];
         try
         {
             foreach (var file in files)

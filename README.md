@@ -5,7 +5,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
 </p>
 
 <p align="center">
-  <img alt=".NET" src="https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white" />
+  <img alt=".NET" src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" />
   <a href="https://github.com/KaiHuaDou/BBDownNext/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/KaiHuaDou/BBDownNext/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://github.com/KaiHuaDou/BBDownNext/releases"><img alt="Release" src="https://img.shields.io/github/v/release/KaiHuaDou/BBDownNext?label=release" /></a>
@@ -89,7 +89,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
     - **日志脱敏** · Cookie、access\_token 与密钥由 `Redactor` 自动打码，不落明文日志
     - **请求凭据门** · 携带 Cookie 的请求仅允许发往 B 站官方域或用户显式配置的 host（`--host` / `--ep-host` / `--tv-host`），不可信主机一律拒绝，防 b23.tv 短链展开等用户可控 URL 把 Cookie 外发第三方
 - 双形态
-    - **命令行 CLI** · 跨平台（Win / Linux / macOS）· .NET 9 · AOT 单文件发布
+    - **命令行 CLI** · 跨平台（Win / Linux / macOS）· .NET 10 · AOT 单文件发布
     - **图形界面 BBDown.GUI** · 单窗口 Avalonia，直接复用 BBDown.Core 下载库（非子进程调用）：任务队列与并发控制、扫码登录、输入统一分发（视频 / 直播 / 专栏 / 文集 / 空间 / 单音频）、拖放输入、队列持久化、窗口尺寸记忆、选项随 exe 便携保存；交互请求（逐集确认 / 选清晰度 / 选轨）在窗口内弹窗应答；独立 CI 发布 Windows / macOS / Linux 三平台 AOT 单文件（Windows x64 另产出 Win7 兼容包）
 - 扩展与集成
     - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./docs/API.md)
@@ -109,7 +109,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
     - **代码规模约束** · 单文件 ≤ 384 行、单方法 ≤ 128 行（`just tokei` 守护），超出即拆分
     - **类型安全** · `ResourceId` 判别联合（12 个 sealed 子类型：Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater / LiveRoom / OpusArticle）取代字符串前缀打标，按类型分发、缺分支编译报错
     - **现代测试栈** · 测试运行器迁移至 Microsoft Testing Platform（xunit.v3 4.0.0），原生运行更快，自带代码覆盖率与 Trx 报告
-    - **现代 .NET** · C# 13、全部语法兼容 AOT（正则源生成、源生成器）、不可变 record 契约、纯函数优先、单一来源化（清晰度档位 / 内容字符表由 Core 枚举生成）
+    - **现代 .NET** · C# 15、全部语法兼容 AOT（正则源生成、源生成器）、不可变 record 契约、纯函数优先、单一来源化（清晰度档位 / 内容字符表由 Core 枚举生成）
 
 ## 与原版 BBDown 的差异
 
@@ -150,7 +150,7 @@ docker run --rm -v "$PWD:/downloads" bbdown "https://www.bilibili.com/video/BV16
 
 ## 构建
 
-需要先安装 [.NET SDK](https://dot.net)（版本 ≥ 9.0，具体版本以仓库 `global.json` 为准）。
+需要先安装 [.NET SDK](https://dot.net)（版本 ≥ 10.0，具体版本以仓库 `global.json` 为准）。
 
 ```bash
 git clone https://github.com/KaiHuaDou/BBDownNext.git --depth 1
@@ -158,7 +158,7 @@ cd BBDown
 dotnet build -c Release
 ```
 
-构建产物位于各项目的 `bin/Release/net9.0/` 目录下
+构建产物位于各项目的 `bin/Release/net10.0/` 目录下
 
 ### AOT 单文件
 
@@ -178,13 +178,13 @@ dotnet publish BBDown -r win-x64 -c Release -o <DEST> -p:Win7Compatitable=true
 
 ### 图形界面
 
-BBDown.GUI 是图形界面（GUI）客户端（Avalonia），目标框架 `net9.0`：
+BBDown.GUI 是图形界面（GUI）客户端（Avalonia），目标框架 `net10.0`：
 
 ```bash
 dotnet build BBDown.GUI -c Release
 ```
 
-产物位于 `BBDown.GUI/bin/Release/net9.0/` 下，独立运行，直接复用 `BBDown.Core` 下载库，无需额外的 `BBDown.exe`。
+产物位于 `BBDown.GUI/bin/Release/net10.0/` 下，独立运行，直接复用 `BBDown.Core` 下载库，无需额外的 `BBDown.exe`。
 
 图形界面由独立 CI（[gui.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/gui.yml)）在 Windows / macOS / Linux（各 `x64` / `arm64`，Linux 仅 glibc）构建自包含 AOT 单文件产物并上传，可手动触发追加到最新 Release；Windows `x64` 另产出 Win7 兼容包（`Win7Compatitable=true`，YY-Thunks / VC-LTL 静态消除 CRT 依赖），`win-arm64` 不构建 Win7 兼容版。
 
@@ -452,9 +452,9 @@ BBDown "BV1xx" -M "<publishDate:yyyy>/<publishDate:MMdd> <pageTitle>"
 
 ## 子命令
 
-| 子命令  | 说明                                                                                                    |
-| ------- | ------------------------------------------------------------------------------------------------------- |
-| `login` | 通过 APP 扫描二维码登录账号（默认 WEB；加 `--tv` 登录 TV，加 `--app` 登录 APP），凭据自动保存           |
+| 子命令  | 说明                                                                                                         |
+| ------- | ------------------------------------------------------------------------------------------------------------ |
+| `login` | 通过 APP 扫描二维码登录账号（默认 WEB；加 `--tv` 登录 TV，加 `--app` 登录 APP），凭据自动保存                |
 | `serve` | 以服务器模式运行，提供带鉴权令牌的 REST JSON API 与可选 WebSocket 任务事件流（详见 [API.md](./docs/API.md)） |
 
 ### `serve` 参数

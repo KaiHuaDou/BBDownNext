@@ -168,6 +168,27 @@ public static partial class UrlDetector
             return "空间动态地址";
         }
 
+        // 合集 / 系列：space lists 页（?type=series 为系列，其余按合集）、channel 页、老版 medialist/ml 分享链接
+        if (spaceHost && text.Contains("/lists/", StringComparison.OrdinalIgnoreCase))
+        {
+            return text.Contains("type=series", StringComparison.OrdinalIgnoreCase) ? "系列地址" : "合集地址";
+        }
+
+        if (text.Contains("/channel/collectiondetail", StringComparison.OrdinalIgnoreCase))
+        {
+            return "合集地址";
+        }
+
+        if (text.Contains("/channel/seriesdetail", StringComparison.OrdinalIgnoreCase))
+        {
+            return "系列地址";
+        }
+
+        if (MedialistMlRegex( ).IsMatch(text))
+        {
+            return "合集地址";
+        }
+
         // 单音频页 www.bilibili.com/audio/au12345（space 域的 /audio 列表页已在上面先行识别）
         if (text.Contains("/audio/au", StringComparison.OrdinalIgnoreCase))
         {
@@ -237,4 +258,7 @@ public static partial class UrlDetector
 
     [GeneratedRegex(@"cv/?[0-9]+", RegexOptions.IgnoreCase)]
     private static partial Regex CvRegex( );
+
+    [GeneratedRegex(@"medialist/(?:play|detail)/ml[0-9]+", RegexOptions.IgnoreCase)]
+    private static partial Regex MedialistMlRegex( );
 }

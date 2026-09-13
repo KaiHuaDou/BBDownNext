@@ -189,6 +189,8 @@ internal static class CommandLineInvoker
         return encodingIndex >= 0 && dfnIndex >= 0 && encodingIndex < dfnIndex;
 
         static bool Matches(Option option, string value)
-            => value == option.Name || option.Aliases.Contains(value);
+        {
+            return value == option.Name || option.Aliases.Contains(value);
+        }
     }
 }

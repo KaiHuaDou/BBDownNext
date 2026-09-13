@@ -1,3 +1,5 @@
+minimumReleaseAge: 0
+
 overrides:
   'vue': 'rc'
   '@vue/compiler-core': 'rc'

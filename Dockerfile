@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # 构建阶段：Alpine 内 AOT 编译 musl 静态产物（与 ci.yml 的 musl 构建步骤一致）
-FROM mcr.microsoft.com/dotnet/sdk:9.0.317-alpine3.23 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.401-alpine3.23 AS build
 WORKDIR /src
 
 ARG RID=linux-musl-x64

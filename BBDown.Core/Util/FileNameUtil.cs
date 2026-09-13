@@ -12,12 +12,13 @@ public static class FileNameUtil
         ['"', '<', '>', '|', ':', '*', '?', '\\', '/', .. Enumerable.Range(0, 32).Select(i => (char) i)];
 
     // Windows 上这些设备名连带任意扩展名一起被拒绝，CON.mp4 同样无法创建
-    private static readonly HashSet<string> ReservedNames = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly HashSet<string> ReservedNames =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
         "CON", "PRN", "AUX", "NUL",
         "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
         "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
-    };
+    ];
 
     // ext4/APFS 单段上限 255 字节，留出分片前缀、字幕语言后缀与扩展名的余量
     private const int MaxBytes = 200;

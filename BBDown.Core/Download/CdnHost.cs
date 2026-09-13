@@ -22,15 +22,8 @@ public static partial class CdnHost
     /// </summary>
     internal static void Apply(DownloadRequest myOption, Video? selectedVideo, Audio? selectedAudio, AppConfig cfg)
     {
-        if (selectedVideo != null)
-        {
-            selectedVideo.BaseUrl = ApplyCdnHostPolicy(selectedVideo.BaseUrl, myOption, cfg, "视频流");
-        }
-
-        if (selectedAudio != null)
-        {
-            selectedAudio.BaseUrl = ApplyCdnHostPolicy(selectedAudio.BaseUrl, myOption, cfg, "音频流");
-        }
+        selectedVideo?.BaseUrl = ApplyCdnHostPolicy(selectedVideo.BaseUrl, myOption, cfg, "视频流");
+        selectedAudio?.BaseUrl = ApplyCdnHostPolicy(selectedAudio.BaseUrl, myOption, cfg, "音频流");
     }
 
     // FLV 走分段直链，同样需要按 upos-host / PCDN / 海外源策略换域名（P1-21）

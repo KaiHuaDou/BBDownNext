@@ -9,7 +9,7 @@
 
 ## 环境
 
-- .NET SDK 版本以仓库 `global.json` 为准（当前 9.0.317）。
+- .NET SDK 版本以仓库 `global.json` 为准（当前 10.0.401）。
 - 构建：`dotnet build -c Release`。
 - 测试：`dotnet test`。
 

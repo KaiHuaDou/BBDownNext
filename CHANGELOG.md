@@ -23,6 +23,7 @@
     - `SsrfGuard.IsPrivateAddress`：覆盖私网各段 / CGNAT / 基准网络 / 多播与保留段 / 受限广播 / IPv4-mapped IPv6 / 公网白名单共 31 个用例。
     - WebUI：任务状态映射新增「错误文案含『已取消』但无结构化字段时判为失败」回归用例；`maxRetry` 新增负数、小数、NaN 兜底用例。
     - 本次新增纯函数全覆盖：`InputResolver.TryDispatch`（集合 URL / 简写 / 视频与合集形态不误吞 / 非法输入拒绝；单音频 `au` URL / 简写 / 空间音频列表不误吞）；`ResourceId` 新类型规范串往返与前缀长度优先（`spaceOpus` 等长前缀不被 `space` 误吞，`au` / `av` 同长互不误吞）；`ContentSelector.ModeOf` 全类型矩阵（含 `Audio` / `Mixed`）与 `ContentMode.Audio` 的失效提示；`SpaceOpusDownload.TryGetOpus`（`MAJOR_TYPE_OPUS` 提取 / 非图文类型拒绝 / 结构缺失拒绝，`OpusItem` 与该方法改 internal 以便测试）；`SpaceDynamicDownload.TryResolveItem`（图文 / 视频 / 转发分发与转发深度上限，`DynamicItem` 同改 internal 以便测试）；`AudioDownload.ResolveExt`（扩展名推断与 `.m4a` 兜底）；WebUI `urlDetector` 单音频标签用例。
+- **合集 / 系列链接识别扩围**：识别 `medialist/play|detail/ml{id}` 老版分享链接（ml 号即 biz_id）、`channel/collectiondetail` / `channel/seriesdetail`（带 `sid=` 参数）、空间 `lists/{sid}/` 尾斜杠容错三种新形态；CLI（`InputResolver`）与 GUI / WebUI（`UrlDetector`）三端同步识别与标签；合集 / 系列链接的 query 参数缺失或非数字时报可读异常（原为 `FormatException`）。
 
 ### 重构
 
@@ -35,6 +36,7 @@
     - `DownloadTask` 新增 `Scope`（构造时定格 `ResourceId` 规范串），替换各处每次调用的 `ResourceIdJsonConverter.Format` 字符串分配。
     - `TaskSocketHub` 拆分：连接生命周期与帧收发留在 `TasksSocket.cs`，转发与广播泵移入 `TasksSocket.Forward.cs`，帧记录移至序列化上下文文件。
     - `BBDownServer.SetUpServer` 拆出限流注册（`AddServeRateLimiting`）与请求管线装配（`ConfigurePipeline`）两个方法。
+- **工程升级与现代化**：目标框架 .NET 9 → .NET 10（SDK 10.0.401，`LangVersion=preview`，Win7 兼容构建 TFM 同步 `net10.0-windows`），启用 C# 15 集合表达式容量形式（`[with(n)]`）；`.editorconfig` 重组对齐 Visual Studio 默认模板（新增 static 字段命名规则与格式规则）；`DownloadTask` / `QueueRunner` / `ContentOption` 私有字段改用 C# 14 `field` 关键字自动属性；测试项目补 `TestingPlatformDotnetTestSupport` 使 `dotnet test` 经 MTP 集成；WebUI 依赖升级（vitest 5 / vite 8.3 / unocss 66.10.2）且 `test:unit` 改 `--run`。
 
 ### 修复
 

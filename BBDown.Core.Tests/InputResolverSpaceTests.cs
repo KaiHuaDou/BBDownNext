@@ -70,6 +70,12 @@ public class InputResolverSpaceTests
     {
         { "https://space.bilibili.com/392959666/lists/1560264?type=season", new ResourceId.MediaList(1560264) },
         { "https://space.bilibili.com/392959666/lists/1560264?type=series", new ResourceId.Series(1560264) },
+        { "https://space.bilibili.com/392959666/lists/1560264/?type=season", new ResourceId.MediaList(1560264) },
+        { "https://space.bilibili.com/392959666/channel/collectiondetail?sid=1560264", new ResourceId.MediaList(1560264) },
+        { "https://space.bilibili.com/392959666/channel/seriesdetail?sid=1560264", new ResourceId.Series(1560264) },
+        { "https://www.bilibili.com/medialist/play/ml2317224596", new ResourceId.MediaList(2317224596) },
+        { "https://www.bilibili.com/medialist/detail/ml2317224596", new ResourceId.MediaList(2317224596) },
+        { "https://www.bilibili.com/medialist/play/23630128?business=space_collection&business_id=2045", new ResourceId.MediaList(2045) },
         { "https://space.bilibili.com/3/favlist?fid=12345", new ResourceId.Fav(12345, 3) },
     };
 
@@ -79,5 +85,15 @@ public class InputResolverSpaceTests
     {
         var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty, TestContext.Current.CancellationToken);
         Assert.Equal(expected, result);
+    }
+
+    // 合集链接 sid 缺失或非数字时应给可读错误，而不是 long.Parse 抛晦涩 FormatException
+    [Theory]
+    [InlineData("https://space.bilibili.com/392959666/lists/")]
+    [InlineData("https://space.bilibili.com/392959666/lists/abc")]
+    public async Task ResolveIdAsync_SpaceListInvalidSid_ThrowsReadableError(string input)
+    {
+        await Assert.ThrowsAsync<InvalidOperationException>(( ) =>
+            InputResolver.ResolveIdAsync(input, AppConfig.Empty, TestContext.Current.CancellationToken));
     }
 }

@@ -62,6 +62,25 @@ describe('describeTarget', () => {
     )
   })
 
+  it('识别合集 / 系列 URL', () => {
+    expect(describeTarget('https://space.bilibili.com/213741/lists/499730?type=season')).toBe(
+      '合集地址'
+    )
+    expect(describeTarget('https://space.bilibili.com/213741/lists/499730?type=series')).toBe(
+      '系列地址'
+    )
+    expect(
+      describeTarget('https://space.bilibili.com/213741/channel/collectiondetail?sid=499730')
+    ).toBe('合集地址')
+    expect(
+      describeTarget('https://space.bilibili.com/213741/channel/seriesdetail?sid=499730')
+    ).toBe('系列地址')
+    expect(describeTarget('https://www.bilibili.com/medialist/play/ml2317224596')).toBe('合集地址')
+    expect(describeTarget('https://www.bilibili.com/medialist/detail/ml2317224596')).toBe(
+      '合集地址'
+    )
+  })
+
   it('无法识别时返回 null', () => {
     expect(describeTarget('')).toBeNull()
     expect(describeTarget('   ')).toBeNull()

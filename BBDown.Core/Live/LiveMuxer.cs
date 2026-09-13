@@ -98,8 +98,8 @@ public static class LiveMuxer
 
     private static async Task<bool> ConcatAsync(List<string> inputs, string outPath, string codecName, ToolPaths tools, CancellationToken ct)
     {
-        List<string> tsFiles = new(inputs.Count);
-        List<string> mergedInputs = new(inputs.Count);
+        List<string> tsFiles = [with(inputs.Count)];
+        List<string> mergedInputs = [with(inputs.Count)];
         var concatPath = Path.ChangeExtension(outPath, ".concat.ts");
         try
         {
