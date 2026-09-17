@@ -31,7 +31,11 @@ public static class VideoInfo
         // 主动续期 web cookie（best-effort，持有 refresh_token 才尝试；进程内仅一次）
         if (Interlocked.CompareExchange(ref cookieRefreshed, 1, 0) == 0)
         {
-            cfg = cfg with { Cookie = await Login.TryRefreshWebCookieIfStaleAsync(token: ct) };
+            var newCookie = await Login.TryRefreshWebCookieIfStaleAsync(token: ct);
+            if (!string.IsNullOrEmpty(newCookie))
+            {
+                cfg = cfg with { Cookie = newCookie };
+            }
         }
 
         // nav 无需登录即可返回 wbi 密钥；TV/国际版模式同样会命中 wbi 接口（view、player/wbi/v2），
