@@ -323,14 +323,15 @@ public class DownloadTests
         Assert.DoesNotContain('/', result);
     }
 
-    // 替换值本身长得像占位符时，按位置替换才不会被后续迭代二次展开
+    // 替换值本身长得像占位符时，按位置替换才不会被后续迭代二次展开；
+    // 尖括号是非法文件名字符，dfn 值里的 <aid> 先被净化成 _aid_，自然也不再具备占位符形态
     [Fact]
     public void FormatSavePath_DoesNotReexpandSubstitutedValues( )
     {
         var p = MakePage( );
         var v = MakeVideo("120", "<aid>", "AVC", 1000);
         var result = SavePath.Format("<dfn>-<aid>", "t", v, null, p, 1, ApiType.Web, 0);
-        Assert.Equal("<aid>-114514.mp4", result);
+        Assert.Equal("_aid_-114514.mp4", result);
     }
 
     [Fact]

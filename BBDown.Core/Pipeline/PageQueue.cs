@@ -35,7 +35,7 @@ internal static class PageQueue
             selectedPages = PageSelect.Resolve(myOption, vInfo, runConfig.Input);
         }
 
-        Log($"共计 {pagesInfo.Count} 个分 P，已选择：" + (selectedPages == null ? "ALL" : string.Join(",", selectedPages)));
+        Log($"共计 {pagesInfo.Count} 个分 P，已选择：" + (selectedPages == null ? "ALL" : FormatSelected(selectedPages)));
         var totalPages = pagesInfo.Count;
 
         //过滤不需要的分 P
@@ -134,6 +134,14 @@ internal static class PageQueue
     private static string FormatPages(List<(Page Page, Exception Error)> items)
     {
         return string.Join(", ", items.Select(e => $"P{e.Page.Index}（{e.Page.Aid}）"));
+    }
+
+    // 展示用：选中列表（含区间展开）可能极长，只列前若干项，完整列表由后续下载逻辑消费
+    private static string FormatSelected(List<string> selectedPages)
+    {
+        const int maxShown = 64;
+        var shown = string.Join(',', selectedPages.Take(maxShown));
+        return selectedPages.Count > maxShown ? shown + $"...（共 {selectedPages.Count} 项）" : shown;
     }
 
     /// <summary>

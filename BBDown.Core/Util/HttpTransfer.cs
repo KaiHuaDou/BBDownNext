@@ -25,9 +25,10 @@ public static class HttpTransfer
 
     /// <summary>
     /// 响应体读取的唯一入口。开启自动解压后 Content-Length 会被移除，声明长度不可信，
-    /// 只能逐块读取并累计设总量上限。全库不应再直接调用 HttpContent 的 ReadAs*Async。
+    /// 只能逐块读取并累计设总量上限。全库不应再直接调用 HttpContent 的 ReadAs*Async；
+    /// 插件（Plugins/* 独立仓库）经此引用同样受 64 MB 上限约束。
     /// </summary>
-    internal static async Task<byte[]> ReadBodyBytesAsync(HttpContent content, CancellationToken ct = default)
+    public static async Task<byte[]> ReadBodyBytesAsync(HttpContent content, CancellationToken ct = default)
     {
         var declared = content.Headers.ContentLength;
         if (declared > MaxResponseBytes)
@@ -54,7 +55,7 @@ public static class HttpTransfer
         return buffer.ToArray( );
     }
 
-    internal static async Task<string> ReadBodyAsync(HttpContent content, CancellationToken ct = default)
+    public static async Task<string> ReadBodyAsync(HttpContent content, CancellationToken ct = default)
     {
         var bytes = await ReadBodyBytesAsync(content, ct);
         // B 站接口响应全为 UTF-8；AOT 下不注册额外编码提供程序，故固定按 UTF-8 解码

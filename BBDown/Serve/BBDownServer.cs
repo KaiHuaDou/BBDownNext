@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading.Channels;
@@ -238,6 +239,8 @@ public class BBDownServer
                 && ExceedsAuthFailureLimit(context.Connection.RemoteIpAddress?.ToString( ) ?? "unknown"))
             {
                 context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                // 与滑动窗口时长一致的退避提示，客户端可按此重试而非死循环
+                context.Response.Headers.RetryAfter = ((int) AuthFailureWindow.TotalSeconds).ToString(CultureInfo.InvariantCulture);
             }
         });
 

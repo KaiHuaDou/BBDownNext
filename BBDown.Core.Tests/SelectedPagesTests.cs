@@ -230,4 +230,12 @@ public class SelectedPagesTests
     {
         Assert.Equal(["1", "2"], Select("1,1,2,2,1"));
     }
+
+    // 防放大：超长选择串（serve 侧客户端可控）被长度与 token 上限夹住，不抛异常且结果正确
+    [Fact]
+    public void HugeSpec_IsHandledWithinCaps( )
+    {
+        var pages = string.Join(',', Enumerable.Range(1, 10_000));
+        Assert.Equal(["1", "2"], Select(pages, pageCount: 2));
+    }
 }

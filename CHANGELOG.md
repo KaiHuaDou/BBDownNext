@@ -47,15 +47,23 @@
 - serve 任务收尾段整体兜底，收尾异常不再击穿后台执行器的聚合等待拖垮消费者；完成回调（CallBackWebHook）在服务器关停中断重试等待时静默放弃，不再上抛。
 - WebUI 任务取消态判定改用结构化 `isCancelled` 字段，不再解析错误文案：含「已取消」字样的普通失败不再被误判为取消。
 - 内嵌 WebUI 的 SPA 入口 `index.html` 加 `Cache-Control: no-cache`，升级后不再因浏览器缓存旧入口而引用已下线的旧资源。
+- serve 队列满 / 认证失败超限的 429 响应补 `Retry-After` 头（与限流窗口一致），客户端可按统一语义退避。
+- `DownloadTask` 任务状态与成败标志同存一个原子整数，收尾一次落位，查询不再读到「已结束但成败标志未落位」的中间快照。
+- 分 P 选择串（`--pages` / serve 的 `Pages`）设长度与 token 累计上限，选中列表日志截断，超长输入不再放大 CPU / 内存与日志行。
+- DRM 插件 license / 公钥响应改经 `HttpTransfer` 有界读取（64 MB），插件不再有无界 `ReadAs*Async`。
+- 事件转发器（`forwarders`）所有权竞态：最后订阅者离开与新订阅交错的瞬间，旧转发循环收尾会误删后注册的转发器条目，可能并行跑两个转发器、重复推事件/快照帧；收尾改按「槽位仍是自己的 cts」校验后摘除（与 `LiveSignal.Unregister` 同范式）。
 
 ### 安全
 
+- 文件名模板 `<res>` / `<fps>` / `<dfn>` / 编码等服务器可控占位符与 `Page` 的 aid / cid 统一过 `GetValidFileName`：镜像站 / `--insecure` 下对端下发含分隔符或 `..` 的值被转义，产物无法穿越工作目录。
+- 业务日志统一单行化（CR / LF 替换为空格），接口 `message` 的控制字符（ANSI 转义等）在 `ReadApiError` 统一净化，服务器可控文本不再能伪造日志行。
 - serve 回调地址（CallBackWebHook）私网过滤补齐保留段 `240.0.0.0/4` 与受限广播 `255.255.255.255`。
 
 ### 变更
 
 - 内部 API：`TaskStore` 构造参数由 `TaskQueue` 改为 `ChannelWriter<TaskEnvelope>`，`TaskWorker` 由 `TaskQueue` 改为 `ChannelReader<TaskEnvelope>`；`DownloadTask` 的取消源不再对外直接 `Dispose`。
 - 进度采样由每秒 5 次提升到 8 次，与 CLI 进度条渲染帧率一致；`ProgressSampler` 采样回调改为必传（内部 API），删除无回调时只记录不采样的分支。
+- `docs/API.md` 任务时间戳措辞改为「UTC 纪元，与时区无关」；README Docker 示例补 `--work-dir /downloads`，挂载目录不再形同虚设。
 
 ## [v2.1.1]
 

@@ -169,9 +169,11 @@ internal sealed partial class TaskWorker : BackgroundService
         {
             byScope.TryRemove(scope, out _);
 
-            task.Status = DownloadStatus.Finished;
+            // 成败标志在此前已落位（成功 true / 异常保持 false），收尾一次原子写入状态与成败
+            var succeeded = task.IsSuccessful;
+            task.SetFinished(succeeded);
             task.TaskFinishTime = DateTimeOffset.Now.ToUnixTimeMilliseconds( );
-            if (task.IsSuccessful)
+            if (succeeded)
             {
                 task.Progress = 1f;
                 var elapsedMs = task.TaskFinishTime.Value - task.TaskCreateTime;

@@ -143,7 +143,7 @@ Windows 7 用户请下载 `BBDown-win7-x64` 产物，并安装 [KB3140245](https
 
 ```bash
 docker build -t bbdown .
-docker run --rm -v "$PWD:/downloads" bbdown "https://www.bilibili.com/video/BV16h4y137YS"
+docker run --rm -v "$PWD:/downloads" bbdown --work-dir /downloads "https://www.bilibili.com/video/BV16h4y137YS"
 ```
 
 产物为静态 musl 二进制，也可不写 Dockerfile、直接把 Release 中的 `linux-musl-x64` 产物 `COPY` 进 `scratch` / `distroless` 镜像运行（需自带 FFmpeg 用于混流，或 `--mux none` 跳过混流）。

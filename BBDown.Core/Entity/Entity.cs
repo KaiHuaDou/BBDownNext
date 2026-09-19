@@ -10,8 +10,21 @@ namespace BBDown.Core.Entity;
 public class Page
 {
     public required int Index { get; set; }
-    public required string Aid { get; set; }
-    public required string Cid { get; set; }
+
+    // aid/cid 逐字来自 API 响应（对端可控），是工作区目录与文件名模板的组成段：
+    // setter 经 GetValidFileName 单一收口净化（合法数字恒等；含分隔符 / .. 的值被转义，无法穿越工作目录）
+    public required string Aid
+    {
+        get;
+        set => field = FileNameUtil.GetValidFileName(value);
+    } = "";
+
+    public required string Cid
+    {
+        get;
+        set => field = FileNameUtil.GetValidFileName(value);
+    } = "";
+
     public required string EpId { get; set; }
     public required string Title { get; set; }
     public required int Dur { get; set; }

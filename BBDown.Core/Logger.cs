@@ -8,25 +8,27 @@ namespace BBDown.Core;
 /// </summary>
 public static class Logger
 {
+    // 服务器可控文本（标题 / 接口 message 等）经日志输出，含 CRLF 可伪造日志行：业务日志统一单行化。
+    // LogDebug 保持原样：调试转储本就是多行服务器原始内容，且须显式开启 --debug 才会产出
     public static void Log(object text, bool enter = true)
     {
-        MessageBus.Publish(LogLevel.Info, text.ToString( ) ?? "", enter: enter);
+        MessageBus.Publish(LogLevel.Info, SingleLine(text), enter: enter);
     }
 
     public static void LogError(object text)
     {
-        MessageBus.Publish(LogLevel.Error, text.ToString( ) ?? "");
+        MessageBus.Publish(LogLevel.Error, SingleLine(text));
     }
 
     /// <summary>强调消息（CLI 渲染为高亮色），仍属 Info 级别。</summary>
     public static void LogColor(object text, bool time = true)
     {
-        MessageBus.Publish(LogLevel.Info, text.ToString( ) ?? "", emphasized: true, showTime: time);
+        MessageBus.Publish(LogLevel.Info, SingleLine(text), emphasized: true, showTime: time);
     }
 
     public static void LogWarn(object text, bool time = true)
     {
-        MessageBus.Publish(LogLevel.Warn, text.ToString( ) ?? "", showTime: time);
+        MessageBus.Publish(LogLevel.Warn, SingleLine(text), showTime: time);
     }
 
     public static void LogDebug(string toFormat, params object[] args)
@@ -38,5 +40,10 @@ public static class Logger
 
         var text = args.Length > 0 ? string.Format(toFormat, args).Trim( ) : toFormat;
         MessageBus.Publish(LogLevel.Debug, text);
+    }
+
+    private static string SingleLine(object text)
+    {
+        return text.ToString( )?.Replace('\r', ' ').Replace('\n', ' ') ?? "";
     }
 }

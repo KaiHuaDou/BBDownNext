@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading;
 
 using BBDown.Core;
@@ -18,6 +19,9 @@ internal static class ServeEndpoints
 {
     public static void MapServeEndpoints(this WebApplication app)
     {
+        // 队列有界的退避提示：写满说明消费端积压，客户端按此重试（与限流 429 的 Retry-After 语义一致）
+        const int QueueFullRetryAfter = 60;
+
         var tasks = app.MapGroup("/api/v1/tasks");
         tasks.MapGet("", (TaskStore store) => Results.Json(new DownloadTaskSnapshot(store.RunningSnapshot( ), store.FinishedSnapshot( )), AppJsonSerializerContext.Default.DownloadTaskSnapshot));
         tasks.MapGet("/running", (TaskStore store) => Results.Json(store.RunningSnapshot( ).FindAll(t => t.Status != DownloadStatus.Pending), AppJsonSerializerContext.Default.ListDownloadTask));
@@ -46,6 +50,7 @@ internal static class ServeEndpoints
                 var result = await store.EnqueueAsync(bindingResult.Result!, mode, token);
                 if (result.QueueFull)
                 {
+                    http.Response.Headers.RetryAfter = QueueFullRetryAfter.ToString(CultureInfo.InvariantCulture);
                     return Results.StatusCode(StatusCodes.Status429TooManyRequests);
                 }
 
@@ -61,19 +66,26 @@ internal static class ServeEndpoints
                 return Results.BadRequest("输入有误");
             }
         }).RequireRateLimiting("taskSubmit");
-        tasks.MapPost("/{id}/start", (string id, TaskStore store) =>
+        tasks.MapPost("/{id}/start", (string id, TaskStore store, HttpContext http) =>
         {
             if (!ResourceId.TryParse(id, out var rid))
             {
                 return Results.NotFound( );
             }
 
-            return store.Start(rid) switch
+            var started = store.Start(rid);
+            if (started == StartResult.Started)
             {
-                StartResult.Started => Results.Ok( ),
-                StartResult.QueueFull => Results.StatusCode(StatusCodes.Status429TooManyRequests),
-                _ => Results.NotFound( )
-            };
+                return Results.Ok( );
+            }
+
+            if (started == StartResult.QueueFull)
+            {
+                http.Response.Headers.RetryAfter = QueueFullRetryAfter.ToString(CultureInfo.InvariantCulture);
+                return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+            }
+
+            return Results.NotFound( );
         });
         // 变更类端点必须用 POST/DELETE，不能暴露为 GET，否则与本就全开的 CORS 叠加形成 CSRF（P1-15）
         tasks.MapPost("/{id}/stop", (string id, TaskStore store) =>

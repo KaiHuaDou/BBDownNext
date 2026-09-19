@@ -46,9 +46,37 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
         set => Interlocked.Exchange(ref field, value);
     }
 
-    public bool IsSuccessful { get; set; }
+    // 状态与成败同存于一个原子整数：单次读即可拿到一致的 (Status, IsSuccessful) 对，
+    // 收尾经 SetFinished 一次落位两者，查询端不会读到「已结束但成败标志未落位」的中间态
+    private int state;
 
-    public DownloadStatus Status { get; set; }
+    private const int SuccessBit = 1 << 30;
+
+    public bool IsSuccessful
+    {
+        get => (Volatile.Read(ref state) & SuccessBit) != 0;
+        set
+        {
+            var current = Volatile.Read(ref state);
+            Volatile.Write(ref state, value ? current | SuccessBit : current & ~SuccessBit);
+        }
+    }
+
+    public DownloadStatus Status
+    {
+        get => (DownloadStatus) (Volatile.Read(ref state) & 0x1F);
+        set
+        {
+            var current = Volatile.Read(ref state);
+            Volatile.Write(ref state, (int) value | (current & SuccessBit));
+        }
+    }
+
+    /// <summary>收尾一次落位状态与成败标志，任务结束判定面（查询 / 归档 / 回调）总会看到一致的一对。</summary>
+    public void SetFinished(bool isSuccessful)
+    {
+        Volatile.Write(ref state, (int) DownloadStatus.Finished | (isSuccessful ? SuccessBit : 0));
+    }
 
     /// <summary>任务作用域（ResourceId 规范串）：总线消息路由与事件流订阅的匹配键，随构造一次定型，替代各处重复 Format。</summary>
     [JsonIgnore]

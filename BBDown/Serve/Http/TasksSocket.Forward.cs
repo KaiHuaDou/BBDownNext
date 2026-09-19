@@ -55,7 +55,14 @@ internal sealed partial class TaskSocketHub
         }
         finally
         {
-            forwarders.TryRemove(task.Id, out _);
+            // 仅当槽位仍是自己启动的 cts 才摘除（与 LiveSignal.Unregister 同范式）：RemoveSubscription 摘除并取消
+            // 旧 cts 后，新订阅者可能已注册新 cts，无条件 TryRemove 会把后注册者的条目一并删掉，产生并行重复转发器。
+            // 同源 Token 相等即为自己的 cts；CancellationTokenSource.Dispose 幂等，重复释放安全
+            if (forwarders.TryGetValue(task.Id, out var current) && current.Token == token)
+            {
+                forwarders.TryRemove(task.Id, out _);
+                current.Dispose( );
+            }
         }
     }
 

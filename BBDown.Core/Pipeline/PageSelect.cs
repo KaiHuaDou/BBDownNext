@@ -15,6 +15,10 @@ namespace BBDown.Core.Pipeline;
 
 public static class PageSelect
 {
+    // 分 P 选择串来自 CLI / serve 客户端，可构造超大输入：长度与 token 数设累计上限防 CPU / 内存放大
+    private const int MaxPagesSpecLength = 64 * 1024;
+    private const int MaxPageTokens = 4096;
+
     /// <summary>
     /// 获取选中的分 P 列表。返回 null 表示不筛选（全量下载）；空列表表示用户显式指定但无任何合法分 P（一个都不下）。
     /// 语法：--pages all｜1｜1,2,5｜3-5（闭区间，含两端）｜16-（开区间，到末集）｜-22（开区间，从首集）｜
@@ -61,7 +65,14 @@ public static class PageSelect
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var anyValid = false;
 
-        foreach (var rawToken in myOption.Pages.Split(','))
+        // 先按长度截断再切分，并限制累计 token 数（区间展开天然被页界夹紧，唯一可变放大面是 token 数量）
+        var tokens = (myOption.Pages.Length > MaxPagesSpecLength ? myOption.Pages[..MaxPagesSpecLength] : myOption.Pages).Split(',');
+        if (tokens.Length > MaxPageTokens)
+        {
+            LogWarn($"分 P 选择项过多，仅使用前 {MaxPageTokens} 项。");
+        }
+
+        foreach (var rawToken in tokens.Take(MaxPageTokens))
         {
             var token = rawToken.Trim( );
             if (token.Length == 0)

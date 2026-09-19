@@ -105,9 +105,24 @@ public static class JsonUtil
         var message = root.ValueKind == JsonValueKind.Object
                       && root.TryGetProperty("message", out var msgElem)
                       && msgElem.ValueKind == JsonValueKind.String
-            ? msgElem.GetString( )!
+            ? SanitizeServerText(msgElem.GetString( )!)
             : "未知错误";
         return (code, message);
+    }
+
+    // 接口 message 对端可控：ANSI 转义 / CRLF 等控制字符经异常消息进入日志可伪造日志行，统一替换为空格
+    private static string SanitizeServerText(string text)
+    {
+        var chars = text.ToCharArray( );
+        for (var i = 0; i < chars.Length; i++)
+        {
+            if (chars[i] is < (char) 32 or (char) 127)
+            {
+                chars[i] = ' ';
+            }
+        }
+
+        return new string(chars);
     }
 
     // 接口失败时 data 缺失或为 null，直接 GetProperty("data") 只会抛出不含 code/message 的 KeyNotFoundException
