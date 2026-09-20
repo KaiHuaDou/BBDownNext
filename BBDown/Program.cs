@@ -62,6 +62,7 @@ internal sealed class Program
 
     public static async Task<int> Main(params string[] args)
     {
+        args = NormalizeArguments(args);
         Console.CancelKeyPress += Console_CancelKeyPress;
         // 业务消息渲染（CLI 展示）：Core 只产生消息，本渲染器决定控制台如何展示
         using var messageRenderer = new ConsoleMessageRenderer( );
@@ -111,6 +112,11 @@ internal sealed class Program
         }
 
         return await rootResult.InvokeAsync(new InvocationConfiguration( ) { EnableDefaultExceptionHandler = true });
+    }
+
+    internal static string[] NormalizeArguments(string[] args)
+    {
+        return [.. args.Select(value => value.Trim('\r', '\n', '\t', '\u00A0', '\u200B', '\uFEFF').Trim( ))];
     }
 
     // 子命令构造器：只负责把选项与动作装配成 Command，不含任何业务逻辑（业务逻辑在 RunApp / StartServer）

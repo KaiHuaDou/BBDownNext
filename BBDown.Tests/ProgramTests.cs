@@ -5,6 +5,15 @@ namespace BBDown.Tests;
 
 public class ProgramTests
 {
+    [Theory]
+    [InlineData("\r\n\thttps://www.bilibili.com/video/BV1xx\u00A0\u200B\uFEFF", "https://www.bilibili.com/video/BV1xx")]
+    [InlineData("\uFEFF--file-pattern\u200B", "--file-pattern")]
+    [InlineData(" ordinary value ", "ordinary value")]
+    public void NormalizeArguments_RemovesInvisiblePadding(string input, string expected)
+    {
+        Assert.Equal([expected], Program.NormalizeArguments([input]));
+    }
+
     // 退出码 2 是强断言：没有任何分 P 因真实故障失败，唯一原因是充电权限
     [Fact]
     public void IsChargedPreviewOnly_BareException_ReturnsTrue( )

@@ -94,6 +94,18 @@ public static class MuxFinish
             return PageOutcome.Abort(selection);
         }
 
+        if (p.PubTime > 0)
+        {
+            try
+            {
+                File.SetLastWriteTimeUtc(savePath, DateTimeOffset.FromUnixTimeSeconds(p.PubTime).UtcDateTime);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentOutOfRangeException)
+            {
+                LogDebug("设置文件修改时间失败：{0}", ex.Message);
+            }
+        }
+
         Cleanup(pageCtx, inputs.VideoPath, inputs.AudioPath, inputs.AudioMaterial);
         return PageOutcome.Done(savePath, selection);
     }
