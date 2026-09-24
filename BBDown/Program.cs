@@ -116,7 +116,7 @@ internal sealed class Program
 
     internal static string[] NormalizeArguments(string[] args)
     {
-        return [.. args.Select(value => value.Trim('\r', '\n', '\t', '\u00A0', '\u200B', '\uFEFF').Trim( ))];
+        return [.. args.Select(value => value.Trim('\r', '\n', '\t').Trim( ))];
     }
 
     // 子命令构造器：只负责把选项与动作装配成 Command，不含任何业务逻辑（业务逻辑在 RunApp / StartServer）
