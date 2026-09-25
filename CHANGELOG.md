@@ -6,6 +6,33 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
+## [v2.2.1]
+
+### 修复
+
+- Cookie 主动续期在没有可用凭据时返回空串，此前会用它覆盖本次运行实际使用的 Cookie：命令行 / GUI 传入的 SESSDATA 被清成空后，后续请求全部退化为未登录；现在只在续期确实拿到非空 Cookie 时才替换（@yanagiragi）。
+- `--save-archives-to-file` 的归档记录读写失败只告警：磁盘满 / 只读盘 / 受控文件夹访问不再把已完整下载并混流的分 P 记为失败。
+- 服务器的 aid 超出 BV 编码区间时按「没有 BV 号」处理：`<bvid>` 占位符与混流元数据回落为空串，该分 P 不再因编码异常失败。
+
+### 安全
+
+- serve 请求体 `Area` 收口为白名单（`hk` / `tw` / `th`，大小写不敏感，其余回落空值）：该字段是请求契约里唯一会被逐字拼进官方 playurl query 的字段，任意文本不再能注入 query 参数。
+
+### 变更
+
+- 混流产物落盘后把文件最后修改时间设为该分 P 的发布时间（`PubTime > 0` 时设置，失败仅记 debug 日志），文件管理器与媒体库按发布时间排序（@ayanamist）。
+- 命令行入参首尾的空白与换行（`\r` / `\n` / `\t`）统一清理后再解析：从终端或网页复制命令时带入的填充不再拼进 URL 与文件名模板（@ayanamist）。
+- 合集 / 系列条目去重与分 P 选中集判定改用 `HashSet`（`Ordinal` / 值等值），不再对每个条目做一次线性扫描；选轨优先级查表统一按不变文化转大写（`ToUpper` → `ToUpperInvariant`）。
+
+### 构建
+
+- NuGet 依赖升级：`Avalonia` 及 `Avalonia.Desktop` / `Avalonia.Fonts.Inter` / `Avalonia.Themes.Fluent` 12.1.2 → 12.1.3；`Downloader` 5.9.6 → 5.9.8。
+- WebUI 依赖升级：`vite` 8.3.0 → 8.3.1；`jsdom` 30.1.0 → 30.1.1；pnpm workspace 开启 `autoDedupe`。
+
+### 已知问题
+
+- **空间动态（`spaceDynamic{mid}`）当前不可用**：获取动态列表所依赖的接口尚未找到稳定可用的形态，抓取阶段返回 `412 (Precondition Failed)`，报错形如 `[错误] 失败：Response status code does not indicate success: 412 (Precondition Failed).`；同一环境下空间投稿、合集与普通视频解析/下载不受影响。功能入口保留，待接口确定后修复（[#2](https://github.com/KaiHuaDou/BBDownNext/issues/2)）。
+
 ## [v2.2.0]
 
 ### 新增
@@ -526,3 +553,4 @@
 [v2.1.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.0.1...v2.1.0
 [v2.1.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.1.0...v2.1.1
 [v2.2.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.1.1...v2.2.0
+[v2.2.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.2.0...v2.2.1

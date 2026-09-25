@@ -63,7 +63,7 @@ public static class SpaceListFetcher
         var (fetched, failures) = await BackfillAsync(targets, cfg, ct);
 
         List<Page> pagesInfo = [];
-        // Page 以 (aid,cid,epid) 判等，HashSet 做 O(1) 去重（优于 FavListFetcher 的 List.Contains O(n²)）
+        // Page 以 (aid,cid,epid) 判等，用 HashSet 做 O(1) 去重
         var seen = new HashSet<Page>( );
         var index = 1;
         foreach (var item in targets)

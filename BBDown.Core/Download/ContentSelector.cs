@@ -142,7 +142,7 @@ public static class ContentSelector
     internal static string ToNormalizedString(DownloadContent content)
     {
         var builder = new StringBuilder( );
-        foreach (var (Ch, Flag, Name) in Order)
+        foreach (var (Ch, Flag, _) in Order)
         {
             if (content.Has(Flag))
             {

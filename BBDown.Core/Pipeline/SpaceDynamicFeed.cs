@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,6 +24,11 @@ internal static class SpaceDynamicFeed
     private const int PageSize = 20;
     private const int MaxItems = 1000;
 
+    // Web 端动态页固定携带的 features 清单，与 bilibili-API-collect docs/dynamic/space.md 默认值一致；
+    // 缺 features / web_location / platform 时 feed/space 的风控层会直接 HTTP 412 拒绝
+    private const string WebFeatures =
+        "itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,forwardListHidden,decorationCard,commentsNewVersion,onlyfansAssetsV2,ugcDelete,onlyfansQaCard";
+
     /// <summary>feed/space 需要 WBI 签名：nav 探测取密钥（未登录也能拿到，签名缺失会被服务端拒绝）。</summary>
     public static async Task<AppConfig> ResolveConfigAsync(DownloadRequest myOption, CancellationToken ct)
     {
@@ -41,8 +48,9 @@ internal static class SpaceDynamicFeed
             var query = offset is null
                 ? $"host_mid={mid}&page_size={PageSize}"
                 : $"host_mid={mid}&page_size={PageSize}&offset={offset}";
+            query += $"&timezone_offset=-480&platform=web&features={WebFeatures}&web_location=333.1387";
             var api = $"{BiliApi.SpaceDynamicFeed}?{SignUtil.WbiSignNow(query, cfg)}";
-            using var doc = JsonDocument.Parse(await GetWebSourceAsync(api, cfg, null, ct));
+            using var doc = JsonDocument.Parse(await GetFeedAsync(api, cfg, ct));
             var data = GetApiData(doc.RootElement, "空间动态流");
 
             // 风控时接口可能只回 has_more 而无 items（未登录 + 无 buvid3 / 签名失效等）
@@ -70,6 +78,20 @@ internal static class SpaceDynamicFeed
         }
 
         return entries;
+    }
+
+    // HTTP 412 是风控层在业务校验前直接返回的反爬页（非 JSON），EnsureSuccessStatusCode 抛出的
+    // 错误对用户不可操作，改写为可行动提示
+    private static async Task<string> GetFeedAsync(string api, AppConfig cfg, CancellationToken ct)
+    {
+        try
+        {
+            return await GetWebSourceAsync(api, cfg, null, ct);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.PreconditionFailed)
+        {
+            throw new InvalidOperationException("获取空间动态流被风控拦截（HTTP 412），请先登录（携带有效 SESSDATA）或稍后重试", ex);
+        }
     }
 
     private static string ReadStr(JsonElement obj, string name)

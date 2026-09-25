@@ -67,6 +67,17 @@ public static partial class BiliHeaders
         return TrustedCookieHosts.Contains(host) || host == cfg.Host || host == cfg.EpHost || host == cfg.TvHost;
     }
 
+    // cookie 值不含 ';'，故按 ';' 切分后逐段剔除设备标识段即可；保留其余段原样拼接不破坏用户 cookie 格式
+    private static string DropBuvid(string cookie)
+    {
+        return cookie.Length == 0
+            ? cookie
+            : string.Join(";", cookie.Split(';').Where(
+                part => !part.Trim( ).StartsWith("buvid3=", StringComparison.OrdinalIgnoreCase)
+                    && !part.Trim( ).StartsWith("buvid4=", StringComparison.OrdinalIgnoreCase)
+                    && !part.Trim( ).StartsWith("b_nut=", StringComparison.OrdinalIgnoreCase)));
+    }
+
     // UA 请求级化：显式参数 > AppConfig.UserAgent > 进程级默认。CLI 的 --user-agent 由 WorkSetup.ResolveConfig
     // 落入 AppConfig，serve 契约不含该字段，故不会出现跨任务互相覆盖全局 UA 的踩踏
     internal static void ApplyStandardGetHeaders(HttpRequestMessage request, string url, AppConfig cfg, string? userAgent = null)
@@ -80,11 +91,11 @@ public static partial class BiliHeaders
         var effectiveUserAgent = userAgent ?? (string.IsNullOrEmpty(cfg.UserAgent) ? UserAgent : cfg.UserAgent);
         request.Headers.TryAddWithoutValidation("User-Agent", effectiveUserAgent);
         request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
-        var cookie = cfg.Cookie;
-        if (Buvid.Fragment.Length != 0)
-        {
-            cookie += ";" + Buvid.Fragment;
-        }
+        // 设备标识统一由 Buvid.Fragment 提供：用户 cookie 若带浏览器导出的 buvid3/buvid4/b_nut，
+        // 直接追加会拼出双份设备标识，风控严格的接口（feed 系）会把设备不一致判为可疑直接 HTTP 412
+        var cookie = Buvid.Fragment.Length == 0
+            ? cfg.Cookie
+            : $"{DropBuvid(cfg.Cookie)};{Buvid.Fragment}";
 
         request.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? $"{cookie};CURRENT_FNVAL={Config.FnvalPgc};" : cookie);
 

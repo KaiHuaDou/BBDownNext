@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -19,6 +21,9 @@ namespace BBDown.Serve;
 /// </summary>
 internal sealed class ServeRequestOptions
 {
+    // Area 会被逐字拼进官方 API 的 query（PlayUrlClient 的 area= 参数），取值域与 CLI 的 --area 一致
+    private static readonly HashSet<string> AllowedAreas = [with(StringComparer.OrdinalIgnoreCase), "hk", "tw", "th"];
+
     public string Url { get; set; } = default!;
     /// <summary>API 解析通道（web / tv / app / intl，忽略大小写），缺省回落 web。</summary>
     [JsonConverter(typeof(ApiTypeJsonConverter))]
@@ -95,6 +100,15 @@ internal sealed class ServeRequestOptions
             Host = BiliApi.MainHost,
             EpHost = BiliApi.MainHost,
             TvHost = BiliApi.TvHost,
+            Area = NormalizeArea(Area),
         };
+    }
+
+    // Area 是唯一会被拼进官方 API query 的请求体字段：只接受 hk / tw / th（大小写不敏感，与 CLI 的 --area 取值域一致），
+    // 其余（含空值与 JSON null）回落空串，避免任意文本注入 query 参数或改变 playurl 的参数语义
+    private static string NormalizeArea(string? area)
+    {
+        var value = area?.Trim( ) ?? "";
+        return AllowedAreas.Contains(value) ? value.ToLowerInvariant( ) : "";
     }
 }

@@ -34,6 +34,8 @@ public static class MediaListFetcher
         var pubTime = data.GetProperty("ctime").GetInt64( );
 
         List<Page> pagesInfo = [];
+        // Page 以 (aid,cid,epid) 判等，用 HashSet 做 O(1) 去重
+        var seenPages = new HashSet<Page>( );
         var hasMore = true;
         var oid = "";
         var index = 1;
@@ -74,7 +76,7 @@ public static class MediaListFetcher
                         OwnerName = ownerName,
                         OwnerMid = ownerMid,
                     };
-                    if (!pagesInfo.Contains(p))
+                    if (seenPages.Add(p))
                     {
                         pagesInfo.Add(p);
                     }

@@ -139,7 +139,6 @@ public static partial class Utils
     public static string[] GetFiles(string dir, string ext)
     {
         List<string> al = [];
-        StringBuilder sb = new( );
         DirectoryInfo d = new(dir);
         foreach (var fi in d.GetFiles( ))
         {

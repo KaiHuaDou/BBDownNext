@@ -111,6 +111,25 @@ public class BBDownApiServerTests
         Assert.Equal(ApiType.Tv, opts.Api);
     }
 
+    // Area 会被逐字拼进官方 API 的 query（playurl 的 area= 参数），是契约里唯一未枚举化的拼串字段：
+    // 只接受 hk / tw / th，其余文本（含 query 注入）一律回落空值
+    [Theory]
+    [InlineData("hk", "hk")]
+    [InlineData("TW", "tw")]
+    [InlineData(" th ", "th")]
+    [InlineData("th&fnval=0", "")]
+    [InlineData("", "")]
+    public void ServeRequestOptions_ToDownloadRequest_WhitelistsArea(string area, string expected)
+    {
+        var req = new ServeRequestOptions
+        {
+            Url = "https://www.bilibili.com/video/BV1xx411c7XD",
+            Area = area
+        };
+
+        Assert.Equal(expected, req.ToDownloadRequest( ).Area);
+    }
+
     #endregion
 
     #region IsSafeWebHook（P1-14 SSRF 防护）

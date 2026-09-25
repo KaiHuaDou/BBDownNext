@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 
+using static BBDown.Core.Logger;
+
 namespace BBDown.Core.Util;
 
 public static class ArchiveLog
@@ -11,7 +13,8 @@ public static class ArchiveLog
 
     private static Dictionary<(string Aid, string Cid), string>? archiveCache;
 
-    // 仅在该分 P 完整成功（含混流）后写入；键为 (aid, cid)，同 aid 不同分 P 互不干扰
+    // 仅在该分 P 完整成功（含混流）后写入；键为 (aid, cid)，同 aid 不同分 P 互不干扰。
+    // 归档是去重用的副产物，任何读写失败都只告警：磁盘满 / 只读盘 / 受控文件夹访问不得让已产出的分 P 判为失败
     public static void SaveArchive(string aid, string cid, string savePath)
     {
         lock (archiveLock)
@@ -19,7 +22,14 @@ public static class ArchiveLog
             archiveCache ??= LoadArchives( );
             archiveCache[(aid, cid)] = savePath;
             var filePath = Path.Combine(AppEnv.AppDir, "BBDown.archives");
-            File.AppendAllText(filePath, $"{Environment.NewLine}{aid}\t{cid}\t{savePath}");
+            try
+            {
+                File.AppendAllText(filePath, $"{Environment.NewLine}{aid}\t{cid}\t{savePath}");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                LogWarn($"写入归档记录失败（本次下载产物不受影响）：{ex.Message}");
+            }
         }
     }
 
@@ -48,20 +58,28 @@ public static class ArchiveLog
             return dict;
         }
 
-        foreach (var line in File.ReadAllLines(filePath))
+        // 读不到就按「无归档记录」继续：重新下载是安全方向，但不得因此把分 P 判为失败
+        try
         {
-            if (string.IsNullOrWhiteSpace(line))
+            foreach (var line in File.ReadAllLines(filePath))
             {
-                continue;
-            }
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
 
-            var parts = line.Split('\t');
-            if (parts.Length < 2)
-            {
-                continue;
-            }
+                var parts = line.Split('\t');
+                if (parts.Length < 2)
+                {
+                    continue;
+                }
 
-            dict[(parts[0], parts[1])] = parts.Length > 2 ? parts[2] : "";
+                dict[(parts[0], parts[1])] = parts.Length > 2 ? parts[2] : "";
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogWarn($"读取归档记录失败（按未归档处理）：{ex.Message}");
         }
 
         return dict;

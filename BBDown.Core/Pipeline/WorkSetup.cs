@@ -68,7 +68,7 @@ public static class WorkSetup
         if (myOption.EncodingPriority != null)
         {
             var encodingPriorityTemp = myOption.EncodingPriority
-                .ToUpper( )
+                .ToUpperInvariant( )
                 .Replace('，', ',')
                 .Replace("-", string.Empty)
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -143,7 +143,8 @@ public static class WorkSetup
             return dict;
         }
 
-        var tokens = value.Replace("，", ",").Split(',').Select(s => s.ToUpper( ).Trim( )).Where(s => !string.IsNullOrEmpty(s));
+        // 优先级的键按不变文化转大写，与轨道侧的 ToUpperInvariant 对齐，避免区域设置改变键的字面形态
+        var tokens = value.Replace("，", ",").Split(',').Select(s => s.ToUpperInvariant( ).Trim( )).Where(s => !string.IsNullOrEmpty(s));
         var index = 0;
         foreach (var token in tokens)
         {

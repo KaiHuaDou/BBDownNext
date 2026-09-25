@@ -19,7 +19,7 @@ public static class FetcherRegistry
         {
             Av a => await NormalInfoFetcher.FetchAsync(a.Aid, cfg, ct),
             Ep e => await FetchEpisodeAsync(e, cfg, useIntlApi, ct),
-            Season s when useIntlApi => throw new NotSupportedException(
+            Season when useIntlApi => throw new NotSupportedException(
                 "国际版番剧接口(--intl-api)不支持 md/整季输入，请改用具体 ep 号，或去掉 --intl-api。"),
             Season s => await BangumiInfoFetcher.FetchAsync(s, cfg, ct),
             CheeseEp e => await CheeseInfoFetcher.FetchAsync(e, cfg, ct),

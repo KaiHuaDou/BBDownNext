@@ -34,8 +34,9 @@ public class Page
     public string? Desc { get; set; }
     public string? OwnerName { get; set; }
     public string? OwnerMid { get; set; }
-    // 番剧/课程等场景 aid 可能为空或非数字, 此时没有对应 BV 号, 不应连累文件名模板与元数据写入
-    public string Bvid => long.TryParse(Aid, out var avid) && avid > 0 ? BilibiliBvConverter.Encode(avid) : "";
+    // 番剧/课程等场景 aid 可能为空或非数字, 此时没有对应 BV 号, 不应连累文件名模板与元数据写入;
+    // 超出 BV 编码区间的值（对端可控）同样按「没有 BV 号」处理，而不是让 Encode 抛异常
+    public string Bvid => long.TryParse(Aid, out var avid) && BilibiliBvConverter.CanEncode(avid) ? BilibiliBvConverter.Encode(avid) : "";
     // CA1002: 保持 List<T>，调用方（BBDown 主项目）会对该集合执行 Add/整体替换
     public List<ViewPoint> Points { get; set; } = [];
 
@@ -119,8 +120,8 @@ public class Audio
     public required long Bandwidth { get; set; }
     public required int Dur { get; set; }
 
-    // E-AC-3 => EAC3
-    public string ShortCodecs => Codecs.ToUpper( ).Replace("-", string.Empty);
+    // E-AC-3 => EAC3；按不变文化转大写，避免 'i' 在 tr-TR 等区域下变成 'İ' 而与优先级键对不上
+    public string ShortCodecs => Codecs.ToUpperInvariant( ).Replace("-", string.Empty);
 
     public override bool Equals(object? obj)
     {

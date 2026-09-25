@@ -1,4 +1,5 @@
 minimumReleaseAge: 0
+autoDedupe: true
 
 overrides:
   'vue': 'rc'

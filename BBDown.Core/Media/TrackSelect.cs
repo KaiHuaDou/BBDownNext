@@ -46,9 +46,10 @@ public static partial class TrackSelect
         if (audioDfnPriority is { Count: > 0 })
         {
             // 按音质名（或 id）优先级排序：先查 Dfn，再查 Id，均未命中则排末尾。
-            // 键与轨道名都转大写，使 "Hi-Res 无损" 等含小写字母的音质名与 --audio-quality 输入大小写无关
+            // 键与轨道名都按不变文化转大写，使 "Hi-Res 无损" 等含小写字母的音质名与 --audio-quality 输入
+            // 大小写无关；文化敏感的重载会让 'i' 在 tr-TR 等区域下变成 'İ'，与字面量键对不上
             return [.. audioTracks
-                .OrderBy(a => audioDfnPriority.GetValueOrDefault(a.Dfn.ToUpper( ), audioDfnPriority.GetValueOrDefault(a.Id.ToUpper( ), 100)))
+                .OrderBy(a => audioDfnPriority.GetValueOrDefault(a.Dfn.ToUpperInvariant( ), audioDfnPriority.GetValueOrDefault(a.Id.ToUpperInvariant( ), 100)))
                 .ThenBy(a => audioAscending ? a.Bandwidth : -a.Bandwidth)];
         }
 

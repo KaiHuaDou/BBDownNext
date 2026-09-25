@@ -28,6 +28,12 @@ public static class BilibiliBvConverter
         }
     }
 
+    // aid 是否落在 BV 可编码区间：调用方据此在编码前降级，避免依赖 Encode 抛异常
+    internal static bool CanEncode(long avid)
+    {
+        return avid is >= MIN_AID and < MAX_AID;
+    }
+
     public static string Encode(long avid)
     {
         if (avid < MIN_AID)

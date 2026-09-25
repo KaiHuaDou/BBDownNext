@@ -1,3 +1,5 @@
+using System;
+
 using BBDown.Core.Entity;
 
 namespace BBDown.Core.Tests;
@@ -73,6 +75,23 @@ public class EntityTests
     public void Page_Bvid_EmptyWhenAidIsNotAnAvNumber(string aid)
     {
         Assert.Equal("", MakePage(aid: aid).Bvid);
+    }
+
+    // 上界：aid 能被 long 解析但超出 BV 编码区间（对端可控）时同样按「没有 BV 号」处理，不得让 getter 抛异常
+    [Theory]
+    [InlineData("2251799813685248")]
+    [InlineData("9223372036854775807")]
+    public void Page_Bvid_EmptyWhenAidExceedsBvRange(string aid)
+    {
+        Assert.Equal("", MakePage(aid: aid).Bvid);
+    }
+
+    [Fact]
+    public void Page_Bvid_EncodesLargestRepresentableAid( )
+    {
+        var bvid = MakePage(aid: "2251799813685247").Bvid;
+        Assert.Equal(12, bvid.Length);
+        Assert.StartsWith("BV1", bvid, StringComparison.Ordinal);
     }
 
     [Fact]

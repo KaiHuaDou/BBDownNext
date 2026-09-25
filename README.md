@@ -37,71 +37,59 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
 
 ## 为什么选择 BBDown vNEXT
 
-面向追求 **稳定、安全、拿来即用** 的用户与开发者：
-
-- **下载可靠**：下载引擎统一由 Downloader 库实现多线程分片与断点续传，分片级重试、续传元数据自愈校验、下载请求头统一注入，配套 1200+ 单元测试守护。
-- **serve 开箱即用**：`/api/v1/tasks` 规范 REST（202 受理 / 200 重复 / 400 非法 / 429 限流）+ 任务队列与并发闸门 + 始终开启的 WebSocket 事件流（消息 / 进度快照 / 选项远程应答）；安全侧 SSRF 防护、CORS 默认仅回环放行、请求凭据门、令牌鉴权、限流与认证失败滑动窗口、错误脱敏，详见 [服务器模式](#服务器模式)
-- **日志与进度总线化**：Core 只产生消息与进度事件，CLI 控制台 / GUI 窗口日志区 / serve 事件流各自决定展示——CLI、GUI、serve 三形态共享同一下载链路；交互请求（逐集确认 / 选清晰度 / 选轨）统一经 `AskBus` 发布，各宿主自行应答。
-- **工程规范**：下载能力集中 `BBDown.Core`、依赖单向无环（`check-deps` 守护）、`ResourceId` 判别联合缺分支编译报错、单文件 / 单方法行数上限、Microsoft Testing Platform 现代测试栈。
-- **拿来即用**：AOT 单文件发布免安装 .NET 运行时，Windows 7 兼容产物、musl 静态产物开箱即用；CLI 与 GUI 双形态共享同一套下载核心。
-- **CLI 干净直接**：子命令精简为 `login` / `serve`，其余输入（视频 / 番剧 / 课程 / 直播 / 专栏 / 文集 / 空间 / 稍后再看等）由根命令自动识别，裸编号与 b23.tv 短链直接输入；下载内容统一由 `-g` / `-w` / `-W` 字符集表达；退出码 0 / 1 / 2 / 130 语义化。
-- **形态齐全**：CLI、GUI（Avalonia）、serve 与 WebUI 前端共享同一下载核心，配套插件生态，含官方 DRM 解密插件 `Plugins/BBDown.DRM`（独立仓库，`plugins/DRM` 分支）。
+- **下载可靠**：多线程分片与断点续传、分片级重试、续传元数据自愈校验、下载请求头统一注入。
+- **serve 开箱即用**：`/api/v1/tasks` REST 接口、任务队列与并发控制、始终开启的 WebSocket 事件流；安全侧含 SSRF 防护、CORS 默认仅回环放行、凭据门、令牌鉴权、限流与错误脱敏，详见 [服务器模式](#服务器模式)。
+- **三种形态共享同一核心**：CLI、GUI、serve 使用同一下载链路与配置语义，交互请求（逐集确认 / 选清晰度 / 选轨）由各宿主应答。
+- **工程规范**：下载能力集中 `BBDown.Core`、依赖单向无环、`ResourceId` 判别联合缺分支编译报错、单文件 / 单方法行数上限、Microsoft Testing Platform 现代测试栈。
+- **拿来即用**：AOT 单文件发布，免安装 .NET 运行时；另有 Windows 7 兼容产物与 musl 静态产物。
+- **CLI 干净直接**：子命令只有 `login` / `serve`，其余输入（视频 / 番剧 / 课程 / 直播 / 专栏 / 文集 / 空间 / 稍后再看等）由根命令自动识别，裸编号与 b23.tv 短链可直接输入；下载内容由 `-g` / `-w` / `-W` 字符集表达；退出码 0 / 1 / 2 / 130。
+- **可扩展**：外部后处理协议与插件生态，含官方 DRM 解密插件 `Plugins/BBDown.DRM`（独立仓库）。
+- **测试覆盖**：解析、混流、serve 安全等核心路径有单元测试守护。
 
 ## 特性
 
 - 内容与来源
     - **视频 / 番剧 / 课程** · 直播回放、收藏夹、合集 / 系列、UP 主空间列表、稍后再看列表
     - **内容组合选择** · `-g` / `-w` / `-W` 自由组合音频、视频、字幕、弹幕、封面、评论等（get ∪ with − without）
-    - **多 P 批量选择** · `-p` 支持单集、列表、区间、`latest`，`-iap` 逐集交互确认
-    - **专栏 / 图文导出** · 根命令自动识别专栏地址与纯图文动态，转为 Markdown，图片可选本地下载；文集、空间图文投稿与空间动态页按集合批量导出，空间动态页同时下载其中的视频与转发内容
-    - **空间音频投稿 / 单音频** · `space.bilibili.com/{mid}/upload/audio` 逐条下载音频流（m4a 等）与歌词 `.lrc`，付费曲目未登录时下载试听片段并提示；`au{数字}` 直接下载单条音频
-- 解析引擎
-    - **4 种模式**：`--api` 单选 `web` / `tv` / `app` / `intl`，自动应对区域限制
-    - **兼容 BiliPlus 代理**，WEB 模式自动 WBI 签名
-    - **解析优先**：`--info-only` 查看可用流，`-iaq` 交互式选择清晰度、`-iap` 交互式选择分 P
-    - **交互选项带完整描述**：选清晰度 / 选轨展示 Dfn / 分辨率 / 编码 / 帧率 / 码率 / 估算体积（按分 P 时长折算），逐集确认标注 y / n / a / q 含义
-    - **解析加速**：播放器信息（player/v2）与拉流解析并行发起，WEB 自动档每分 P 仅一次 API 请求
+    - **多 P 批量选择** · `-p` 支持单集、列表、区间、`latest`；`-iap` 逐集交互确认
+    - **专栏 / 图文导出** · 专栏、文集、空间图文投稿与空间动态页导出为 Markdown，图片可选本地下载；空间动态页同时下载其中的视频与转发内容（该接口当前不可用，见 [#2](https://github.com/KaiHuaDou/BBDownNext/issues/2)）
+    - **空间音频 / 单音频** · 空间音频投稿逐条下载音频与歌词 `.lrc`，付费曲目未登录时下载试听片段并提示；`au{数字}` 下载单条音频
+- 解析
+    - **4 种 API 通道** · `--api` 单选 `web` / `tv` / `app` / `intl`；兼容 BiliPlus 代理，WEB 通道自动 WBI 签名
+    - **解析优先** · `--info-only` 查看可用流；`-iaq` / `-iap` 交互式选择清晰度与分 P（展示分辨率 / 编码 / 帧率 / 码率 / 估算体积）
 - 媒体与封装
-    - **DASH / FLV** 封装 · 杜比视界、HDR、8K、高码率音视频流
-    - **4 种混流方式**：`--mux` 支持 `none` / `mpeg4`（默认）/ `mp4box` / `mkv`（Matroska 容器，字幕原生 `-c:s copy`）
-    - **外部后处理** · `--post-process` 指定外部进程，下载完成后按需处理轨道文件（协议见 [PROTOCOL.md](./docs/PROTOCOL.md)）
+    - **DASH / FLV** · 杜比视界、HDR、8K、高码率音视频流
+    - **4 种混流方式** · `--mux` 支持 `none` / `mpeg4`（默认）/ `mp4box` / `mkv`
     - **编码与画质优先级** `-e` / `-q`；弹幕（XML / ASS）、字幕、封面、AI 字幕按需下载
-    - **混流增强**：写入元数据与章节，多 P 写入分 P 序号与总集数；`mp4box` 编入配音 / 背景音轨（视频、主音频之后、字幕之前），Title 缺失回落 PersonName，与 Title 相同时不重复写 artist
-    - **封面嵌入** · `C` 将封面嵌入视频文件（attached\_pic），播放器可直接显示缩略图；`c` 则单独保存封面文件
+    - **混流增强** · 写入元数据与章节，多 P 写入分 P 序号与总集数，`mp4box` 编入配音 / 背景音轨
+    - **封面嵌入** · `C` 嵌入视频（attached\_pic），`c` 单独保存封面文件
+    - **外部后处理** · `--post-process` 调起外部进程处理轨道文件 → [PROTOCOL.md](./docs/PROTOCOL.md)
 - 直播录制
-    - **直播间直录** · 传入直播间地址（`live12345` 直写 / `live.bilibili.com`）即可录制，短号自动换算真实房间号
+    - **直播间直录** · `live12345` 或直播间地址直接录制，短号自动换算真实房间号
     - **清晰度可选** · `--live-quality`（默认原画），支持原画 / 蓝光 / 超清 / 高清 / 流畅 / 2K / 4K / 杜比
     - **可控停录** · `Ctrl+Break` 停录并合并分段，`Ctrl+C` 中断保留分段不合并
-- 下载引擎与可靠性
-    - **统一下载引擎** · 多线程分片与断点续传由 Downloader 库实现（AOT 兼容），替代自研分片下载器与 `.bbdown.part` / `.bbdown.json` 清单
-    - **自愈式断点续传** · 续传元数据内嵌 `.download` 临时文件末尾并周期性刷新；恢复时比对服务端大小，URL 指向的内容已变化则自动删除临时文件重下
-    - **分片级重试** · 分片瞬态故障自动退避重试（上限 5 次）并从断点续下，避免整 P 退避重下
-    - **逐项重试** · 每个下载项独立重试（默认额外 3 次）：非必要项（字幕 / 封面 / 弹幕 / 配音 / 评论）耗尽仅跳过，必要项（音视频 / 混流）耗尽该分 P 失败，分 P 之间互不影响
-    - **并发控制** · 分片并发上限 32；FLV 分段并行（上限 4）且与片段内下载连接共享配额；`--single-thread` 与 CMCC 域名强制单块
-    - **下载头统一注入** · UA / 平台条件 Referer / Cookie 由 `DownloadHeaderHandler` 统一注入，修复 CDN 403
-    - **下载性能** · 探测改 Range 0-0 并复用连接；进度采样 1 秒 8 次并按采样周期折算速率；字幕并行下载；分片缓冲走 ArrayPool
-    - **进度条隔离** · 进度条仅在实际下载音视频轨时显示，混流 / 封装即清行；与日志、交互输入互不污染
-    - **归档与节流** · `--save-records` 记录已下载分 P 自动跳过，`--delay-per-page` 控制请求间隔，`--max-retry` 控制逐项额外重试次数（默认 3）
+- 下载与可靠性
+    - **断点续传** · 续传元数据随临时文件保存；恢复时比对服务端大小，内容已变化则重新下载
+    - **分级重试** · 分片瞬态故障自动退避重试；每个下载项独立重试（默认额外 3 次），非必要项耗尽仅跳过，音视频与混流耗尽只影响该分 P
+    - **并发与节流** · `--single-thread` 限制并发；`--delay-per-page` 控制分 P 间隔；`--max-retry` 控制重试次数
+    - **归档跳过** · `--save-records` 记录已下载分 P 并自动跳过
+    - **进度显示** · 进度条仅在实际下载音视频轨时显示，与日志、交互输入互不污染
 - 账号与配置
-    - **扫码登录**（WEB / TV / APP），凭据自动保存，`refresh_token` 续期
-    - **自定义文件名 / 日期** `-F` / `-M`（内置变量 + 任意日期格式），配置文件 `BBDown.config`
-    - **CDN / PCDN 控制** `--upos-host` 自定义 CDN 服务器，`--allow-pcdn` 按需放行 PCDN 域名
-    - **日志脱敏** · Cookie、access\_token 与密钥由 `Redactor` 自动打码，不落明文日志
-    - **请求凭据门** · 携带 Cookie 的请求仅允许发往 B 站官方域或用户显式配置的 host（`--host` / `--ep-host` / `--tv-host`），不可信主机一律拒绝，防 b23.tv 短链展开等用户可控 URL 把 Cookie 外发第三方
-- 双形态
-    - **命令行 CLI** · 跨平台（Win / Linux / macOS）· .NET 10 · AOT 单文件发布
-    - **图形界面 BBDown.GUI** · 单窗口 Avalonia，直接复用 BBDown.Core 下载库（非子进程调用）：任务队列与并发控制、扫码登录、输入统一分发（视频 / 直播 / 专栏 / 文集 / 空间 / 单音频）、拖放输入、队列持久化、窗口尺寸记忆、选项随 exe 便携保存；交互请求（逐集确认 / 选清晰度 / 选轨）在窗口内弹窗应答；独立 CI 发布 Windows / macOS / Linux 三平台 AOT 单文件（Windows x64 另产出 Win7 兼容包）
-- 扩展与集成
-    - **服务器模式** `serve`，带鉴权令牌的 HTTP JSON API → [API.md](./docs/API.md)
-    - **任务事件流** · WebSocket `/hubs/tasks`（始终开启），任务消息 / 进度快照 / 选项请求实时推送，`submitChoice` 帧远程应答选项
-    - **任务队列与并发** · 受理即入队（`Status=Queued`），`--max-concurrent` 限制同时下载数，排队任务可取消；REST 端点 `/api/v1/tasks`（GET 快照 / POST 创建 / DELETE 清理 / POST stop）
-    - **serve 安全加固** · SSRF 防护、CORS 默认仅回环放行、host 与工作目录服务端固定、请求凭据门（Cookie 仅发往官方域或配置 host）、显式 `--serve-token` 后强制鉴权、全局限流 + 认证失败滑动窗口、写端点 Origin 校验、WebSocket 连接上限、错误脱敏、取消令牌贯通 → 详见 [服务器模式](#服务器模式)
-    - **后处理插件协议** · `--post-process` 对所有 DASH 轨调起外部进程，是否加密由处理方自行判断，主程序不内置解密能力，密钥与加密信息由外部进程自行获取管理 → [PROTOCOL.md](./docs/PROTOCOL.md)
-    - **内置示例插件** · `Plugins/BBDown.Sample` 提供协议最小实现与模板，自带独立构建配置与契约测试
-    - **官方 DRM 解密插件** · `Plugins/BBDown.DRM`（独立仓库，`plugins/DRM` 分支）：bili\_drm 通道默认 clearkey 自动取钥（公开 RSA 公钥即可换 key，零配置），widevine 通道解析 PSSH 后经 Widevine CDM 向 B 站 license 服务器取钥（需自备 `device.wvd`），解密产物经后处理协议回填参与混流
-    - **Web 前端脚手架** · `BBDown.WebUI`（Vue 3 + Vite + TypeScript + Vitest，pnpm workspace，oxlint / oxfmt 静态检查、vue-tsc 类型检查），以复刻 GUI 业务功能为目标（WIP，尚未生产可用）
-    - **Windows 7 兼容** · `win-x64` 产物内置 YY-Thunks 与 VC-LTL，在 Windows 7 上可直接运行（无需安装 .NET 运行时）
-    - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行（无需 Dockerfile）
+    - **扫码登录**（WEB / TV / APP），凭据自动保存并支持 `refresh_token` 续期
+    - **自定义文件名 / 日期** `-F` / `-M`；配置文件 `BBDown.config`
+    - **CDN / PCDN 控制** · `--upos-host` 自定义 CDN 服务器，`--allow-pcdn` 按需放行 PCDN 域名
+    - **日志脱敏** · Cookie、access\_token 与密钥不落明文日志
+    - **请求凭据门** · 携带 Cookie 的请求仅发往 B 站官方域或显式配置的 host（`--host` / `--ep-host` / `--tv-host`）
+- 形态
+    - **CLI** · 跨平台（Win / Linux / macOS），AOT 单文件发布
+    - **GUI** · 单窗口 Avalonia：任务队列与并发控制、扫码登录、拖放输入、队列持久化、窗口尺寸记忆、选项随程序便携保存；交互选项在窗口内弹窗应答；发布 Windows / macOS / Linux 三平台（Windows x64 另有 Win7 兼容包）
+    - **serve** · HTTP JSON API 与 WebSocket 事件流（[API.md](./docs/API.md)）：任务队列、并发控制、令牌鉴权、限流与错误脱敏
+    - **WebUI 前端** · `BBDown.WebUI`（WIP，尚未生产可用）
+- 插件与产物
+    - **官方 DRM 解密插件** · `Plugins/BBDown.DRM`（独立仓库）：bili\_drm 通道 clearkey 自动取钥，widevine 通道经 Widevine CDM 取钥（需自备 `device.wvd`）
+    - **示例插件** · `Plugins/BBDown.Sample` 提供协议最小实现模板
+    - **Windows 7 兼容** · `win-x64` 产物可直接在 Windows 7 运行（无需安装 .NET 运行时）
+    - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行
 - 工程品质
     - **消息 / 进度 / 交互总线** · `MessageBus` / `ProgressBus` / `AskBus` 三总线：Core 只产生值对象消息与交互请求，CLI / GUI / serve 宿主订阅展示与应答；进度按阶段划分，高频快照不进事件队列、低频事件不丢失
     - **1200+ 单元测试**，覆盖解析、混流、serve 安全等全部核心路径
@@ -273,7 +261,7 @@ BBDown "live12345" -lq 400
 - **空间投稿列表**：UP 主空间首页 / `upload/video` / `video?tid=0`，也可直接传 UP mid（`402787936`）或 `space402787936`。默认按**最新发布**（`pubdate`）倒序拉取**全部**投稿；课堂视频、无法解析的稿件（直播回放 / 充电专属 / 已删除等）会**跳过并告警**，不中断整批。
 - **专栏 / 图文**：`https://www.bilibili.com/opus/{opus_id}`、`https://www.bilibili.com/mobile/opus/{opus_id}`、`https://www.bilibili.com/read/cv{cv_id}`、`https://www.bilibili.com/read/mobile/{cv_id}`，以及前缀写法 `opus:{opus_id}` / `opus{opus_id}` / `cv{cv_id}`。专栏导出为 Markdown 文件，详见 [专栏 / 图文导出](#专栏--图文导出)。
 - **文集**（专栏合集）：`https://www.bilibili.com/read/readlist/rl{rl_id}`，或简写 `rl{rl_id}` / `readlist{rl_id}`。逐篇导出为 Markdown，落在 `工作目录/文集名/` 下；单篇失败跳过并告警，全部结束时汇总抛出。
-- **空间图文 / 空间动态**：`https://space.bilibili.com/{mid}/upload/opus` 或简写 `spaceOpus{mid}`，仅提取图文动态（`MAJOR_TYPE_OPUS`）导出 Markdown。`https://space.bilibili.com/{mid}/dynamic` 或简写 `spaceDynamic{mid}` 为空间动态页，按动态类型分发下载：图文动态导出 Markdown、视频动态（`MAJOR_TYPE_ARCHIVE`）复用视频管道下载（`-g` / `-W` 等选项全部适用）、转发动态取原动态按其类型处理；直播 / 剧集更新等其余类型跳过。产物落在 `工作目录/UP 名/` 下。接口需 WBI 签名与 buvid3，未登录可能被风控拦截（提示登录后重试）。
+- **空间图文 / 空间动态**：`https://space.bilibili.com/{mid}/upload/opus` 或简写 `spaceOpus{mid}`，仅提取图文动态（`MAJOR_TYPE_OPUS`）导出 Markdown。`https://space.bilibili.com/{mid}/dynamic` 或简写 `spaceDynamic{mid}` 为空间动态页，按动态类型分发下载：图文动态导出 Markdown、视频动态（`MAJOR_TYPE_ARCHIVE`）复用视频管道下载（`-g` / `-W` 等选项全部适用）、转发动态取原动态按其类型处理；直播 / 剧集更新等其余类型跳过。产物落在 `工作目录/UP 名/` 下。接口需 WBI 签名与 buvid3，未登录可能被风控拦截（提示登录后重试）。该接口当前不稳定：获取动态列表阶段基本必然返回 `412 (Precondition Failed)`，空间动态暂不可用（[#2](https://github.com/KaiHuaDou/BBDownNext/issues/2)）。
 - **空间音频投稿 / 单音频**：`https://space.bilibili.com/{mid}/upload/audio`（旧版 `/audio` 页同义），或简写 `spaceAudio{mid}`，逐条下载音频文件（m4a 等，web 端恒 192K）与歌词 `.lrc`，落在 `工作目录/UP 名/` 下；付费 / 大会员曲目未登录时为试听片段（下载时提示）。单条音频可输入 `https://www.bilibili.com/audio/au{au_id}` 或简写 `au{au_id}`。
 - **直播间**（独立录制链路）：`https://live.bilibili.com/{房间号}`、`https://m.live.bilibili.com/{房间号}`、`live{房间号}`（直写形式，不写冒号，如 `live12345`；房间号短号自动换算为真实 ID）。裸数字按 `ep` 解析、不进入直播链路；直播链路不依赖 `WorkContext`，直接拉取 `http_stream` + `flv` 流地址录制。
 

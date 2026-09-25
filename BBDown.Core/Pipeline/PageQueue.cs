@@ -41,7 +41,9 @@ internal static class PageQueue
         //过滤不需要的分 P
         if (selectedPages != null)
         {
-            pagesInfo = [.. pagesInfo.Where(p => selectedPages.Contains(p.Index.ToString( )))];
+            // 逐页对选中列表做线性扫描是 O(分 P 数 × 选中数)；转 Ordinal 集合后为 O(1)，展示顺序仍由上面的列表决定
+            var selected = new HashSet<string>(selectedPages, StringComparer.Ordinal);
+            pagesInfo = [.. pagesInfo.Where(p => selected.Contains(p.Index.ToString( )))];
             if (pagesInfo.Count == 0)
             {
                 LogWarn("未匹配到任何分 P（收藏夹可能为空或指定的分 P 不存在），跳过下载。");

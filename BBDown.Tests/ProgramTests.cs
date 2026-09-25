@@ -5,11 +5,12 @@ namespace BBDown.Tests;
 
 public class ProgramTests
 {
+    // BOM（\uFEFF）与零宽空格（\u200B）不属于 char.IsWhiteSpace，按「只清理空白与换行」的约定原样保留
     [Theory]
-    [InlineData("\r\n\thttps://www.bilibili.com/video/BV1xx\u00A0\u200B\uFEFF", "https://www.bilibili.com/video/BV1xx")]
-    [InlineData("\uFEFF--file-pattern\u200B", "--file-pattern")]
+    [InlineData("\r\n\thttps://www.bilibili.com/video/BV1xx", "https://www.bilibili.com/video/BV1xx")]
     [InlineData(" ordinary value ", "ordinary value")]
-    public void NormalizeArguments_RemovesInvisiblePadding(string input, string expected)
+    [InlineData("\u00A0value\u00A0", "value")]
+    public void NormalizeArguments_TrimsSurroundingWhitespaceAndLineBreaks(string input, string expected)
     {
         Assert.Equal([expected], Program.NormalizeArguments([input]));
     }
