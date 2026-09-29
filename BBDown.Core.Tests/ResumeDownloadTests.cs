@@ -7,13 +7,13 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core.Download;
 using BBDown.Core.Logging;
 using BBDown.Core.Workflow;
 
 namespace BBDown.Core.Tests;
 
-// 所有用例都替换静态 DownloaderAdapter.HttpClientFactory，必须串行，否则会互相踩踏同一个静态字段
+// 本集合替换的是 DownloaderAdapter.HttpClientFactory，与 HttpStubCollectionDefinition
+// 替换的 HTTPUtil.AppHttpClient 是不同静态，故两个集合可并行。
 [CollectionDefinition("DownloadHttpStub")]
 public sealed class DownloadHttpStubCollectionDefinition;
 
@@ -22,26 +22,11 @@ public class ResumeDownloadTests
 {
     private const string Etag = "W/\"orig-etag\"";
 
-    // 不暴露 Content-Length 的响应体，用于逼出「远端不给长度」的单块全量下载路径
-    private sealed class NoLengthContent(byte[] data) : HttpContent
-    {
-        private readonly byte[] data = data;
-
-        protected override bool TryComputeLength(out long length)
-        {
-            length = 0;
-            return false;
-        }
-        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
-        {
-            return stream.WriteAsync(data, 0, data.Length);
-        }
-    }
-
-    private sealed class ServingHandler : HttpMessageHandler
+    // 独占语义：Range 切片 / 206 / Content-Range / ETag 全部耦合在下载器协议上，
+    // 其它桩用不到，故不收进 Stubs
+    private sealed class ServingHandler(int delayMs = 0) : HttpMessageHandler
     {
         private readonly Lock gate = new( );
-        private readonly int delayMs;
         public byte[] Data { get; init; } = [];
         public byte[] FullBody { get; init; } = [];
         public bool ProbeHasContentLength { get; init; } = true;
@@ -51,16 +36,11 @@ public class ResumeDownloadTests
 
         public List<(string? Range, string? UserAgent, string? Referer, string? Cookie)> Requests { get; } = [];
 
-        public ServingHandler(int delayMs = 0)
-        {
-            this.delayMs = delayMs;
-        }
-
         private async Task<HttpResponseMessage> Full( )
         {
             await Delay( );
             var body = FullBody.Length == 0 ? Data : FullBody;
-            HttpContent content = ProbeHasContentLength ? new ByteArrayContent(body) : new NoLengthContent(body);
+            HttpContent content = ProbeHasContentLength ? new ByteArrayContent(body) : new ChunkedContent(body);
             var resp = new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
             resp.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
             if (ProbeHasContentLength)
@@ -116,7 +96,7 @@ public class ResumeDownloadTests
         }
     }
 
-    // 观测并发峰值：用信号在达到目标并发数时精确放行，确保重叠窗口确定存在，
+    // 独占语义：用信号在达到目标并发数时精确放行，确保重叠窗口确定存在，
     // 不再依赖固定延时窗（旧实现固定 Delay(20) 在慢机上偶发 peak=1）。
     // releaseAt=1：首请求立即放行（单连接场景）；releaseAt=2：需等到第二请求在飞才放行（多线程场景）
     private sealed class GatedServingHandler(byte[] data, int releaseAt = 2) : HttpMessageHandler
@@ -176,7 +156,7 @@ public class ResumeDownloadTests
         }
     }
 
-    private static async Task WithStubClient(HttpMessageHandler handler, Func<Task> act, string cookie = "")
+    private static async Task WithDownloadStub(HttpMessageHandler handler, Func<Task> act, string cookie = "")
     {
         var original = DownloaderAdapter.HttpClientFactory;
         // 走真实请求头层（DownloadHeaderHandler）+ stub 网络层，验证的才是产品链路
@@ -191,28 +171,6 @@ public class ResumeDownloadTests
         }
     }
 
-    private sealed class TempDir : IDisposable
-    {
-        private readonly string fullPath = Path.Combine(Path.GetTempPath( ), "bbdown_resume_" + Path.GetRandomFileName( ));
-        public string FullPath => fullPath;
-
-        public TempDir( )
-        {
-            Directory.CreateDirectory(fullPath);
-        }
-
-        public void Dispose( )
-        {
-            try
-            {
-                Directory.Delete(fullPath, true);
-            }
-            catch (IOException)
-            {
-            }
-        }
-    }
-
     // 目标文件已完整产出过：不发任何请求直接跳过
     [Fact]
     public async Task Download_ExistingFile_Skips( )
@@ -223,7 +181,7 @@ public class ResumeDownloadTests
             File.WriteAllBytes(dest, [1, 2, 3]);
 
             using var handler = new ServingHandler { Data = [4, 5, 6, 7] };
-            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+            await WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
                 "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
 
             Assert.Empty(handler.Requests);
@@ -241,7 +199,7 @@ public class ResumeDownloadTests
             var dest = Path.Combine(dir.FullPath, "video.mp4");
 
             using var handler = new ServingHandler { Data = data };
-            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+            await WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
                 "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
 
             Assert.True(File.Exists(dest));
@@ -265,7 +223,7 @@ public class ResumeDownloadTests
                 ProbeHasContentLength = false,
                 RangeReturns206 = false,
             };
-            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+            await WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
                 "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
 
             Assert.True(File.ReadAllBytes(dest).SequenceEqual(data));
@@ -284,7 +242,7 @@ public class ResumeDownloadTests
             File.WriteAllBytes(dest + ".download", new byte[120]);
 
             using var handler = new ServingHandler { Data = data };
-            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+            await WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
                 "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
 
             Assert.True(File.ReadAllBytes(dest).SequenceEqual(data));
@@ -301,7 +259,7 @@ public class ResumeDownloadTests
             var dest = Path.Combine(dir.FullPath, "video.mp4");
             using var handler = new ServingHandler { FailureStatus = HttpStatusCode.InternalServerError };
             await Assert.ThrowsAsync<HttpRequestException>(( ) =>
-                WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+                WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
                     "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None)));
         }
     }
@@ -319,7 +277,7 @@ public class ResumeDownloadTests
             using var cts = new CancellationTokenSource( );
             cts.CancelAfter(80);
             await Assert.ThrowsAnyAsync<OperationCanceledException>(( ) =>
-                WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+                WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
                     "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: cts.Token)));
         }
     }
@@ -334,7 +292,7 @@ public class ResumeDownloadTests
             var dest = Path.Combine(dir.FullPath, "video.mp4");
 
             using var handler = new GatedServingHandler(data, releaseAt: 1);
-            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+            await WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
                 "https://upos-sz-cmcc.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
 
             Assert.True(handler.PeakConcurrent <= 1, $"并发峰值 {handler.PeakConcurrent} 超过 1");
@@ -351,7 +309,7 @@ public class ResumeDownloadTests
             var data = Enumerable.Range(0, 2048).Select(i => (byte) (i % 251)).ToArray( );
             var dest = Path.Combine(dir.FullPath, "video.mp4");
             var samples = new List<double>( );
-            Action<WorkflowEvent> onProgress = evt =>
+            void onProgress(WorkflowEvent evt)
             {
                 if (evt is ProgressSampleEvent sample)
                 {
@@ -360,7 +318,8 @@ public class ResumeDownloadTests
                         samples.Add(sample.Ratio);
                     }
                 }
-            };
+            }
+
             ProgressBus.Subscribe(onProgress);
             try
             {
@@ -370,7 +329,7 @@ public class ResumeDownloadTests
                 {
                     using (ProgressBus.BeginStage("下载"))
                     {
-                        await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+                        await WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
                             "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
                     }
                 }
@@ -395,7 +354,7 @@ public class ResumeDownloadTests
             var dest = Path.Combine(dir.FullPath, "video.mp4");
 
             using var handler = new ServingHandler { Data = data };
-            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+            await WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
                 "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig { Cookie = "SESSDATA=abc" }, ct: CancellationToken.None), cookie: "SESSDATA=abc");
 
             Assert.NotEmpty(handler.Requests);
@@ -416,7 +375,7 @@ public class ResumeDownloadTests
             var dest = Path.Combine(dir.FullPath, "video.mp4");
 
             using var handler = new ServingHandler { Data = data };
-            await WithStubClient(handler, ( ) => DownloadUtil.DownloadAsync(
+            await WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
                 "https://upos-sz.bilivideo.com/x.m4s?platform=android_tv_yst&deadline=1", dest, new DownloadConfig( ), ct: CancellationToken.None));
 
             Assert.NotEmpty(handler.Requests);

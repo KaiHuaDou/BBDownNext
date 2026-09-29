@@ -132,7 +132,7 @@ public class ProgressBusTests
         {
             using (ProgressBus.BeginStage("下载"))
             {
-                var jobs = Enumerable.Range(0, 4).Select(i => Task.Run(( ) =>
+                var jobs = Enumerable.Range(0, 4).Select(_ => Task.Run(( ) =>
                 {
                     for (var n = 0; n < 100; n++)
                     {

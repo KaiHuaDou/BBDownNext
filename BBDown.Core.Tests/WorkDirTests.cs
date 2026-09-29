@@ -20,35 +20,26 @@ public class WorkDirTests
     [Fact]
     public void NormalizeWorkDir_TrimsSurroundingWhitespace( )
     {
-        var dir = Path.Combine(Path.GetTempPath( ), "bbdown-wd-trim-test");
-        try
-        {
-            Assert.Equal(Path.GetFullPath(dir), WorkSetup.NormalizeWorkDir("  " + dir + "  "));
-        }
-        finally
-        {
-            if (Directory.Exists(dir)) { Directory.Delete(dir); }
-        }
+        using var dir = new TempDir( );
+        Assert.Equal(Path.GetFullPath(dir.FullPath), WorkSetup.NormalizeWorkDir("  " + dir.FullPath + "  "));
     }
 
     // 环境变量被展开（Windows %VAR% / Unix $VAR）
     [Fact]
     public void NormalizeWorkDir_ExpandsEnvironmentVariables( )
     {
-        var marker = "bbdown_wd_env_" + Guid.NewGuid( ).ToString("N");
-        var baseDir = Path.Combine(Path.GetTempPath( ), marker);
+        using var baseDir = new TempDir( );
         try
         {
-            Environment.SetEnvironmentVariable("BBDown_WD_TEST", baseDir);
+            Environment.SetEnvironmentVariable("BBDown_WD_TEST", baseDir.FullPath);
             var input = OperatingSystem.IsWindows( )
                 ? "%BBDown_WD_TEST%\\sub"
                 : "$BBDown_WD_TEST/sub";
-            Assert.Equal(Path.GetFullPath(Path.Combine(baseDir, "sub")), WorkSetup.NormalizeWorkDir(input));
+            Assert.Equal(Path.GetFullPath(Path.Combine(baseDir.FullPath, "sub")), WorkSetup.NormalizeWorkDir(input));
         }
         finally
         {
             Environment.SetEnvironmentVariable("BBDown_WD_TEST", null);
-            if (Directory.Exists(baseDir)) { Directory.Delete(baseDir, true); }
         }
     }
 

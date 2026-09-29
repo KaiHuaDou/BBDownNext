@@ -263,3 +263,13 @@ AGENT 对此文档的修改只能添加在本节，在本节添加内容无需�
 所有 `dotnet` 命令（build / test 等）必须在**沙箱外**运行，且运行前先执行 `taskkill -f -im dotnet.exe`（Git Bash 下用 `-` 前缀，`//` 前缀无效）清理残留进程，必要时连带 `testhost.exe` / `BBDown.Tests.exe`。
 
 **测试范围约定**：只测静态 / 纯函数；涉及耗时复杂操作（真实服务器、WebSocket、网络请求、文件 IO、解析等）一律不测。测试过不了直接删除该测试，不反复调试。
+
+### 测试替身（Stub）归属
+
+`BBDown.Core.Tests/Stubs/` 是测试替身的唯一来源，属「一个测试代码文件最多对应一个项目代码文件」的已确认例外：这些文件不对应任何项目代码文件。测试文件内**不再** private 复制 `HttpMessageHandler` / `HttpContent` / 临时目录 / 脚本序列，一律调用 `Stubs` 下已有的类型。
+
+- `Stubs/HttpStub.cs` 是替换进程级静态 `HTTPUtil.AppHttpClient` 的**唯一**入口，用例不得直接改这个静态
+- 替换其它静态的测试用各自独立的集合定义，并在注释中写明换的是哪个静态
+- 确有独占语义、无人复用的桩（如 `ResumeDownloadTests` 的 Range / 并发峰值桩）可留在测试文件内保持 `private`，但须在注释中说明独占理由
+
+**序列化约定**：xUnit 不会因漏挂 `[Collection]` 报错，漏挂只表现为偶发失败。凡替换进程级静态的测试类必须挂对应的 `[CollectionDefinition]`，且**必须用类型形式** `[Collection<XxxDefinition>]`；字符串形式 `[Collection("名字")]` 在没有同名 `[CollectionDefinition("名字")]` 时会静默另开一个可并行的集合，串行保护完全失效。

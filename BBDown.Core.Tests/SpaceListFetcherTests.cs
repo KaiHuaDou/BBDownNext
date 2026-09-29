@@ -2,12 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Fetcher;
-using BBDown.Core.Util;
 
 namespace BBDown.Core.Tests;
 
@@ -67,37 +64,6 @@ public class SpaceListFetcherTests
     { "code": -404, "message": "啥都木有", "data": null }
     """;
 
-    private sealed class StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
-    {
-        private readonly Func<HttpRequestMessage, HttpResponseMessage> responder = responder;
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            return Task.FromResult(responder(request));
-        }
-    }
-
-    private static HttpResponseMessage Ok(string body)
-    {
-        return new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
-    }
-
-    private static async Task<T> WithRoutedStub<T>(Func<HttpRequestMessage, HttpResponseMessage> responder, Func<Task<T>> act)
-    {
-        var original = HTTPUtil.AppHttpClient;
-        using var handler = new StubHttpMessageHandler(responder);
-        using var client = new HttpClient(handler, disposeHandler: false);
-        HTTPUtil.AppHttpClient = client;
-        try
-        {
-            return await act( );
-        }
-        finally
-        {
-            HTTPUtil.AppHttpClient = original;
-        }
-    }
-
     private static string? GetQueryValue(string url, string key)
     {
         var q = url.Contains('?') ? url[(url.IndexOf('?') + 1)..] : "";
@@ -117,15 +83,15 @@ public class SpaceListFetcherTests
     public async Task SpaceList_ParsesAndFlattens_WithSkipAndLessonFilter( )
     {
         var requestedViewAids = new List<string>( );
-        HttpResponseMessage responder(HttpRequestMessage req)
+        var info = await HttpStub.WithResponder(request =>
         {
-            var url = req.RequestUri!.AbsoluteUri;
-            if (url.Contains("/x/space/wbi/arc/search"))
+            var url = request.RequestUri!.AbsoluteUri;
+            if (url.Contains("/x/space/wbi/arc/search", StringComparison.Ordinal))
             {
-                return Ok(ArcSearchJson);
+                return HttpStub.Json(ArcSearchJson);
             }
 
-            if (url.Contains("/x/web-interface/wbi/view"))
+            if (url.Contains("/x/web-interface/wbi/view", StringComparison.Ordinal))
             {
                 var aid = GetQueryValue(url, "aid");
                 if (aid is not null)
@@ -133,18 +99,16 @@ public class SpaceListFetcherTests
                     requestedViewAids.Add(aid);
                 }
 
-                return aid switch
+                return HttpStub.Json(aid switch
                 {
-                    "1001" => Ok(View1001),
-                    "1002" => Ok(View1002),
-                    _ => Ok(ViewFail)
-                };
+                    "1001" => View1001,
+                    "1002" => View1002,
+                    _ => ViewFail
+                });
             }
 
             return new HttpResponseMessage(HttpStatusCode.NotFound);
-        }
-
-        var info = await WithRoutedStub(responder, ( ) => SpaceListFetcher.FetchAsync(402787936, AppConfig.Empty));
+        }, ( ) => SpaceListFetcher.FetchAsync(402787936, AppConfig.Empty));
 
         // 课堂(1003)被预剔除，不发起 view 请求；失败(1004)被跳过但不抛异常
         Assert.DoesNotContain("1003", requestedViewAids);
@@ -182,9 +146,9 @@ public class SpaceListFetcherTests
     [Fact]
     public async Task SpaceList_RiskControlled_ThrowsWithHint( )
     {
-        var riskJson = """{"code":0,"data":{"is_risk":true,"gaia_res_type":1,"gaia_data":{}}}""";
+        const string riskJson = """{"code":0,"data":{"is_risk":true,"gaia_res_type":1,"gaia_data":{}}}""";
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) =>
-            WithRoutedStub(_ => Ok(riskJson), ( ) => SpaceListFetcher.FetchAsync(402787936, AppConfig.Empty)));
+            HttpStub.WithJsonResponse(riskJson, ( ) => SpaceListFetcher.FetchAsync(402787936, AppConfig.Empty)));
         Assert.Contains("风控", ex.Message);
     }
 }

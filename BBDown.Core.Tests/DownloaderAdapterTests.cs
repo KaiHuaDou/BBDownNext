@@ -9,17 +9,25 @@ public class DownloaderAdapterTests
 {
     [Fact]
     public void IsDownloadSuccess_Completed_ReturnsTrue( )
-        => Assert.True(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Completed, false));
+    {
+        Assert.True(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Completed, false));
+    }
 
     [Fact]
     public void IsDownloadSuccess_FailedWithExistingFile_ReturnsTrue( )
-        => Assert.True(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Failed, true));
+    {
+        Assert.True(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Failed, true));
+    }
 
     [Fact]
     public void IsDownloadSuccess_FailedWithoutFile_ReturnsFalse( )
-        => Assert.False(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Failed, false));
+    {
+        Assert.False(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Failed, false));
+    }
 
     [Fact]
     public void IsDownloadSuccess_Running_ReturnsFalse( )
-        => Assert.False(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Running, true));
+    {
+        Assert.False(DownloaderAdapter.IsDownloadSuccess(DownloadStatus.Running, true));
+    }
 }

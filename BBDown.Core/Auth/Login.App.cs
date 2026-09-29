@@ -138,7 +138,9 @@ public static partial class Login
         parms.Add("sign", GetSign(ToQueryString(parms), secret));
     }
 
-    // 纯扫码流程：生成二维码、轮询、解释状态，成功后返回 access_token；落盘由各自入口负责
+    // 纯扫码流程：生成二维码、轮询、解释状态，成功后返回 access_token；落盘由各自入口负责。
+    // 此处直接使用 AppHttpClient 而不经凭据门：登录前不存在任何凭据，无从泄露；
+    // 未来若登录流程需要在请求中携带凭据，必须改走 HttpTransfer.SendTrustGatedAsync
     private static async Task<string?> LoginWithAppKey(
         string appKey, string mobiApp, string appSecret,
         Func<string, Task>? showQr, Action<QrState>? onState, CancellationToken token)

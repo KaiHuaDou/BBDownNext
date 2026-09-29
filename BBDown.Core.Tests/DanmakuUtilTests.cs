@@ -109,6 +109,13 @@ public class DanmakuUtilTests
         Assert.Null(ParseInlineXml("这不是 xml"));
     }
 
+    // 端点对无弹幕视频返回空响应，ParseXml 的 null 契约供上层按「没有弹幕」分流
+    [Fact]
+    public void ParseXml_ReturnsNullOnEmptyContent( )
+    {
+        Assert.Null(ParseInlineXml(""));
+    }
+
     [Fact]
     public void ParseXml_ReturnsEmptyWhenNoDanmakuNode( )
     {
@@ -119,7 +126,9 @@ public class DanmakuUtilTests
     }
 
     private static DanmakuUtil.DanmakuItem[]? ParseInlineXml(string content)
-        => DanmakuUtil.ParseXml(new MemoryStream(Encoding.UTF8.GetBytes(content)));
+    {
+        return DanmakuUtil.ParseXml(new MemoryStream(Encoding.UTF8.GetBytes(content)));
+    }
 
     // B 站 XML 颜色是整数 RGB，ASS 的 \c&H...& 却是 BGR 字节序，直接照搬会让红蓝对调 (P0-5)
     [Theory]
@@ -138,5 +147,65 @@ public class DanmakuUtilTests
     {
         // 解析失败原样返回，交由下游 ASS 渲染器报错，而非静默改成错误颜色
         Assert.Equal("nothex", DanmakuUtil.ToAssColor("nothex"));
+    }
+
+    [Theory]
+    [InlineData("1", 1)]    // 滚动
+    [InlineData("2", 1)]    // 逆向弹幕按滚动渲染
+    [InlineData("3", 1)]    // 高级弹幕按滚动渲染
+    [InlineData("4", 3)]    // 底部
+    [InlineData("5", 2)]    // 顶部
+    [InlineData("7", 1)]    // BAS 弹幕按滚动渲染
+    public void DanmakuItem_MapsModeAttribute(string modeAttr, int expectedMode)
+    {
+        var item = new DanmakuUtil.DanmakuItem(ParseAttrs($"10.0,{modeAttr},25,16777215,1600000000"), "内容");
+
+        Assert.Equal(expectedMode, item.DanmakuMode);
+        Assert.Equal("内容", item.Content);
+    }
+
+    [Fact]
+    public void DanmakuItem_CarriesFontSizeAndTimestamp( )
+    {
+        var item = new DanmakuUtil.DanmakuItem(ParseAttrs("10.5,1,36,16711680,1600000001"), "内容");
+
+        Assert.Equal("36", item.FontSize);
+        Assert.Equal("1600000001", item.Timestamp);
+        Assert.Equal(10.5, item.Second);
+        Assert.Equal("0:00:10.50", item.StartTime);
+    }
+
+    // B 站颜色值偶见超 int 上限的脏数据，TryParse 失败须回落默认白色而非抛出
+    [Fact]
+    public void DanmakuItem_ColorBeyondIntRange_FallsBackToDefaultWhite( )
+    {
+        var item = new DanmakuUtil.DanmakuItem(ParseAttrs("10.0,1,25,99999999999,1600000000"), "内容");
+
+        Assert.Equal("FFFFFF", item.Color);
+    }
+
+    // 负值颜色按低位 24bit 掩码解释（-1 即 0xFFFFFF）
+    [Fact]
+    public void DanmakuItem_NegativeColor_MaskedToRgb( )
+    {
+        var item = new DanmakuUtil.DanmakuItem(ParseAttrs("10.0,1,25,-1,1600000000"), "内容");
+
+        Assert.Equal("FFFFFF", item.Color);
+    }
+
+    [Theory]
+    [InlineData("16711680", "FF0000")]   // 红
+    [InlineData("255", "0000FF")]        // 蓝
+    public void DanmakuItem_ColorConvertedFromDecimalRgb(string colorAttr, string expected)
+    {
+        var item = new DanmakuUtil.DanmakuItem(ParseAttrs($"10.0,1,25,{colorAttr},1600000000"), "内容");
+
+        Assert.Equal(expected, item.Color);
+    }
+
+    // 与 ParseXml 的消费方式一致：p 属性按逗号切分后整组传入
+    private static string[] ParseAttrs(string p)
+    {
+        return p.Split(',');
     }
 }

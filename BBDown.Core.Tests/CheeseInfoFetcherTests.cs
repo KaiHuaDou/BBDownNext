@@ -42,8 +42,8 @@ public class CheeseInfoFetcherTests
         using var doc = JsonDocument.Parse(json);
         var pages = CheeseInfoFetcher.BuildPages(doc.RootElement.GetProperty("episodes"), "up", "666");
 
-        Assert.Single(pages);
-        Assert.Equal("101", pages[0].EpId);
+        var page = Assert.Single(pages);
+        Assert.Equal("101", page.EpId);
     }
 
     [Fact]

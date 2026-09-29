@@ -1,4 +1,3 @@
-using BBDown.Serve;
 using BBDown.Serve.Http;
 
 namespace BBDown.Tests;

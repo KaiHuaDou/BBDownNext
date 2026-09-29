@@ -21,7 +21,7 @@ public class Aria2cArgsTests
     [Fact]
     public void BuildArgs_PutsHeadersAndTargetInSeparateTokens( )
     {
-        var path = "/tmp/bbdown/video.m4s";
+        const string path = "/tmp/bbdown/video.m4s";
 
         var args = BBDownAria2c.BuildArgs("https://cdn.example.com/v.m4s", path, "", "SESSDATA=abc");
 

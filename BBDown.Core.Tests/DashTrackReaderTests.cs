@@ -4,7 +4,6 @@ using System.Text.Json;
 using BBDown.Core.Entity;
 using BBDown.Core.PlayUrl;
 
-
 namespace BBDown.Core.Tests;
 
 public class DashTrackReaderTests
@@ -45,7 +44,7 @@ public class DashTrackReaderTests
         var result = new ParsedResult( );
         DashTrackReader.Collect(result, root, tvApi: false);
 
-        var ids = result.VideoTracks.Select(v => v.Id).ToList( );
+        var ids = result.VideoTracks.ConvertAll(v => v.Id);
         Assert.Equal(2, ids.Count);
         Assert.Contains("80", ids);
         Assert.Contains("127", ids);
@@ -61,7 +60,7 @@ public class DashTrackReaderTests
         var result = new ParsedResult( );
         DashTrackReader.Collect(result, root, tvApi: false);
 
-        Assert.Equal(["30264"], result.AudioTracks.Select(a => a.Id).ToList( ));
+        Assert.Equal(["30264"], result.AudioTracks.ConvertAll(a => a.Id));
     }
 
     // dash.Audio 为 null 但存在 dolby 节点时，仍要收集杜比音轨（tvApi=false）

@@ -1,7 +1,8 @@
 using BBDown.Core.Protobuf;
-using VideoInfo = BBDown.Core.Protobuf.VideoInfo;
 
 using Google.Protobuf;
+
+using VideoInfo = BBDown.Core.Protobuf.VideoInfo;
 
 namespace BBDown.Core.Tests;
 

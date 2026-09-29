@@ -1,15 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Http;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Comment;
-using BBDown.Core.Util;
-
-using Xunit;
 
 namespace BBDown.Core.Tests;
 
@@ -109,36 +101,6 @@ public class CommentFetcherTests
     }
     """;
 
-    private sealed class StubHttpMessageHandler(Func<int, string> bodyForCall) : HttpMessageHandler
-    {
-        private int calls;
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            var body = bodyForCall(calls++);
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(body, Encoding.UTF8, "application/json")
-            });
-        }
-    }
-
-    private static async Task<T> WithStubClient<T>(IReadOnlyList<string> bodies, Func<Task<T>> act)
-    {
-        var original = HTTPUtil.AppHttpClient;
-        using var handler = new StubHttpMessageHandler(i => bodies[Math.Min(i, bodies.Count - 1)]);
-        using var client = new HttpClient(handler, disposeHandler: false);
-        HTTPUtil.AppHttpClient = client;
-        try
-        {
-            return await act( );
-        }
-        finally
-        {
-            HTTPUtil.AppHttpClient = original;
-        }
-    }
-
     [Fact]
     public void PaginationStr_WrapsOffsetAsJsonString( )
     {
@@ -161,7 +123,7 @@ public class CommentFetcherTests
     [Fact]
     public async Task FetchAsync_SinglePage_ReturnsAllRepliesAndStopsAtIsEnd( )
     {
-        var doc = await WithStubClient([SinglePageBody], ( ) => CommentFetcher.FetchAsync("170001", 100, sortHot: true, fullReplies: false, AppConfig.Empty, TestContext.Current.CancellationToken));
+        var doc = await HttpStub.WithJsonResponses([SinglePageBody], ( ) => CommentFetcher.FetchAsync("170001", 100, sortHot: true, fullReplies: false, AppConfig.Empty, TestContext.Current.CancellationToken));
 
         Assert.Equal(100, doc.AllCount);
         Assert.Equal("hot", doc.Sort);
@@ -179,7 +141,7 @@ public class CommentFetcherTests
     public async Task FetchAsync_Pagination_DedupsByRpid( )
     {
         // limit=5 > 首页 3 条（置顶 + 2），强制翻第二页；第二页含重复的 222 与新的 333
-        var doc = await WithStubClient([Page1Body, Page2Body], ( ) => CommentFetcher.FetchAsync("170001", 5, sortHot: true, fullReplies: false, AppConfig.Empty, TestContext.Current.CancellationToken));
+        var doc = await HttpStub.WithJsonResponses([Page1Body, Page2Body], ( ) => CommentFetcher.FetchAsync("170001", 5, sortHot: true, fullReplies: false, AppConfig.Empty, TestContext.Current.CancellationToken));
 
         Assert.Equal(4, doc.Comments.Count);
         Assert.Equal(["999", "111", "222", "333"], doc.Comments.ConvertAll(c => c.Rpid));
@@ -189,7 +151,7 @@ public class CommentFetcherTests
     [Fact]
     public async Task FetchAsync_ClosedArea_ReturnsEmpty( )
     {
-        var doc = await WithStubClient(["""{"code":12002,"message":"评论区已关闭","data":null}"""], ( ) => CommentFetcher.FetchAsync("170001", 10, sortHot: true, fullReplies: false, AppConfig.Empty, TestContext.Current.CancellationToken));
+        var doc = await HttpStub.WithJsonResponse("""{"code":12002,"message":"评论区已关闭","data":null}""", ( ) => CommentFetcher.FetchAsync("170001", 10, sortHot: true, fullReplies: false, AppConfig.Empty, TestContext.Current.CancellationToken));
 
         Assert.Empty(doc.Comments);
     }
@@ -197,8 +159,8 @@ public class CommentFetcherTests
     [Fact]
     public async Task FetchAsync_SignatureRejected_Throws( )
     {
-        await Assert.ThrowsAsync<InvalidOperationException>( ( ) => WithStubClient(
-            ["""{"code":-403,"message":"请求被拦截"}"""],
+        await Assert.ThrowsAsync<InvalidOperationException>(( ) => HttpStub.WithJsonResponse(
+            """{"code":-403,"message":"请求被拦截"}""",
             ( ) => CommentFetcher.FetchAsync("170001", 10, sortHot: true, fullReplies: false, AppConfig.Empty, TestContext.Current.CancellationToken)));
     }
 
@@ -206,7 +168,7 @@ public class CommentFetcherTests
     public async Task FetchAsync_RepliesNullTreatedAsRiskControl( )
     {
         // code 为 0 但 data.replies 缺失：风控下发 v_voucher 的形态，降级为拿到多少算多少（这里 0 条）
-        var doc = await WithStubClient(["""{"code":0,"data":{"cursor":{"all_count":0,"is_end":true,"next":0,"pagination_reply":{"next_offset":""}},"replies":null}}"""],
+        var doc = await HttpStub.WithJsonResponse("""{"code":0,"data":{"cursor":{"all_count":0,"is_end":true,"next":0,"pagination_reply":{"next_offset":""}},"replies":null}}""",
             ( ) => CommentFetcher.FetchAsync("170001", 10, sortHot: true, fullReplies: false, AppConfig.Empty, TestContext.Current.CancellationToken));
 
         Assert.Empty(doc.Comments);

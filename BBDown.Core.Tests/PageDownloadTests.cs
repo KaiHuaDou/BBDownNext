@@ -1,35 +1,38 @@
 using System.Collections.Generic;
 
 using BBDown.Core.Entity;
-using BBDown.Core.Media;
-
-using Xunit;
 
 namespace BBDown.Core.Tests;
 
 public class PageDownloadTests
 {
-    private static VInfo VInfoWithPic(string pic) => new( )
+    private static VInfo VInfoWithPic(string pic)
     {
-        Title = "",
-        Desc = "",
-        Pic = pic,
-        PubTime = 0,
-        PagesInfo = [],
-    };
+        return new( )
+        {
+            Title = "",
+            Desc = "",
+            Pic = pic,
+            PubTime = 0,
+            PagesInfo = [],
+        };
+    }
 
-    private static Page PageWith(int index, string aid, string cover = "") => new( )
+    private static Page PageWith(int index, string aid, string cover = "")
     {
-        Index = index,
-        Aid = aid,
-        Cid = "1",
-        EpId = "",
-        Title = "",
-        Dur = 0,
-        Res = "",
-        PubTime = 0,
-        Cover = cover,
-    };
+        return new( )
+        {
+            Index = index,
+            Aid = aid,
+            Cid = "1",
+            EpId = "",
+            Title = "",
+            Dur = 0,
+            Res = "",
+            PubTime = 0,
+            Cover = cover,
+        };
+    }
 
     // ---- ResolveCoverUrl ----
 

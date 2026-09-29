@@ -4,8 +4,6 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-using BBDown.Core;
-using BBDown.Core.Download;
 using BBDown.Serve.Tasks;
 
 namespace BBDown.Tests;
@@ -34,17 +32,21 @@ public class TaskWorkerTests
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var tasks = Enumerable.Range(0, total).Select(i => TaskStore.CreateTask(new ResourceId.Av(i), "u")).ToList( );
-        var runs = tasks.Select(t => worker.RunGatedAsync(t, async ( ) =>
+        var runs = tasks.ConvertAll(t => worker.RunGatedAsync(t, async ( ) =>
         {
             var now = Interlocked.Increment(ref running);
             int old;
             while ((old = Volatile.Read(ref peak)) < now && Interlocked.CompareExchange(ref peak, now, old) != old) { }
 
             // 第 cap 个任务进入并发即精确放行，无需自旋轮询等待
-            if (now == cap) ready.TrySetResult( );
+            if (now == cap)
+            {
+                ready.TrySetResult( );
+            }
+
             await release.Task;
             Interlocked.Decrement(ref running);
-        }, TestContext.Current.CancellationToken)).ToList( );
+        }, TestContext.Current.CancellationToken));
 
         await ready.Task;
         await Task.Delay(200, TestContext.Current.CancellationToken);
@@ -71,7 +73,11 @@ public class TaskWorkerTests
             async ( ) =>
             {
                 var now = Interlocked.Increment(ref running);
-                if (now == 4) ready.TrySetResult( );
+                if (now == 4)
+                {
+                    ready.TrySetResult( );
+                }
+
                 await release.Task;
             },
             TestContext.Current.CancellationToken)).ToList( );

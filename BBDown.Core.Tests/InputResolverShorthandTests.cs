@@ -1,8 +1,6 @@
 using System;
 using System.Threading.Tasks;
 
-using BBDown.Core;
-
 namespace BBDown.Core.Tests;
 
 // 简写输入解析的畸形输入保护：此前 av/ep 前缀后跟非数字会在 long.Parse 处抛晦涩的

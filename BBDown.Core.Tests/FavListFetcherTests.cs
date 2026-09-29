@@ -1,4 +1,3 @@
-using System;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -8,7 +7,7 @@ using BBDown.Core.Fetcher;
 namespace BBDown.Core.Tests;
 
 [Collection<HttpStubCollectionDefinition>]
-public class HttpStubFetcherTests
+public class FavListFetcherTests
 {
     // 单页收藏夹（2 条视频，均为单 P），只触发一次 HTTP 调用，不依赖 NormalInfoFetcher
     private const string FavJson = """

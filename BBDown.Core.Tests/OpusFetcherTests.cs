@@ -1,14 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Net;
-using System.Net.Http;
-using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Opus;
-using BBDown.Core.Util;
 
 namespace BBDown.Core.Tests;
 
@@ -112,46 +107,14 @@ public class OpusFetcherTests
     }
     """;
 
-    private sealed class StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
-    {
-        private readonly Func<HttpRequestMessage, HttpResponseMessage> responder = responder;
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            return Task.FromResult(responder(request));
-        }
-    }
-
-    private static HttpResponseMessage Ok(string body)
-    {
-        return new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
-    }
-
-    private static async Task<T> WithRoutedStub<T>(Func<HttpRequestMessage, HttpResponseMessage> responder, Func<Task<T>> act)
-    {
-        var original = HTTPUtil.AppHttpClient;
-        using var handler = new StubHttpMessageHandler(responder);
-        using var client = new HttpClient(handler, disposeHandler: false);
-        HTTPUtil.AppHttpClient = client;
-        try
-        {
-            return await act( );
-        }
-        finally
-        {
-            HTTPUtil.AppHttpClient = original;
-        }
-    }
-
     [Fact]
     public async Task FetchAsync_OpusId_ResolvesCvThenParsesArticle( )
     {
         var urls = new List<string>( );
-        var doc = await WithRoutedStub(req =>
+        var doc = await HttpStub.WithRoute(url =>
         {
-            var url = req.RequestUri!.AbsoluteUri;
             urls.Add(url);
-            return url.Contains("/opus/detail", StringComparison.Ordinal) ? Ok(OpusDetailJson) : Ok(ArticleViewJson);
+            return url.Contains("/opus/detail", StringComparison.Ordinal) ? OpusDetailJson : ArticleViewJson;
         }, ( ) => OpusFetcher.FetchAsync(new OpusTarget("1230485246732926996", ""), AppConfig.Empty, TestContext.Current.CancellationToken));
 
         Assert.Equal(2, urls.Count);
@@ -176,14 +139,14 @@ public class OpusFetcherTests
     public async Task FetchAsync_KnownCvId_SkipsOpusDetailRequest( )
     {
         var urls = new List<string>( );
-        var doc = await WithRoutedStub(req =>
+        var doc = await HttpStub.WithRoute(url =>
         {
-            urls.Add(req.RequestUri!.AbsoluteUri);
-            return Ok(ArticleViewJson);
+            urls.Add(url);
+            return ArticleViewJson;
         }, ( ) => OpusFetcher.FetchAsync(new OpusTarget("", "51908655"), AppConfig.Empty, TestContext.Current.CancellationToken));
 
-        Assert.Single(urls);
-        Assert.Contains("/x/article/view", urls[0], StringComparison.Ordinal);
+        var url = Assert.Single(urls);
+        Assert.Contains("/x/article/view", url, StringComparison.Ordinal);
         Assert.Equal("51908655", doc.CvId);
     }
 
@@ -192,14 +155,14 @@ public class OpusFetcherTests
     public async Task FetchAsync_Type0Dynamic_ExportsAsImageText( )
     {
         var urls = new List<string>( );
-        var doc = await WithRoutedStub(req =>
+        var doc = await HttpStub.WithRoute(url =>
         {
-            urls.Add(req.RequestUri!.AbsoluteUri);
-            return Ok(Type0DynamicJson);
+            urls.Add(url);
+            return Type0DynamicJson;
         }, ( ) => OpusFetcher.FetchAsync(new OpusTarget("1084525121139376134", ""), AppConfig.Empty, TestContext.Current.CancellationToken));
 
-        Assert.Single(urls);
-        Assert.Contains("/opus/detail", urls[0], StringComparison.Ordinal);
+        var url = Assert.Single(urls);
+        Assert.Contains("/opus/detail", url, StringComparison.Ordinal);
         Assert.Equal("", doc.CvId);
         Assert.Equal("动态标题", doc.Title);
 
@@ -219,7 +182,7 @@ public class OpusFetcherTests
     [Fact]
     public async Task FetchAsync_ParagraphKinds_AreDetectedByStructure( )
     {
-        var doc = await WithRoutedStub(_ => Ok(ArticleViewJson),
+        var doc = await HttpStub.WithJsonResponse(ArticleViewJson,
             ( ) => OpusFetcher.FetchAsync(new OpusTarget("", "51908655"), AppConfig.Empty, TestContext.Current.CancellationToken));
 
         var kinds = doc.Paragraphs.ConvertAll(p => p.Kind);
@@ -258,7 +221,7 @@ public class OpusFetcherTests
         }
         """;
 
-        var doc = await WithRoutedStub(_ => Ok(LegacyJson),
+        var doc = await HttpStub.WithJsonResponse(LegacyJson,
             ( ) => OpusFetcher.FetchAsync(new OpusTarget("", "1"), AppConfig.Empty, TestContext.Current.CancellationToken));
 
         var node = doc.Paragraphs[0].TextNodes[0];
@@ -278,7 +241,7 @@ public class OpusFetcherTests
     {
         const string EmptyJson = """{ "code": 0, "data": { "title": "空", "author": { "name": "作者" } } }""";
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) => WithRoutedStub(_ => Ok(EmptyJson),
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) => HttpStub.WithJsonResponse(EmptyJson,
             ( ) => OpusFetcher.FetchAsync(new OpusTarget("", "1"), AppConfig.Empty, TestContext.Current.CancellationToken)));
         Assert.Contains("专栏正文为空", ex.Message, StringComparison.Ordinal);
     }
@@ -291,7 +254,7 @@ public class OpusFetcherTests
     {
         var body = $$"""{ "code": {{code}}, "message": "err", "data": null }""";
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) => WithRoutedStub(_ => Ok(body),
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) => HttpStub.WithJsonResponse(body,
             ( ) => OpusFetcher.FetchAsync(new OpusTarget("", "1"), AppConfig.Empty, TestContext.Current.CancellationToken)));
         Assert.Contains(expectedFragment, ex.Message, StringComparison.Ordinal);
     }

@@ -9,28 +9,17 @@ public class CredentialStoreTests
     [Fact]
     public async Task SaveAndLoadWebCookie_RoundTrips( )
     {
-        var dir = Path.Combine(Path.GetTempPath( ), "bbdown_cred_" + Path.GetRandomFileName( ));
-        Directory.CreateDirectory(dir);
-        try
-        {
-            Assert.Equal("", CredentialStore.LoadWebCookie(dir));
-            await CredentialStore.SaveWebCookie("SESSDATA=xxx", dir);
-            Assert.Equal("SESSDATA=xxx", CredentialStore.LoadWebCookie(dir));
-        }
-        finally
-        {
-            if (Directory.Exists(dir))
-            {
-                Directory.Delete(dir, true);
-            }
-        }
+        using var dir = new TempDir( );
+        Assert.Equal("", CredentialStore.LoadWebCookie(dir.FullPath));
+        await CredentialStore.SaveWebCookie("SESSDATA=xxx", dir.FullPath);
+        Assert.Equal("SESSDATA=xxx", CredentialStore.LoadWebCookie(dir.FullPath));
     }
 
     // 用户从网页/终端粘贴凭据时带入的首尾空白与换行符必须被剥离，否则认证会静默失败
     [Fact]
     public void LoadWebCookie_TrimsSurroundingWhitespace( )
     {
-        var raw = "  \r\n SESSDATA=abc \t\n ";
+        const string raw = "  \r\n SESSDATA=abc \t\n ";
         var json = "{\"cookie\":" + System.Text.Json.JsonSerializer.Serialize(raw) + "}";
 
         Assert.Equal("SESSDATA=abc", CredentialStore.ParseCredentialJson(json).Cookie);
@@ -88,7 +77,7 @@ public class CredentialStoreTests
         Assert.Equal("web-cookie", web.Cookie);
         Assert.Null(web.TvAccessToken);
 
-        var json = "{\"cookie\":\"web-cookie\",\"tv_access_token\":\"tv-tok\",\"tv_ts\":1700000001}";
+        const string json = "{\"cookie\":\"web-cookie\",\"tv_access_token\":\"tv-tok\",\"tv_ts\":1700000001}";
         var back = CredentialStore.ParseCredentialJson(json);
 
         Assert.Equal("web-cookie", back.Cookie);

@@ -1,8 +1,6 @@
 using System;
 using System.Threading.Tasks;
 
-using BBDown.Core;
-
 namespace BBDown.Tests;
 
 public class CommandLineInvokerTests

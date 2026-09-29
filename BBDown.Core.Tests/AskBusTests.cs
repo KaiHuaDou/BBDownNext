@@ -22,7 +22,11 @@ public class AskBusTests
     public async Task Ask_AnswerValidOption_ReturnsStructuredAnswer( )
     {
         OptionRequestEvent? request = null;
-        void OnAsk(OptionRequestEvent evt) => request = evt;
+        void OnAsk(OptionRequestEvent evt)
+        {
+            request = evt;
+        }
+
         AskBus.Subscribe(OnAsk);
         try
         {
@@ -46,7 +50,11 @@ public class AskBusTests
     public async Task Ask_AnswerInvalidOption_RejectedAndStaysPending( )
     {
         OptionRequestEvent? request = null;
-        void OnAsk(OptionRequestEvent evt) => request = evt;
+        void OnAsk(OptionRequestEvent evt)
+        {
+            request = evt;
+        }
+
         AskBus.Subscribe(OnAsk);
         try
         {
@@ -76,7 +84,11 @@ public class AskBusTests
     public async Task Answer_SecondAnswer_ReturnsFalse( )
     {
         OptionRequestEvent? request = null;
-        void OnAsk(OptionRequestEvent evt) => request = evt;
+        void OnAsk(OptionRequestEvent evt)
+        {
+            request = evt;
+        }
+
         AskBus.Subscribe(OnAsk);
         try
         {
@@ -97,7 +109,11 @@ public class AskBusTests
     public async Task CancelPending_MatchingScope_Cancels( )
     {
         OptionRequestEvent? request = null;
-        void OnAsk(OptionRequestEvent evt) => request = evt;
+        void OnAsk(OptionRequestEvent evt)
+        {
+            request = evt;
+        }
+
         AskBus.Subscribe(OnAsk);
         try
         {
@@ -121,7 +137,11 @@ public class AskBusTests
     public async Task CancelPending_OtherScope_Unaffected( )
     {
         OptionRequestEvent? request = null;
-        void OnAsk(OptionRequestEvent evt) => request = evt;
+        void OnAsk(OptionRequestEvent evt)
+        {
+            request = evt;
+        }
+
         AskBus.Subscribe(OnAsk);
         try
         {

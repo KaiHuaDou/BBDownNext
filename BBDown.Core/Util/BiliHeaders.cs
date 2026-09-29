@@ -90,7 +90,7 @@ public static partial class BiliHeaders
 
         var effectiveUserAgent = userAgent ?? (string.IsNullOrEmpty(cfg.UserAgent) ? UserAgent : cfg.UserAgent);
         request.Headers.TryAddWithoutValidation("User-Agent", effectiveUserAgent);
-        request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
+        // Accept-Encoding 不在此手动指定：AppHttpClient 开启了自动解压，handler 会按启用算法自动协商
         // 设备标识统一由 Buvid.Fragment 提供：用户 cookie 若带浏览器导出的 buvid3/buvid4/b_nut，
         // 直接追加会拼出双份设备标识，风控严格的接口（feed 系）会把设备不一致判为可疑直接 HTTP 412
         var cookie = Buvid.Fragment.Length == 0
@@ -144,7 +144,8 @@ public static partial class BiliHeaders
         request.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
         request.Headers.TryAddWithoutValidation("Referer", BiliApi.LiveSite + "/");
         request.Headers.TryAddWithoutValidation("Origin", BiliApi.LiveSite);
-        // StreamHttpClient 关闭了自动解压，若服务端仍按默认协商返回 gzip 就会写出无法播放的文件
+        // StreamHttpClient 关闭了自动解压，不会解协商；identity 显式拒绝部分节点强推的 gzip，
+        // 否则拉到的压缩字节过不了 LiveSegmentWriter 的 FLV 签名校验，录制直接失败
         request.Headers.TryAddWithoutValidation("Accept-Encoding", "identity");
         if (!string.IsNullOrEmpty(cookie))
         {

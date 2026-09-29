@@ -90,8 +90,8 @@ public class ContentSelectorTests
     public void Resolve_InvalidChar_WarnsAndDrops( )
     {
         var flags = Resolve(out var warnings, get: ["avx"]);
-        Assert.Single(warnings);
-        Assert.Contains("无效的内容字符「x」", warnings[0]);
+        var warning = Assert.Single(warnings);
+        Assert.Contains("无效的内容字符「x」", warning);
         Assert.Equal(DownloadContent.Audio | DownloadContent.Video, flags);
     }
 
@@ -99,8 +99,8 @@ public class ContentSelectorTests
     public void Resolve_InvalidCharInWithout_Warns( )
     {
         Resolve(out var warnings, get: ["av"], without: ["y"]);
-        Assert.Single(warnings);
-        Assert.Contains("无效的内容字符「y」", warnings[0]);
+        var warning = Assert.Single(warnings);
+        Assert.Contains("无效的内容字符「y」", warning);
     }
 
     // ---- 依赖规则 ----
@@ -193,7 +193,7 @@ public class ContentSelectorTests
     [Fact]
     public void ToNormalizedString_OrdersByCanonicalSequence( )
     {
-        var flags = DownloadContent.Video | DownloadContent.Audio | DownloadContent.Subtitle;
+        const DownloadContent flags = DownloadContent.Video | DownloadContent.Audio | DownloadContent.Subtitle;
         Assert.Equal("avs", ContentSelector.ToNormalizedString(flags));
     }
 
@@ -221,8 +221,8 @@ public class ContentSelectorTests
     public void DescribeInactive_Video_OpusFlagsInactive( )
     {
         var list = ContentSelector.DescribeInactive(DownloadContent.OpusImage, ContentMode.Video);
-        Assert.Single(list);
-        Assert.Contains("专栏图片", list[0]);
+        var item = Assert.Single(list);
+        Assert.Contains("专栏图片", item);
     }
 
     [Fact]
@@ -230,8 +230,8 @@ public class ContentSelectorTests
     {
         var list = ContentSelector.DescribeInactive(
             DownloadContent.Audio | DownloadContent.Video | DownloadContent.Danmaku, ContentMode.Live);
-        Assert.Single(list);
-        Assert.Contains("弹幕", list[0]);
+        var item = Assert.Single(list);
+        Assert.Contains("弹幕", item);
     }
 
     [Fact]

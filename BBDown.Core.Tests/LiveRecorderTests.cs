@@ -6,35 +6,25 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core.Live;
-
 namespace BBDown.Core.Tests;
 
 public sealed class LiveRecorderTests : IDisposable
 {
-    private readonly string tempDir = Path.Combine(Path.GetTempPath( ), "bbdown_live_" + Guid.NewGuid( ).ToString("N"));
+    private readonly TempDir dir = new( );
     private readonly string dest;
     private readonly string seg1;
     private readonly string seg2;
 
     public LiveRecorderTests( )
     {
-        Directory.CreateDirectory(tempDir);
-        dest = Path.Combine(tempDir, "room");
+        dest = Path.Combine(dir.FullPath, "room");
         seg1 = dest + ".001.bbdown.part";
         seg2 = dest + ".002.bbdown.part";
     }
 
     public void Dispose( )
     {
-        try
-        {
-            Directory.Delete(tempDir, true);
-        }
-        catch (IOException)
-        {
-        }
-
+        dir.Dispose( );
         GC.SuppressFinalize(this);
     }
 
@@ -67,25 +57,15 @@ public sealed class LiveRecorderTests : IDisposable
         return new LivePlayInfo(10000, 10000, [10000], candidates);
     }
 
-    /// <summary>把「第 N 次调用返回什么」写成脚本，越界后重复最后一项。</summary>
-    private sealed class Script<T>(params T[] items)
-    {
-        private int calls;
-        public T Next( )
-        {
-            var i = Interlocked.Increment(ref calls) - 1;
-            return items[Math.Min(i, items.Length - 1)];
-        }
-    }
-
     private sealed class Harness
     {
         public List<string> WrittenPaths { get; } = [];
         public List<string> UsedHosts { get; } = [];
         public List<int> SegmentStarts { get; } = [];
 
-        public LiveRecorder Build(LiveRecorder.ResolveStream resolve, LiveRecorder.WriteSegment write) =>
-            new(resolve,
+        public LiveRecorder Build(LiveRecorder.ResolveStream resolve, LiveRecorder.WriteSegment write)
+        {
+            return new(resolve,
                 (candidate, path, ct) =>
                 {
                     WrittenPaths.Add(path);
@@ -93,6 +73,7 @@ public sealed class LiveRecorderTests : IDisposable
                     return write(candidate, path, ct);
                 },
                 onSegmentStart: SegmentStarts.Add);
+        }
     }
 
     private static (CancellationTokenSource Global, CancellationTokenSource Stop, CancellationTokenSource Record) Tokens( )

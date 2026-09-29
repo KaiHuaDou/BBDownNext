@@ -1,11 +1,5 @@
 using System;
-using System.Net;
-using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
-
-using BBDown.Core;
-using BBDown.Core.Util;
 
 namespace BBDown.Core.Tests;
 
@@ -15,32 +9,6 @@ namespace BBDown.Core.Tests;
 [Collection<HttpStubCollectionDefinition>]
 public class InputResolverWatchLaterTests
 {
-    private sealed class StubHandler : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            // HEAD 固定 200 且不重定向：FixAvidAsync 看到的最终 URL 即原地址（不含 /ep），数字保持原样
-            var response = new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request };
-            return Task.FromResult(response);
-        }
-    }
-
-    private static async Task<T> WithStubClient<T>(Func<Task<T>> act)
-    {
-        var original = HTTPUtil.AppHttpClient;
-        using var handler = new StubHandler( );
-        using var client = new HttpClient(handler, disposeHandler: false);
-        HTTPUtil.AppHttpClient = client;
-        try
-        {
-            return await act( );
-        }
-        finally
-        {
-            HTTPUtil.AppHttpClient = original;
-        }
-    }
-
     // 纯 "watchlater" 关键字（忽略大小写）→ 整个列表（纯字符串解析，不触网）
     [Theory]
     [InlineData("watchlater")]
@@ -73,7 +41,7 @@ public class InputResolverWatchLaterTests
     [InlineData("https://www.bilibili.com/list/watchlater?watchlater_cfg=%7B%22viewed%22%3A0%7D&oid=116802390592375")]
     public async Task ResolveIdAsync_WatchLaterUrlWithVideoParams_ResolvesToSingleVideo(string input)
     {
-        var result = await WithStubClient(( ) => InputResolver.ResolveIdAsync(input, AppConfig.Empty));
+        var result = await HttpStub.WithOkEcho(( ) => InputResolver.ResolveIdAsync(input, AppConfig.Empty));
         Assert.Equal(new ResourceId.Av(116802390592375), result);
     }
 
@@ -81,7 +49,7 @@ public class InputResolverWatchLaterTests
     [Fact]
     public async Task ResolveIdAsync_WatchLaterUrl_BvidTakesPrecedenceOverOid( )
     {
-        var result = await WithStubClient(( ) => InputResolver.ResolveIdAsync(
+        var result = await HttpStub.WithOkEcho(( ) => InputResolver.ResolveIdAsync(
             "https://www.bilibili.com/list/watchlater?oid=111&bvid=BV1cijQ6tEbM", AppConfig.Empty));
         Assert.Equal(new ResourceId.Av(116802390592375), result);
     }

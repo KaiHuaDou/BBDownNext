@@ -1,5 +1,3 @@
-using System;
-
 namespace BBDown.Core.Tests;
 
 public class LoginTests

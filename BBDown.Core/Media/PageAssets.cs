@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -115,17 +116,43 @@ public static class PageAssets
 
     internal static async Task<bool> DownloadDanmakuAsync(DownloadSession session, string savePath, CancellationToken ct = default)
     {
-        var (myOption, ctx, pageCtx, _, downloadConfig, _) = session;
+        var (myOption, ctx, pageCtx, _, _, _) = session;
         var p = pageCtx.Page;
         var danmakuXmlPath = Path.ChangeExtension(savePath, ".xml");
         var danmakuAssPath = Path.ChangeExtension(savePath, ".ass");
-        Log("正在下载 XML 弹幕文件...");
-        await DownloadFileAsync($"{BiliApi.DanmakuXml}/{p.Cid}.xml", danmakuXmlPath, downloadConfig, ct);
-        var danmakus = DanmakuUtil.ParseXml(danmakuXmlPath);
+
+        // comment.bilibili.com 的 XML 端点无论是否携带 Accept-Encoding 都强制返回 deflate 压缩内容
+        //（bilibili-API-collect/docs/danmaku/danmaku_xml.md），必须经带自动解压的 AppHttpClient 获取：
+        // 通用下载器为媒体流关闭了自动解压，aria2c 亦无解压能力，二者落盘的都是压缩原始字节。
+        // 空响应即该视频没有弹幕，不落盘
+        if (!File.Exists(danmakuXmlPath))
+        {
+            Log("正在下载 XML 弹幕文件...");
+            var xml = await HTTPUtil.GetWebSourceAsync($"{BiliApi.DanmakuXml}/{p.Cid}.xml", ctx.Fetch.Cfg, null, ct);
+            if (xml.Length != 0)
+            {
+                var destDir = Path.GetDirectoryName(danmakuXmlPath);
+                if (!string.IsNullOrEmpty(destDir))
+                {
+                    Directory.CreateDirectory(destDir);
+                }
+
+                await File.WriteAllTextAsync(danmakuXmlPath, xml, Encoding.UTF8, ct);
+            }
+        }
+
+        var danmakus = File.Exists(danmakuXmlPath) ? DanmakuUtil.ParseXml(danmakuXmlPath) : null;
         if (danmakus == null)
         {
-            Log("XML 弹幕解析失败");
-            File.Delete(danmakuXmlPath);
+            if (File.Exists(danmakuXmlPath))
+            {
+                Log("XML 弹幕解析失败");
+                File.Delete(danmakuXmlPath);
+            }
+            else
+            {
+                Log("当前视频没有弹幕");
+            }
         }
         else if (danmakus.Length == 0)
         {

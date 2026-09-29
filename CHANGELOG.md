@@ -8,26 +8,42 @@
 
 ## [v2.2.1]
 
+### 新增
+
+- **纯函数测试补充**
+    - `HttpTransfer`：重定向逐跳跟随，只认「服务器要求继续」的状态码（300 多选与 304 不算）、目标不在信任列表即在发出前中止、相对 `Location` 按当前跳解析、303 切换为 GET、跳数上限。
+    - `HTTPUtil`：`GetWebLocationAsync` 手动逐跳（含跳数上限）与 `TruncateForLog` 的截断边界。
+    - `DanmakuUtil`：`ParseXml` 对空响应返回 `null`（无弹幕）、弹幕模式映射（滚动 / 顶部 / 底部 / 逆向 / 高级 / BAS）、字号与时间戳解析、颜色脏数据回落（超 `int` 上限、负值按 24bit 掩码）。
+
 ### 修复
 
 - Cookie 主动续期在没有可用凭据时返回空串，此前会用它覆盖本次运行实际使用的 Cookie：命令行 / GUI 传入的 SESSDATA 被清成空后，后续请求全部退化为未登录；现在只在续期确实拿到非空 Cookie 时才替换（@yanagiragi）。
 - `--save-archives-to-file` 的归档记录读写失败只告警：磁盘满 / 只读盘 / 受控文件夹访问不再把已完整下载并混流的分 P 记为失败。
 - 服务器的 aid 超出 BV 编码区间时按「没有 BV 号」处理：`<bvid>` 占位符与混流元数据回落为空串，该分 P 不再因编码异常失败。
+- 修复 XML 弹幕下载失败：`comment.bilibili.com` 的 XML 端点无视 `Accept-Encoding` 协商、强制返回 deflate 压缩内容，而通用下载器为媒体流关闭了自动解压，压缩原始字节落盘后解析失败；弹幕改经带自动解压的 HTTP 通道获取，不再走通用下载器（使用 aria2c 下载时同样适用），空响应视为没有弹幕，不再误报解析失败（[#4](https://github.com/KaiHuaDou/BBDownNext/issues/4)）。
+- FLV 链路补上弹幕下载：此前 FLV 源不产出弹幕文件，现与 DASH 链路一致按内容选项下载与解析。
 
 ### 安全
 
 - serve 请求体 `Area` 收口为白名单（`hk` / `tw` / `th`，大小写不敏感，其余回落空值）：该字段是请求契约里唯一会被逐字拼进官方 playurl query 的字段，任意文本不再能注入 query 参数。
+- 携带 Cookie 的请求经重定向跳转时逐跳过凭据门：`AppHttpClient` 关闭自动重定向（自动跟随会把 Cookie 头原样带到重定向目标，门禁只覆盖首跳），带凭据请求改由凭据门手动逐跳跟随，目标不在信任列表即中止；短链展开（`GetWebLocationAsync`）不带凭据，手动跟随不受信任列表限制。
+- 关闭自动重定向对 `AppHttpClient` 的全部调用方生效：不经凭据门的 gRPC 查询（`HTTPUtil.GetPostResponseAsync`）与扫码登录的提交、轮询请求同样不再自动跟随重定向，收到 3xx 时按各自的响应处理继续（gRPC 查询交回响应体，扫码登录按状态码解释），端点返回重定向时不再被静默跟进。
 
 ### 变更
 
 - 混流产物落盘后把文件最后修改时间设为该分 P 的发布时间（`PubTime > 0` 时设置，失败仅记 debug 日志），文件管理器与媒体库按发布时间排序（@ayanamist）。
 - 命令行入参首尾的空白与换行（`\r` / `\n` / `\t`）统一清理后再解析：从终端或网页复制命令时带入的填充不再拼进 URL 与文件名模板（@ayanamist）。
 - 合集 / 系列条目去重与分 P 选中集判定改用 `HashSet`（`Ordinal` / 值等值），不再对每个条目做一次线性扫描；选轨优先级查表统一按不变文化转大写（`ToUpper` → `ToUpperInvariant`）。
+- 超长响应的 debug 日志只记录前 8192 字符并标注原文长度（全量数据已有 `debug_*.json` 落盘兜底），playurl / 弹幕等大响应不再刷爆 `--debug` 日志。
+- `HTTPUtil.StreamHttpClient` 与 `LiveSegmentWriter.SilenceTimeout` 去掉可替换的 setter：唯一消费方 `LiveSegmentWriter` 同时做网络与文件 IO，不在离线测试范围内，这两个替换口无人使用。
+- 删除 `HTTPUtil.SendRawAsync` 与 `HTTPUtil.GetWithRangeAsync`：仓库内无调用方。两者是 `BBDown.Core` 的 public 方法，插件以源码方式引用该库，删除后插件侧不可再使用。
+- 插件侧的请求头行为随之改变：直接使用 `HTTPUtil.AppHttpClient` 的请求不再自动跟随重定向，收到 3xx 时由调用方的状态码处理决定去留（`BBDown.DRM` 取公钥与 license 的请求走此路径，`EnsureSuccessStatusCode` 遇 3xx 即失败）；经 `HTTPUtil.GetWebSourceAsync` 等入口发出的请求不受影响。
 
 ### 构建
 
+- 程序集版本与本节对齐：`Directory.Build.props` 的 `Version` 2.0 → 2.2.1，启动横幅与文件属性中的版本号随之更新。
 - NuGet 依赖升级：`Avalonia` 及 `Avalonia.Desktop` / `Avalonia.Fonts.Inter` / `Avalonia.Themes.Fluent` 12.1.2 → 12.1.3；`Downloader` 5.9.6 → 5.9.8。
-- WebUI 依赖升级：`vite` 8.3.0 → 8.3.1；`jsdom` 30.1.0 → 30.1.1；pnpm workspace 开启 `autoDedupe`。
+- WebUI 依赖升级：`vite` 8.3.0 → 8.3.1；`jsdom` 30.1.0 → 30.1.1；`vitest` 5.0.1 → 5.0.2；`@types/node` 26.6.2 → 26.6.3；pnpm workspace 开启 `autoDedupe`。
 
 ### 已知问题
 

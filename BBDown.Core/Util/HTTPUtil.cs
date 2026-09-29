@@ -22,7 +22,9 @@ public static class HTTPUtil
     // 可替换：测试经 InternalsVisibleTo 注入带 stub handler 的实例，解锁 8 个 Fetcher 的离线单测
     public static HttpClient AppHttpClient { get; internal set; } = new(new HttpClientHandler
     {
-        AllowAutoRedirect = true,
+        // 关闭自动重定向：带凭据的请求由 HttpTransfer.SendTrustGatedAsync 手动逐跳跟随并逐跳过凭据门，
+        // 自动跟随会把 Cookie 头原样带到重定向目标，使门禁只覆盖首跳
+        AllowAutoRedirect = false,
         AutomaticDecompression = DecompressionMethods.All,
         ServerCertificateCustomValidationCallback = (_, __, ___, sslPolicyErrors) =>
             sslPolicyErrors == System.Net.Security.SslPolicyErrors.None ||
@@ -40,7 +42,11 @@ public static class HTTPUtil
     /// 用 <see cref="AppHttpClient"/>（2 分钟）拉直播流会每 2 分钟被硬掐一次，故必须无限超时；
     /// 断流靠调用方的静默检测判定，不靠超时。关掉自动解压避免把视频流当压缩内容处理。
     /// </summary>
-    public static HttpClient StreamHttpClient { get; internal set; } = new(new HttpClientHandler
+    /// <remarks>
+    /// 唯一消费方 <see cref="Live.LiveSegmentWriter"/> 同时做网络与文件 IO，不在离线测试范围内，
+    /// 故不可替换：留一个无人使用的替换口会让人误以为这里有覆盖。
+    /// </remarks>
+    public static readonly HttpClient StreamHttpClient = new(new HttpClientHandler
     {
         AllowAutoRedirect = true,
         AutomaticDecompression = DecompressionMethods.None,
@@ -78,8 +84,14 @@ public static class HTTPUtil
         webResponse.EnsureSuccessStatusCode( );
 
         var htmlCode = await HttpTransfer.ReadBodyAsync(webResponse.Content, ct);
-        LogDebug("Response: {0}", Redactor.Text(htmlCode));
+        LogDebug("Response: {0}", Redactor.Text(TruncateForLog(htmlCode)));
         return htmlCode;
+    }
+
+    // 超长响应（playurl / 弹幕等）只打头部：全量数据已有 debug_*.json 落盘兜底，日志刷整段只会淹没有用信息
+    internal static string TruncateForLog(string text)
+    {
+        return text.Length <= 8192 ? text : $"{text[..8192]}…（已截断，共 {text.Length} 字符）";
     }
 
     /// <summary>
@@ -153,64 +165,40 @@ public static class HTTPUtil
         return jar;
     }
 
-    // 重写重定向处理，自动跟随多次重定向
+    // 重定向地址探测：请求不带任何凭据，手动跟随（AppHttpClient 已关闭自动跟随），
+    // 短链（b23.tv 等）目标不受信任主机列表限制——无凭据请求无门禁意义
     public static async Task<string> GetWebLocationAsync(string url, CancellationToken ct = default)
     {
-        using var webRequest = new HttpRequestMessage(HttpMethod.Head, url);
-        webRequest.Headers.TryAddWithoutValidation("User-Agent", BiliHeaders.UserAgent);
-        webRequest.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
-        webRequest.Headers.CacheControl = System.Net.Http.Headers.CacheControlHeaderValue.Parse("no-cache");
-        webRequest.Headers.Connection.Clear( );
+        for (var hop = 0; ; hop++)
+        {
+            if (hop > HttpTransfer.MaxRedirectHops)
+            {
+                throw new InvalidOperationException($"重定向次数超过上限（{HttpTransfer.MaxRedirectHops}）");
+            }
 
-        LogDebug("获取网页重定向地址：Url: {0}, Headers: {1}", Redactor.Text(url), Redactor.Headers(webRequest.Headers));
-        using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
-        webResponse.EnsureSuccessStatusCode( );
-        var location = webResponse.RequestMessage!.RequestUri!.AbsoluteUri;
-        LogDebug("Location: {0}", Redactor.Text(location));
-        return location;
-    }
+            using var webRequest = new HttpRequestMessage(HttpMethod.Head, url);
+            webRequest.Headers.TryAddWithoutValidation("User-Agent", BiliHeaders.UserAgent);
+            webRequest.Headers.CacheControl = System.Net.Http.Headers.CacheControlHeaderValue.Parse("no-cache");
+            webRequest.Headers.Connection.Clear( );
 
-    // 逃生舱：需要自行控制 Header/Range/平台分支时直接构造 HttpRequestMessage 走这里。
-    // 不走凭据门也不做逐跳校验：调用方（下载分片）自行负责目标地址的可信性
-    public static Task<HttpResponseMessage> SendRawAsync(HttpRequestMessage request, CancellationToken ct = default)
-    {
-        LogDebug("发送请求：{0} {1}, Headers: {2}", request.Method, Redactor.Text(request.RequestUri?.AbsoluteUri ?? ""), Redactor.Headers(request.Headers));
-        return AppHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            LogDebug("获取网页重定向地址：Url: {0}, Headers: {1}", Redactor.Text(url), Redactor.Headers(webRequest.Headers));
+            using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (HttpTransfer.IsRedirect(webResponse.StatusCode) && webResponse.Headers.Location is { } next)
+            {
+                url = next.IsAbsoluteUri ? next.AbsoluteUri : new Uri(new Uri(url), next.OriginalString).AbsoluteUri;
+                continue;
+            }
+
+            webResponse.EnsureSuccessStatusCode( );
+            LogDebug("Location: {0}", Redactor.Text(url));
+            return url;
+        }
     }
 
     // 返回裸 JsonDocument，调用方自己取字段并负责 Dispose
     public static async Task<JsonDocument> GetJsonAsync(string url, AppConfig cfg, CancellationToken ct = default)
     {
         return JsonDocument.Parse(await GetWebSourceAsync(url, cfg, null, ct));
-    }
-
-    /// <summary>
-    /// GetWithRangeAsync
-    /// </summary>
-    /// <param name="ifRange">
-    /// 服务器上次给的 ETag 或 Last-Modified 原文。必须原样回传：自己拿本地文件时间戳去造
-    /// If-Range 只会让校验恒通过，等于没做校验。为空则不带该头。
-    /// </param>
-    public static async Task<HttpResponseMessage> GetWithRangeAsync(string url, long from, long? to, string cookie, string? ifRange = null, CancellationToken ct = default)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        BiliHeaders.AddDownloadHeaders(request, url, cookie);
-        request.Headers.Range = new(from, to);
-        if (!string.IsNullOrEmpty(ifRange))
-        {
-            request.Headers.TryAddWithoutValidation("If-Range", ifRange);
-        }
-
-        // 失败响应握着连接不放会拖垮重试，这里先释放再抛
-        var response = await SendRawAsync(request, ct);
-        if (response.IsSuccessStatusCode)
-        {
-            return response;
-        }
-
-        var status = response.StatusCode;
-        response.Dispose( );
-        throw new HttpRequestException($"下载请求失败：HTTP {(int) status} {status}", null, status);
     }
 
     public static async Task<byte[]> GetPostResponseAsync(string Url, byte[] postData, Dictionary<string, string>? headers = null, CancellationToken ct = default)

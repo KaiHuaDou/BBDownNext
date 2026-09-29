@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BBDown.Core.Entity;
 
+using BBDown.Core.Entity;
 
 namespace BBDown.Core.Tests;
 
@@ -47,9 +47,9 @@ public class PageOrchestrationTests
         var errors = await PageQueue.RunPagesAsync(pages, stopOnError: false, run, CancellationToken.None);
 
         Assert.Equal([0, 1, 2], ran); // 失败页之后仍在跑
-        Assert.Single(errors);
-        Assert.Equal(1, errors[0].Page.Index);
-        Assert.Equal("boom", errors[0].Error.Message);
+        var error = Assert.Single(errors);
+        Assert.Equal(1, error.Page.Index);
+        Assert.Equal("boom", error.Error.Message);
     }
 
     // --stop-on-error：第一个失败即停，后续分P 不再执行
@@ -74,8 +74,8 @@ public class PageOrchestrationTests
         var errors = await PageQueue.RunPagesAsync(pages, stopOnError: true, run, CancellationToken.None);
 
         Assert.Equal([0, 1], ran); // 第 2 个分P 没有跑
-        Assert.Single(errors);
-        Assert.Equal(1, errors[0].Page.Index);
+        var error = Assert.Single(errors);
+        Assert.Equal(1, error.Page.Index);
     }
 
     // Ctrl+C 的取消信号必须立刻上抛，不能被吞进 AggregateException

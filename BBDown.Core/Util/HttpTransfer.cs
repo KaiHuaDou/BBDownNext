@@ -16,7 +16,7 @@ public static class HttpTransfer
     // 响应体大小上限：被攻破的端点或 --insecure 下的中间人可用 gzip 炸弹 / 分块慢发打满进程内存
     private const int MaxResponseBytes = 64 * 1024 * 1024;
 
-    private const int MaxRedirectHops = 10;
+    internal const int MaxRedirectHops = 10;
 
     private static InvalidDataException ResponseTooLarge( )
     {
@@ -69,7 +69,7 @@ public static class HttpTransfer
     }
 
     // 只跟随「服务器要求继续」的状态码；300 多选与 304 未修改不构成重定向
-    private static bool IsRedirect(HttpStatusCode status)
+    internal static bool IsRedirect(HttpStatusCode status)
     {
         return status is HttpStatusCode.Moved or HttpStatusCode.Found or HttpStatusCode.SeeOther
             or HttpStatusCode.TemporaryRedirect or HttpStatusCode.PermanentRedirect;

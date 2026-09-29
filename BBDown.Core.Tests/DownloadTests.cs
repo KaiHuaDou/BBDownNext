@@ -2,9 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 
-using BBDown.Core;
 using BBDown.Core.Entity;
-
 
 namespace BBDown.Core.Tests;
 

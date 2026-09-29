@@ -4,7 +4,10 @@ namespace BBDown.Core.Tests;
 
 public class OpusHtmlToMarkdownTests
 {
-    private static string Convert(string html) => OpusHtmlToMarkdown.Convert(html);
+    private static string Convert(string html)
+    {
+        return OpusHtmlToMarkdown.Convert(html);
+    }
 
     [Fact]
     public void Convert_ImgTag_IsPreservedAsHtml( )

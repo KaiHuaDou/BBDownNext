@@ -29,12 +29,8 @@ public static class DanmakuUtil
 
     public static DanmakuItem[]? ParseXml(Stream xml)
     {
-        // 解析xml
         XmlDocument xmlFile = new( );
-        XmlReaderSettings settings = new( )
-        {
-            IgnoreComments = true//忽略文档里面的注释
-        };
+        XmlReaderSettings settings = new( ) { IgnoreComments = true };
         List<DanmakuItem> danmakus = [];
         using (var reader = XmlReader.Create(xml, settings))
         {
@@ -44,7 +40,7 @@ public static class DanmakuUtil
             }
             catch (Exception ex)
             {
-                LogDebug("解析字幕xml时出现异常: {0}", ex.ToString( ));
+                LogDebug("解析弹幕 XML 时出现异常：{0}", ex.ToString( ));
                 return null;
             }
         }
@@ -77,7 +73,7 @@ public static class DanmakuUtil
     }
 
     /// <summary>
-    /// 保存为ASS字幕文件
+    /// 保存为 ASS 字幕文件
     /// </summary>
     /// <param name="danmakus">弹幕</param>
     /// <param name="outputPath">保存路径</param>
@@ -85,7 +81,7 @@ public static class DanmakuUtil
     public static async Task SaveAsAssAsync(DanmakuItem[] danmakus, string outputPath, CancellationToken ct = default)
     {
         var sb = new StringBuilder( );
-        // ASS字幕文件头
+        // ASS 字幕文件头
         sb.AppendLine("[Script Info]");
         sb.AppendLine("Script Updated By: BBDown(https://github.com/KaiHuaDou/BBDownNext)");
         sb.AppendLine("ScriptType: v4.00+");

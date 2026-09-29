@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using BBDown.Core;
 using BBDown.Core.Entity;
 
 namespace BBDown.Core.Tests;
@@ -29,27 +28,29 @@ public class MuxArgsTests
         string author = "", string episodeId = "", string pic = "", string lang = "",
         List<Subtitle>? subs = null, DownloadContent content = DownloadContent.Audio | DownloadContent.Video | DownloadContent.MuxMetadata,
         long pubTime = 0, int trackNumber = 0, int totalTracks = 0, MuxMode mux = MuxMode.Mpeg4)
-        => new(
-            Mux: mux,
-            Bvid: bvid,
-            VideoPath: videoPath,
-            AudioPath: audioPath,
-            AudioMaterial: audioMaterial ?? [ ],
-            OutPath: outPath,
-            Tools: default,
-            Desc: desc,
-            Title: title,
-            Author: author,
-            EpisodeId: episodeId,
-            Pic: pic,
-            Lang: lang,
-            Subs: subs,
-            Content: content,
-            Points: null,
-            PubTime: pubTime,
-            IsHevc: false,
-            TrackNumber: trackNumber,
-            TotalTracks: totalTracks);
+    {
+        return new(
+                Mux: mux,
+                Bvid: bvid,
+                VideoPath: videoPath,
+                AudioPath: audioPath,
+                AudioMaterial: audioMaterial ?? [],
+                OutPath: outPath,
+                Tools: default,
+                Desc: desc,
+                Title: title,
+                Author: author,
+                EpisodeId: episodeId,
+                Pic: pic,
+                Lang: lang,
+                Subs: subs,
+                Content: content,
+                Points: null,
+                PubTime: pubTime,
+                IsHevc: false,
+                TrackNumber: trackNumber,
+                TotalTracks: totalTracks);
+    }
 
     private static string? ValueAfter(List<string> args, string flag)
     {

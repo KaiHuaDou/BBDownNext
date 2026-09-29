@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 
-using BBDown.Core.Util;
-
 namespace BBDown.Core.Tests;
 
 public class RedactorTests

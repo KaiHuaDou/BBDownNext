@@ -1,12 +1,7 @@
 using System;
-using System.Net;
-using System.Net.Http;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Fetcher;
-using BBDown.Core.Util;
 
 namespace BBDown.Core.Tests;
 
@@ -38,39 +33,10 @@ public class BangumiInfoFetcherTests
     }
     """;
 
-    private sealed class BangumiStubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
-    {
-        private readonly Func<HttpRequestMessage, HttpResponseMessage> responder = responder;
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            return Task.FromResult(responder(request));
-        }
-    }
-
-    private static async Task<T> WithStubClient<T>(string body, Func<Task<T>> act)
-    {
-        var original = HTTPUtil.AppHttpClient;
-        using var handler = new BangumiStubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(body, Encoding.UTF8, "application/json")
-        });
-        using var client = new HttpClient(handler, disposeHandler: false);
-        HTTPUtil.AppHttpClient = client;
-        try
-        {
-            return await act( );
-        }
-        finally
-        {
-            HTTPUtil.AppHttpClient = original;
-        }
-    }
-
     [Fact]
     public async Task FetchAsync_SsForm_PullsWholeSeasonWithEmptyIndex( )
     {
-        var info = await WithStubClient(SeasonJson, ( ) => BangumiInfoFetcher.FetchAsync(new ResourceId.Season(2539), AppConfig.Empty));
+        var info = await HttpStub.WithJsonResponse(SeasonJson, ( ) => BangumiInfoFetcher.FetchAsync(new ResourceId.Season(2539), AppConfig.Empty));
 
         Assert.Equal("魔法少女小圆", info.Title);
         Assert.Equal(3, info.PagesInfo.Count);          // 仅正片，不含 section 里的 OP
@@ -83,7 +49,7 @@ public class BangumiInfoFetcherTests
     public async Task FetchAsync_EpForm_LocatesSingleEpisodeAndSetsIndex( )
     {
         // ep 形态回归：按 ep_id 拉整季、定位到目标集的 Index，且 section 扫描仍生效
-        var info = await WithStubClient(SeasonJson, ( ) => BangumiInfoFetcher.FetchAsync(new ResourceId.Ep(63471), AppConfig.Empty));
+        var info = await HttpStub.WithJsonResponse(SeasonJson, ( ) => BangumiInfoFetcher.FetchAsync(new ResourceId.Ep(63471), AppConfig.Empty));
 
         Assert.Equal(3, info.PagesInfo.Count);
         Assert.Equal("2", info.Index);                   // 第 2 集的 index
@@ -95,8 +61,8 @@ public class BangumiInfoFetcherTests
     {
         // ss 形态接口无 result 时，必须抛 InvalidOperationException（而非 BangumiNotFoundException），
         // 否则会触发 FetcherRegistry 的课程误回退。
-        var body = "{\"code\":-404,\"message\":\"番剧不存在\"}";
+        const string body = "{\"code\":-404,\"message\":\"番剧不存在\"}";
         await Assert.ThrowsAsync<InvalidOperationException>(( ) =>
-            WithStubClient(body, ( ) => BangumiInfoFetcher.FetchAsync(new ResourceId.Season(2539), AppConfig.Empty)));
+            HttpStub.WithJsonResponse(body, ( ) => BangumiInfoFetcher.FetchAsync(new ResourceId.Season(2539), AppConfig.Empty)));
     }
 }

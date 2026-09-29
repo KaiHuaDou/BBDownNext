@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 
-
 namespace BBDown.Core.Tests;
 
 public class LiveMuxerArgsTests

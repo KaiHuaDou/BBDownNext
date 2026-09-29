@@ -103,6 +103,55 @@ public class BiliHeadersTests
     public void ApplyStandardGetHeaders_RejectsUntrustedHost( )
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://evil.example.com/page");
-        Assert.Throws<InvalidOperationException>(() => BiliHeaders.ApplyStandardGetHeaders(request, "https://evil.example.com/page", AppConfig.Empty));
+        Assert.Throws<InvalidOperationException>(( ) => BiliHeaders.ApplyStandardGetHeaders(request, "https://evil.example.com/page", AppConfig.Empty));
+    }
+
+    // Accept-Encoding 不在头构造层出现：AppHttpClient 关闭了自动重定向但保留自动解压，
+    // 协商头由 handler 按启用算法自动添加，此处手动指定会抑制 handler 并悄悄关闭 br 协商
+    [Fact]
+    public void ApplyStandardGetHeaders_DoesNotSetAcceptEncoding( )
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.bilibili.com/x/view");
+        BiliHeaders.ApplyStandardGetHeaders(request, "https://api.bilibili.com/x/view", AppConfig.Empty);
+
+        Assert.Empty(request.Headers.AcceptEncoding);
+    }
+
+    // 直播 CDN 部分节点无视协商强推 gzip，identity 显式拒绝压缩；
+    // 压缩字节会过不了 LiveSegmentWriter 的 FLV 签名校验，录制直接失败
+    [Fact]
+    public void AddLiveStreamHeaders_ForcesIdentityEncoding( )
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://cn-hbxy-cmcc-01-16.bilivideo.com/live.flv");
+        BiliHeaders.AddLiveStreamHeaders(request, "SESSDATA=abc");
+
+        Assert.Equal(["identity"], request.Headers.AcceptEncoding.Select(v => v.Value));
+        Assert.Equal(["SESSDATA=abc"], request.Headers.GetValues("Cookie"));
+        Assert.Equal($"{BiliApi.LiveSite}/", request.Headers.GetValues("Referer").Single( ));
+        Assert.Equal(BiliApi.LiveSite, request.Headers.GetValues("Origin").Single( ));
+    }
+
+    // 移动端下载地址带 Referer 会被 CDN 拒绝，平台判定必须与头行为联动
+    [Theory]
+    [InlineData("https://upos.example.com/v.m4s?platform=android", false)]
+    [InlineData("https://upos.example.com/v.m4s?platform=android_tv_yst", false)]
+    [InlineData("https://upos.example.com/v.m4s", true)]
+    public void AddDownloadHeaders_OmitsRefererOnlyForAndroidPlatform(string url, bool expectReferer)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        BiliHeaders.AddDownloadHeaders(request, url, "SESSDATA=abc");
+
+        if (expectReferer)
+        {
+            // Referer 是受限头，.NET 解析为 Uri 后再序列化，裸域名必然被规范化成带尾斜杠的形式
+            Assert.Equal($"{BiliApi.Site}/", request.Headers.GetValues("Referer").Single( ));
+        }
+        else
+        {
+            Assert.False(request.Headers.Contains("Referer"));
+        }
+
+        Assert.Equal(["Mozilla/5.0"], request.Headers.GetValues("User-Agent"));
+        Assert.Equal(["SESSDATA=abc"], request.Headers.GetValues("Cookie"));
     }
 }

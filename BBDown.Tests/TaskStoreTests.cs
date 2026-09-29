@@ -1,11 +1,7 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Threading.Channels;
-using System.Threading.Tasks;
 
-using BBDown.Core;
-using BBDown.Core.Download;
 using BBDown.Serve.Tasks;
 
 namespace BBDown.Tests;
@@ -63,7 +59,7 @@ public class TaskStoreTests
     public void CreateTask_AlwaysQueued( )
     {
         // 受理即 Queued（202 语义），执行权由 TaskWorker 闸门授予后转 Running
-        var store = NewStore(new ServeConfig( ));
+        _ = NewStore(new ServeConfig( ));
 
         var task = TaskStore.CreateTask(new ResourceId.Av(114514), "BV1xx411c7XD");
 

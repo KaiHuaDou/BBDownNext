@@ -21,7 +21,7 @@ public static class LiveSegmentWriter
     /// <summary>
     /// 服务端保活时可能长时间不推数据。超过该间隔没有任何字节即判定断流，交由调用方重连。
     /// </summary>
-    internal static TimeSpan SilenceTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan SilenceTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// 返回本段写入的字节数。

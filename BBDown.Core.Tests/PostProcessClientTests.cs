@@ -1,7 +1,5 @@
 using System.Threading.Tasks;
 
-using BBDown.Core.Download;
-
 namespace BBDown.Core.Tests;
 
 public class PostProcessClientTests

@@ -1,11 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BBDown.Core.Download;
 using BBDown.Core.Entity;
-using BBDown.Core.Pipeline;
 using BBDown.Core.Workflow;
 
 namespace BBDown.Core.Tests;

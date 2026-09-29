@@ -1,12 +1,12 @@
-name: Bug 报告 / 反馈问题
+name: Bug 反馈
 description: 报告 BBDown 的缺陷或异常行为
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        提交前请确认你使用的是**最新版本**，并不要拿过时版本来咨询“为什么某某功能失效”。
-        涉及登录/会员下载时，日志里会包含 Cookie、SESSDATA、access_token 等敏感信息，**请务必自行打码**（如 `SESSDATA=xxxxxx`）。
+        提交前请确认使用的是**最新版本**；请勿使用过时版本咨询“为什么某某功能失效”。
+        涉及登录 / 会员下载时，日志中会包含 Cookie、SESSDATA、access_token 等敏感信息，**请务必自行打码**（如 `SESSDATA=xxxxxx`）。
 
   - type: textarea
     id: what-happened
@@ -45,7 +45,7 @@ body:
     id: command
     attributes:
       label: 使用的完整命令
-      description: 请贴出你实际运行的完整命令（可省略敏感 cookie 值）。
+      description: 请提供你实际运行的完整命令（可省略敏感 Cookie 值）。
       render: shell
       placeholder: |
         BBDown "BV1xx" --tv-api --dfn-priority "1080P 高码率"
@@ -56,7 +56,7 @@ body:
     id: logs
     attributes:
       label: 运行日志 / 截图
-      description: 建议加上 `--debug` 复现并贴出关键日志。注意隐藏 Cookie / Token 等敏感信息。
+      description: 建议附加 `--debug` 复现并提供关键日志。请隐藏 Cookie、SESSDATA、access_token 等敏感信息。
       render: shell
       placeholder: |
         BBDown --debug "BV1xx" ...

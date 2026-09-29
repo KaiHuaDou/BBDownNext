@@ -3,7 +3,6 @@ using System.Linq;
 using System.Text.Json;
 
 using BBDown.Core.Entity;
-using BBDown.Core.Util;
 
 namespace BBDown.Core.Tests;
 
@@ -78,7 +77,7 @@ public class SubUtilTests
 
     private static List<Subtitle> Subs(params string[] urls)
     {
-        return urls.Select((url, i) => new Subtitle { Lan = $"l{i}", Url = url, Path = $"p{i}" }).ToList( );
+        return [.. urls.Select((url, i) => new Subtitle { Lan = $"l{i}", Url = url, Path = $"p{i}" })];
     }
 
     // view 接口的 AI 字幕 url 恒为空，应被过滤而不影响有效条目

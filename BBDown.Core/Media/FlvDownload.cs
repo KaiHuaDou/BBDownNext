@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -79,20 +80,49 @@ public static class FlvDownload
                 return PageOutcome.Abort(selection);
             }
 
-            // 纯字幕等无音视频内容：FLV 源不产弹幕/封面，字幕已在 PrepareAsync 产出，直接中止
-            if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
+            // 纯字幕等无音视频内容：字幕已在 PrepareAsync 产出，直接中止（弹幕在下方与 DASH 链路同样产出）
+            if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video | DownloadContent.Danmaku))
             {
                 return PageOutcome.Abort(selection);
             }
 
             var selectedVideo = parsedResult.VideoTracks.ElementAtOrDefault(0);
-            if (IsCodecUnsupported(selectedVideo))
+
+            var savePath = SavePath.Build(ctx, pageCtx, selectedVideo, null);
+
+            // 弹幕接口与流格式（DASH / FLV）无关，两条链路都须产出
+            if (myOption.Content.Has(DownloadContent.Danmaku))
             {
-                LogError($"分段(FLV)源无法承载 {selectedVideo!.Codecs} 编码，请改用 -e avc 重新下载");
+                var danmakuOnly = false;
+                try
+                {
+                    danmakuOnly = await RetryAsync(
+                        async ( ) => await PageAssets.DownloadDanmakuAsync(session, savePath, ct),
+                        myOption.MaxRetry, "弹幕", ct, ex => PageDownload.ShouldRetry(ex, ct));
+                }
+                catch (Exception ex)
+                {
+                    LogWarn($"弹幕下载失败，已跳过：{ex.Message}");
+                }
+
+                if (danmakuOnly)
+                {
+                    return PageOutcome.Abort(selection);
+                }
+            }
+
+            // 纯弹幕等无音视频内容：弹幕已在上方产出，直接中止
+            if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
+            {
                 return PageOutcome.Abort(selection);
             }
 
-            var savePath = SavePath.Build(ctx, pageCtx, selectedVideo, null);
+            if (IsCodecUnsupported(selectedVideo))
+            {
+                LogError($"分段 (FLV) 源无法承载 {selectedVideo!.Codecs} 编码，请改用 -e avc 重新下载");
+                return PageOutcome.Abort(selection);
+            }
+
             if (MuxFinish.TrySkipExisting(session, savePath, selection) is { } skipped)
             {
                 return skipped;

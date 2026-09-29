@@ -1,8 +1,4 @@
-using System.Threading;
 using System.Threading.Tasks;
-
-using BBDown.Core;
-using BBDown.Core.Pipeline;
 
 namespace BBDown.Core.Tests;
 

@@ -119,20 +119,13 @@ public class UtilsTests
             return;
         }
 
-        var dir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath( ), "bbdown-exec-test-" + Guid.NewGuid( )));
-        var file = Path.Combine(dir.FullName, "dummy-tool");
+        using var dir = new TempDir( );
+        var file = Path.Combine(dir.FullPath, "dummy-tool");
         File.WriteAllText(file, string.Empty);
-        try
-        {
-            File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            Assert.Null(Utils.FindExecutableIn([dir.FullName], "dummy-tool"));
+        File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        Assert.Null(Utils.FindExecutableIn([dir.FullPath], "dummy-tool"));
 
-            File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            Assert.Equal(file, Utils.FindExecutableIn([dir.FullName], "dummy-tool"));
-        }
-        finally
-        {
-            dir.Delete(true);
-        }
+        File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        Assert.Equal(file, Utils.FindExecutableIn([dir.FullPath], "dummy-tool"));
     }
 }
