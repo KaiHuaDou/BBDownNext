@@ -22,20 +22,26 @@ public sealed class ProgressBar : IDisposable
     private readonly Timer? renderTimer;
     private readonly CancellationToken cancelToken;
     private readonly bool drawToConsole = !Console.IsOutputRedirected;
+    // 比较置空需要委托实例一致：方法组每次转换都会生成新委托，注册时缓存一份
+    private readonly Action? clearLineHook;
+    private readonly Action? suspendHook;
+    private readonly Action? resumeHook;
 
-    // 以下字段只在持有 gate 时访问
+    // 以下状态字段只在持有 gate 时访问（disposed 例外：Blit 在 WriteGate 内终检，volatile 保证可见性）
     private double ratio;
     private string speedText = string.Empty;
     private string etaText = string.Empty;
-    private string renderedText = string.Empty;
     private int spinnerIndex;
     private DateTime etaStart;
     private double lastRatio;
     private long lastSampleTick;
     private bool downloading;
     private bool rendering;
-    private bool disposed;
     private bool suspended;
+    private volatile bool disposed;
+
+    // 差异重绘基准，与全部控制台写入同锁：只在 WriteGate 内访问
+    private string renderedText = string.Empty;
 
     public ProgressBar(CancellationToken ct = default)
     {
@@ -47,10 +53,13 @@ public sealed class ProgressBar : IDisposable
             renderTimer.Change(RenderInterval, Timeout.InfiniteTimeSpan);
             // 退格重绘假定光标停在本行末尾，日志若直接跟在进度条后面会把光标推走，下一帧就把 spinner 打到日志行首。
             // 注册日志前置钩子：写日志前先擦掉进度条行，让日志从行首开始（与 LiveProgress 同一机制）。
-            ConsoleHost.BeforeWrite = ClearLine;
+            clearLineHook = ClearLine;
+            suspendHook = Suspend;
+            resumeHook = Resume;
+            ConsoleHost.BeforeWrite = clearLineHook;
             // 逐集确认 / 选轨等交互读输入前暂停渲染，避免进度条覆盖提示与用户输入
-            CliInteraction.BeforeRead = Suspend;
-            CliInteraction.AfterRead = Resume;
+            CliInteraction.BeforeRead = suspendHook;
+            CliInteraction.AfterRead = resumeHook;
         }
     }
 
@@ -79,16 +88,20 @@ public sealed class ProgressBar : IDisposable
             return;
         }
 
+        var erase = false;
         lock (gate)
         {
-            if (disposed)
+            if (!disposed)
             {
-                return;
+                suspended = true;
+                renderTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                erase = true;
             }
+        }
 
-            suspended = true;
-            renderTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            Draw(string.Empty);
+        if (erase)
+        {
+            Blit(string.Empty);
         }
     }
 
@@ -102,17 +115,16 @@ public sealed class ProgressBar : IDisposable
 
         lock (gate)
         {
-            if (disposed)
+            if (!disposed)
             {
-                return;
+                suspended = false;
+                renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
             }
-
-            suspended = false;
-            renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
         }
     }
 
     // 擦掉进度条行，让紧随其后的日志从行首开始。日志打完由下一帧自动重画。
+    // 作为 ConsoleHost.BeforeWrite 在 WriteGate 内被调用：单向锁序禁止在此取 gate
     public void ClearLine( )
     {
         // 重定向时不渲染进度条，无事可擦，直接跳过避免无谓锁竞争
@@ -121,13 +133,7 @@ public sealed class ProgressBar : IDisposable
             return;
         }
 
-        lock (gate)
-        {
-            if (!disposed)
-            {
-                Draw(string.Empty);
-            }
-        }
+        Blit(string.Empty);
     }
 
     // 主媒体下载窗口：true 进入下载（恢复渲染），false 下载结束（清行停止渲染）。
@@ -139,27 +145,31 @@ public sealed class ProgressBar : IDisposable
             return;
         }
 
+        var erase = false;
         lock (gate)
         {
-            if (disposed)
+            if (!disposed)
             {
-                return;
+                downloading = value;
+                if (value)
+                {
+                    // 标记本帧为“刚采样”，避免 Render 在首个真实采样到达前误判空闲而清行
+                    lastSampleTick = Environment.TickCount64;
+                    rendering = true;
+                    renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
+                }
+                else
+                {
+                    renderTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                    rendering = false;
+                    erase = true;
+                }
             }
+        }
 
-            downloading = value;
-            if (value)
-            {
-                // 标记本帧为“刚采样”，避免 Render 在首个真实采样到达前误判空闲而清行
-                lastSampleTick = Environment.TickCount64;
-                rendering = true;
-                renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
-            }
-            else
-            {
-                Draw(string.Empty);
-                renderTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-                rendering = false;
-            }
+        if (erase)
+        {
+            Blit(string.Empty);
         }
     }
 
@@ -203,6 +213,7 @@ public sealed class ProgressBar : IDisposable
 
     private void Render( )
     {
+        var text = string.Empty;
         lock (gate)
         {
             if (disposed || cancelToken.IsCancellationRequested || suspended)
@@ -214,70 +225,110 @@ public sealed class ProgressBar : IDisposable
             // 采样停止的空闲判定是兜底，正常路径由 SetDownloading(false) 即时清行
             if (!downloading || Environment.TickCount64 - lastSampleTick > IdleTimeout.TotalMilliseconds)
             {
-                Draw(string.Empty);
                 rendering = false;
-                return;
             }
-
-            var filled = Math.Clamp((int) (ratio * BarWidth), 0, BarWidth);
-            spinnerIndex = (spinnerIndex + 1) % SpinnerFrames.Length;
-            Draw($"             [{new string('#', filled)}{new string('-', BarWidth - filled)}] {ratio * 100,3:0.00}% {SpinnerFrames[spinnerIndex]}{speedText}{etaText}");
-            renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
+            else
+            {
+                var filled = Math.Clamp((int) (ratio * BarWidth), 0, BarWidth);
+                spinnerIndex = (spinnerIndex + 1) % SpinnerFrames.Length;
+                text = $"             [{new string('#', filled)}{new string('-', BarWidth - filled)}] {ratio * 100,3:0.00}% {SpinnerFrames[spinnerIndex]}{speedText}{etaText}";
+                renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
+            }
         }
+
+        Blit(text);
     }
 
-    // 只回退并重写与上一帧不同的那段后缀，整行重画会闪。
-    private void Draw(string text)
+    // 帧差异计算（纯函数）：只回退并重写与上一帧不同的那段后缀，整行重画会闪
+    internal static string BuildDiff(string previous, string text)
     {
-        if (!drawToConsole || cancelToken.IsCancellationRequested)
-        {
-            return;
-        }
-
         var commonPrefixLength = 0;
-        var commonLength = Math.Min(renderedText.Length, text.Length);
-        while (commonPrefixLength < commonLength && text[commonPrefixLength] == renderedText[commonPrefixLength])
+        var commonLength = Math.Min(previous.Length, text.Length);
+        while (commonPrefixLength < commonLength && text[commonPrefixLength] == previous[commonPrefixLength])
         {
             commonPrefixLength++;
         }
 
         StringBuilder output = new( );
-        output.Append('\b', renderedText.Length - commonPrefixLength);
+        output.Append('\b', previous.Length - commonPrefixLength);
         output.Append(text[commonPrefixLength..]);
 
         // 新内容更短时，多出来的旧字符要用空格抹掉
-        var overlapCount = renderedText.Length - text.Length;
+        var overlapCount = previous.Length - text.Length;
         if (overlapCount > 0)
         {
             output.Append(' ', overlapCount);
             output.Append('\b', overlapCount);
         }
 
-        lock (ConsoleHost.WriteGate)
-        {
-            Console.Write(output);
-        }
-
-        renderedText = text;
+        return output.ToString( );
     }
 
-    public void Dispose( )
+    // 落写收口：全部控制台写入只在 WriteGate 内进行，且不得持有 gate 进入本方法——
+    // 擦行回调同样在 WriteGate 内执行，双向取锁即 AB-BA 死锁（见 ConsoleHost 锁序说明）
+    private void Blit(string text)
     {
-        // 先摘钩再拿 gate：渲染器持自身锁回调 ClearLine 拿本 gate，反向持 gate 去改渲染器状态会死锁
-        ProgressBus.Unsubscribe(OnProgress);
-        ConsoleHost.BeforeWrite = null;
-        CliInteraction.BeforeRead = null;
-        CliInteraction.AfterRead = null;
-        lock (gate)
+        if (!drawToConsole || cancelToken.IsCancellationRequested)
         {
+            return;
+        }
+
+        lock (ConsoleHost.WriteGate)
+        {
+            // 终检 disposed：本帧与 Dispose 的终态擦行经 WriteGate 串行，后到者胜，
+            // 已释放实例的帧不允许落在擦行之后
             if (disposed)
             {
                 return;
             }
 
+            Console.Write(BuildDiff(renderedText, text));
+            renderedText = text;
+        }
+    }
+
+    public void Dispose( )
+    {
+        // 摘钩在前：Dispose 之后不再有日志触发本实例的擦行回调
+        ProgressBus.Unsubscribe(OnProgress);
+        // 比较置空只清自己注册的委托：两实例共存时不误删后注册者的钩子
+        if (ReferenceEquals(ConsoleHost.BeforeWrite, clearLineHook))
+        {
+            ConsoleHost.BeforeWrite = null;
+        }
+
+        if (ReferenceEquals(CliInteraction.BeforeRead, suspendHook))
+        {
+            CliInteraction.BeforeRead = null;
+        }
+
+        if (ReferenceEquals(CliInteraction.AfterRead, resumeHook))
+        {
+            CliInteraction.AfterRead = null;
+        }
+
+        lock (gate)
+        {
             disposed = true;
-            Draw(string.Empty);
             renderTimer?.Dispose( );
+        }
+
+        EraseFinal( );
+    }
+
+    // 终态擦行：disposed 已置位故不走 Blit；与在途 Render 的 Blit 经 WriteGate 串行，
+    // 在途帧要么先行（被本次擦掉）要么因 Blit 的 disposed 终检跳过
+    private void EraseFinal( )
+    {
+        if (!drawToConsole)
+        {
+            return;
+        }
+
+        lock (ConsoleHost.WriteGate)
+        {
+            Console.Write(BuildDiff(renderedText, string.Empty));
+            renderedText = string.Empty;
         }
     }
 }

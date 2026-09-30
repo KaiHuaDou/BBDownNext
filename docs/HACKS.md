@@ -28,8 +28,8 @@
 | `BBDown.Core/Download/CdnHost.cs` | 默认把 upos host 强制替换为备用 host（`--no-force-host` 可关） | 部分 CDN 节点对非浏览器流量限速 / 失效 |
 | `BBDown.Core/Download/DownloaderAdapter.cs` IsDownloadSuccess | downloader 库把「目标已存在即跳过」以 Failed 状态送达且保留文件，该组合判定为成功 | 库的隐式契约，已抽纯函数并锁定单测 |
 | `BBDown.Core/Download/BBDownAria2c.cs` | 6 小时进程级硬超时 + `Kill(true)`（连带子进程） | 防 aria2c 僵死占住并发槽；aria2c 会派生子进程 |
-| `BBDown.Core/Media/FlvDownload.cs` DownloadClipsAsync | 直接修改共享 `DownloadConfig.ParallelCount`（片段间并行 4 × 片段内 8 = 32） | 片段间与片段内连接合计不超过 DownloaderAdapter.MaxRangeConcurrency；依赖「FLV 之后无其它下载步骤」的时序契约 |
 | `BBDown.Core/Media/FlvDownload.cs` IsCodecUnsupported | FLV 链路拒绝 HEVC / AV1（上游拦截） | FLV 容器无法承载；`MergeFLV` 的 `h264_mp4toannexb` 依赖此前提 |
+| `BBDown.Core/Media/PageDownload.cs` DispatchAsync | FLV 链路不执行外部后处理（`--post-process` 仅作用于 DASH 轨） | 刻意设计（ARCHITECTURE.md §9），勿当双链路漂移修复 |
 
 ## 4. 接口形态
 
@@ -59,7 +59,8 @@
 | 位置 | 消除内容 |
 | --- | --- |
 | `BBDown.Core/Mux/Muxer.cs` MergeFLV | 单段直接 `File.Move` 的分支（FLV 内容配 mp4 后缀的中间态），统一走转封装 + 拼接 |
-| `BBDown.Core/Media/DashDownload.cs` / `FlvDownload.cs` | 弹幕产出块在两条链路的逐行重复（提取 `PageAssets.TryDownloadDanmakuAsync`） |
+| `BBDown.Core/Media/DashDownload.cs` / `FlvDownload.cs` | 弹幕产出块在两条链路的逐行重复（提取 `PageAssets.TryDownloadDanmakuAsync`）；独立封面块同源收口为 `PageAssets.TryDownloadCoverAsync` |
+| `BBDown.Core/Media/FlvDownload.cs` DownloadClipsAsync | 直接改写会话级共享 `DownloadConfig.ParallelCount` 的副作用写法（`DownloadConfig` 改 record，片段并行下调经 with 副本承载，不再依赖「FLV 之后无下载步骤」的时序前提） |
 | `BBDown.Core/Workflow/ProgressBus.cs` | `EndStage` / `EndActive` 完全相同的两个方法 |
 | `BBDown.Core/Util/HTTPUtil.cs` 等 4 处 | `BBDOWN_INSECURE_TLS` 判定的四份拷贝（统一为 `IsTlsAcceptable`） |
 | `BBDown.Core/Parser.cs` | `TryCollectIntlAsync` 内的嵌套局部函数 |

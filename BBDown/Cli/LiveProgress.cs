@@ -22,13 +22,17 @@ public sealed class LiveProgress : IDisposable
     private readonly bool drawToConsole = !Console.IsOutputRedirected;
     private readonly Lock gate = new( );
     private readonly Timer? renderTimer;
+    // 比较置空需要委托实例一致：方法组每次转换都会生成新委托，注册时缓存一份
+    private readonly Action? clearLineHook;
 
-    // 以下字段只在持有 gate 时访问
+    // 以下字段只在持有 gate 时访问（disposed 例外：Blit 在 WriteGate 内终检，volatile 保证可见性）
     private ProgressSampleEvent? sample;
-    private string renderedText = string.Empty;
     private long lastRedirectedLogTick;
     private bool rendering;
-    private bool disposed;
+    private volatile bool disposed;
+
+    // 差异重绘基准，与全部控制台写入同锁：只在 WriteGate 内访问
+    private string renderedText = string.Empty;
 
     public LiveProgress( )
     {
@@ -37,13 +41,15 @@ public sealed class LiveProgress : IDisposable
         {
             renderTimer = new Timer(_ => Render( ));
             renderTimer.Change(RenderInterval, Timeout.InfiniteTimeSpan);
-            ConsoleHost.BeforeWrite = ClearLine;
+            clearLineHook = ClearLine;
+            ConsoleHost.BeforeWrite = clearLineHook;
         }
     }
 
     // 阶段边界驱动显隐，样本驱动更新；重定向时定期落一行日志
     private void OnProgress(WorkflowEvent evt)
     {
+        var erase = false;
         lock (gate)
         {
             if (disposed)
@@ -71,16 +77,22 @@ public sealed class LiveProgress : IDisposable
 
                     break;
                 case ProgressRangeEndEvent:
-                    Draw(string.Empty);
                     renderTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                     rendering = false;
+                    erase = true;
                     break;
             }
+        }
+
+        if (erase)
+        {
+            Blit(string.Empty);
         }
     }
 
     private void Render( )
     {
+        string text;
         lock (gate)
         {
             if (disposed || !rendering || sample is not { } current)
@@ -88,9 +100,11 @@ public sealed class LiveProgress : IDisposable
                 return;
             }
 
-            Draw(Compose(current));
+            text = Compose(current);
             renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
         }
+
+        Blit(text);
     }
 
     // 行内容：Detail（时长 / 分段 / 清晰度）+ 体积 + 速度
@@ -101,28 +115,23 @@ public sealed class LiveProgress : IDisposable
 
     /// <summary>
     /// 擦掉状态行，让紧随其后的日志从行首开始。日志打完由下一帧自动重画。
+    /// 作为 ConsoleHost.BeforeWrite 在 WriteGate 内被调用：单向锁序禁止在此取 gate。
     /// </summary>
     public void ClearLine( )
     {
-        // 提前返回不只是省事：重定向时采样会调 Log，而 Log 又会回调到这里，
-        // 先拿 gate 再拿 Logger 锁与反向顺序撞上就是死锁。
-        // 这条分支保证「Logger 锁 → gate」只可能发生在 drawToConsole 为真时。
+        // 重定向时无状态行可擦（采样直接落日志），跳过避免无谓写控制台
         if (!drawToConsole)
         {
             return;
         }
 
-        lock (gate)
-        {
-            if (!disposed)
-            {
-                Draw(string.Empty);
-            }
-        }
+        Blit(string.Empty);
     }
 
-    // \r 回到行首整行重写；新内容比旧内容短时用空格补齐，避免上一帧的残余留在屏幕上
-    private void Draw(string text)
+    // \r 回到行首整行重写；新内容比旧内容短时用空格补齐，避免上一帧的残余留在屏幕上。
+    // 落写收口：全部控制台写入只在 WriteGate 内进行，且不得持有 gate 进入本方法——
+    // 擦行回调同样在 WriteGate 内执行，双向取锁即 AB-BA 死锁（见 ConsoleHost 锁序说明）
+    private void Blit(string text)
     {
         if (!drawToConsole)
         {
@@ -131,6 +140,12 @@ public sealed class LiveProgress : IDisposable
 
         lock (ConsoleHost.WriteGate)
         {
+            // 终检 disposed：本帧与 Dispose 的终态擦行经 WriteGate 串行，后到者胜
+            if (disposed)
+            {
+                return;
+            }
+
             if (text.Length == 0)
             {
                 Console.Write("\r" + new string(' ', renderedText.Length) + "\r");
@@ -143,25 +158,42 @@ public sealed class LiveProgress : IDisposable
             {
                 Console.Write(new string(' ', renderedText.Length - text.Length));
             }
-        }
 
-        renderedText = text;
+            renderedText = text;
+        }
     }
 
     public void Dispose( )
     {
+        // 摘钩在前：Dispose 之后不再有日志触发本实例的擦行回调；比较置空不误删后注册者的钩子
         ProgressBus.Unsubscribe(OnProgress);
-        ConsoleHost.BeforeWrite = null;
+        if (ReferenceEquals(ConsoleHost.BeforeWrite, clearLineHook))
+        {
+            ConsoleHost.BeforeWrite = null;
+        }
+
         lock (gate)
         {
-            if (disposed)
-            {
-                return;
-            }
-
             disposed = true;
-            Draw(string.Empty);
             renderTimer?.Dispose( );
+        }
+
+        EraseFinal( );
+    }
+
+    // 终态擦行：disposed 已置位故不走 Blit；与在途 Render 的 Blit 经 WriteGate 串行，
+    // 在途帧要么先行（被本次擦掉）要么因 Blit 的 disposed 终检跳过
+    private void EraseFinal( )
+    {
+        if (!drawToConsole)
+        {
+            return;
+        }
+
+        lock (ConsoleHost.WriteGate)
+        {
+            Console.Write("\r" + new string(' ', renderedText.Length) + "\r");
+            renderedText = string.Empty;
         }
     }
 }

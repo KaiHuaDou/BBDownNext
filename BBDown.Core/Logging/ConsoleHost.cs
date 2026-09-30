@@ -11,8 +11,8 @@ public static class ConsoleHost
 {
     public static Action? BeforeWrite { get; set; }
 
-    // 全部控制台写入（日志正文 / 进度条帧 / 状态行帧）统一拿这把锁互斥：
-    // 擦行（BeforeWrite）与写正文分属两个线程时，无共同锁会让进度条帧插进日志正文中间造成错位。
-    // 锁序约束：各方先拿自己的 gate 再拿本锁（System.Threading.Lock 可重入，擦行回调链上重复进入无害）
+    // 全部控制台写入（日志正文 / 进度条帧 / 状态行帧）统一拿这把锁互斥。
+    // 单向锁序：在本锁内执行的擦行回调（BeforeWrite）不得等待任何其它锁，回调实现只访问本锁保护的状态；
+    // 进度条 / 状态行的帧文本先在各自 gate 内算好，释放后再进本锁落写。双向取锁即 AB-BA 死锁
     public static readonly Lock WriteGate = new( );
 }

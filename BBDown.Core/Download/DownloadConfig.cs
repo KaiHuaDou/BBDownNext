@@ -1,6 +1,6 @@
 namespace BBDown.Core.Download;
 
-public sealed class DownloadConfig
+public sealed record DownloadConfig
 {
     public bool UseAria2c { get; set; }
     public string Aria2cArgs { get; set; } = string.Empty;

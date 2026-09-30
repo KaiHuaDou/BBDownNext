@@ -187,6 +187,19 @@ public static class ContentSelector
         return (content & flags) != 0;
     }
 
+    // 分 P 下载链路内仍待产出的内容：音视频、弹幕、独立封面（字幕 / 混流封面 / 评论在分派前已处理）。
+    // DASH 与 FLV 链路的「无事可做」早退判定共用，防止两链路各写一遍产生漂移
+    internal static bool HasChainWork(this DownloadContent content)
+    {
+        return content.HasAny(DownloadContent.Audio | DownloadContent.Video | DownloadContent.Danmaku | DownloadContent.Cover);
+    }
+
+    // 无音视频可下（纯弹幕 / 封面 / 字幕 / 评论任务）：附属产物落盘后链路即中止，两条下载链路共用
+    internal static bool IsAssetOnly(this DownloadContent content)
+    {
+        return !content.HasAny(DownloadContent.Audio | DownloadContent.Video);
+    }
+
     private static DownloadContent Apply(DownloadContent flags, IEnumerable<string> segments, bool subtract, List<string> warnings)
     {
         foreach (var segment in segments)

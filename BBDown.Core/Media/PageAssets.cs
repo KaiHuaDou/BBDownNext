@@ -43,6 +43,37 @@ public static class PageAssets
         return danmakuOnly ? PageOutcome.Abort(selection) : null;
     }
 
+    // DASH 与 FLV 共用的独立封面（c）产出收口：独立重试，耗尽仅告警跳过（不影响音视频）。
+    // 返回非 null 表示纯封面任务已落盘完成（无音视频可下，Abort），null 表示继续走音视频流程
+    internal static async Task<PageOutcome?> TryDownloadCoverAsync(DownloadSession session, string savePath, TrackSelection selection, CancellationToken ct)
+    {
+        if (!session.Options.Content.Has(DownloadContent.Cover))
+        {
+            return null;
+        }
+
+        var (_, _, pageCtx, _, downloadConfig, sink) = session;
+        var coverPath = Path.ChangeExtension(savePath, Path.GetExtension(pageCtx.CoverUrl));
+        try
+        {
+            await RetryAsync(
+                async ( ) => await DownloadFileAsync(pageCtx.CoverUrl, coverPath, downloadConfig, ct),
+                session.Options.MaxRetry, "封面", ct, ex => PageDownload.ShouldRetry(ex, ct));
+            MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
+            // 封面 URL 为空时 DownloadFileAsync 直接返回不写文件，不应当作已保存回报
+            if (!string.IsNullOrEmpty(pageCtx.CoverUrl))
+            {
+                sink.Saved?.Invoke(coverPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogWarn($"封面下载失败，已跳过：{ex.Message}");
+        }
+
+        return session.Options.Content.IsAssetOnly( ) ? PageOutcome.Abort(selection) : null;
+    }
+
     internal static async Task<List<Subtitle>> PrepareAsync(DownloadSession session, CancellationToken ct = default)
     {
         var (myOption, ctx, pageCtx, _, _, _) = session;

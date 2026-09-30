@@ -262,6 +262,34 @@ public class ContentSelectorTests
         Assert.Empty(list);
     }
 
+    // ---- 链路产出判定（DASH / FLV 共用谓词） ----
+
+    [Theory]
+    [InlineData("av", false)]
+    [InlineData("avd", false)]
+    [InlineData("d", true)]
+    [InlineData("c", true)]
+    [InlineData("s", true)]
+    [InlineData("o", true)]
+    [InlineData("dc", true)]
+    public void IsAssetOnly_WithoutAudioVideo_True(string content, bool expected)
+    {
+        Assert.Equal(expected, ContentSelector.FromNormalizedString(content).IsAssetOnly( ));
+    }
+
+    [Theory]
+    [InlineData("av", true)]
+    [InlineData("avc", true)]
+    [InlineData("d", true)]
+    [InlineData("c", true)]
+    [InlineData("s", false)]
+    [InlineData("o", false)]
+    [InlineData("", false)]
+    public void HasChainWork_ChainProducibleFlagPresent_True(string content, bool expected)
+    {
+        Assert.Equal(expected, ContentSelector.FromNormalizedString(content).HasChainWork( ));
+    }
+
     // ---- 资源类型 → 内容适用域（ModeOf 为纯函数，CLI 与 serve 共用判定点） ----
 
     public static TheoryData<ResourceId, ContentMode> ModeOfCases => new( )

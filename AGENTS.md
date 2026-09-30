@@ -273,3 +273,13 @@ AGENT 对此文档的修改只能添加在本节，在本节添加内容无需�
 - 确有独占语义、无人复用的桩（如 `ResumeDownloadTests` 的 Range / 并发峰值桩）可留在测试文件内保持 `private`，但须在注释中说明独占理由
 
 **序列化约定**：xUnit 不会因漏挂 `[Collection]` 报错，漏挂只表现为偶发失败。凡替换进程级静态的测试类必须挂对应的 `[CollectionDefinition]`，且**必须用类型形式** `[Collection<XxxDefinition>]`；字符串形式 `[Collection("名字")]` 在没有同名 `[CollectionDefinition("名字")]` 时会静默另开一个可并行的集合，串行保护完全失效。
+
+### 进程级静态检查单
+
+新增任何进程级静态（static 可变字段 / 属性槽位）前必须回答：**serve 并发下谁会同时写它**。按语义对号入座三种标准形态：
+
+- 任务级配置 → 不可变快照逐层透传（参照 `ToolPaths` / `AppConfig` / `RunConfig`）
+- 上下文作用域 → AsyncLocal 作用域句柄（参照 `MessageBus.BeginScope`）
+- 跨宿主注册表 → 按会话键控的 `ConcurrentDictionary` + 原子摘除（参照 `LiveSignal`）
+
+只读缓存与宿主固有单例（如 CLI 控制台钩子）可保留进程级，但须在注释中声明写者与写入时机。

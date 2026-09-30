@@ -50,8 +50,8 @@ public static class FlvDownload
                 return PageOutcome.Abort(selection);
             }
 
-            // 纯字幕等无音视频内容：字幕已在 PrepareAsync 产出，直接中止（弹幕在下方与 DASH 链路同样产出）
-            if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video | DownloadContent.Danmaku))
+            // 本链路可产出（音视频 / 弹幕 / 独立封面）全无：字幕已在 PrepareAsync 产出，直接中止
+            if (!myOption.Content.HasChainWork( ))
             {
                 return PageOutcome.Abort(selection);
             }
@@ -66,8 +66,14 @@ public static class FlvDownload
                 return danmakuAbort;
             }
 
-            // 纯弹幕等无音视频内容：弹幕已在上方产出，直接中止
-            if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
+            // 独立封面（c）与 DASH 链路同一收口：独立重试，耗尽仅跳过
+            if (await PageAssets.TryDownloadCoverAsync(session, savePath, selection, ct) is { } coverAbort)
+            {
+                return coverAbort;
+            }
+
+            // 纯弹幕 / 纯封面等无音视频内容：附属产物已在上方落盘，直接中止
+            if (myOption.Content.IsAssetOnly( ))
             {
                 return PageOutcome.Abort(selection);
             }
@@ -178,16 +184,16 @@ public static class FlvDownload
         var p = pageCtx.Page;
         var pad = string.Empty.PadRight(clips.Count.ToString( ).Length, '0');
         var clipPaths = new string[clips.Count];
-        // 片段间并行与片段内连接合计不超过 DownloaderAdapter.MaxRangeConcurrency，
-        // 直接约束会话级 ParallelCount（DownloadConfig 为引用类型，FLV 片段下载后不再触发下载，无后续副作用）
-        downloadConfig.ParallelCount = DownloaderAdapter.MaxRangeConcurrency / MaxClipParallelism;
+        // 片段间并行与片段内连接合计不超过 DownloaderAdapter.MaxRangeConcurrency：
+        // 并行度下调由 with 副本承载，不改写会话级共享实例（该实例在片段下载之后仍被引用）
+        var clipConfig = downloadConfig with { ParallelCount = DownloaderAdapter.MaxRangeConcurrency / MaxClipParallelism };
         var options = new ParallelOptions { MaxDegreeOfParallelism = MaxClipParallelism, CancellationToken = ct };
         await Parallel.ForEachAsync(Enumerable.Range(0, clips.Count), options, async (i, token) =>
         {
             var clipPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.P{p.Index}.{p.Cid}.{i.ToString(pad)}.mp4");
             clipPaths[i] = clipPath;
             Log($"开始下载 P{p.Index} 视频，片段（{(i + 1).ToString(pad)} / {clips.Count}）...");
-            await DownloadAsync(clips[i], clipPath, downloadConfig, ct: token);
+            await DownloadAsync(clips[i], clipPath, clipConfig, ct: token);
         });
         return [.. clipPaths];
     }

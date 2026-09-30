@@ -63,6 +63,9 @@ public static class MuxFinish
 
         var p = pageCtx.Page;
         var savePath = ToOutputPath(inputs.SavePath, inputs.Mux, myOption.Content.Has(DownloadContent.Video));
+        // 产物先写 .muxing 临时名（保持原扩展名，mp4box 按扩展名选封装），校验通过后改名到位：
+        // 直写最终路径时进程被杀会留下非空半成品，重跑被 ShouldSkip 的「非空即跳过」误判为成品
+        var muxingPath = Path.ChangeExtension(savePath, $".muxing{Path.GetExtension(savePath)}");
         var streams = string.IsNullOrEmpty(inputs.AudioPath) ? "视频" : "音视频";
         Log($"开始混流{streams}{(subtitleInfo.Count != 0 ? "和字幕" : "")}...");
         var req = new MuxRequest(
@@ -71,7 +74,7 @@ public static class MuxFinish
             VideoPath: inputs.VideoPath,
             AudioPath: inputs.AudioPath,
             AudioMaterial: inputs.AudioMaterial,
-            OutPath: savePath,
+            OutPath: muxingPath,
             Tools: ctx.Run.Tools,
             Desc: pageCtx.Desc,
             Title: pageCtx.Title,
@@ -87,13 +90,16 @@ public static class MuxFinish
             TrackNumber: p.Index,
             TotalTracks: pageCtx.PagesCount);
         var code = await Muxer.MuxAV(req, ct);
-        if (code != 0 || !File.Exists(savePath) || new FileInfo(savePath).Length == 0)
+        if (code != 0 || !File.Exists(muxingPath) || new FileInfo(muxingPath).Length == 0)
         {
             LogError("混流失败");
-            // 失败产物可能非空但损坏，留着会被下次 TrySkipExisting 误判为已完成；删除以保证重跑重新混流
-            SafeDelete(savePath);
+            // 只清临时名产物：savePath 在本次运行内不存在（存在则早已被 TrySkipExisting 跳过），
+            // 历史成功产物不因本次失败被误删
+            SafeDelete(muxingPath);
             return PageOutcome.Abort(selection);
         }
+
+        File.Move(muxingPath, savePath, true);
 
         if (p.PubTime > 0)
         {

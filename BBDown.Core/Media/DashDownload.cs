@@ -21,7 +21,7 @@ public static class DashDownload
 {
     internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, TrackSelection selection, CancellationToken ct = default)
     {
-        var (myOption, ctx, pageCtx, _, downloadConfig, sink) = session;
+        var (myOption, ctx, pageCtx, _, _, _) = session;
         var p = pageCtx.Page;
         var (selected, vIndex, aIndex) = selection;
 
@@ -87,35 +87,14 @@ public static class DashDownload
             return danmakuAbort;
         }
 
-        // 独立封面（c）非必要项，独立重试，耗尽仅跳过（不影响音视频）
-        if (myOption.Content.Has(DownloadContent.Cover))
+        // 独立封面（c）非必要项，独立重试，耗尽仅跳过（不影响音视频）；纯封面任务落盘后即中止
+        if (await PageAssets.TryDownloadCoverAsync(session, savePath, selection, ct) is { } coverAbort)
         {
-            var newCoverPath = Path.ChangeExtension(savePath, Path.GetExtension(pageCtx.CoverUrl));
-            try
-            {
-                await RetryAsync(
-                    async ( ) => await DownloadFileAsync(pageCtx.CoverUrl, newCoverPath, downloadConfig, ct),
-                    myOption.MaxRetry, "封面", ct, ex => PageDownload.ShouldRetry(ex, ct));
-                MuxFinish.TryDeleteEmptyDir(pageCtx.TempDir);
-                // 封面 URL 为空时 DownloadFileAsync 直接返回不写文件，不应当作已保存回报
-                if (!string.IsNullOrEmpty(pageCtx.CoverUrl))
-                {
-                    sink.Saved?.Invoke(newCoverPath);
-                }
-            }
-            catch (Exception ex)
-            {
-                LogWarn($"封面下载失败，已跳过：{ex.Message}");
-            }
-
-            if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
-            {
-                return PageOutcome.Abort(selection);
-            }
+            return coverAbort;
         }
 
         // 纯字幕 / 纯评论等无音视频内容：字幕已在 PrepareAsync 产出，此处统一中止
-        if (!myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
+        if (myOption.Content.IsAssetOnly( ))
         {
             return PageOutcome.Abort(selection);
         }
