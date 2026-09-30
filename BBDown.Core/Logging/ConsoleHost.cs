@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace BBDown.Core.Logging;
 
@@ -9,4 +10,9 @@ namespace BBDown.Core.Logging;
 public static class ConsoleHost
 {
     public static Action? BeforeWrite { get; set; }
+
+    // 全部控制台写入（日志正文 / 进度条帧 / 状态行帧）统一拿这把锁互斥：
+    // 擦行（BeforeWrite）与写正文分属两个线程时，无共同锁会让进度条帧插进日志正文中间造成错位。
+    // 锁序约束：各方先拿自己的 gate 再拿本锁（System.Threading.Lock 可重入，擦行回调链上重复进入无害）
+    public static readonly Lock WriteGate = new( );
 }

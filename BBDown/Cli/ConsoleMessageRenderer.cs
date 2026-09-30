@@ -27,35 +27,41 @@ public sealed class ConsoleMessageRenderer : IDisposable
     {
         lock (gate)
         {
-            // 写前擦活动状态行（进度条 / 直播状态行），让日志从行首开始
-            ConsoleHost.BeforeWrite?.Invoke( );
+            lock (ConsoleHost.WriteGate)
+            {
+                // 写前擦活动状态行（进度条 / 直播状态行），让日志从行首开始
+                ConsoleHost.BeforeWrite?.Invoke( );
 
-            var prefix = message.ShowTime ? Timestamp(message.Time) : "            ";
-            Console.Write(prefix);
-            ConsoleColor? color = message.Level switch
-            {
-                LogLevel.Error => ConsoleColor.Red,
-                LogLevel.Warn => ConsoleColor.DarkYellow,
-                LogLevel.Debug => ConsoleColor.DarkGray,
-                _ => message.Emphasized ? ConsoleColor.Cyan : null,
-            };
-            if (color is { } c)
-            {
-                Console.ForegroundColor = c;
-            }
+                var prefix = message.ShowTime ? Timestamp(message.Time) : new string(' ', PrefixWidth);
+                Console.Write(prefix);
+                ConsoleColor? color = message.Level switch
+                {
+                    LogLevel.Error => ConsoleColor.Red,
+                    LogLevel.Warn => ConsoleColor.DarkYellow,
+                    LogLevel.Debug => ConsoleColor.DarkGray,
+                    _ => message.Emphasized ? ConsoleColor.Cyan : null,
+                };
+                if (color is { } c)
+                {
+                    Console.ForegroundColor = c;
+                }
 
-            Console.Write(message.Text);
-            if (color is not null)
-            {
-                Console.ResetColor( );
-            }
+                Console.Write(message.Text);
+                if (color is not null)
+                {
+                    Console.ResetColor( );
+                }
 
-            if (message.Enter)
-            {
-                Console.WriteLine( );
+                if (message.Enter)
+                {
+                    Console.WriteLine( );
+                }
             }
         }
     }
+
+    // 无时间戳分支的空格前缀必须与时间戳前缀同宽，否则两类消息左缘差一列
+    private const int PrefixWidth = 13;
 
     // 时间戳直接取消息产生时刻（LogMessage.Time），不重取渲染时刻：消息是同步发射的，两者无差，
     // 但 Time 语义是「产生时刻」，消费方应以此为唯一时间源

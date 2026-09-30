@@ -33,7 +33,7 @@ public static class ProgressBus
     public static IDisposable BeginStage(string stageName)
     {
         var scope = MessageBus.CurrentScope ?? "";
-        EndActive(scope);
+        EndStage(scope);
         latestByScope[scope] = new ProgressState { StageName = stageName };
         handlers?.Invoke(new ProgressRangeStartEvent(scope, stageName));
         return new ProgressStage(scope);
@@ -66,16 +66,6 @@ public static class ProgressBus
     }
 
     internal static void EndStage(string scope)
-    {
-        if (!latestByScope.TryRemove(scope, out _))
-        {
-            return;
-        }
-
-        handlers?.Invoke(new ProgressRangeEndEvent(scope));
-    }
-
-    private static void EndActive(string scope)
     {
         if (!latestByScope.TryRemove(scope, out _))
         {

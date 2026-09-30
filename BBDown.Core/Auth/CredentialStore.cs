@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 
 using static BBDown.Core.Logger;
@@ -28,6 +29,11 @@ namespace BBDown.Core.Auth;
 public static class CredentialStore
 {
     private const string DataFile = "BBDown.data";
+
+    // 保存走「读文件 → with 修改 → 写回」序列：serve 并发任务各自触发保存时，
+    // 无锁会让两个写者基于同一份旧快照合并，后写者覆盖先写者的字段更新（丢凭据）。
+    // 序列内有 await，lock 语句不可用，用信号量互斥；文件写入本身由 tmp + Move 保证原子
+    private static readonly SemaphoreSlim saveGate = new(1, 1);
 
     private static readonly Credential Empty = new(null, null, null, null, null, null, null);
 
@@ -69,22 +75,33 @@ public static class CredentialStore
 
     // ── 保存：每次只更新对应字段，合并保留其它字段（核心：单文件合并，互不覆盖）────
 
-    public static async Task SaveWebCookie(string cookie, string? dir = null, string? refreshToken = null, long? issueTs = null)
+    public static Task SaveWebCookie(string cookie, string? dir = null, string? refreshToken = null, long? issueTs = null)
     {
-        var c = LoadCredential(dir) with { Cookie = cookie, RefreshToken = refreshToken, Ts = issueTs };
-        await WriteCredential(dir, c);
+        return SaveCredential(dir, c => c with { Cookie = cookie, RefreshToken = refreshToken, Ts = issueTs });
     }
 
-    public static async Task SaveTvToken(string accessToken, long? issueTs = null, string? dir = null)
+    public static Task SaveTvToken(string accessToken, long? issueTs = null, string? dir = null)
     {
-        var c = LoadCredential(dir) with { TvAccessToken = accessToken, TvTs = issueTs };
-        await WriteCredential(dir, c);
+        return SaveCredential(dir, c => c with { TvAccessToken = accessToken, TvTs = issueTs });
     }
 
-    public static async Task SaveAppToken(string accessToken, long? issueTs = null, string? dir = null)
+    public static Task SaveAppToken(string accessToken, long? issueTs = null, string? dir = null)
     {
-        var c = LoadCredential(dir) with { AppAccessToken = accessToken, AppTs = issueTs };
-        await WriteCredential(dir, c);
+        return SaveCredential(dir, c => c with { AppAccessToken = accessToken, AppTs = issueTs });
+    }
+
+    // 三个 Save 共用的读改写收口，序列互斥见 saveGate 注释
+    private static async Task SaveCredential(string? dir, Func<Credential, Credential> update)
+    {
+        await saveGate.WaitAsync( );
+        try
+        {
+            await WriteCredential(dir, update(LoadCredential(dir)));
+        }
+        finally
+        {
+            saveGate.Release( );
+        }
     }
 
     // ── JSON 序列化 / 反序列化（源生成器，AOT 安全）────────────────────────────

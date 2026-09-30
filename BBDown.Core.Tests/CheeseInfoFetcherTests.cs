@@ -5,6 +5,8 @@ using BBDown.Core.Fetcher;
 
 namespace BBDown.Core.Tests;
 
+// 经 HttpStub 替换进程级静态 HTTPUtil.AppHttpClient，必须挂该集合与其它桩测试串行
+[Collection<HttpStubCollectionDefinition>]
 public class CheeseInfoFetcherTests
 {
     [Fact]

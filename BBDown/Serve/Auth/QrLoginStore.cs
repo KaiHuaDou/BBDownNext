@@ -65,7 +65,9 @@ public sealed class QrLoginStore
             return false;
         }
 
-        if (DateTimeOffset.UtcNow - found.CreatedAt <= SessionTtl)
+        // 终态会话不受 TTL 约束：凭据已落盘、后台任务已结束，此时淘汰只会让「TTL 到期瞬间完成扫码」
+        // 的轮询拿到 not found，用户被迫重来（凭据实际已保存却无从告知）。终态会话由 PruneExpired 统一清理
+        if (found.IsTerminal || DateTimeOffset.UtcNow - found.CreatedAt <= SessionTtl)
         {
             session = found;
             return true;

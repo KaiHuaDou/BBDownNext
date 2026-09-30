@@ -21,7 +21,7 @@ public static class DashDownload
 {
     internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, TrackSelection selection, CancellationToken ct = default)
     {
-        var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, sink) = session;
+        var (myOption, ctx, pageCtx, _, downloadConfig, sink) = session;
         var p = pageCtx.Page;
         var (selected, vIndex, aIndex) = selection;
 
@@ -82,24 +82,9 @@ public static class DashDownload
         LogDebug("Format After: " + savePath);
 
         // 弹幕非必要项，独立重试，耗尽仅跳过（无音视频时后续会自然中止该 P）
-        if (myOption.Content.Has(DownloadContent.Danmaku))
+        if (await PageAssets.TryDownloadDanmakuAsync(session, savePath, selection, ct) is { } danmakuAbort)
         {
-            var danmakuOnly = false;
-            try
-            {
-                danmakuOnly = await RetryAsync(
-                    async ( ) => await PageAssets.DownloadDanmakuAsync(session, savePath, ct),
-                    myOption.MaxRetry, "弹幕", ct, ex => PageDownload.ShouldRetry(ex, ct));
-            }
-            catch (Exception ex)
-            {
-                LogWarn($"弹幕下载失败，已跳过：{ex.Message}");
-            }
-
-            if (danmakuOnly)
-            {
-                return PageOutcome.Abort(selection);
-            }
+            return danmakuAbort;
         }
 
         // 独立封面（c）非必要项，独立重试，耗尽仅跳过（不影响音视频）
@@ -172,7 +157,7 @@ public static class DashDownload
         ParsedResult parsedResult, DownloadSession session, TrackSelection selection,
         PageContext pageCtx, string videoPath, string audioPath, CancellationToken ct)
     {
-        var (myOption, ctx, _, _, downloadConfig, sink) = session;
+        var (myOption, ctx, _, _, _, _) = session;
         var p = pageCtx.Page;
         var (_, vIndex, aIndex) = selection;
         var selectedVideo = parsedResult.VideoTracks.ElementAtOrDefault(vIndex);
@@ -201,38 +186,25 @@ public static class DashDownload
                     mux = MuxMode.Mp4box;
                 }
 
-                // 视频是必要轨，独立重试；耗尽则整 P 失败
+                // 视频是必要轨，重试耗尽则整 P 失败
                 Log($"开始下载 P{p.Index} 视频...");
-                await RetryAsync(
-                    async ( ) => await DownloadAsync(selectedVideo!.BaseUrl, videoPath, downloadConfig, ct: ct),
-                    myOption.MaxRetry, $"P{p.Index} 视频", ct, ex => PageDownload.ShouldRetry(ex, ct));
+                await TryDownloadTrackAsync(session, selectedVideo!.BaseUrl, videoPath, $"P{p.Index} 视频", true, ct);
             }
 
             if (hasAudio)
             {
-                // 音频是必要轨，独立重试；耗尽则整 P 失败
+                // 音频是必要轨，重试耗尽则整 P 失败
                 Log($"开始下载 P{p.Index} 音频...");
-                await RetryAsync(
-                    async ( ) => await DownloadAsync(selectedAudio!.BaseUrl, audioPath, downloadConfig, ct: ct),
-                    myOption.MaxRetry, $"P{p.Index} 音频", ct, ex => PageDownload.ShouldRetry(ex, ct));
+                await TryDownloadTrackAsync(session, selectedAudio!.BaseUrl, audioPath, $"P{p.Index} 音频", true, ct);
             }
 
-            // 背景配音非必要项，独立重试，耗尽仅跳过该轨
+            // 背景配音非必要轨，失败仅跳过该轨
             if (hasBackgroundAudio)
             {
                 backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.{p.Cid}.P{p.Index}.back_ground.m4a");
                 Log($"开始下载 P{p.Index} 背景配音...");
-                try
+                if (!await TryDownloadTrackAsync(session, selectedBackgroundAudio!.BaseUrl, backgroundPath, $"P{p.Index} 背景配音", false, ct))
                 {
-                    await RetryAsync(
-                        async ( ) => await DownloadAsync(selectedBackgroundAudio!.BaseUrl, backgroundPath, downloadConfig, ct: ct),
-                        myOption.MaxRetry, $"P{p.Index} 背景配音", ct, ex => PageDownload.ShouldRetry(ex, ct));
-                }
-                catch (Exception ex)
-                {
-                    LogWarn($"背景配音下载失败，已跳过：{ex.Message}");
-                    // 已写入的残缺临时文件未进入 audioMaterial，混流清理不会删除，此处显式清理避免残留
-                    SafeDelete(backgroundPath);
                     backgroundPath = "";
                     hasBackgroundAudio = false;
                 }
@@ -243,7 +215,7 @@ public static class DashDownload
                 audioMaterial.Add(new AudioMaterial { Title = "背景音频", PersonName = "", Path = backgroundPath });
             }
 
-            // 角色配音非必要项，逐角色独立重试，单个角色耗尽仅跳过该角色
+            // 角色配音非必要轨，逐角色独立下载，单个角色失败仅跳过该角色
             if (hasRoleAudio)
             {
                 foreach (var role in parsedResult.RoleAudioList)
@@ -258,17 +230,8 @@ public static class DashDownload
 
                     role.Path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.Path));
                     Log($"开始下载 P{p.Index} 配音 [{role.Title}]...");
-                    try
+                    if (!await TryDownloadTrackAsync(session, roleAudio.BaseUrl, role.Path, $"P{p.Index} 配音 [{role.Title}]", false, ct))
                     {
-                        await RetryAsync(
-                            async ( ) => await DownloadAsync(roleAudio.BaseUrl, role.Path, downloadConfig, ct: ct),
-                            myOption.MaxRetry, $"P{p.Index} 配音 [{role.Title}]", ct, ex => PageDownload.ShouldRetry(ex, ct));
-                    }
-                    catch (Exception ex)
-                    {
-                        LogWarn($"配音 [{role.Title}] 下载失败，已跳过：{ex.Message}");
-                        // 残缺临时文件未进入 audioMaterial，混流清理不会删除，此处显式清理避免残留
-                        SafeDelete(role.Path);
                         continue;
                     }
 
@@ -302,6 +265,31 @@ public static class DashDownload
         }
 
         return (audioMaterial, mux);
+    }
+
+    // 单轨下载收口：必要轨（required）重试耗尽异常上抛（整 P 失败）；可选轨失败仅告警返回 false。
+    // 半截文件未进入 audioMaterial、混流清理不会删，就地清理避免残留
+    private static async Task<bool> TryDownloadTrackAsync(DownloadSession session, string url, string path, string label, bool required, CancellationToken ct)
+    {
+        var (_, _, _, _, downloadConfig, _) = session;
+        try
+        {
+            await RetryAsync(
+                async ( ) => await DownloadAsync(url, path, downloadConfig, ct: ct),
+                session.Options.MaxRetry, label, ct, ex => PageDownload.ShouldRetry(ex, ct));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            if (required)
+            {
+                throw;
+            }
+
+            LogWarn($"{label}失败，已跳过：{ex.Message}");
+            SafeDelete(path);
+            return false;
+        }
     }
 
     // 对每条轨发起外部后处理（加密与否由处理方判断）；产物校验通过后覆盖原轨，其余情况静默

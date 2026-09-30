@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -13,6 +14,32 @@ public class CredentialStoreTests
         Assert.Equal("", CredentialStore.LoadWebCookie(dir.FullPath));
         await CredentialStore.SaveWebCookie("SESSDATA=xxx", dir.FullPath);
         Assert.Equal("SESSDATA=xxx", CredentialStore.LoadWebCookie(dir.FullPath));
+    }
+
+    // serve 并发任务各自触发保存：读改写序列无互斥时，基于同一旧快照的后写者会覆盖先写者的字段更新。
+    // 三类凭据并发各写多轮，结束后三类字段必须全部在位（丢失任何一个即读改写竞态回归）
+    [Fact]
+    public async Task ConcurrentSaves_KeepAllCredentialFields( )
+    {
+        using var dir = new TempDir( );
+        var tasks = new List<Task>( );
+        for (var round = 0; round < 6; round++)
+        {
+            var r = round;
+            tasks.Add(Task.Run(async ( ) =>
+            {
+                await CredentialStore.SaveWebCookie($"web-{r}", dir.FullPath);
+                await CredentialStore.SaveTvToken($"tv-{r}", issueTs: r, dir: dir.FullPath);
+                await CredentialStore.SaveAppToken($"app-{r}", issueTs: r, dir: dir.FullPath);
+            }, TestContext.Current.CancellationToken));
+        }
+
+        await Task.WhenAll(tasks);
+
+        var final = CredentialStore.ParseCredentialJson(File.ReadAllText(Path.Combine(dir.FullPath, "BBDown.data")));
+        Assert.False(string.IsNullOrEmpty(final.Cookie), "Web cookie 字段被并发保存覆盖丢失");
+        Assert.False(string.IsNullOrEmpty(final.TvAccessToken), "TV token 字段被并发保存覆盖丢失");
+        Assert.False(string.IsNullOrEmpty(final.AppAccessToken), "APP token 字段被并发保存覆盖丢失");
     }
 
     // 用户从网页/终端粘贴凭据时带入的首尾空白与换行符必须被剥离，否则认证会静默失败

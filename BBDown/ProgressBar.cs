@@ -253,7 +253,11 @@ public sealed class ProgressBar : IDisposable
             output.Append('\b', overlapCount);
         }
 
-        Console.Write(output);
+        lock (ConsoleHost.WriteGate)
+        {
+            Console.Write(output);
+        }
+
         renderedText = text;
     }
 

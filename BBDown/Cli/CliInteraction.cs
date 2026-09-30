@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 using BBDown.Core;
 using BBDown.Core.Workflow;
@@ -33,10 +35,33 @@ public sealed class CliInteraction : IDisposable
     {
         BeforeRead?.Invoke( );
         Logger.Log(evt.Prompt, false);
-        var input = Console.ReadLine( );
-        AfterRead?.Invoke( );
+        string? input;
+        try
+        {
+            input = ReadLineOrCancel( );
+        }
+        finally
+        {
+            AfterRead?.Invoke( );
+        }
+
         var optionId = Normalize(input, evt.Options) ?? evt.DefaultOptionId ?? evt.Options[0].Id;
         AskBus.Answer(evt.RequestId, new AskAnswer(optionId, input));
+    }
+
+    // 同步 Console.ReadLine 不响应取消令牌：Ctrl+C 后进程会一直挂起在等待输入上。
+    // 把读入放到线程池与取消句柄竞速，取消时按取消语义上抛（AskBus.Ask 的同步调用链原样传播）；
+    // 被放弃的读入线程阻塞在控制台上，取消即退出进程，由进程回收，无需专门终止
+    private static string? ReadLineOrCancel( )
+    {
+        var read = Task.Run(( ) => Console.ReadLine( ));
+        var which = WaitHandle.WaitAny([AppEnv.CancellationToken.WaitHandle, ((IAsyncResult) read).AsyncWaitHandle]);
+        if (which == 0)
+        {
+            throw new OperationCanceledException(AppEnv.CancellationToken);
+        }
+
+        return read.Result;
     }
 
     // 输入规范化：忽略大小写匹配选项 Id，再尝试常见全拼缩写（CLI 交互便利，与短形式选项 Id 对应）

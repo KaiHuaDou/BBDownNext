@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 
 using BBDown.Core.Util;
 
+using static BBDown.Core.Logger;
+
 namespace BBDown.Core.Download;
 
 public static class BBDownAria2c
@@ -41,7 +43,12 @@ public static class BBDownAria2c
         await using var _ = linked.Token.Register(( ) =>
         {
             // aria2c 会派生子进程，只杀直接进程会留下继续占用带宽与文件句柄的孤儿
-            try { p.Kill(true); } catch { }
+            try { p.Kill(true); }
+            catch (Exception ex)
+            {
+            // 进程可能已自行退出或句柄失效：杀不掉只影响清理彻底性，留调试痕迹即可
+            LogDebug("aria2c 终止失败：{0}", ex.Message);
+            }
         });
         try
         {

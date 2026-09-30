@@ -90,6 +90,24 @@ public class LiveSignalTests
         Assert.True(second.IsCancellationRequested);
     }
 
+    // 同标识被覆盖注册后，旧 scope 的释放不得动新注册：原子比较移除的语义锚定。
+    // 旧实现「先无条件 TryRemove 再判断回填」在两步之间有窗口，且实现依赖回填路径；
+    // 本用例锁定「只有槽位仍是自己时才摘除」的对外契约
+    [Fact]
+    public void DisposingStaleScope_KeepsOverwritingRegistration( )
+    {
+        using var stale = new CancellationTokenSource( );
+        using var current = new CancellationTokenSource( );
+        var staleScope = LiveSignal.Register("overwrite", stale);
+        using var currentScope = LiveSignal.Register("overwrite", current);
+
+        staleScope.Dispose( );
+
+        Assert.False(stale.IsCancellationRequested);
+        Assert.True(LiveSignal.TryRequestStop("overwrite"));
+        Assert.True(current.IsCancellationRequested);
+    }
+
     [Fact]
     public void Register_NullSource_Throws( )
     {

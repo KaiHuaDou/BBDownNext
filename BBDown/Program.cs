@@ -20,7 +20,9 @@ namespace BBDown;
 internal sealed class Program
 {
     // 录制中的直播会话标识，供 Ctrl+Break handler 精准停止对应录制（并发场景互不干扰）。
-    // volatile：主线程写、CancelKeyPress handler 线程读，需内存屏障保证 handler 读到最新值
+    // volatile：主线程写、CancelKeyPress handler 线程读，需内存屏障保证 handler 读到最新值。
+    // 已知窗口：RunAsync 返回到 finally 置 null 之间到达的 Ctrl+Break 会命中已结束的会话（TryRequestStop 返回 false，无害）；
+    // 同房间立即重启录制会复用同一规范串 id，极端时序下存在误停新会话的理论窗口，根治在 LiveSignal 的会话代次
     private static volatile string? liveSessionId;
 
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
@@ -60,7 +62,7 @@ internal sealed class Program
         catch { }
     }
 
-    public static async Task<int> Main(params string[] args)
+    public static async Task<int> Main(string[] args)
     {
         args = NormalizeArguments(args);
         Console.CancelKeyPress += Console_CancelKeyPress;
@@ -69,6 +71,8 @@ internal sealed class Program
 
         var rootCommand = CommandLineInvoker.GetRootCommand(RunApp);
         rootCommand.Description = "BBDown 是一个哔哩哔哩视频下载 / 解析命令行工具。";
+        // 关闭未匹配 token 报错：配置文件补齐依赖重新解析整段参数表，且 url 位置参数
+        // 的宽容匹配（任意串）由根命令声明兜底；强校验交给 TryReportParseErrors 的显式错误路径
         rootCommand.TreatUnmatchedTokensAsErrors = false;
 
         rootCommand.Subcommands.Add(BuildLoginCommand( ));
@@ -89,7 +93,8 @@ internal sealed class Program
         Console.WriteLine( );
         Console.WriteLine( );
 
-        // 配置文件只补齐命令行未显式指定的选项，补齐后需重新解析一次
+        // 配置文件只补齐命令行未显式指定的选项，补齐后需重新解析一次：
+        // 首次解析只为读出 --config 与显式选项集合，合并结果必须整体重解析才能生效
         if (rootResult.CommandResult.Command == rootCommand)
         {
             var mergedArgs = ConfigParser.MergeWithConfig(args, rootResult, rootCommand);
@@ -186,7 +191,9 @@ internal sealed class Program
                 Description = "将内嵌的 Web 前端与 API 同源托管在同一端口（静态资源根路径托管，前端自动以同源地址调用 API）。需构建时已将 WebUI dist 嵌入，否则该选项无效果。"
             }
         };
-        command.SetAction(result => Task.FromResult(StartServer(new ServeConfig(
+        // server.Run 阻塞整个进程生命周期直到关服：挪到线程池让 InvokeAsync 真正异步等待，
+        // 也与 login 命令的真异步动作形态保持一致
+        command.SetAction(result => Task.Run(( ) => StartServer(new ServeConfig(
             result.GetValue<string>("--listen"),
             result.GetValue<string>("--work-dir"),
             result.GetValue<string>("--serve-token"),
@@ -329,9 +336,24 @@ internal sealed class Program
             return 2;
         }
 
+        string msg;
+        if (Config.DebugLog)
+        {
+            msg = e.ToString( );
+        }
+        else if (e is AggregateException aggregate)
+        {
+            // AggregateException.Message 恒为「One or more errors occurred」，
+            // 非 DebugLog 下逐条展开内层异常，否则多分 P 失败只显示一行无信息文案
+            msg = $"\n{string.Join("\n", aggregate.InnerExceptions.Select(inner => inner.Message))}";
+        }
+        else
+        {
+            msg = e.Message;
+        }
+
         Console.BackgroundColor = ConsoleColor.Red;
         Console.ForegroundColor = ConsoleColor.White;
-        var msg = Config.DebugLog ? e.ToString( ) : e.Message;
         Console.Write(msg);
         Console.ResetColor( );
         Console.WriteLine( );

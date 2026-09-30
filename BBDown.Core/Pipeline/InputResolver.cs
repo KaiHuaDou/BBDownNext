@@ -9,6 +9,7 @@ using BBDown.Core.Util;
 
 using static BBDown.Core.ResourceId;
 using static BBDown.Core.Util.HTTPUtil;
+using static BBDown.Core.Util.JsonUtil;
 using static BBDown.Core.Util.Utils;
 
 namespace BBDown.Core.Pipeline;
@@ -27,6 +28,9 @@ public static partial class InputResolver
         return await FixAvidAsync(id, ct);
     }
 
+    // URL 解析瀑布按形态分组：视频稿件（av / bv / watchlater / cheese）→ 番剧快路径（ep / ss 正则）→
+    // 合集系列与个人空间 → 番剧其余形态（ep_id query / intl / md / 兜底抓取）。
+    // 各组内部判定顺序与拆分前完全一致，组间靠「不匹配返回 null 继续下一组」衔接，语义不变
     private static async Task<ResourceId> ResolveUrlAsync(string input, Core.AppConfig cfg, CancellationToken ct = default)
     {
         if (input.Contains("b23.tv"))
@@ -48,7 +52,16 @@ public static partial class InputResolver
             return directId;
         }
 
-        // 前缀检查防误匹配（sav123 之类含 av+数字的串），正则 Success 防 Match 失败后取空组抛 FormatException
+        return TryResolveVideoPageUrl(input)
+               ?? await TryResolveBangumiQuickUrlAsync(input, cfg, ct)
+               ?? TryResolveCollectionOrSpaceUrl(input)
+               ?? await ResolveBangumiUrlAsync(input, cfg, ct);
+    }
+
+    // 视频稿件页形态。不匹配返回 null 交下一组
+    private static ResourceId? TryResolveVideoPageUrl(string input)
+    {
+        // 前缀检查防误匹配（sav123 之类含 av+ 数字的串），正则 Success 防 Match 失败后取空组抛 FormatException
         if (input.Contains("video/av") && AvRegex( ).Match(input) is { Success: true } avMatch)
         {
             return new Av(long.Parse(avMatch.Groups[1].Value));
@@ -84,6 +97,12 @@ public static partial class InputResolver
             return ResolveCheese(input);
         }
 
+        return null;
+    }
+
+    // 番剧快路径：ep / ss 正则。ss 需要一次网络请求归一化季号，故带 cfg / ct
+    private static async Task<ResourceId?> TryResolveBangumiQuickUrlAsync(string input, Core.AppConfig cfg, CancellationToken ct)
+    {
         if (EpRegex( ).Match(input) is { Success: true } epMatch)
         {
             return new Ep(long.Parse(epMatch.Groups[1].Value));
@@ -94,6 +113,12 @@ public static partial class InputResolver
             return new Season(await GetSeasonIdBySSAsync(ssMatch.Groups[1].Value, cfg, ct));
         }
 
+        return null;
+    }
+
+    // 合集 / 系列分享链接与个人空间形态。不匹配返回 null 交下一组
+    private static ResourceId? TryResolveCollectionOrSpaceUrl(string input)
+    {
         if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_collection")) // 列表类型是合集
         {
             return new MediaList(RequireQueryLong(input, "business_id", "无法从合集链接解析出 business_id"));
@@ -149,6 +174,12 @@ public static partial class InputResolver
             return new Space(long.Parse(uidMatch.Groups[1].Value));
         }
 
+        return null;
+    }
+
+    // 番剧其余形态：ep_id query、intl ep、md（均可能触网），最后兜底从页面源码抓首集
+    private static async Task<ResourceId> ResolveBangumiUrlAsync(string input, Core.AppConfig cfg, CancellationToken ct)
+    {
         if (long.TryParse(GetQueryString("ep_id", input), out var queryEpId))
         {
             return new Ep(queryEpId);
@@ -345,8 +376,14 @@ public static partial class InputResolver
         var api = $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?season_id={ssId}";
         var json = await GetWebSourceAsync(api, cfg, ct: ct);
         using var jDoc = JsonDocument.Parse(json);
-        var result = BBDown.Core.Util.JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result");
-        return result.GetProperty("season_id").GetInt64( );
+        var result = JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result");
+        // 字段缺失时给可读错误：接口变更 / 风控返回非预期结构，裸 GetProperty 只会抛晦涩 KeyNotFoundException
+        if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty("season_id", out var seasonId) || seasonId.ValueKind != JsonValueKind.Number)
+        {
+            throw new InvalidOperationException($"番剧接口返回缺少 season_id 字段（ss={ssId}），接口形态可能已变更或被风控拦截");
+        }
+
+        return seasonId.GetInt64( );
     }
 
     // md（番剧详情页 id）本质是 media_id，需经 pgc/review/user 映射出 season_id，
@@ -356,8 +393,18 @@ public static partial class InputResolver
         var api = $"{BiliApi.ReviewUser}?media_id={mdId}";
         var json = await GetWebSourceAsync(api, cfg, ct: ct);
         using var jDoc = JsonDocument.Parse(json);
-        var media = BBDown.Core.Util.JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result").GetProperty("media");
-        return media.GetProperty("season_id").GetInt64( );
+        var result = JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result");
+        if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty("media", out var media) || media.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException($"番剧接口返回缺少 media 字段（md={mdId}），接口形态可能已变更或被风控拦截");
+        }
+
+        if (!media.TryGetProperty("season_id", out var seasonId) || seasonId.ValueKind != JsonValueKind.Number)
+        {
+            throw new InvalidOperationException($"番剧接口返回缺少 season_id 字段（md={mdId}），接口形态可能已变更或被风控拦截");
+        }
+
+        return seasonId.GetInt64( );
     }
 
     [GeneratedRegex("av(\\d+)")]

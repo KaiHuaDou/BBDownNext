@@ -26,7 +26,7 @@ public sealed class LiveProgress : IDisposable
     // 以下字段只在持有 gate 时访问
     private ProgressSampleEvent? sample;
     private string renderedText = string.Empty;
-    private DateTime lastRedirectedLog = DateTime.Now;
+    private long lastRedirectedLogTick;
     private bool rendering;
     private bool disposed;
 
@@ -62,9 +62,10 @@ public sealed class LiveProgress : IDisposable
                     sample = value;
                     rendering = true;
                     renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
-                    if (!drawToConsole && DateTime.Now - lastRedirectedLog >= RedirectedLogInterval)
+                    // 单调时钟计间隔：墙钟回拨会让 60 秒日志漏打或狂打
+                    if (!drawToConsole && Environment.TickCount64 - lastRedirectedLogTick >= RedirectedLogInterval.TotalMilliseconds)
                     {
-                        lastRedirectedLog = DateTime.Now;
+                        lastRedirectedLogTick = Environment.TickCount64;
                         Log(Compose(value));
                     }
 
@@ -128,17 +129,20 @@ public sealed class LiveProgress : IDisposable
             return;
         }
 
-        if (text.Length == 0)
+        lock (ConsoleHost.WriteGate)
         {
-            Console.Write("\r" + new string(' ', renderedText.Length) + "\r");
-            renderedText = string.Empty;
-            return;
-        }
+            if (text.Length == 0)
+            {
+                Console.Write("\r" + new string(' ', renderedText.Length) + "\r");
+                renderedText = string.Empty;
+                return;
+            }
 
-        Console.Write("\r" + text);
-        if (text.Length < renderedText.Length)
-        {
-            Console.Write(new string(' ', renderedText.Length - text.Length));
+            Console.Write("\r" + text);
+            if (text.Length < renderedText.Length)
+            {
+                Console.Write(new string(' ', renderedText.Length - text.Length));
+            }
         }
 
         renderedText = text;

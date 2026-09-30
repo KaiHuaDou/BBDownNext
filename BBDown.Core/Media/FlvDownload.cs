@@ -22,53 +22,23 @@ public static class FlvDownload
 {
     internal static async Task<PageOutcome> RunAsync(ParsedResult parsedResult, DownloadSession session, TrackSelection selection, CancellationToken ct = default)
     {
-        var (myOption, ctx, pageCtx, subtitleInfo, downloadConfig, sink) = session;
+        var (myOption, ctx, pageCtx, _, _, _) = session;
         var p = pageCtx.Page;
-        var (selected, _, _) = selection;
-        List<AudioMaterial> audioMaterial = [];
         var reParsed = false;
         while (true)
         {
-            // 循环内重取分片/清晰度：交互重解析会替换 parsedResult，须随之刷新，否则仍下载首次解析的分段
+            // 循环内重取分片：交互重解析会替换 parsedResult，须随之刷新，否则仍下载首次解析的分段
             var clips = parsedResult.Clips;
-            var dfns = parsedResult.Dfns;
             parsedResult.VideoTracks = TrackSelect.SortTracks(parsedResult.VideoTracks, ctx.Run.DfnPriority, ctx.Run.EncodingPriority, myOption.VideoAscending, ctx.Run.EncodingFirst);
 
             // 交互选清晰度：首次由用户选并记录 dfn 序号；下载失败重试时凭回传序号恢复（selection.VIndex），
             // 两者都走「按 dfn 重解析」，保证重试不把用户所选档位静默换成默认档
-            if (myOption.InteractiveQuality && !reParsed)
+            if (await ResolveInteractiveDfnAsync(reParsed, parsedResult, session, selection, ct) is { } resolution)
             {
-                if (!selected)
-                {
-                    if (dfns.Count == 0)
-                    {
-                        LogWarn("FLV 源未返回清晰度列表，跳过交互选择");
-                    }
-                    else
-                    {
-                        selection = selection with { Selected = true, VIndex = await TrackSelect.PickDfnAsync(dfns, ct) };
-                    }
-                }
-
-                // dfns 为空或序号越界时按默认档下载，避免索引越界
-                var dfn = dfns.ElementAtOrDefault(selection.VIndex);
-                if (dfn == null)
-                {
-                    LogWarn("FLV 源未返回清晰度列表，跳过交互选择");
-                }
-                else
-                {
-                    parsedResult.VideoTracks.Clear( );
-                    parsedResult = await ExtractTracksAsync(ctx.Fetch.FetchedId, p.Aid, p.Cid, p.EpId,
-                        myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, dfn, ct);
-                    if (p.Points.Count == 0)
-                    {
-                        p.Points = parsedResult.ExtraPoints;
-                    }
-
-                    reParsed = true;
-                    continue;
-                }
+                parsedResult = resolution.Result;
+                selection = resolution.Selection;
+                reParsed = true;
+                continue;
             }
 
             CdnHost.Apply(myOption, clips, ctx.Fetch.Cfg);
@@ -91,24 +61,9 @@ public static class FlvDownload
             var savePath = SavePath.Build(ctx, pageCtx, selectedVideo, null);
 
             // 弹幕接口与流格式（DASH / FLV）无关，两条链路都须产出
-            if (myOption.Content.Has(DownloadContent.Danmaku))
+            if (await PageAssets.TryDownloadDanmakuAsync(session, savePath, selection, ct) is { } danmakuAbort)
             {
-                var danmakuOnly = false;
-                try
-                {
-                    danmakuOnly = await RetryAsync(
-                        async ( ) => await PageAssets.DownloadDanmakuAsync(session, savePath, ct),
-                        myOption.MaxRetry, "弹幕", ct, ex => PageDownload.ShouldRetry(ex, ct));
-                }
-                catch (Exception ex)
-                {
-                    LogWarn($"弹幕下载失败，已跳过：{ex.Message}");
-                }
-
-                if (danmakuOnly)
-                {
-                    return PageOutcome.Abort(selection);
-                }
+                return danmakuAbort;
             }
 
             // 纯弹幕等无音视频内容：弹幕已在上方产出，直接中止
@@ -134,7 +89,7 @@ public static class FlvDownload
             {
                 // 片段下载是整 P 必要步骤，独立重试；耗尽则整 P 失败（不影响其他分 P）
                 clipPaths = await RetryAsync(
-                    async ( ) => await DownloadClipsAsync(clips, pageCtx, downloadConfig, ct),
+                    async ( ) => await DownloadClipsAsync(clips, pageCtx, session.Config, ct),
                     myOption.MaxRetry, $"P{p.Index} 片段", ct, ex => PageDownload.ShouldRetry(ex, ct));
             }
 
@@ -150,15 +105,15 @@ public static class FlvDownload
             }
             finally
             {
+                // Discard 已含目标文件与 .download 临时文件的清理
                 foreach (var file in clipPaths)
                 {
-                    SafeDelete(file);
                     Discard(file);
                 }
             }
 
-            // 非 AVC 已在上游拒绝，无 HEVC 标记
-            var inputs = new MuxFinish.MuxInputs(savePath, videoPath, "", audioMaterial, myOption.Mux, IsHevc: false);
+            // 非 AVC 已在上游拒绝，无 HEVC 标记；FLV 源不产出额外配音轨
+            var inputs = new MuxFinish.MuxInputs(savePath, videoPath, "", [], myOption.Mux, IsHevc: false);
             // 混流是整 P 必要收尾，独立重试；耗尽则整 P 失败（不影响其他分 P）
             return await RetryAsync(
                 async ( ) => await MuxFinish.RunAsync(session, inputs, selection, ct),
@@ -169,6 +124,49 @@ public static class FlvDownload
     internal static bool IsCodecUnsupported(Video? video)
     {
         return video is { Codecs: "HEVC" or "AV1" };
+    }
+
+    // 交互选清晰度：首次由用户选并记录 dfn 序号；下载失败重试时凭回传序号恢复（selection.VIndex），
+    // 两者都走「按 dfn 重解析」，保证重试不把用户所选档位静默换成默认档。
+    // 返回 null 表示无需 / 无法重解析（未启用交互、已重解析过或清晰度列表缺失），调用方继续用现有轨道
+    private static async Task<(ParsedResult Result, TrackSelection Selection)?> ResolveInteractiveDfnAsync(
+        bool alreadyResolved, ParsedResult parsedResult, DownloadSession session, TrackSelection selection, CancellationToken ct)
+    {
+        var (myOption, ctx, pageCtx, _, _, _) = session;
+        if (!myOption.InteractiveQuality || alreadyResolved)
+        {
+            return null;
+        }
+
+        var dfns = parsedResult.Dfns;
+        if (!selection.Selected)
+        {
+            if (dfns.Count == 0)
+            {
+                LogWarn("FLV 源未返回清晰度列表，跳过交互选择");
+                return null;
+            }
+
+            selection = selection with { Selected = true, VIndex = await TrackSelect.PickDfnAsync(dfns, ct) };
+        }
+
+        // 序号越界时按默认档下载，避免索引越界
+        var dfn = dfns.ElementAtOrDefault(selection.VIndex);
+        if (dfn == null)
+        {
+            LogWarn("FLV 源未返回清晰度列表，跳过交互选择");
+            return null;
+        }
+
+        parsedResult.VideoTracks.Clear( );
+        var resolved = await ExtractTracksAsync(ctx.Fetch.FetchedId, pageCtx.Page.Aid, pageCtx.Page.Cid, pageCtx.Page.EpId,
+            myOption.Api, ctx.Run.FirstEncoding, ctx.Fetch.Cfg, dfn, ct);
+        if (pageCtx.Page.Points.Count == 0)
+        {
+            pageCtx.Page.Points = resolved.ExtraPoints;
+        }
+
+        return (resolved, selection);
     }
 
     // 分片并行下载上限：片段间并行度。片段内 downloader 并行连接与片段间并行合计不超过

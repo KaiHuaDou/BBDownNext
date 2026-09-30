@@ -108,4 +108,29 @@ public class RetryUtilTests
         Assert.Equal(3, delays.Count);
         Assert.Same(last, thrown);
     }
+
+    // 退避封顶 16 秒（与 LiveRecorder.Backoff 对齐）：2/4/8 之后不再指数增长，
+    // 大重试预算下等待时间必须有界
+    [Fact]
+    public async Task RetryAsync_LargeRetryBudget_CapsBackoffAtSixteenSeconds( )
+    {
+        var calls = 0;
+        var delays = new List<TimeSpan>( );
+        await Assert.ThrowsAsync<InvalidOperationException>(async ( ) =>
+            await RetryUtil.RetryAsync(
+                ( ) => { calls++; return Task.FromException<int>(new InvalidOperationException("fail")); },
+                maxRetry: 6, item: "test", CancellationToken.None,
+                shouldRetry: _ => true,
+                delay: (backoff, _) => { delays.Add(backoff); return Task.CompletedTask; }));
+
+        Assert.Equal(7, calls);
+        Assert.Equal(6, delays.Count);
+        Assert.Equal(TimeSpan.FromSeconds(2), delays[0]);
+        Assert.Equal(TimeSpan.FromSeconds(4), delays[1]);
+        Assert.Equal(TimeSpan.FromSeconds(8), delays[2]);
+        Assert.All(delays, d => Assert.True(d <= TimeSpan.FromSeconds(16), $"退避 {d} 超过 16 秒封顶"));
+        Assert.Equal(TimeSpan.FromSeconds(16), delays[3]);
+        Assert.Equal(TimeSpan.FromSeconds(16), delays[4]);
+        Assert.Equal(TimeSpan.FromSeconds(16), delays[5]);
+    }
 }

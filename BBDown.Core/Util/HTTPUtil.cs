@@ -26,9 +26,7 @@ public static class HTTPUtil
         // 自动跟随会把 Cookie 头原样带到重定向目标，使门禁只覆盖首跳
         AllowAutoRedirect = false,
         AutomaticDecompression = DecompressionMethods.All,
-        ServerCertificateCustomValidationCallback = (_, __, ___, sslPolicyErrors) =>
-            sslPolicyErrors == System.Net.Security.SslPolicyErrors.None ||
-            Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1"
+        ServerCertificateCustomValidationCallback = (_, _, _, sslPolicyErrors) => IsTlsAcceptable(sslPolicyErrors)
     })
     {
         Timeout = DefaultTimeout,
@@ -50,9 +48,7 @@ public static class HTTPUtil
     {
         AllowAutoRedirect = true,
         AutomaticDecompression = DecompressionMethods.None,
-        ServerCertificateCustomValidationCallback = (_, _, _, sslPolicyErrors) =>
-            sslPolicyErrors == System.Net.Security.SslPolicyErrors.None ||
-            Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1"
+        ServerCertificateCustomValidationCallback = (_, _, _, sslPolicyErrors) => IsTlsAcceptable(sslPolicyErrors)
     })
     {
         Timeout = Timeout.InfiniteTimeSpan,
@@ -67,6 +63,14 @@ public static class HTTPUtil
         {
             Logger.LogWarn("已关闭 TLS 证书校验");
         }
+    }
+
+    // 全部出站 client 共用的 TLS 宽松判定：默认仅接受无错误的证书；
+    // BBDOWN_INSECURE_TLS=1 时放行自签 / 中间人（抓包调试用），单一判定避免多处各写一份后行为分叉
+    internal static bool IsTlsAcceptable(System.Net.Security.SslPolicyErrors sslPolicyErrors)
+    {
+        return sslPolicyErrors == System.Net.Security.SslPolicyErrors.None
+               || Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1";
     }
 
     public static async Task<string> GetWebSourceAsync(string url, AppConfig cfg, string? userAgent = null, CancellationToken ct = default)
@@ -146,9 +150,7 @@ public static class HTTPUtil
             AllowAutoRedirect = false,
             AutomaticDecompression = DecompressionMethods.All,
             CookieContainer = jar,
-            ServerCertificateCustomValidationCallback = (_, _, _, ssl) =>
-                ssl == System.Net.Security.SslPolicyErrors.None ||
-                Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1"
+            ServerCertificateCustomValidationCallback = (_, _, _, ssl) => IsTlsAcceptable(ssl)
         };
         using var client = new HttpClient(handler) { Timeout = DefaultTimeout };
         using var resp = await HttpTransfer.SendTrustGatedAsync(url, HttpMethod.Get,
@@ -166,7 +168,9 @@ public static class HTTPUtil
     }
 
     // 重定向地址探测：请求不带任何凭据，手动跟随（AppHttpClient 已关闭自动跟随），
-    // 短链（b23.tv 等）目标不受信任主机列表限制——无凭据请求无门禁意义
+    // 短链（b23.tv 等）目标不受信任主机列表限制——无凭据请求无门禁意义。
+    // 用 GET + 响应头即返回而非 HEAD：个别短链目标对 HEAD 回 405，Location 探测会整体失败；
+    // 读到 Location 即释放响应，正文不会下载
     public static async Task<string> GetWebLocationAsync(string url, CancellationToken ct = default)
     {
         for (var hop = 0; ; hop++)
@@ -176,7 +180,7 @@ public static class HTTPUtil
                 throw new InvalidOperationException($"重定向次数超过上限（{HttpTransfer.MaxRedirectHops}）");
             }
 
-            using var webRequest = new HttpRequestMessage(HttpMethod.Head, url);
+            using var webRequest = new HttpRequestMessage(HttpMethod.Get, url);
             webRequest.Headers.TryAddWithoutValidation("User-Agent", BiliHeaders.UserAgent);
             webRequest.Headers.CacheControl = System.Net.Http.Headers.CacheControlHeaderValue.Parse("no-cache");
             webRequest.Headers.Connection.Clear( );

@@ -19,6 +19,30 @@ namespace BBDown.Core.Media;
 
 public static class PageAssets
 {
+    // DASH 与 FLV 共用的弹幕产出收口：独立重试，耗尽仅告警跳过（不影响音视频）。
+    // 返回非 null 表示纯弹幕任务已落盘完成（无音视频可下，Abort），null 表示继续走音视频流程
+    internal static async Task<PageOutcome?> TryDownloadDanmakuAsync(DownloadSession session, string savePath, TrackSelection selection, CancellationToken ct)
+    {
+        if (!session.Options.Content.Has(DownloadContent.Danmaku))
+        {
+            return null;
+        }
+
+        var danmakuOnly = false;
+        try
+        {
+            danmakuOnly = await RetryAsync(
+                async ( ) => await DownloadDanmakuAsync(session, savePath, ct),
+                session.Options.MaxRetry, "弹幕", ct, ex => PageDownload.ShouldRetry(ex, ct));
+        }
+        catch (Exception ex)
+        {
+            LogWarn($"弹幕下载失败，已跳过：{ex.Message}");
+        }
+
+        return danmakuOnly ? PageOutcome.Abort(selection) : null;
+    }
+
     internal static async Task<List<Subtitle>> PrepareAsync(DownloadSession session, CancellationToken ct = default)
     {
         var (myOption, ctx, pageCtx, _, _, _) = session;

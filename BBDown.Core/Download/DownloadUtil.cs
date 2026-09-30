@@ -60,9 +60,15 @@ public static class DownloadUtil
             }
 
             await BBDownAria2c.RunAsync(config.Aria2cPath ?? "aria2c", BBDownAria2c.BuildArgs(url, path, config.Aria2cArgs, config.Cookie, singleThread, config.ParallelCount), ct);
-            if (File.Exists(path + ".aria2") || !File.Exists(path))
+            // 退出码为 0 但产物不落地：按残留信号区分「未下完」与「未产出」，便于定位
+            if (File.Exists(path + ".aria2"))
             {
-                throw new InvalidOperationException("aria2 下载可能存在错误");
+                throw new InvalidOperationException("aria2c 退出码为 0 但控制文件仍在，下载未完成");
+            }
+
+            if (!File.Exists(path))
+            {
+                throw new InvalidOperationException("aria2c 退出码为 0 但目标文件未产出");
             }
 
             return;

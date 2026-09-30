@@ -34,7 +34,9 @@ public static class Parser
             RawResponse = await PlayUrlClient.FetchAsync(req, effectiveQn, ct)
         };
 
-        LogDebug(result.RawResponse);
+        // playurl 响应可达数百 KB 且 INTL 通道的请求 query 携带凭据：只打头部并经脱敏，
+        // 全量数据由 --debug 的 debug_*.json 落盘兜底（与 HTTPUtil.TruncateForLog 同一约定）
+        LogDebug("PlayUrl 响应（截断）：{0}", HTTPUtil.TruncateForLog(result.RawResponse));
 
         // INTL 双次请求（prefer_code_type 0/1 各一次）合并轨道；任一次缺 stream_list 即放弃 intl 通道，
         // 保留已收集轨道并交回通用 dash/durl 通道解析（等价点 B：勿当作 bug 顺手"修"掉）
@@ -90,25 +92,25 @@ public static class Parser
     // 任一次缺 stream_list 返回 false，把响应体交回通用 dash/durl 通道（等价点 B）。
     private static async Task<bool> TryCollectIntlAsync(ParsedResult result, PlayUrlRequest req, string qn, CancellationToken ct)
     {
-        bool TryCollect( )
-        {
-            using var doc = JsonDocument.Parse(result.RawResponse);
-            if (!IntlTrackReader.TryGetVideoInfo(doc.RootElement, out var videoInfo))
-            {
-                return false;
-            }
-
-            IntlTrackReader.Collect(result, videoInfo);
-            return true;
-        }
-
-        if (!TryCollect( ))
+        if (!TryCollectIntlTracks(result))
         {
             return false;
         }
 
         result.RawResponse = await PlayUrlClient.FetchIntlAsync(req, qn, "1", ct);
-        return TryCollect( );
+        return TryCollectIntlTracks(result);
+    }
+
+    private static bool TryCollectIntlTracks(ParsedResult result)
+    {
+        using var doc = JsonDocument.Parse(result.RawResponse);
+        if (!IntlTrackReader.TryGetVideoInfo(doc.RootElement, out var videoInfo))
+        {
+            return false;
+        }
+
+        IntlTrackReader.Collect(result, videoInfo);
+        return true;
     }
 
     private static void AppendBangumiViewPoints(ParsedResult parsedResult, JsonElement root)

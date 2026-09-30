@@ -107,9 +107,7 @@ public static class DownloaderAdapter
             AllowAutoRedirect = true,
             AutomaticDecompression = DecompressionMethods.None,
             ConnectTimeout = TimeSpan.FromSeconds(30),
-            SslOptions = { RemoteCertificateValidationCallback = (_, _, _, sslPolicyErrors) =>
-                sslPolicyErrors == System.Net.Security.SslPolicyErrors.None ||
-                Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS") == "1" },
+            SslOptions = { RemoteCertificateValidationCallback = (_, _, _, sslPolicyErrors) => HTTPUtil.IsTlsAcceptable(sslPolicyErrors) },
         };
         return new HttpClient(new DownloadHeaderHandler(handler, cookie)) { Timeout = Timeout.InfiniteTimeSpan };
     }

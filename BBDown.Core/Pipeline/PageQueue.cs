@@ -60,57 +60,12 @@ internal static class PageQueue
         var commentedAids = new HashSet<string>(StringComparer.Ordinal);
 
         var isFirstPage = true;
-        var errors = await RunPagesAsync(pagesInfo, myOption.StopOnError, async (p, token) =>
+        var errors = await RunPagesAsync(pagesInfo, myOption.StopOnError, (p, token) =>
         {
             Log($"开始解析 P{p.Index}：{p.Aid}...（{p.Index} / {totalPages}）");
-
-            // 评论区关闭也能立刻反馈，视频下载失败也不丢评论；放在视频下载之前。--info-only 仅解析不产出评论。
-            // o/O 只是开关，评论数量走 --comments-count：两者都满足才真正抓取
-            // 评论抓取失败只告警，绝不连带中断本分 P 的视频下载（CommentFetcher 对站点侧错误已内部降级，
-            // 能抛到这里的只有网络层异常；兜底隔离以免「评论抖动 → 视频没下」）
-            if (ctx.Run.Content.HasAny(DownloadContent.Comments | DownloadContent.FullComments)
-                && ctx.Run.CommentCount > 0 && !myOption.OnlyShowInfo && commentedAids.Add(p.Aid))
-            {
-                try
-                {
-                    // 评论非必要项：独立重试，耗尽仅告警跳过（不影响视频下载）
-                    await RetryUtil.RetryAsync(
-                        async ( ) => await CommentDownload.RunAsync(ctx, PageDownload.BuildPageContext(p, ctx, pagesInfo), sink, token),
-                        myOption.MaxRetry, "评论", token, ex => PageDownload.ShouldRetry(ex, token));
-                }
-                catch (OperationCanceledException) when (token.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    LogWarn($"评论下载失败（不影响视频下载）：{ex.Message}");
-                }
-            }
-
-            // --delay-per-page 是分 P 间隔：首个分 P 与评论下载都不参与等待
-            if (!isFirstPage && ctx.Run.Delay > 0)
-            {
-                Log($"停顿 {ctx.Run.Delay} 秒...");
-                await Task.Delay(ctx.Run.Delay * 1000, token);
-            }
-
+            var first = isFirstPage;
             isFirstPage = false;
-
-            if (myOption.SaveArchivesToFile && ArchiveLog.CheckArchive(p.Aid, p.Cid))
-            {
-                Log($"已下载过（aid：{p.Aid} / cid：{p.Cid}），跳过下载...");
-                return;
-            }
-
-            var outcome = await PageDownload.RunAsync(p, myOption, ctx, pagesInfo, sink, token);
-
-            // 只有完整成功（含混流）才记归档；半截失败/中止不应标记为已下载
-            // 试看片段同样不记，否则用户日后拿到充电权限重跑会被 CheckArchive 静默跳过
-            if (myOption.SaveArchivesToFile && !outcome.Aborted && !outcome.Preview && !string.IsNullOrWhiteSpace(outcome.SavePath))
-            {
-                ArchiveLog.SaveArchive(p.Aid, p.Cid, outcome.SavePath);
-            }
+            return RunSinglePageAsync(p, myOption, ctx, pagesInfo, sink, commentedAids, first, token);
         }, ct);
 
         if (errors.Count > 0)
@@ -127,10 +82,62 @@ internal static class PageQueue
                 LogError($"以下分 P 下载失败：{FormatPages(failures)}");
             }
 
-            throw new AggregateException(errors.Select(e => e.Error));
+            // 带上数量摘要：内层异常详情由上层 MapExitCode 展开打印
+            throw new AggregateException($"{errors.Count} 个分 P 未成功", errors.Select(e => e.Error));
         }
 
         Log("任务完成");
+    }
+
+    // 单个分 P 的完整执行：评论 → 分 P 间隔 → 归档检查 → 下载 → 归档写回。
+    // isFirstPage 由调用方显式传入：首个分 P 与评论下载都不参与 --delay-per-page 等待
+    private static async Task RunSinglePageAsync(Page p, DownloadRequest myOption, WorkContext ctx, List<Page> pagesInfo, PipelineSink sink, HashSet<string> commentedAids, bool isFirstPage, CancellationToken token)
+    {
+        // 评论区关闭也能立刻反馈，视频下载失败也不丢评论；放在视频下载之前。--info-only 仅解析不产出评论。
+        // o/O 只是开关，评论数量走 --comments-count：两者都满足才真正抓取
+        // 评论抓取失败只告警，绝不连带中断本分 P 的视频下载（CommentFetcher 对站点侧错误已内部降级，
+        // 能抛到这里的只有网络层异常；兜底隔离以免「评论抖动 → 视频没下」）
+        if (ctx.Run.Content.HasAny(DownloadContent.Comments | DownloadContent.FullComments)
+            && ctx.Run.CommentCount > 0 && !myOption.OnlyShowInfo && commentedAids.Add(p.Aid))
+        {
+            try
+            {
+                // 评论非必要项：独立重试，耗尽仅告警跳过（不影响视频下载）
+                await RetryUtil.RetryAsync(
+                    async ( ) => await CommentDownload.RunAsync(ctx, PageDownload.BuildPageContext(p, ctx, pagesInfo), sink, token),
+                    myOption.MaxRetry, "评论", token, ex => PageDownload.ShouldRetry(ex, token));
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                LogWarn($"评论下载失败（不影响视频下载）：{ex.Message}");
+            }
+        }
+
+        // --delay-per-page 是分 P 间隔：首个分 P 与评论下载都不参与等待
+        if (!isFirstPage && ctx.Run.Delay > 0)
+        {
+            Log($"停顿 {ctx.Run.Delay} 秒...");
+            await Task.Delay(ctx.Run.Delay * 1000, token);
+        }
+
+        if (myOption.SaveArchivesToFile && ArchiveLog.CheckArchive(p.Aid, p.Cid))
+        {
+            Log($"已下载过（aid：{p.Aid} / cid：{p.Cid}），跳过下载...");
+            return;
+        }
+
+        var outcome = await PageDownload.RunAsync(p, myOption, ctx, pagesInfo, sink, token);
+
+        // 只有完整成功（含混流）才记归档；半截失败/中止不应标记为已下载
+        // 试看片段同样不记，否则用户日后拿到充电权限重跑会被 CheckArchive 静默跳过
+        if (myOption.SaveArchivesToFile && !outcome.Aborted && !outcome.Preview && !string.IsNullOrWhiteSpace(outcome.SavePath))
+        {
+            ArchiveLog.SaveArchive(p.Aid, p.Cid, outcome.SavePath);
+        }
     }
 
     private static string FormatPages(List<(Page Page, Exception Error)> items)

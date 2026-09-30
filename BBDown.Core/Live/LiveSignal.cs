@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace BBDown.Core.Live;
@@ -53,14 +54,12 @@ public static class LiveSignal
         }
     }
 
-    // 仅当槽位仍是自己时摘除，避免后注册者被先释放的 scope 误清（与旧 Interlocked.CompareExchange 语义一致）
+    // 仅当槽位仍是自己时摘除：走 ICollection.Remove 的原子比较移除。
+    // 「先无条件 TryRemove 再判断回填」的两步写法在中间窗口会让 TryRequestStop 查不到条目，
+    // 调用方据此误判为无录制而退化成全局取消，误杀并发中的其它录制
     internal static void Unregister(string sessionId, CancellationTokenSource cts)
     {
-        active.TryRemove(sessionId, out var current);
-        if (!ReferenceEquals(current, cts) && current is not null)
-        {
-            active[sessionId] = current;
-        }
+        ((ICollection<KeyValuePair<string, CancellationTokenSource>>) active).Remove(new(sessionId, cts));
     }
 }
 

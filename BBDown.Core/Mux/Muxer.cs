@@ -119,13 +119,9 @@ public static class Muxer
             return;
         }
 
-        if (files.Length == 1)
-        {
-            File.Move(files[0], outPath, true);
-            return;
-        }
-
-        // 只合并本次转出的分段：扫目录取 .ts 会混入并发任务或上次残留的文件，且顺序不受控（P1-22）
+        // 每段先转封装为 mpegts 再按顺序拼接成轨文件（统一容器，消除「单段直接改名留下 FLV 内容配 mp4 后缀」的中间态）。
+        // 上游已拒绝 HEVC / AV1 进 FLV 链路，h264_mp4toannexb 仅服务 AVC。
+        // 源分段只在最终拼接成功后删除：中途失败保留分段，调用方的重试才能从头重转
         List<string> tsFiles = [with(files.Length)];
         try
         {
@@ -139,10 +135,18 @@ public static class Muxer
                 }
 
                 tsFiles.Add(tmpFile);
-                SafeDelete(file);
             }
 
             CombineMultipleFilesIntoSingleFile([.. tsFiles], outPath);
+            if (!File.Exists(outPath) || new FileInfo(outPath).Length == 0)
+            {
+                throw new InvalidOperationException($"FLV 分段合并产物为空：{outPath}");
+            }
+
+            foreach (var file in files)
+            {
+                SafeDelete(file);
+            }
         }
         finally
         {

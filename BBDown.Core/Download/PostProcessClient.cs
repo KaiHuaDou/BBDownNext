@@ -75,7 +75,9 @@ public static class PostProcessClient
         }
         finally
         {
-            File.Delete(requestPath);
+            // 请求文件可能仍被外部进程 / 杀软短暂占用：删除失败仅留残件（临时目录清理兜底），
+            // 绝不能让 finally 异常替换正常返回值、击穿「全失败静默保留原文件」契约
+            try { File.Delete(requestPath); } catch { /* 残件无碍，不因清理失败掩盖处理结果 */ }
         }
     }
 }

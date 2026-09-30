@@ -6,6 +6,45 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
+## [v2.2.2]
+
+### 新增
+
+- **纯函数测试补充**（12 例）
+    - `Redactor`：`access_key` 在 URL query、JSON 体中的打码，与 `access_token` / `refresh_token` 的独立打码，非凭据参数不受影响。
+    - `RetryUtil`：大重试预算下退避封顶 16 秒（2 / 4 / 8 秒节奏不变）。
+    - `LiveSignal`：同标识覆盖注册后，旧 scope 释放不动新注册（原子比较移除的对外契约）。
+    - `CredentialStore`：三类凭据并发保存后字段全部在位（读改写互斥的回归锚定）。
+    - `HTTPUtil`：`IsTlsAcceptable` 默认仅接受无错误证书、`BBDOWN_INSECURE_TLS=1` 时全放行。
+
+### 修复
+
+- 交互式选择（逐集确认 / 选轨）期间按 Ctrl+C 不再挂起：同步读入不响应取消令牌，取消被降级为一次空应答；现读入与取消句柄竞速，取消时按取消语义中断（交互线程随进程退出回收）。
+- 多分 P 下载失败的退出输出逐条展开内层异常：此前 `AggregateException` 的 Message 恒为「One or more errors occurred」，非 `--debug` 下只显示一行无信息文案。
+- aria2c 退出码为 0 但产物未落地的错误信息可定位：按「控制文件残留（下载未完成）」与「目标文件未产出」区分，替代笼统的「下载可能存在错误」。
+- FLV 单段下载不再产出「FLV 内容配 mpegts 前置中间态」之外的坏中间轨：分段合并统一走转封装 + 拼接，移除单段直接改名的分支。
+- FLV 分段合并中途失败时保留源分段：此前每段转封装成功即删源，后续分段失败后重试拿到的是残缺列表，无法从头重转；现源分段仅在拼接成功且产物非空后删除，并新增合并产物完整性校验。
+- 直播停录（Ctrl+Break）在会话收尾窗口期不再误判：停止信号的摘除改为原子比较移除，消除「摘除与回填之间查不到条目 → 误退化全局取消」的竞态。
+- serve 扫码登录在会话 TTL 到期瞬间完成扫码时不再要求重来：终态会话（凭据已落盘、后台任务已结束）不受 TTL 淘汰，仍由统一清理兜底，无堆积风险。
+
+### 安全
+
+- debug 日志脱敏补上 `access_key`：TV / APP 通道以 `access_key` 查询参数携带令牌，与 `access_token` 是两个键，此前开 `--debug` 时令牌随 URL 原样落日志。
+- playurl 全量响应不再原样写入 debug 日志：改经 8192 字符截断，与网页抓取通道的日志约定对齐（全量数据仍有 `debug_*.json` 落盘兜底）。
+- 凭据文件的「读取 → 合并 → 写回」序列加互斥：serve 并发任务各自触发凭据保存时，后写者不再覆盖先写者的字段更新（丢凭据）。
+
+### 变更
+
+- 长耗时下载项的重试退避封顶 16 秒（与直播录制重连的退避对齐），小次重试的 2 / 4 / 8 秒节奏不变。
+- 短链展开（b23.tv 等）改用 GET + 响应头即返回：个别短链目标对 HEAD 回 405 导致展开整体失败，读 到 Location 即释放响应，正文不下载。
+- 收藏夹解析翻页增加 1000 页硬上限（触界告警并返回已取条目），按服务端返回的 media_count 预估列表容量。
+- 番剧季号（ss / md 链接）解析对接口返回缺字段给出可读错误，替代晦涩的 `KeyNotFoundException`。
+- `ResourceId` 判别联合改用 C# 15 `closed` 修饰符：全部子类型限定在本程序集内，消费点 switch 漏分支由编译器验证（net10.0 BCL 未内置标记类型，暂以内部 attribute 绑定）。
+- 控制台输出互斥：日志正文、进度条帧、直播状态行帧统一持进程级写锁，采样线程与日志线程并发时进度条不再插进日志正文中间；无时间戳前缀与时间戳前缀对齐同宽。
+- serve 命令的启动动作改为真异步等待（`server.Run` 的阻塞语义挪至线程池等待）。
+- 直播录制状态行与配置解析的间隔计时改用单调时钟，系统回拨不再导致日志漏打或狂打。
+- 内部结构整理：超长方法拆分（`FlvDownload.RunAsync` / `DashDownload.DownloadTracksAsync` / `InputResolver.ResolveUrlAsync` / `FavListFetcher.FetchAsync` / `PageQueue.RunAsync` 的分 P 委托）、弹幕产出收口为 DASH / FLV 共用、`BBDOWN_INSECURE_TLS` 判定统一为单一函数、`ProgressBus` 重复方法合并、`Parser` 嵌套局部函数提取、字幕语言表拆出独立文件、测试补挂 `HttpStub` 集合定义。
+
 ## [v2.2.1]
 
 ### 新增
@@ -570,3 +609,4 @@
 [v2.1.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.1.0...v2.1.1
 [v2.2.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.1.1...v2.2.0
 [v2.2.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.2.0...v2.2.1
+[v2.2.2]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.2.1...v2.2.2

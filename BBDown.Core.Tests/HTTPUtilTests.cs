@@ -34,6 +34,45 @@ public class HTTPUtilTests
         Assert.EndsWith("…（已截断，共 82256 字符）", logged);
     }
 
+    // 默认只接受无错误的证书：本集合已串行，此处临时改环境变量不会影响其它桩测试的 TLS 判定
+    [Theory]
+    [InlineData(System.Net.Security.SslPolicyErrors.None, true)]
+    [InlineData(System.Net.Security.SslPolicyErrors.RemoteCertificateNameMismatch, false)]
+    [InlineData(System.Net.Security.SslPolicyErrors.RemoteCertificateChainErrors, false)]
+    public void IsTlsAcceptable_WithoutInsecureEnv_AcceptsOnlyCleanCertificates(
+        System.Net.Security.SslPolicyErrors errors, bool expected)
+    {
+        var restored = Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS");
+        Environment.SetEnvironmentVariable("BBDOWN_INSECURE_TLS", null);
+        try
+        {
+            Assert.Equal(expected, HTTPUtil.IsTlsAcceptable(errors));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BBDOWN_INSECURE_TLS", restored);
+        }
+    }
+
+    // BBDOWN_INSECURE_TLS=1 放行自签 / 中间人（抓包调试用），四类出站 client 共用此判定
+    [Theory]
+    [InlineData(System.Net.Security.SslPolicyErrors.None)]
+    [InlineData(System.Net.Security.SslPolicyErrors.RemoteCertificateChainErrors)]
+    public void IsTlsAcceptable_WithInsecureEnv_AcceptsAnything(
+        System.Net.Security.SslPolicyErrors errors)
+    {
+        var restored = Environment.GetEnvironmentVariable("BBDOWN_INSECURE_TLS");
+        Environment.SetEnvironmentVariable("BBDOWN_INSECURE_TLS", "1");
+        try
+        {
+            Assert.True(HTTPUtil.IsTlsAcceptable(errors));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BBDOWN_INSECURE_TLS", restored);
+        }
+    }
+
     // AppHttpClient 已关闭自动重定向（凭据门须逐跳过门），探测方法必须自己走完链路
     [Fact]
     public async Task GetWebLocationAsync_FollowsRedirectChainManually( )

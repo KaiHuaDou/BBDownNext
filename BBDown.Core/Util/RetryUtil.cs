@@ -10,7 +10,10 @@ namespace BBDown.Core.Util;
 
 public static class RetryUtil
 {
-    // 每个下载项独立有界重试：失败只影响该项。退避 2/4/8… 秒（沿用 1<<k 节奏）。
+    // 退避封顶与 LiveRecorder.Backoff 对齐：重试次数较大时避免等待时间无界增长
+    private static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(16);
+
+    // 每个下载项独立有界重试：失败只影响该项。退避 2/4/8… 秒（1<<k 节奏，封顶 16 秒）。
     // shouldRetry 返回 false（用户取消、充电试看）立即上抛，不做无谓退避；耗尽抛最后一次真实异常，
     // 由调用方决定该项跳过还是判整 P 失败。delay 可注入以便单测（默认走真实 Task.Delay）
     public static async Task<T> RetryAsync<T>(Func<Task<T>> action, int maxRetry, string item, CancellationToken ct, Func<Exception, bool> shouldRetry, Func<TimeSpan, CancellationToken, Task>? delay = null)
@@ -32,7 +35,7 @@ public static class RetryUtil
                     break;
                 }
 
-                var backoff = TimeSpan.FromSeconds(1 << (attempt + 1));
+                var backoff = TimeSpan.FromSeconds(Math.Min(1 << (attempt + 1), MaxBackoff.TotalSeconds));
                 LogWarn($"{item} 下载失败，{backoff.TotalSeconds:0} 秒后重试...");
                 await delay(backoff, ct);
             }
