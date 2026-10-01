@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.Linq;
 
 using BBDown.Core;
 using BBDown.Core.Download;
@@ -96,15 +97,15 @@ internal static class CliOptions
           a：音频
           v：视频
           c：独立封面文件
-          C：封面嵌入
           d：弹幕
-          i：专栏图片
-          m：嵌入元数据
-          M：YAML front matter（专栏）
+          s：字幕
+          S：AI 字幕
           o：评论
           O：全部评论（含楼中楼全部回复）
-          S：AI 字幕
-          s：字幕
+          C：封面嵌入
+          m：嵌入元数据
+          i：专栏 - 图片
+          M：专栏 - YAML Frontmatter
         用 --with 追加、--without 移除
         """,
         DefaultValueFactory = _ => [ContentSelector.Default]
@@ -219,33 +220,15 @@ internal static class CliOptions
     // 文件、路径与调试
     internal static readonly Option<string> FilePattern = new("--file-pattern", ["-F"])
     {
-        Description = """
+        Description = $"""
         使用内置变量自定义单 P 存储文件名：
-        <videoTitle>：视频主标题
-        <pageNumber>：视频分 P 序号
-        <pageNumberWithZero>：视频分 P 序号（前缀补零）
-        <pageTitle>：视频分 P 标题
-        <bvid>：视频 BV 号
-        <aid>：视频 aid
-        <cid>：视频 cid
-        <dfn>：视频清晰度
-        <res>：视频分辨率
-        <fps>：视频帧率
-        <videoCodecs>：视频编码
-        <videoBandwidth>：视频码率
-        <audioCodecs>：音频编码
-        <audioBandwidth>：音频码率
-        <ownerName>：上传者名称
-        <ownerMid>：上传者 mid
-        <publishDate>：收藏夹/番剧/合集发布时间
-        <videoDate>：视频发布时间（分 P 视频发布时间与 <publishDate> 相同）
-        <apiType>：API 类型（TV/APP/INTL/WEB）
+        {string.Join("\n", SavePath.Variables.Select(v => $"{v.Token}：{v.Description}"))}
         """,
         DefaultValueFactory = _ => SavePath.SinglePageDefaultSavePath
     };
     internal static readonly Option<string> MultiFilePattern = new("--multi-file-pattern", ["-M"])
     {
-        Description = "使用内置变量自定义多 P 存储文件名：",
+        Description = "使用内置变量自定义多 P 存储文件名，变量同 --file-pattern",
         DefaultValueFactory = _ => SavePath.MultiPageDefaultSavePath
     };
     internal static readonly Option<string> Pages = new("--pages", ["-p"])

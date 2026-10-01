@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace BBDown.Core;
@@ -57,11 +58,26 @@ public static class Config
         ("30216", "64K"),
     ];
 
-    private static readonly FrozenDictionary<string, string> QualityNames =
+    private static readonly FrozenDictionary<string, string> QualityNameMap =
         Qualities.ToFrozenDictionary(q => q.Qn, q => q.Name);
 
-    private static readonly FrozenDictionary<string, string> AudioQualityNames =
+    private static readonly FrozenDictionary<string, string> AudioQualityNameMap =
         AudioQualities.ToFrozenDictionary(q => q.Id, q => q.Name);
+
+    // 杜比音质双态名（id 30250 按 dolby.type 区分），GetAudioQualityName 与音质名清单共用同一字面量
+    public const string DolbyAtmosQualityName = "杜比全景声";
+    public const string DolbyQualityName = "杜比音效";
+
+    // 编码优先级候选：视频名与 TrackFactory.VideoCodec 输出对齐，音频名与 NormalizeAudioCodec 输出经
+    // Entity.ShortCodecs 的大写去连字符形态对齐（E-AC-3 → EAC3），排序键解析侧同样按该形态归一
+    public static readonly string[] EncodingNames = ["HEVC", "AV1", "AVC", "FLAC", "EAC3", "M4A"];
+
+    // 画质名清单（高 → 低，同名双 qn 去重），排序键为 GetQualityName 的输出
+    public static IReadOnlyList<string> QualityNameList { get; } = [.. Qualities.Select(q => q.Name).Distinct( )];
+
+    // 音质名清单（码率高 → 低，30250 的两个杜比名按 GetAudioQualityName 的输出补齐）
+    public static IReadOnlyList<string> AudioQualityNameList { get; } =
+        [DolbyAtmosQualityName, .. AudioQualities.Select(q => q.Name), DolbyQualityName];
 
     // Qualities 的 qn 顺序缓存为数组，供 QualityRank 在每次轨道排序比较时 O(1) 查下标，
     // 避免对每对比较都重新投影一次 Qualities
@@ -72,7 +88,7 @@ public static class Config
     // B 站随时可能下发未收录的 qn，回落到原始值而不是抛 KeyNotFoundException
     public static string GetQualityName(string qn)
     {
-        return QualityNames.TryGetValue(qn, out var name) ? name : $"未知清晰度(qn={qn})";
+        return QualityNameMap.TryGetValue(qn, out var name) ? name : $"未知清晰度(qn={qn})";
     }
 
     // dolby.type：1=普通杜比音效，2=全景杜比音效；仅 id 30250 需要区分，其余按 id 直接映射。
@@ -81,10 +97,10 @@ public static class Config
     {
         if (id == "30250")
         {
-            return dolbyType == 2 ? "杜比全景声" : "杜比音效";
+            return dolbyType == 2 ? DolbyAtmosQualityName : DolbyQualityName;
         }
 
-        return AudioQualityNames.TryGetValue(id, out var name) ? name : $"未知音质(id={id})";
+        return AudioQualityNameMap.TryGetValue(id, out var name) ? name : $"未知音质(id={id})";
     }
 
     // 轨道排序权重（越小越优先），以 Qualities 的排列为准；取代原先隐式的 qn 数值降序。

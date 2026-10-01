@@ -31,8 +31,8 @@ public sealed class LiveProgress : IDisposable
     private bool rendering;
     private volatile bool disposed;
 
-    // 差异重绘基准，与全部控制台写入同锁：只在 WriteGate 内访问
-    private string renderedText = string.Empty;
+    // 已落屏帧的显示 cell 数，补齐与擦行以此为基准；与全部控制台写入同锁：只在 WriteGate 内访问
+    private int renderedCells;
 
     public LiveProgress( )
     {
@@ -113,6 +113,34 @@ public sealed class LiveProgress : IDisposable
         return $"{value.Detail} | {Utils.FormatFileSize(value.TotalBytes)} | {Utils.FormatSpeed((long) value.Speed, 1)}";
     }
 
+    // 控制台按 cell 渲染，CJK 等 East Asian Wide 字符占 2 cell；擦行与补齐须按 cell 数计数才擦得干净
+    internal static int CellWidth(string text)
+    {
+        var cells = 0;
+        foreach (var ch in text)
+        {
+            cells += IsWide(ch) ? 2 : 1;
+        }
+
+        return cells;
+    }
+
+    // 常用 East Asian Wide 字符块的近似覆盖，未含罕用块与 emoji 序列
+    private static bool IsWide(char ch)
+    {
+        return ch is (>= '\u1100' and <= '\u115F')
+            or (>= '\u2E80' and <= '\u303E')
+            or (>= '\u3041' and <= '\u33FF')
+            or (>= '\u3400' and <= '\u4DBF')
+            or (>= '\u4E00' and <= '\u9FFF')
+            or (>= '\uA000' and <= '\uA4CF')
+            or (>= '\uAC00' and <= '\uD7A3')
+            or (>= '\uF900' and <= '\uFAFF')
+            or (>= '\uFE30' and <= '\uFE4F')
+            or (>= '\uFF00' and <= '\uFF60')
+            or (>= '\uFFE0' and <= '\uFFE6');
+    }
+
     /// <summary>
     /// 擦掉状态行，让紧随其后的日志从行首开始。日志打完由下一帧自动重画。
     /// 作为 ConsoleHost.BeforeWrite 在 WriteGate 内被调用：单向锁序禁止在此取 gate。
@@ -128,7 +156,7 @@ public sealed class LiveProgress : IDisposable
         Blit(string.Empty);
     }
 
-    // \r 回到行首整行重写；新内容比旧内容短时用空格补齐，避免上一帧的残余留在屏幕上。
+    // \r 回到行首整行重写；新帧比旧帧窄时按 cell 数补空格，避免上一帧的残余留在屏幕上。
     // 落写收口：全部控制台写入只在 WriteGate 内进行，且不得持有 gate 进入本方法——
     // 擦行回调同样在 WriteGate 内执行，双向取锁即 AB-BA 死锁（见 ConsoleHost 锁序说明）
     private void Blit(string text)
@@ -148,18 +176,19 @@ public sealed class LiveProgress : IDisposable
 
             if (text.Length == 0)
             {
-                Console.Write("\r" + new string(' ', renderedText.Length) + "\r");
-                renderedText = string.Empty;
+                Console.Write("\r" + new string(' ', renderedCells) + "\r");
+                renderedCells = 0;
                 return;
             }
 
+            var cells = CellWidth(text);
             Console.Write("\r" + text);
-            if (text.Length < renderedText.Length)
+            if (cells < renderedCells)
             {
-                Console.Write(new string(' ', renderedText.Length - text.Length));
+                Console.Write(new string(' ', renderedCells - cells));
             }
 
-            renderedText = text;
+            renderedCells = cells;
         }
     }
 
@@ -192,8 +221,8 @@ public sealed class LiveProgress : IDisposable
 
         lock (ConsoleHost.WriteGate)
         {
-            Console.Write("\r" + new string(' ', renderedText.Length) + "\r");
-            renderedText = string.Empty;
+            Console.Write("\r" + new string(' ', renderedCells) + "\r");
+            renderedCells = 0;
         }
     }
 }

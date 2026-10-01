@@ -12,6 +12,12 @@
         <Setter Property="Margin" Value="0,3,5,3" />
     </Style>
 
+    <!--表单行浏览按钮：纵向拉伸至行高与同行 TextBox 等高（Avalonia 12 Button 默认垂直居中不再拉伸）-->
+    <Style Selector="Button.FieldButton">
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="8,0" />
+    </Style>
+
     <!--复选框行：选项列的统一边距-->
     <Style Selector="CheckBox.CheckBoxItem">
         <Setter Property="Margin" Value="0,3" />
@@ -37,6 +43,62 @@
         <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="VerticalAlignment" Value="Stretch" />
         <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+
+    <!--优先级 chip：已选项小块，可拖拽换位，前景统一白色-->
+    <Style Selector="Border.PriorityChip">
+        <Setter Property="Background" Value="#2F6FEB" />
+        <Setter Property="CornerRadius" Value="5" />
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Border.PriorityChip TextBlock">
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.PriorityChip TextBlock.PriorityChipOrder">
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="Button.PriorityChipRemove">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="3,0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <!--优先级未选项按钮：加入已选流-->
+    <Style Selector="Button.PriorityAdd">
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <!--优先级空选态提示-->
+    <Style Selector="TextBlock.PriorityEmptyHint">
+        <Setter Property="Foreground" Value="#9E9E9E" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Margin" Value="0,4,0,6" />
+    </Style>
+
+    <!--命名变量表行：双击复制占位符-->
+    <Style Selector="Border.NamingRow">
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="#22808080" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Border.NamingRow:pointerover">
+        <Setter Property="Background" Value="#22808080" />
+    </Style>
+    <Style Selector="TextBlock.NamingToken">
+        <Setter Property="FontFamily" Value="Consolas, monospace" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="#2F6FEB" />
+        <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
 </Styles>

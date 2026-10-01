@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
-using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -247,8 +246,6 @@ internal sealed partial class TaskSocketHub(TaskStore store)
             return true;
         }
 
-        return Uri.TryCreate(origin, UriKind.Absolute, out var uri)
-               && (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-                   || (IPAddress.TryParse(uri.Host, out var ip) && IPAddress.IsLoopback(ip)));
+        return Uri.TryCreate(origin, UriKind.Absolute, out var uri) && SsrfGuard.IsLoopbackHost(uri.Host);
     }
 }

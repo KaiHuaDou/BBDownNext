@@ -12,10 +12,39 @@ using static BBDown.Core.Util.FileNameUtil;
 
 namespace BBDown.Core.Download;
 
+/// <summary>
+/// 文件命名变量：Token 为尖括号占位符本体，Description 供 GUI 变量表与 CLI help 共用。
+/// </summary>
+public sealed record NamingVariable(string Token, string Description);
+
 public static partial class SavePath
 {
     public static string SinglePageDefaultSavePath { get; } = "<videoTitle>";
     public static string MultiPageDefaultSavePath { get; } = "<videoTitle>/[P<pageNumberWithZero>]<pageTitle>";
+
+    // 与 Format 中 switch 的替换键一一对应，SavePathTests 钉住两者同步
+    public static readonly NamingVariable[] Variables =
+    [
+        new("<videoTitle>", "视频主标题"),
+        new("<pageNumber>", "分 P 序号，不补零"),
+        new("<pageNumberWithZero>", "分 P 序号，按总 P 数位数补零"),
+        new("<pageTitle>", "分 P 标题"),
+        new("<bvid>", "视频 BV 号"),
+        new("<aid>", "视频 aid"),
+        new("<cid>", "视频 cid"),
+        new("<dfn>", "所选清晰度名称，如 1080P 高清"),
+        new("<res>", "所选分辨率，如 1920x1080"),
+        new("<fps>", "所选帧率"),
+        new("<videoCodecs>", "所选视频编码，如 HEVC"),
+        new("<videoBandwidth>", "所选视频码率（bps）"),
+        new("<audioCodecs>", "所选音频编码，如 M4A"),
+        new("<audioBandwidth>", "所选音频码率（bps）"),
+        new("<ownerName>", "UP 主名称"),
+        new("<ownerMid>", "UP 主 mid"),
+        new("<publishDate>", "收藏夹 / 番剧 / 合集发布时间，默认 yyyy-MM-dd_HH-mm-ss，可写 <publishDate:格式> 自定义"),
+        new("<videoDate>", "视频发布时间（分 P 视频发布时间与 <publishDate> 相同），自定义格式写法同上"),
+        new("<apiType>", "API 类型（WEB / TV / APP / INTL）"),
+    ];
 
     // 1. 多 P; 2. 只有 1P, 但是是番剧，尚未完结时 按照多 P 处理
     internal static string Resolve(DownloadRequest myOption, int pagesCount, bool isBangumi, bool isBangumiEnd)

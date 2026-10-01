@@ -17,15 +17,15 @@ public enum DownloadContent
     Audio = 1 << 0,        // a
     Video = 1 << 1,        // v
     Cover = 1 << 2,        // c：单独下载一个封面图像文件
-    MuxCover = 1 << 3,     // C：封面混流进视频文件
-    Danmaku = 1 << 4,      // d
-    OpusImage = 1 << 5,    // i：专栏图片
-    MuxMetadata = 1 << 6,  // m
-    FrontMatter = 1 << 7,  // M：专栏 YAML front matter
-    Comments = 1 << 8,     // o
-    FullComments = 1 << 9, // O：全部评论
-    AiSubtitle = 1 << 10,  // S
-    Subtitle = 1 << 11,    // s
+    Danmaku = 1 << 3,      // d
+    Subtitle = 1 << 4,     // s
+    AiSubtitle = 1 << 5,   // S
+    Comments = 1 << 6,     // o
+    FullComments = 1 << 7, // O：全部评论
+    MuxCover = 1 << 8,     // C：封面混流进视频文件
+    MuxMetadata = 1 << 9,  // m
+    OpusImage = 1 << 10,   // i：专栏图片
+    FrontMatter = 1 << 11, // M：专栏 YAML Frontmatter
 }
 
 /// <summary>内容字符的适用域：字符落在模式域之外时自然失效（debug 提示，不警告）。</summary>
@@ -35,8 +35,6 @@ public enum ContentMode
     Opus,
     Live,
     Audio,
-
-    /// <summary>空间动态：图文导出与视频下载混合，全部内容字符都可能生效</summary>
     Mixed,
 }
 
@@ -53,15 +51,15 @@ public static class ContentSelector
         new('a', DownloadContent.Audio, "音频"),
         new('v', DownloadContent.Video, "视频"),
         new('c', DownloadContent.Cover, "独立封面"),
-        new('C', DownloadContent.MuxCover, "封面嵌入"),
         new('d', DownloadContent.Danmaku, "弹幕"),
-        new('i', DownloadContent.OpusImage, "专栏图片"),
-        new('m', DownloadContent.MuxMetadata, "嵌入元数据"),
-        new('M', DownloadContent.FrontMatter, "YAML front matter"),
+        new('s', DownloadContent.Subtitle, "字幕"),
+        new('S', DownloadContent.AiSubtitle, "AI 字幕"),
         new('o', DownloadContent.Comments, "评论"),
         new('O', DownloadContent.FullComments, "全部评论"),
-        new('S', DownloadContent.AiSubtitle, "AI 字幕"),
-        new('s', DownloadContent.Subtitle, "字幕"),
+        new('C', DownloadContent.MuxCover, "封面嵌入"),
+        new('m', DownloadContent.MuxMetadata, "嵌入元数据"),
+        new('i', DownloadContent.OpusImage, "专栏图片"),
+        new('M', DownloadContent.FrontMatter, "专栏 YAML Frontmatter"),
     ];
 
     private static readonly string ValidChars = string.Concat(Order.Select(e => e.Ch));

@@ -5,11 +5,25 @@ using BBDown.Core;
 
 namespace BBDown.GUI;
 
-/// <summary>下载目标识别，纯函数；只描述识别结果，不做格式转换。ID 前缀复用 Core 的 IdPrefix 常量。</summary>
+/// <summary>目标资源域，GUI 可用性联动的判定依据；与 Core 的 ContentSelector.ModeOf 分支对齐。</summary>
+public enum TargetKind
+{
+    Video,
+    Pgc,
+    Opus,
+    Audio,
+    Live,
+    Mixed,
+}
+
+/// <summary>识别结果：给人看的描述 + 给程序用的域。</summary>
+public sealed record TargetInfo(string Description, TargetKind Kind);
+
+/// <summary>下载目标识别，纯函数；不做格式转换。ID 前缀复用 Core 的 IdPrefix 常量。</summary>
 public static partial class UrlDetector
 {
-    /// <summary>识别输入文本，返回可读描述；无法识别返回 null。</summary>
-    public static string? Describe(string? input)
+    /// <summary>识别输入文本；无法识别返回 null。</summary>
+    public static TargetInfo? Describe(string? input)
     {
         var text = input?.Trim( ) ?? "";
         if (text.Length == 0)
@@ -17,14 +31,14 @@ public static partial class UrlDetector
             return null;
         }
 
-        if (MatchKnownPrefix(text) is { } description)
+        if (MatchKnownPrefix(text) is { } info)
         {
-            return description;
+            return info;
         }
 
         if (AvNumberRegex( ).IsMatch(text))
         {
-            return "视频（av 号）";
+            return new TargetInfo("视频（av 号）", TargetKind.Video);
         }
 
         if (Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
@@ -36,196 +50,198 @@ public static partial class UrlDetector
     }
 
     /// <summary>匹配已知 ID 前缀与特殊 URL，前缀后必须紧跟数字（BV 号亦以数字开头）。</summary>
-    private static string? MatchKnownPrefix(string text)
+    private static TargetInfo? MatchKnownPrefix(string text)
     {
         if (StartsWithId(text, IdPrefix.Av))
         {
-            return "视频（av 号）";
+            return new TargetInfo("视频（av 号）", TargetKind.Video);
         }
 
         if (StartsWithId(text, IdPrefix.Bv))
         {
-            return "视频（BV 号）";
+            return new TargetInfo("视频（BV 号）", TargetKind.Video);
         }
 
         if (StartsWithId(text, IdPrefix.Ep))
         {
-            return "番剧（ep 号）";
+            return new TargetInfo("番剧（ep 号）", TargetKind.Pgc);
         }
 
         if (StartsWithId(text, IdPrefix.Ss))
         {
-            return "番剧（ss 号）";
+            return new TargetInfo("番剧（ss 号）", TargetKind.Pgc);
         }
 
         if (StartsWithId(text, IdPrefix.Md))
         {
-            return "番剧（md 号）";
+            return new TargetInfo("番剧（md 号）", TargetKind.Pgc);
         }
 
         // 课程简写格式为 cheese/ep 号 / cheese/ss 号（与 Core 的 IdPrefix.CheeseSlash 前缀一致）
         if (StartsWithId(text, "cheese/ep"))
         {
-            return "课程（ep 号）";
+            return new TargetInfo("课程（ep 号）", TargetKind.Pgc);
         }
 
         if (StartsWithId(text, "cheese/ss"))
         {
-            return "课程（ss 号）";
+            return new TargetInfo("课程（ss 号）", TargetKind.Pgc);
         }
 
         if (StartsWithId(text, "opus"))
         {
-            return "专栏（opus）";
+            return new TargetInfo("专栏（opus）", TargetKind.Opus);
         }
 
         if (StartsWithId(text, "cv"))
         {
-            return "专栏（cv）";
+            return new TargetInfo("专栏（cv）", TargetKind.Opus);
         }
 
         if (StartsWithId(text, "space"))
         {
-            return "用户空间";
+            return new TargetInfo("用户空间", TargetKind.Video);
         }
 
         // 集合简写（spaceOpus123 等）：space 分支要求 space 后紧跟数字，spaceOpus123 不会命中 space 分支
         if (StartsWithId(text, IdPrefix.SpaceOpus))
         {
-            return "空间图文投稿";
+            return new TargetInfo("空间图文投稿", TargetKind.Opus);
         }
 
         if (StartsWithId(text, IdPrefix.SpaceAudio))
         {
-            return "空间音频投稿";
+            return new TargetInfo("空间音频投稿", TargetKind.Audio);
         }
 
         if (StartsWithId(text, IdPrefix.SpaceDynamic))
         {
-            return "空间动态";
+            return new TargetInfo("空间动态", TargetKind.Mixed);
         }
 
         if (StartsWithId(text, IdPrefix.ReadList))
         {
-            return "文集";
+            return new TargetInfo("文集", TargetKind.Opus);
         }
 
         if (StartsWithId(text, IdPrefix.Rl))
         {
-            return "文集";
+            return new TargetInfo("文集", TargetKind.Opus);
         }
 
         if (StartsWithId(text, IdPrefix.Au))
         {
-            return "音频（au 号）";
+            return new TargetInfo("音频（au 号）", TargetKind.Audio);
         }
 
         if (StartsWithId(text, "live"))
         {
-            return "直播间（live 号）";
+            return new TargetInfo("直播间（live 号）", TargetKind.Live);
         }
 
         if (text.StartsWith("https://www.bilibili.com/watchlater", StringComparison.OrdinalIgnoreCase))
         {
-            return "稍后再看列表";
+            return new TargetInfo("稍后再看列表", TargetKind.Video);
         }
 
         if (text.StartsWith("https://live.bilibili.com", StringComparison.OrdinalIgnoreCase))
         {
-            return "直播地址";
+            return new TargetInfo("直播地址", TargetKind.Live);
         }
 
         return null;
     }
 
-    private static string? DescribeUrl(string text)
+    private static TargetInfo DescribeUrl(string text)
     {
         if (text.Contains("/cheese/", StringComparison.OrdinalIgnoreCase))
         {
-            return "课程地址";
+            return new TargetInfo("课程地址", TargetKind.Pgc);
         }
 
         if (text.Contains("/read/readlist/", StringComparison.OrdinalIgnoreCase))
         {
-            return "文集地址";
+            return new TargetInfo("文集地址", TargetKind.Opus);
         }
 
         // 空间子页限定 host（与 Core 的 TryParseCollection 守卫一致），非空间域的 /audio 等路径不误标
         var spaceHost = text.Contains("/space.bilibili.com/", StringComparison.OrdinalIgnoreCase);
         if (spaceHost && text.Contains("/upload/opus", StringComparison.OrdinalIgnoreCase))
         {
-            return "空间图文投稿地址";
+            return new TargetInfo("空间图文投稿地址", TargetKind.Opus);
         }
 
         // 旧版音频页 space.bilibili.com/{mid}/audio 与新版 /upload/audio 同义（/audio 判定两者通吃）
         if (spaceHost && text.Contains("/audio", StringComparison.OrdinalIgnoreCase))
         {
-            return "空间音频投稿地址";
+            return new TargetInfo("空间音频投稿地址", TargetKind.Audio);
         }
 
         if (spaceHost && text.Contains("/dynamic", StringComparison.OrdinalIgnoreCase))
         {
-            return "空间动态地址";
+            return new TargetInfo("空间动态地址", TargetKind.Mixed);
         }
 
         // 合集 / 系列：space lists 页（?type=series 为系列，其余按合集）、channel 页、老版 medialist/ml 分享链接
         if (spaceHost && text.Contains("/lists/", StringComparison.OrdinalIgnoreCase))
         {
-            return text.Contains("type=series", StringComparison.OrdinalIgnoreCase) ? "系列地址" : "合集地址";
+            return text.Contains("type=series", StringComparison.OrdinalIgnoreCase)
+                ? new TargetInfo("系列地址", TargetKind.Video)
+                : new TargetInfo("合集地址", TargetKind.Video);
         }
 
         if (text.Contains("/channel/collectiondetail", StringComparison.OrdinalIgnoreCase))
         {
-            return "合集地址";
+            return new TargetInfo("合集地址", TargetKind.Video);
         }
 
         if (text.Contains("/channel/seriesdetail", StringComparison.OrdinalIgnoreCase))
         {
-            return "系列地址";
+            return new TargetInfo("系列地址", TargetKind.Video);
         }
 
         if (MedialistMlRegex( ).IsMatch(text))
         {
-            return "合集地址";
+            return new TargetInfo("合集地址", TargetKind.Video);
         }
 
         // 单音频页 www.bilibili.com/audio/au12345（space 域的 /audio 列表页已在上面先行识别）
         if (text.Contains("/audio/au", StringComparison.OrdinalIgnoreCase))
         {
-            return "音频地址（au 号）";
+            return new TargetInfo("音频地址（au 号）", TargetKind.Audio);
         }
 
         if (BvRegex( ).Match(text) is { Success: true } bv)
         {
-            return $"视频（{bv.Value}）";
+            return new TargetInfo($"视频（{bv.Value}）", TargetKind.Video);
         }
 
         if (AvInUrlRegex( ).IsMatch(text))
         {
-            return "视频（av 号）";
+            return new TargetInfo("视频（av 号）", TargetKind.Video);
         }
 
         if (EpRegex( ).IsMatch(text))
         {
-            return "番剧（ep 号）";
+            return new TargetInfo("番剧（ep 号）", TargetKind.Pgc);
         }
 
         if (SsRegex( ).IsMatch(text))
         {
-            return "番剧（ss 号）";
+            return new TargetInfo("番剧（ss 号）", TargetKind.Pgc);
         }
 
         if (OpusRegex( ).IsMatch(text))
         {
-            return "专栏（opus）";
+            return new TargetInfo("专栏（opus）", TargetKind.Opus);
         }
 
         if (CvRegex( ).IsMatch(text))
         {
-            return "专栏（cv）";
+            return new TargetInfo("专栏（cv）", TargetKind.Opus);
         }
 
-        return "视频地址";
+        return new TargetInfo("视频地址", TargetKind.Video);
     }
 
     private static bool StartsWithId(string text, string prefix)

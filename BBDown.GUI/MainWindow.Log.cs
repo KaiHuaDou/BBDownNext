@@ -50,6 +50,11 @@ public partial class MainWindow
         }
     }
 
+    private void ClearLogButtonClicked(object? o, RoutedEventArgs e)
+    {
+        logLines.Clear( );
+    }
+
     private void AppendLog(string line, bool isError = false)
     {
         if (!Dispatcher.UIThread.CheckAccess( ))

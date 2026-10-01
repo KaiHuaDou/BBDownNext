@@ -87,7 +87,6 @@ public sealed class ProgressState
     public string? StageName { get; set; }
     public ProgressSampleEvent? Sample { get; set; }
 
-    /// <summary>阶段内累计字节。</summary>
     public long TotalBytes => Interlocked.Read(ref totalBytes);
 
     internal long AddBytes(long delta)

@@ -302,7 +302,7 @@ WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录
 - **`--max-retry`：** 每个下载项在首次尝试之外的额外重试次数，默认 3；非必要项（字幕 / 封面 / 弹幕 / 配音 / 评论）耗尽仅跳过该项，必要项（音视频 / 混流）耗尽则该分 P 失败。serve 请求体字段为 `MaxRetry`（对应 `ServeRequestOptions`）。
 - **`AllowPreview`：** 请求体可携带该布尔字段（对应命令行 `--allow-preview`）。充电专属稿件在无充电权限时接口照常返回成功但只下发试看片段，默认会被识别并跳过，任务表现为 `IsSuccessful == false`；传 `true` 则保留试看片段，输出文件名带 `[试看]` 前缀。
 - **CORS：** 服务器**默认仅对回环来源开放**（`127.0.0.1` / `localhost` 页面的跨源请求放行，与本机页面直连 serve 的场景对齐）；其余来源需显式 `--cors-origin <url>` 放行。非回环 `Origin` 的浏览器请求依旧拿不到 `Access-Control-Allow-Origin` 头、被浏览器拦截（CSRF 面不因此扩大），仅建议在本地 / 可信网络下使用。
-- **专栏导出：** `POST /api/v1/tasks` 接受专栏（opus / cv）地址，与音视频链路共用同一受理队列与并发闸门，经 `OpusArticle` 路由到专栏导出链路。专栏模式仅 `i`（专栏图片）与 `M`（YAML front matter）内容标志生效，其余标志（a / v / m / s / C / d / o / O / S）自然失效，任务日志会给出调试提示。默认内容集 `avmsCiM` 已包含 `i` / `M`，即默认导出图片与 front matter。
+- **专栏导出：** `POST /api/v1/tasks` 接受专栏（opus / cv）地址，与音视频链路共用同一受理队列与并发闸门，经 `OpusArticle` 路由到专栏导出链路。专栏模式仅 `i`（专栏图片）与 `M`（YAML Frontmatter）内容标志生效，其余标志（a / v / m / s / C / d / o / O / S）自然失效，任务日志会给出调试提示。默认内容集 `avmsCiM` 已包含 `i` / `M`，即默认导出图片与 front matter。
 - **评论下载（`--comment`）：** 请求体可携带 `CommentCount` / `CommentSort` / `CommentFormats` / `FullComment` 四个字段（与命令行选项同名同义，默认 `CommentCount=0` 即不下载）。`CommentCount > 0` 时评论区按 `aid` 去重抓取（多 P 同稿只抓一次），产物为与主文件同目录的 `<标题>.comments.json` / `<标题>.comments.txt`。注意：加 `FullComment`（额外翻页抓全楼中楼）会随评论条数线性放大请求量，显著拉长单个任务的耗时，请按需使用。
 
 ---
@@ -335,7 +335,7 @@ curl -X POST -H 'Content-Type: application/json' \
   http://localhost:23333/api/v1/tasks
 ```
 
-仅导出专栏图片、不要 YAML front matter：
+仅导出专栏图片、不要 YAML Frontmatter：
 
 ```shell
 curl -X POST -H 'Content-Type: application/json' \

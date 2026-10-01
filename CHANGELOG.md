@@ -10,12 +10,21 @@
 
 ### 新增
 
-- **纯函数测试补充**（12 例）
+- **纯函数测试补充**
     - `Redactor`：`access_key` 在 URL query、JSON 体中的打码，与 `access_token` / `refresh_token` 的独立打码，非凭据参数不受影响。
     - `RetryUtil`：大重试预算下退避封顶 16 秒（2 / 4 / 8 秒节奏不变）。
     - `LiveSignal`：同标识覆盖注册后，旧 scope 释放不动新注册（原子比较移除的对外契约）。
     - `CredentialStore`：三类凭据并发保存后字段全部在位（读改写互斥的回归锚定）。
     - `HTTPUtil`：`IsTlsAcceptable` 默认仅接受无错误证书、`BBDOWN_INSECURE_TLS=1` 时全放行。
+    - `SavePath`：命名变量表与 `Format` 求值同步（表中每个占位符都会被替换）、占位符唯一、描述非空。
+    - `LiveProgress`：状态行显示宽度对 ASCII 计 1 格、CJK 等东亚宽字符计 2 格。
+    - `SignUtil`：`AppSign` 拼接 MD5 的边界向量扩充（并入原 `Login.GetSign` 用例）。
+- **GUI 选项面板重排与联动**
+    - 控件可用性按下载目标统一联动：视频 / 番剧 / 专栏 / 音频 / 直播 / 空间动态各自只保留生效选项，仅解析时禁用下载相关项；内容组合不会生效时给出提示（封面嵌入 / 元数据缺音频或视频、选了弹幕格式未勾弹幕、设了评论条数未勾评论）。
+    - 编码 / 画质 / 音频档位三项优先级由文本输入改为拖拽排序选择器：候选来自 `Config` 的编码名与画质 / 音质名清单，已选项从左到右即优先序，可拖拽换位、点击移除，留空保持服务端返回顺序。
+    - 新增命名变量表：变量与含义来自 `SavePath.Variables`（与 CLI `--file-pattern` 帮助同源），双击行复制占位符。
+    - 评论条数 / 分 P 间隔 / 每项重试改用数字输入框；API 通道改为 web / tv / app / intl 单选；「留空即有自动值」的字段以占位文本预展示自动值（FFmpeg / MP4Box / aria2c 路径探测、默认命名模式、接口主机等）。
+    - 登录窗口记忆上次使用的通道；日志面板新增清空按钮；外部工具路径归入「环境选项」分组、User-Agent 与接口 Host 归入「网络选项」分组。
 
 ### 修复
 
@@ -26,6 +35,7 @@
 - FLV 分段合并中途失败时保留源分段：此前每段转封装成功即删源，后续分段失败后重试拿到的是残缺列表，无法从头重转；现源分段仅在拼接成功且产物非空后删除，并新增合并产物完整性校验。
 - 直播停录（Ctrl+Break）在会话收尾窗口期不再误判：停止信号的摘除改为原子比较移除，消除「摘除与回填之间查不到条目 → 误退化全局取消」的竞态。
 - serve 扫码登录在会话 TTL 到期瞬间完成扫码时不再要求重来：终态会话（凭据已落盘、后台任务已结束）不受 TTL 淘汰，仍由统一清理兜底，无堆积风险。
+- 直播录制状态行含中文等东亚宽字符时不再残留上一帧尾迹：擦行与补齐按终端显示格数计算（宽字符占 2 格），替代按字符数计算。
 
 ### 安全
 
@@ -43,7 +53,9 @@
 - 控制台输出互斥：日志正文、进度条帧、直播状态行帧统一持进程级写锁，采样线程与日志线程并发时进度条不再插进日志正文中间；无时间戳前缀与时间戳前缀对齐同宽。
 - serve 命令的启动动作改为真异步等待（`server.Run` 的阻塞语义挪至线程池等待）。
 - 直播录制状态行与配置解析的间隔计时改用单调时钟，系统回拨不再导致日志漏打或狂打。
-- 内部结构整理：超长方法拆分（`FlvDownload.RunAsync` / `DashDownload.DownloadTracksAsync` / `InputResolver.ResolveUrlAsync` / `FavListFetcher.FetchAsync` / `PageQueue.RunAsync` 的分 P 委托）、弹幕产出收口为 DASH / FLV 共用、`BBDOWN_INSECURE_TLS` 判定统一为单一函数、`ProgressBus` 重复方法合并、`Parser` 嵌套局部函数提取、字幕语言表拆出独立文件、测试补挂 `HttpStub` 集合定义。
+- 内部结构整理：超长方法拆分（`FlvDownload.RunAsync` / `DashDownload.DownloadTracksAsync` / `InputResolver.ResolveUrlAsync` / `FavListFetcher.FetchAsync` / `PageQueue.RunAsync` 的分 P 委托）、弹幕产出收口为 DASH / FLV 共用、`BBDOWN_INSECURE_TLS` 判定统一为单一函数、`ProgressBus` 重复方法合并、`Parser` 嵌套局部函数提取、字幕语言表拆出独立文件、测试补挂 `HttpStub` 集合定义、appkey 与签名密钥集中到 `BiliApi`（删除等价的 `Login.GetSign`，统一走 `SignUtil.AppSign`）、`TrackSelect` 大小估算与轨道行拼接提取、`DashDownload` 非必要项失败改用异常过滤器、serve WebSocket 回环来源判定复用 `SsrfGuard`。
+- 内容字符规范顺序重排为「a v c d s S o O C m i M」（音视频 / 弹幕字幕 / 评论 / 嵌入与专栏四组，CLI 帮助、GUI 面板与 WebUI 勾选表同序）；serve 接口与 WebUI 提交的内容集规范化字符串顺序随之变化（默认内容集的规范化输出由 `avCimMs` 变为 `avsCmiM`），字符含义与默认值 `avmsCiM` 不变。
+- `--file-pattern` 的帮助文本改由 `SavePath.Variables` 生成（与 GUI 命名变量表同源），`--multi-file-pattern` 不再重复罗列变量。
 
 ## [v2.2.1]
 
@@ -162,7 +174,7 @@
     - serve 在启动时一次性校验 `--work-dir`，坏值直接报错退出（不再让每个任务在运行时失败）。
     - CLI 的 `--work-dir` 输入做 `Trim`，描述改为「设置下载输出目录」。
 - **BBDown.WebUI（新前端，WIP）**
-    - 内容字符勾选：提交区补齐 12 个内容复选框（音频 / 视频 / 独立封面 / 封面嵌入 / 弹幕 / 专栏图片 / 嵌入元数据 / YAML front matter / 评论 / 全部评论 / AI 字幕 / 字幕），3 列网格布局对齐 GUI；`content` 字符串按 Core 规范顺序维护，专栏模式仅 `i` / `M` 生效，其余字符自然失效。
+    - 内容字符勾选：提交区补齐 12 个内容复选框（音频 / 视频 / 独立封面 / 封面嵌入 / 弹幕 / 专栏图片 / 嵌入元数据 / YAML Frontmatter / 评论 / 全部评论 / AI 字幕 / 字幕），3 列网格布局对齐 GUI；`content` 字符串按 Core 规范顺序维护，专栏模式仅 `i` / `M` 生效，其余字符自然失效。
     - 任务类型标识：任务列表按规范 id 前缀显示资源类型（视频 / 番剧 / 专栏 / 直播 / 课程 / 空间 / 收藏 / 合集 / 系列 / 稍后再看），与 Core `ResourceId` 规范形态一致。
     - 提交拆为「加入并执行」与「加入队列」：后者经 `?mode=enqueue` 提交、`Pending` 状态可经任务项的「启动」按钮调 `startTask` 触发；任务列表状态栏新增 `Pending` 计数。
     - 状态层重写：`state/` 拆分为 `store`（全局状态）/ `types` / `snapshot`（事件流帧 → 视图模型归一）/ `taskView`（任务 → 视图模型，含 `ResourceId` 前缀识别）/ `connection`（WebSocket 订阅与重连）/ `actions`（提交 / 取消 / 移除 / 启动）/ `useTasks`（组合式封装），`useTasks.ts` 大幅瘦身。
@@ -496,7 +508,7 @@
 - 评论区下载：新增 `--comment N`（默认 `0` 不下载，前 N 条）、`--comment-sort hot|time`（默认热度）、`--comment-formats json,txt`（默认两者都导出）、`--full-comment`（额外翻页抓全楼中楼）。走 `/x/v2/reply/wbi/main`（WBI 签名 + 游标分页），产物为 `<标题>.comments.json` / `<标题>.comments.txt`；按 `aid` 去重，与视频下载互不干扰，抓取失败降级为「拿到多少算多少」。`CommentFormat` 与弹幕格式解析逻辑各自独立。
 - 直播录制：传入直播间地址（`live:` / `live.bilibili.com` / `m.live.bilibili.com`，房间短号自动换算）即可录制；新增 `--live-quality` / `-lq` 选项指定清晰度，默认原画（10000），可选 250 超清 / 400 蓝光 / 15000 2K / 20000 4K / 30000 杜比。录制为独立链路，不经 `WorkContext` 与音视频混流主干，拉取 `http_stream` + `flv` 流地址后分段落盘；录制中 `Ctrl+Break` 停录并合并为单个 mp4，`Ctrl+C` 中断则保留分段不合并。
 - serve 单任务取消：新增 `POST /stop-task/{id}`，取消单个运行中 / 排队中的任务，不影响其余任务（全局 `Ctrl+C` 仍取消所有任务）。
-- 内容组合选择：新增 `--get` / `-g`（默认 `avmsCiM`）、`--with` / `-w`、`--without` / `-W`，以字符集组合下载内容（get ∪ with − without），多个 `--get` / `--with` / `--without` 自动合并。字符含义：`a` 音频、`c` 独立封面、`C` 封面混流、`d` 弹幕、`i` 专栏图片、`m` 混流元数据、`M` 专栏 YAML front matter、`o` 评论、`O` 全部评论、`S` AI 字幕、`s` 字幕、`v` 视频。
+- 内容组合选择：新增 `--get` / `-g`（默认 `avmsCiM`）、`--with` / `-w`、`--without` / `-W`，以字符集组合下载内容（get ∪ with − without），多个 `--get` / `--with` / `--without` 自动合并。字符含义：`a` 音频、`c` 独立封面、`C` 封面混流、`d` 弹幕、`i` 专栏图片、`m` 混流元数据、`M` 专栏 YAML Frontmatter、`o` 评论、`O` 全部评论、`S` AI 字幕、`s` 字幕、`v` 视频。
 - API 通道单选：新增 `--api` / `-a`（默认 `web`，可选 `web` / `tv` / `app` / `intl`，忽略大小写），取代 `--tv-api` / `--app-api` / `--intl-api` 三个独立开关。
 - 评论选项更名：`--comments-count` / `-cn`、`--comments-sort` / `-cs`、`--comments-formats` / `-cf`（原 `--comment` / `-cm`、`--comment-sort` / `-cms`、`--comment-formats` / `-cmf`）。
 - 仅解析选项更名：`--info-only` / `-i`（原 `--show-info` / `-info`）。
@@ -518,7 +530,7 @@
 - CI：Release 说明改为从 `CHANGELOG.md` 抽取对应版本小节（不再依赖自动生成 notes）。
 - 内容选择选项整体移除：`--video-only` / `--audio-only` / `--danmaku-only` / `--cover-only` / `--sub-only` / `--danmaku` / `--no-sub` / `--no-cover` / `--no-metadata` / `--full-comment` / `--allow-ai` / `--no-images`，改用 `-g` / `-w` / `-W` 字符集表达（如 `-g a` 仅音频、`-W s` 不下载字幕、`-w S` 下载 AI 字幕、`-w d` 附带下载弹幕、`-g O` 全量评论）。
 - 评论下载触发条件变更：需内容集含 `o` / `O` **且** `--comments-count > 0` 才真正抓取；`O` 替代 `--full-comment` 控制楼中楼深度。
-- 专栏导出行为变更：内容集默认含 `M`，默认输出 YAML front matter；图片下载由 `i` 控制（`-W i` 不下载图片、`-W M` 不输出 front matter）。
+- 专栏导出行为变更：内容集默认含 `M`，默认输出 YAML Frontmatter；图片下载由 `i` 控制（`-W i` 不下载图片、`-W M` 不输出 front matter）。
 - 非法 `--api` 值在命令行报错退出；serve 请求体中的 `Api` / `Content` 使用字符串表达，非法值回落默认。
 
 ### 修复

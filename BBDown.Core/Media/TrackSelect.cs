@@ -67,7 +67,7 @@ public static partial class TrackSelect
             foreach (var a in parsedResult.BackgroundAudioTracks)
             {
                 var pDur = pageDur == 0 ? a.Dur : pageDur;
-                LogColor($"{index++}. [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(pDur * a.Bandwidth * 1024 / 8)}]", false);
+                LogColor($"{index++}. [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(EstimatedBytes(a.Bandwidth, pDur))}]", false);
             }
 
             Log($"共计 {parsedResult.RoleAudioList.Count} 条配音，每条包含 {parsedResult.RoleAudioList[0].Audio.Count} 条配音流。");
@@ -75,7 +75,7 @@ public static partial class TrackSelect
             foreach (var a in parsedResult.RoleAudioList[0].Audio)
             {
                 var pDur = pageDur == 0 ? a.Dur : pageDur;
-                LogColor($"{index++}. [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(pDur * a.Bandwidth * 1024 / 8)}]", false);
+                LogColor($"{index++}. [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(EstimatedBytes(a.Bandwidth, pDur))}]", false);
             }
         }
         //展示所有的音视频流信息
@@ -112,14 +112,26 @@ public static partial class TrackSelect
     private static string DescribeVideo(Video v, int pageDur)
     {
         var pDur = pageDur == 0 ? v.Dur : pageDur;
-        var size = v.Size > 0 ? v.Size : pDur * v.Bandwidth * 1024 / 8;
-        return $"[{v.Dfn}] [{v.Res}] [{v.Codecs}] [{v.Fps}] [{v.Bandwidth} kbps] [~{FormatFileSize(size)}]".Replace("[] ", "");
+        var size = v.Size > 0 ? v.Size : EstimatedBytes(v.Bandwidth, pDur);
+        return TrackLine($"[{v.Dfn}]", $"[{v.Res}]", $"[{v.Codecs}]", $"[{v.Fps}]", $"[{v.Bandwidth} kbps]", $"[~{FormatFileSize(size)}]");
     }
 
     private static string DescribeAudio(Audio a, int pageDur)
     {
         var pDur = pageDur == 0 ? a.Dur : pageDur;
-        return $"[{a.Dfn}] [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(pDur * a.Bandwidth * 1024 / 8)}]";
+        return $"[{a.Dfn}] [{a.Codecs}] [{a.Bandwidth} kbps] [~{FormatFileSize(EstimatedBytes(a.Bandwidth, pDur))}]";
+    }
+
+    // Bandwidth 以 kbps 计：时长 × 码率折算近似字节数，接口未给 Size 字段时的统一估算
+    private static long EstimatedBytes(long bandwidth, int seconds)
+    {
+        return seconds * bandwidth * 1024 / 8;
+    }
+
+    // 各段以空格拼接后移除空字段占位（"[] "），字段为空时整段不显示
+    private static string TrackLine(params string[] segments)
+    {
+        return string.Join(" ", segments).Replace("[] ", "");
     }
 
     internal static void PrintFlvTracksInfo(ParsedResult parsedResult, List<string> clips, bool onlyShowInfo)
@@ -130,7 +142,7 @@ public static partial class TrackSelect
         {
             // Dur 为 0（接口未给时长）时跳过码率折算，否则除零得 Infinity 显示异常
             var kbps = v.Dur > 0 ? $"[~{v.Size / 1024 / v.Dur * 8:00} kbps] " : "";
-            LogColor($"{index++}. [{v.Dfn}] [{v.Res}] [{v.Codecs}] [{v.Fps}] {kbps}[{FormatFileSize(v.Size)}]".Replace("[] ", ""), false);
+            LogColor($"{index++}. {TrackLine($"[{v.Dfn}]", $"[{v.Res}]", $"[{v.Codecs}]", $"[{v.Fps}]", $"{kbps}[{FormatFileSize(v.Size)}]")}", false);
             if (onlyShowInfo)
             {
                 clips.ForEach(c => Log(c));

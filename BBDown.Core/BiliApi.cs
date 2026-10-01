@@ -1,7 +1,7 @@
 namespace BBDown.Core;
 
 /// <summary>
-/// B 站接口地址集中表。只放地址常量，不承载任何请求逻辑。
+/// B 站接口地址与签名密钥集中表。只放常量，不承载任何请求逻辑。
 /// 可被 --host / --ep-host / --tv-host 代理的接口在此只登记路径，主机由 <see cref="AppConfig"/> 提供。
 /// </summary>
 public static class BiliApi
@@ -12,6 +12,15 @@ public static class BiliApi
     public const string IntlAppHost = "api.bilibili.tv";
     public const string IntlWebHost = "api.biliintl.com";
     public const string LiveApiHost = "api.live.bilibili.com";
+
+    // appkey 与签名密钥必须配对使用，混用会被服务端判为签名错误；TV 用云视听小电视，APP 用手机粉版
+    public const string TvAppKey = "4409e2ce8ffd12b8";
+    public const string TvAppSecret = "59b43e04ad6965f34319062b478f83dd";
+    public const string PhoneAppKey = "783bbb7264451d82";
+    public const string PhoneAppSecret = "2653583c8873dea268ab9386918b1d65";
+    // BiliPlus appkey 体系：intl 通道走第三方代理主机（--host 非主站）时使用，与 TV / APP 密钥互不通用
+    public const string BiliPlusAppKey = "7d089525d3611b1c";
+    public const string BiliPlusAppSecret = "acd495b248ec528c2eed1e862d393126";
 
     // 主机可被代理，故只登记路径
     public const string PlayUrlWebPath = "/x/player/wbi/playurl";

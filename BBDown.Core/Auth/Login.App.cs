@@ -13,24 +13,18 @@ namespace BBDown.Core.Auth;
 
 public static partial class Login
 {
-    // appkey / 签名密钥必须配对；TV 用云视听小电视，APP 用手机粉版
-    private const string TvAppKey = "4409e2ce8ffd12b8";
-    private const string TvAppSecret = "59b43e04ad6965f34319062b478f83dd";
-    private const string PhoneAppKey = "783bbb7264451d82";
-    private const string PhoneAppSecret = "2653583c8873dea268ab9386918b1d65";
-
     /// <summary>TV 扫码登录：生成二维码后回调 showQr，成功后返回 access_token（不落盘）；过期返回 null。</summary>
     public static Task<string?> TvCredentialAsync(
         Func<string, Task>? showQr = null, Action<QrState>? onState = null, CancellationToken token = default)
     {
-        return LoginWithAppKey(TvAppKey, "android_tv_yst", TvAppSecret, showQr, onState, token);
+        return LoginWithAppKey(BiliApi.TvAppKey, "android_tv_yst", BiliApi.TvAppSecret, showQr, onState, token);
     }
 
     /// <summary>APP 扫码登录：生成二维码后回调 showQr，成功后返回 access_token（不落盘）；过期返回 null。</summary>
     public static Task<string?> AppCredentialAsync(
         Func<string, Task>? showQr = null, Action<QrState>? onState = null, CancellationToken token = default)
     {
-        return LoginWithAppKey(PhoneAppKey, "android", PhoneAppSecret, showQr, onState, token);
+        return LoginWithAppKey(BiliApi.PhoneAppKey, "android", BiliApi.PhoneAppSecret, showQr, onState, token);
     }
 
     public static async Task<int> TV(CancellationToken token = default)
@@ -135,7 +129,7 @@ public static partial class Login
     private static void ApplySign(NameValueCollection parms, string secret)
     {
         parms.Remove("sign");
-        parms.Add("sign", GetSign(ToQueryString(parms), secret));
+        parms.Add("sign", SignUtil.AppSign(ToQueryString(parms), secret));
     }
 
     // 纯扫码流程：生成二维码、轮询、解释状态，成功后返回 access_token；落盘由各自入口负责。

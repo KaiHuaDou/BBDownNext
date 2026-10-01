@@ -2,6 +2,7 @@
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:gui="using:BBDown.GUI"
+        xmlns:download="using:BBDown.Core.Download"
         Title="BBDown GUI"
         Width="1120"
         Height="820"
@@ -30,19 +31,23 @@
                     <TextBox x:Name="TargetBox" TextChanged="TargetBoxTextChanged" />
                 </DockPanel>
                 <TextBlock x:Name="TargetHintText" Margin="0,8,0,0" FontSize="14" />
+                <TextBlock x:Name="ContentWarnText" Margin="0,4,0,0" FontSize="14"
+                           IsVisible="False" TextWrapping="Wrap" />
             </StackPanel>
 
             <Grid x:Name="ContentGrid" Grid.Row="1" Margin="5">
-                <!--内容复选框由 BBDown.Core.ContentSelector.Order 生成（字符/名称单一来源）-->
                 <ItemsControl x:Name="ContentItems" Margin="5">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <UniformGrid Columns="3" />
+                             <WrapPanel Orientation="Vertical" ItemHeight="36" Height="128"
+                                        ItemSpacing="10" LineSpacing="48" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="gui:ContentOption">
-                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" Classes="CheckBoxItem" Content="{Binding Label}" />
+                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" IsEnabled="{Binding IsEnabled}"
+                                      Classes="CheckBoxItem" Content="{Binding Label}"
+                                      IsCheckedChanged="ContentItemCheckedChanged" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -55,7 +60,8 @@
                     <!--登录：凭据区，与下载 / 解析选项平级-->
                     <StackPanel Margin="0,0,0,5" Orientation="Horizontal">
                         <Button x:Name="LoginButton"
-                                Padding="15,3"
+                                MinHeight="{DynamicResource TextControlThemeMinHeight}"
+                                Padding="15,5"
                                 Click="LoginButtonClicked" Content="登录" />
                         <TextBlock x:Name="LoginStatusText"
                                    Margin="10,0,0,0" VerticalAlignment="Center"
@@ -91,10 +97,11 @@
                                          ToolTip.Tip="all / 8 / 1,2,5 / 3-5 / 16- / -22 / latest / last" />
                                 <TextBlock Grid.Row="1" Grid.Column="0"
                                            Classes="FieldLabel" Text="评论条数" />
-                                <TextBox x:Name="CommentsCountBox"
-                                         Grid.Row="1" Grid.Column="1"
-                                         Classes="FieldInput" LostFocus="IntegerBoxLostFocus"
-                                         ToolTip.Tip="下载评论区前 N 条评论，0 表示不下载" />
+                                <NumericUpDown x:Name="CommentsCountBox"
+                                               Grid.Row="1" Grid.Column="1"
+                                               Margin="0,3,5,3" Minimum="0" Maximum="10000" Increment="10"
+                                               ValueChanged="CommentsCountBoxValueChanged"
+                                               ToolTip.Tip="下载评论区前 N 条评论，0 表示不下载" />
                                 <TextBlock Grid.Row="2" Grid.Column="0"
                                            Classes="FieldLabel" Text="评论排序" />
                                 <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
@@ -148,7 +155,6 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                                <CheckBox x:Name="UseAria2cCheckBox" Classes="CheckBoxItem" Content="使用 aria2c" />
                                 <CheckBox x:Name="SingleThreadCheckBox" Classes="CheckBoxItem" Content="单线程下载" />
                                 <CheckBox x:Name="SaveRecordsCheckBox" Classes="CheckBoxItem" Content="下载记录去重" />
                                 <CheckBox x:Name="StopOnErrorCheckBox" Classes="CheckBoxItem" Content="失败即停止" />
@@ -174,95 +180,152 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Grid.Column="0"
                                            Classes="FieldLabel" Text="分 P 间隔（秒）" />
-                                <TextBox x:Name="DelayPerPageBox"
-                                         Grid.Row="0" Grid.Column="1"
-                                         Classes="FieldInput" LostFocus="IntegerBoxLostFocus"
-                                         ToolTip.Tip="合集分 P 之间的下载间隔（单位：秒）" />
+                                <NumericUpDown x:Name="DelayPerPageBox"
+                                               Grid.Row="0" Grid.Column="1"
+                                               Margin="0,3,5,3" Minimum="0" Maximum="3600" Increment="1"
+                                               ToolTip.Tip="合集分 P 之间的下载间隔（单位：秒）" />
                                 <TextBlock Grid.Row="1" Grid.Column="0"
                                            Classes="FieldLabel" Text="混流音频语言" />
                                 <TextBox x:Name="LangBox"
                                          Grid.Row="1" Grid.Column="1"
                                          Classes="FieldInput" ToolTip.Tip="混流的音频语言代码，如 chi、jpn" />
                                 <TextBlock Grid.Row="2" Grid.Column="0"
-                                           Classes="FieldLabel" Text="aria2c 附加参数" />
-                                <TextBox x:Name="Aria2cArgsBox"
-                                         Grid.Row="2" Grid.Column="1"
-                                         Classes="FieldInput" />
-                                <TextBlock Grid.Row="3" Grid.Column="0"
                                            Classes="FieldLabel" Text="混流方式" />
                                 <ComboBox x:Name="MuxBox"
-                                          Grid.Row="3" Grid.Column="1"
-                                          Margin="0,3,5,3" />
-
-                                <TextBlock Grid.Row="4" Grid.Column="0"
-                                           Classes="FieldLabel" Text="工作目录" />
-                                <DockPanel Grid.Row="4" Grid.Column="1" Margin="0,3,5,3">
-                                    <Button x:Name="BrowseDirButton"
-                                            DockPanel.Dock="Right"
-                                            Margin="5,0,0,0" Padding="8,2"
-                                            Click="BrowseDirButtonClicked" Content="..." />
-                                    <TextBox x:Name="WorkDirBox" ToolTip.Tip="程序的工作目录，也是下载输出位置" />
-                                </DockPanel>
-                                <TextBlock Grid.Row="5" Grid.Column="0"
-                                           Classes="FieldLabel" Text="FFmpeg 路径" />
-                                <DockPanel Grid.Row="5" Grid.Column="1" Margin="0,3,5,3">
-                                    <Button x:Name="BrowseFfmpegButton"
-                                            DockPanel.Dock="Right"
-                                            Margin="5,0,0,0" Padding="8,2"
-                                            Click="BrowseFileButtonClicked" Content="..." Tag="ffmpeg" />
-                                    <TextBox x:Name="FFmpegPathBox" />
-                                </DockPanel>
-                                <TextBlock Grid.Row="6" Grid.Column="0"
-                                           Classes="FieldLabel" Text="MP4Box 路径" />
-                                <DockPanel Grid.Row="6" Grid.Column="1" Margin="0,3,5,3">
-                                    <Button x:Name="BrowseMp4boxButton"
-                                            DockPanel.Dock="Right"
-                                            Margin="5,0,0,0" Padding="8,2"
-                                            Click="BrowseFileButtonClicked" Content="..." Tag="mp4box" />
-                                    <TextBox x:Name="Mp4boxPathBox" />
-                                </DockPanel>
-                                <TextBlock Grid.Row="7" Grid.Column="0"
-                                           Classes="FieldLabel" Text="aria2c 路径" />
-                                <DockPanel Grid.Row="7" Grid.Column="1" Margin="0,3,5,3">
-                                    <Button x:Name="BrowseAria2cButton"
-                                            DockPanel.Dock="Right"
-                                            Margin="5,0,0,0" Padding="8,2"
-                                            Click="BrowseFileButtonClicked" Content="..." Tag="aria2c" />
-                                    <TextBox x:Name="Aria2cPathBox" />
-                                </DockPanel>
-                                <TextBlock Grid.Row="8" Grid.Column="0"
+                                          Grid.Row="2" Grid.Column="1"
+                                          Margin="0,3,5,3" SelectionChanged="MuxBoxSelectionChanged" />
+                                <TextBlock Grid.Row="3" Grid.Column="0"
                                            Classes="FieldLabel" Text="后处理程序" />
-                                <DockPanel Grid.Row="8" Grid.Column="1" Margin="0,3,5,3">
+                                <DockPanel Grid.Row="3" Grid.Column="1" Margin="0,3,5,3">
                                     <Button x:Name="BrowsePostProcessButton"
                                             DockPanel.Dock="Right"
-                                            Margin="5,0,0,0" Padding="8,2"
+                                            Margin="5,0,0,0" Classes="FieldButton"
                                             Click="BrowseFileButtonClicked" Content="..." Tag="postprocess" />
                                     <TextBox x:Name="PostProcessPathBox" ToolTip.Tip="下载完成后由外部进程处理后缀为 .out 的轨道文件；留空则不启用" />
                                 </DockPanel>
-                                <TextBlock Grid.Row="9" Grid.Column="0"
+                                <TextBlock Grid.Row="4" Grid.Column="0"
+                                           Classes="FieldLabel" Text="每项下载重试次数" />
+                                <NumericUpDown x:Name="MaxRetryBox"
+                                               Grid.Row="4" Grid.Column="1"
+                                               Margin="0,3,5,3" Minimum="0" Maximum="99" Increment="1"
+                                               ToolTip.Tip="每个下载项在首次尝试之外的额外重试次数，默认 3" />
+                                <TextBlock Grid.Row="5" Grid.Column="0"
                                            Classes="FieldLabel" Text="文件命名模式" />
                                 <TextBox x:Name="FilePatternBox"
-                                         Grid.Row="9" Grid.Column="1"
+                                         Grid.Row="5" Grid.Column="1"
                                          Classes="FieldInput" ToolTip.Tip="单 P 文件名模板，内置变量见 BBDown --help" />
-                                <TextBlock Grid.Row="10" Grid.Column="0"
+                                <TextBlock Grid.Row="6" Grid.Column="0"
                                            Classes="FieldLabel" Text="多 P 文件命名" />
                                 <TextBox x:Name="MultiFilePatternBox"
-                                         Grid.Row="10" Grid.Column="1"
+                                         Grid.Row="6" Grid.Column="1"
                                          Classes="FieldInput" ToolTip.Tip="多 P 文件名模板，内置变量见 BBDown --help" />
-                                <TextBlock Grid.Row="11" Grid.Column="0"
-                                           Classes="FieldLabel" Text="每项下重试次数" />
-                                <TextBox x:Name="MaxRetryBox"
-                                         Grid.Row="11" Grid.Column="1"
-                                         Classes="FieldInput" LostFocus="IntegerBoxLostFocus"
-                                         ToolTip.Tip="每个下载项在首次尝试之外的额外重试次数，默认 3" />
+                                <Expander x:Name="NamingVariablesExpander" Grid.Row="7" Grid.Column="1"
+                                          Margin="0,3,5,3"
+                                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                          Header="命名变量（双击行复制占位符）">
+                                    <Grid Margin="5" Grid.IsSharedSizeScope="True">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid Grid.Row="0" Margin="0,0,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" SharedSizeGroup="NamingToken" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Classes="FieldLabel" Text="变量" />
+                                            <TextBlock Grid.Column="1" Classes="FieldLabel" Text="含义" />
+                                        </Grid>
+                                        <ItemsControl x:Name="NamingVariableList" Grid.Row="1">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="download:NamingVariable">
+                                                    <Border Classes="NamingRow" DoubleTapped="NamingRowDoubleTapped">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" SharedSizeGroup="NamingToken" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Classes="NamingToken" Text="{Binding Token}" Margin="0,0,10,0" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding Description}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Grid.Row="2"
+                                                   Classes="PriorityEmptyHint" Margin="0,6,0,0" HorizontalAlignment="Left"
+                                                   Text="清晰度、分辨率、帧率、编码、码率类变量在未选中相应轨道时为空" />
+                                    </Grid>
+                                </Expander>
                             </Grid>
+                        </Grid>
+                    </Expander>
+
+                    <!--环境选项：工作目录与外部工具路径相关项-->
+                    <Expander Header="环境选项"
+                              Margin="0,5,0,0" HorizontalAlignment="Stretch"
+                              HorizontalContentAlignment="Stretch">
+                        <Grid Margin="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <CheckBox Grid.Row="0" Grid.ColumnSpan="2"
+                                      x:Name="UseAria2cCheckBox" Classes="CheckBoxItem" Content="使用 aria2c"
+                                      IsCheckedChanged="UseAria2cCheckBoxCheckedChanged" />
+                            <TextBlock Grid.Row="1" Grid.Column="0"
+                                       Classes="FieldLabel" Text="工作目录" />
+                            <DockPanel Grid.Row="1" Grid.Column="1" Margin="0,3,5,3">
+                                <Button x:Name="BrowseDirButton"
+                                        DockPanel.Dock="Right"
+                                        Margin="5,0,0,0" Classes="FieldButton"
+                                        Click="BrowseDirButtonClicked" Content="..." />
+                                <TextBox x:Name="WorkDirBox" ToolTip.Tip="程序的工作目录，也是下载输出位置" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="2" Grid.Column="0"
+                                       Classes="FieldLabel" Text="FFmpeg 路径" />
+                            <DockPanel Grid.Row="2" Grid.Column="1" Margin="0,3,5,3">
+                                <Button x:Name="BrowseFfmpegButton"
+                                        DockPanel.Dock="Right"
+                                        Margin="5,0,0,0" Classes="FieldButton"
+                                        Click="BrowseFileButtonClicked" Content="..." Tag="ffmpeg" />
+                                <TextBox x:Name="FFmpegPathBox" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="3" Grid.Column="0"
+                                       Classes="FieldLabel" Text="MP4Box 路径" />
+                            <DockPanel Grid.Row="3" Grid.Column="1" Margin="0,3,5,3">
+                                <Button x:Name="BrowseMp4boxButton"
+                                        DockPanel.Dock="Right"
+                                        Margin="5,0,0,0" Classes="FieldButton"
+                                        Click="BrowseFileButtonClicked" Content="..." Tag="mp4box" />
+                                <TextBox x:Name="Mp4boxPathBox" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="4" Grid.Column="0"
+                                       Classes="FieldLabel" Text="aria2c 路径" />
+                            <DockPanel Grid.Row="4" Grid.Column="1" Margin="0,3,5,3">
+                                <Button x:Name="BrowseAria2cButton"
+                                        DockPanel.Dock="Right"
+                                        Margin="5,0,0,0" Classes="FieldButton"
+                                        Click="BrowseFileButtonClicked" Content="..." Tag="aria2c" />
+                                <TextBox x:Name="Aria2cPathBox" />
+                            </DockPanel>
+                            <TextBlock Grid.Row="5" Grid.Column="0"
+                                       Classes="FieldLabel" Text="aria2c 附加参数" />
+                            <TextBox x:Name="Aria2cArgsBox"
+                                     Grid.Row="5" Grid.Column="1"
+                                     Classes="FieldInput" />
                         </Grid>
                     </Expander>
 
@@ -294,19 +357,26 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Grid.Column="0"
                                            Classes="FieldLabel" Text="API 通道" />
-                                <ComboBox x:Name="ApiBox"
-                                          Grid.Row="0" Grid.Column="1"
-                                          Margin="0,3,5,3"
-                                          ToolTip.Tip="web / tv / app / intl，默认 web" />
+                                <StackPanel Grid.Row="0" Grid.Column="1"
+                                            Margin="0,3,5,3"
+                                            Orientation="Horizontal"
+                                            ToolTip.Tip="默认 web">
+                                    <RadioButton x:Name="ApiWebRadioButton"
+                                                 Margin="0,3,8,3" VerticalAlignment="Center"
+                                                 Content="web" GroupName="ApiChannel" />
+                                    <RadioButton x:Name="ApiTvRadioButton"
+                                                 Margin="0,3,8,3" VerticalAlignment="Center"
+                                                 Content="tv" GroupName="ApiChannel" />
+                                    <RadioButton x:Name="ApiAppRadioButton"
+                                                 Margin="0,3,8,3" VerticalAlignment="Center"
+                                                 Content="app" GroupName="ApiChannel" />
+                                    <RadioButton x:Name="ApiIntlRadioButton"
+                                                 Margin="0,3,0,3" VerticalAlignment="Center"
+                                                 Content="intl" GroupName="ApiChannel" />
+                                </StackPanel>
                                 <TextBlock Grid.Row="1" Grid.Column="0"
                                            Classes="FieldLabel" Text="直播清晰度" />
                                 <ComboBox x:Name="LiveQualityBox"
@@ -314,50 +384,67 @@
                                           Margin="0,3,5,3" />
                                 <TextBlock Grid.Row="2" Grid.Column="0"
                                            Classes="FieldLabel" Text="编码优先级" />
-                                <TextBox x:Name="EncodingPriorityBox"
-                                         Grid.Row="2" Grid.Column="1"
-                                         Classes="FieldInput" ToolTip.Tip="逗号分隔，如 hevc,av1,avc,flac,eac3,m4a" />
+                                <gui:PriorityPicker x:Name="EncodingPriorityPicker"
+                                                    Grid.Row="2" Grid.Column="1" Margin="0,5,0,0"/>
                                 <TextBlock Grid.Row="3" Grid.Column="0"
                                            Classes="FieldLabel" Text="画质优先级" />
-                                <TextBox x:Name="DfnPriorityBox"
-                                         Grid.Row="3" Grid.Column="1"
-                                         Classes="FieldInput" ToolTip.Tip="逗号分隔，如 8K 超高清,1080P 高码率,HDR 真彩,杜比视界" />
+                                <gui:PriorityPicker x:Name="DfnPriorityPicker"
+                                                    Grid.Row="3" Grid.Column="1" Margin="0,5,0,0"/>
                                 <TextBlock Grid.Row="4" Grid.Column="0"
                                            Classes="FieldLabel" Text="音频档位" />
-                                <TextBox x:Name="AudioQualityBox"
-                                         Grid.Row="4" Grid.Column="1"
-                                         Classes="FieldInput" ToolTip.Tip="逗号分隔，如 杜比全景声,Hi-Res 无损,192K" />
-                                <TextBlock Grid.Row="5" Grid.Column="0"
-                                           Classes="FieldLabel" Text="User-Agent" />
-                                <TextBox x:Name="UserAgentBox"
-                                         Grid.Row="5" Grid.Column="1"
-                                         Classes="FieldInput" />
-                                <TextBlock Grid.Row="6" Grid.Column="0"
-                                           Classes="FieldLabel" Text="Host" />
-                                <TextBox x:Name="HostBox"
-                                         Grid.Row="6" Grid.Column="1"
-                                         Classes="FieldInput" ToolTip.Tip="BiliPlus host，需 access_token，谨慎使用" />
-                                <TextBlock Grid.Row="7" Grid.Column="0"
-                                           Classes="FieldLabel" Text="EP Host" />
-                                <TextBox x:Name="EpHostBox"
-                                         Grid.Row="7" Grid.Column="1"
-                                         Classes="FieldInput" ToolTip.Tip="BiliPlus EP host，代理 pgc season 接口" />
-                                <TextBlock Grid.Row="8" Grid.Column="0"
-                                           Classes="FieldLabel" Text="TV Host" />
-                                <TextBox x:Name="TvHostBox"
-                                         Grid.Row="8" Grid.Column="1"
-                                         Classes="FieldInput" ToolTip.Tip="自定义 TV 端接口请求 Host" />
-                                <TextBlock Grid.Row="9" Grid.Column="0"
-                                           Classes="FieldLabel" Text="Area" />
-                                <TextBox x:Name="AreaBox"
-                                         Grid.Row="9" Grid.Column="1"
-                                         Classes="FieldInput" ToolTip.Tip="BiliPlus 区域：hk / tw / th" />
-                                <TextBlock Grid.Row="10" Grid.Column="0"
-                                           Classes="FieldLabel" Text="Upos Host" />
-                                <TextBox x:Name="UposHostBox"
-                                         Grid.Row="10" Grid.Column="1"
-                                         Classes="FieldInput" ToolTip.Tip="自定义 upos 服务器" />
+                                <gui:PriorityPicker x:Name="AudioQualityPicker"
+                                                    Grid.Row="4" Grid.Column="1" Margin="0,5,0,0" />
                             </Grid>
+                        </Grid>
+                    </Expander>
+
+                    <!--网络选项：请求头与接口主机相关项-->
+                    <Expander Header="网络选项"
+                              Margin="0,5,0,0" HorizontalAlignment="Stretch"
+                              HorizontalContentAlignment="Stretch">
+                        <Grid Margin="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                       Classes="FieldLabel" Text="User-Agent" />
+                            <TextBox x:Name="UserAgentBox"
+                                     Grid.Row="0" Grid.Column="1"
+                                     Classes="FieldInput" />
+                            <TextBlock Grid.Row="1" Grid.Column="0"
+                                       Classes="FieldLabel" Text="Host" />
+                            <TextBox x:Name="HostBox"
+                                     Grid.Row="1" Grid.Column="1"
+                                     Classes="FieldInput" ToolTip.Tip="BiliPlus host，需 access_token，谨慎使用" />
+                            <TextBlock Grid.Row="2" Grid.Column="0"
+                                       Classes="FieldLabel" Text="EP Host" />
+                            <TextBox x:Name="EpHostBox"
+                                     Grid.Row="2" Grid.Column="1"
+                                     Classes="FieldInput" ToolTip.Tip="BiliPlus EP host，代理 pgc season 接口" />
+                            <TextBlock Grid.Row="3" Grid.Column="0"
+                                       Classes="FieldLabel" Text="TV Host" />
+                            <TextBox x:Name="TvHostBox"
+                                     Grid.Row="3" Grid.Column="1"
+                                     Classes="FieldInput" ToolTip.Tip="自定义 TV 端接口请求 Host" />
+                            <TextBlock Grid.Row="4" Grid.Column="0"
+                                       Classes="FieldLabel" Text="Area" />
+                            <TextBox x:Name="AreaBox"
+                                     Grid.Row="4" Grid.Column="1"
+                                     Classes="FieldInput" ToolTip.Tip="BiliPlus 区域：hk / tw / th" />
+                            <TextBlock Grid.Row="5" Grid.Column="0"
+                                       Classes="FieldLabel" Text="Upos Host" />
+                            <TextBox x:Name="UposHostBox"
+                                     Grid.Row="5" Grid.Column="1"
+                                     Classes="FieldInput" ToolTip.Tip="自定义 upos 服务器" />
                         </Grid>
                     </Expander>
                 </StackPanel>
@@ -486,9 +573,14 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <Button x:Name="ExportLogButton"
-                            Margin="0,6,0,0" Padding="15,3" HorizontalAlignment="Left"
-                            Click="ExportLogButtonClicked" Content="导出日志" />
+                    <StackPanel Margin="0,6,0,0" Orientation="Horizontal">
+                        <Button x:Name="ExportLogButton"
+                                Padding="15,3"
+                                Click="ExportLogButtonClicked" Content="导出日志" />
+                        <Button x:Name="ClearLogButton"
+                                Margin="10,0,0,0" Padding="15,3"
+                                Click="ClearLogButtonClicked" Content="清空日志" />
+                    </StackPanel>
                 </StackPanel>
             </Expander>
         </Grid>

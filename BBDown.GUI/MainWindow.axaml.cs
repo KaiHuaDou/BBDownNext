@@ -37,15 +37,18 @@ public partial class MainWindow : Window
     {
         InitializeComponent( );
         LogList.ItemsSource = logLines;
-        // API 通道、内容字符、直播清晰度均以 Core 枚举/表为单一来源，避免列表在多处硬编码
-        ApiBox.ItemsSource = Enum.GetNames<ApiType>( ).Select(n => n.ToLowerInvariant( )).ToArray( );
+        // 内容字符、直播清晰度以 Core 枚举/表为单一来源，避免列表在多处硬编码
         ContentItems.ItemsSource = ContentSelector.Order.Select(e => new ContentOption(e.Ch, $"{e.Name} (_{e.Ch})")).ToList( );
+        EncodingPriorityPicker.Initialize(Config.EncodingNames);
+        DfnPriorityPicker.Initialize(Config.QualityNameList);
+        AudioQualityPicker.Initialize(Config.AudioQualityNameList);
         foreach (var (qn, name) in LiveQuality.Levels)
         {
             LiveQualityBox.Items.Add(new ComboBoxItem { Content = $"{qn} {name}", Tag = qn.ToString( ) });
         }
 
         LiveQualityBox.SelectedIndex = 0;
+        NamingVariableList.ItemsSource = SavePath.Variables;
 
         foreach ((var value, var label) in MuxChoices)
         {
@@ -67,6 +70,7 @@ public partial class MainWindow : Window
         queue.Logger = LogTaskError;
         TaskList.ItemsSource = tasks;
         LoadConfig( );
+        ApplyPlaceholderTexts( );
         RestoreQueue( );
         _ = RefreshLoginStatusAsync( );
         UpdateTargetHint( );
@@ -168,6 +172,7 @@ public partial class MainWindow : Window
     private void TargetBoxTextChanged(object? o, TextChangedEventArgs e)
     {
         UpdateTargetHint( );
+        RefreshAvailability( );
     }
 
     private void RunButtonClicked(object? o, RoutedEventArgs e)
@@ -213,29 +218,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (TopLevel.GetTopLevel(this) is { } topLevel)
+        if (GetTopLevel(this) is { } topLevel)
         {
             _ = topLevel.Launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(path));
         }
-    }
-
-    /// <summary>非负整数字段失焦校验，无效回退上次有效值（存于 Tag）。</summary>
-    private void IntegerBoxLostFocus(object? o, RoutedEventArgs e)
-    {
-        if (o is not TextBox box)
-        {
-            return;
-        }
-
-        var fallback = box.Tag as string ?? "0";
-        if (int.TryParse(box.Text, out var value) && value >= 0)
-        {
-            box.Tag = value.ToString( );
-            return;
-        }
-
-        box.Text = fallback;
-        AppendLog($"{box.Name} 需为非负整数，已回退为 {fallback}");
     }
 
     private void WindowDragOver(object? o, DragEventArgs e)
@@ -344,15 +330,14 @@ public partial class MainWindow : Window
 
     private void UpdateTargetHint( )
     {
-        var description = UrlDetector.Describe(TargetBox.Text);
-        if (description is null)
+        if (UrlDetector.Describe(TargetBox.Text) is not { } info)
         {
             TargetHintText.Text = "未能识别";
             TargetHintText.Foreground = hintBrush;
         }
         else
         {
-            TargetHintText.Text = $"✓ {description}";
+            TargetHintText.Text = $"✓ {info.Description}";
             TargetHintText.Foreground = okBrush;
         }
     }

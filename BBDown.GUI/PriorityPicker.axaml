@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:gui="using:BBDown.GUI"
+             x:Class="BBDown.GUI.PriorityPicker">
+    <StackPanel Spacing="4">
+        <!--已选 chips 流：从左到右即优先序，chip 可拖拽换位、点 × 移除-->
+        <ItemsControl x:Name="PriorityList"
+                      DragDrop.AllowDrop="True" DragDrop.Drop="ListDrop">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="gui:PriorityOption">
+                    <Border Classes="PriorityChip" Margin="0,0,6,6"
+                            DragDrop.AllowDrop="True"
+                            DragDrop.DragOver="ChipDragOver" DragDrop.Drop="ChipDrop"
+                            PointerPressed="ChipPointerPressed" PointerMoved="ChipPointerMoved">
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <TextBlock Classes="PriorityChipOrder" Text="{Binding Order}" />
+                            <TextBlock Text="{Binding Name}" />
+                            <Button Classes="PriorityChipRemove" Click="RemoveClick" Content="×" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <!--空选态提示：未选任何项时按服务端返回顺序-->
+        <TextBlock x:Name="EmptyHint" Classes="PriorityEmptyHint" Text="留空按服务端返回顺序" />
+        <!--未选区：按全集高 → 低，点击追加到已选末尾；右侧清空按钮一键恢复默认-->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ItemsControl x:Name="AvailableList" Grid.Column="0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="gui:PriorityOption">
+                        <Button Classes="PriorityAdd" Click="AddClick" Content="{Binding Name}" Margin="0,0,6,6" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button x:Name="ClearButton"
+                    Grid.Column="1"
+                    VerticalAlignment="Top" Margin="6,0,0,6"
+                    Padding="10,4" FontSize="13"
+                    Click="ClearClick" Content="清空" />
+        </Grid>
+    </StackPanel>
+</UserControl>

@@ -258,13 +258,8 @@ public static class DashDownload
                 session.Options.MaxRetry, label, ct, ex => PageDownload.ShouldRetry(ex, ct));
             return true;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!required)
         {
-            if (required)
-            {
-                throw;
-            }
-
             LogWarn($"{label}失败，已跳过：{ex.Message}");
             SafeDelete(path);
             return false;

@@ -5,14 +5,6 @@ using System.Text.Json.Serialization;
 
 namespace BBDown.Core;
 
-/// <summary>
-/// 各类资源 id 的统一类型，替代字符串形态的内部 id（如 "ep:ss2539"、favId:123:456）。
-/// 值相等性天然支持去重键；子类型即形态，消费点按类型分发而非解析字符串。
-/// serve API 边界经 <see cref="ResourceIdJsonConverter"/> 序列化为规范字符串
-/// （如 "season2539"，与 <see cref="TryParse"/> 的路径参数编码一致），内部仍保持类型。
-/// closed（C# 15）：全部子类型声明在本程序集内，消费点 switch 覆盖全部直接子类型即判穷尽，
-/// 新增子类型而漏改分发点直接编译报错。
-/// </summary>
 [JsonConverter(typeof(ResourceIdJsonConverter))]
 public closed record ResourceId
 {

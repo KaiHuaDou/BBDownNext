@@ -172,7 +172,7 @@ BBDown/
 │   │   ├── OpusInputResolver.cs    # 专栏地址解析
 │   │   ├── OpusFetcher.cs          # 网络编排与判定（partial，含 OpusFetcher.Parse.cs / OpusFetcher.Paragraph.cs）
 │   │   ├── OpusHtmlToMarkdown.cs   # HTML → Markdown 转换
-│   │   ├── OpusMarkdownRenderer.cs # Markdown 渲染（YAML front matter 等）
+│   │   ├── OpusMarkdownRenderer.cs # Markdown 渲染（YAML Frontmatter 等）
 │   │   ├── OpusImageUtil.cs        # 图片下载与协议归一
 │   │   ├── OpusRegexes.cs          # [GeneratedRegex] 集中声明
 │   │   └── OpusDocument.cs         # 域模型
@@ -445,7 +445,7 @@ OpusDownload.RunAsync (BBDown.Core.Pipeline)  不走 WorkSetup.Build / 不构造
   │  ├─ OpusMarkdownRenderer      渲染标题/front matter/图片/列表/代码/公式等
   │  └─ OpusImageUtil             默认下载图片到 <标题>/images/；内容集不含 i（-W i）则保留远程链接
   ▼
-落盘 <标题>.md（UTF-8 无 BOM，保证 YAML front matter 可被解析）
+落盘 <标题>.md（UTF-8 无 BOM，保证 YAML Frontmatter 可被解析）
 ```
 
 ### 11.2 与主干的关键差异

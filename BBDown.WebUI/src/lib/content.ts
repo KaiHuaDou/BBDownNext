@@ -9,15 +9,15 @@ export const CONTENT_ORDER: ContentItem[] = [
   { ch: 'a', name: '音频' },
   { ch: 'v', name: '视频' },
   { ch: 'c', name: '独立封面' },
-  { ch: 'C', name: '封面嵌入' },
   { ch: 'd', name: '弹幕' },
-  { ch: 'i', name: '专栏图片' },
-  { ch: 'm', name: '嵌入元数据' },
-  { ch: 'M', name: 'YAML front matter' },
+  { ch: 's', name: '字幕' },
+  { ch: 'S', name: 'AI 字幕' },
   { ch: 'o', name: '评论' },
   { ch: 'O', name: '全部评论' },
-  { ch: 'S', name: 'AI 字幕' },
-  { ch: 's', name: '字幕' }
+  { ch: 'C', name: '封面嵌入' },
+  { ch: 'm', name: '嵌入元数据' },
+  { ch: 'i', name: '专栏图片' },
+  { ch: 'M', name: '专栏 YAML Frontmatter' }
 ]
 
 /** 默认内容集，与 Core ContentSelector.Default（avmsCiM）一致。 */

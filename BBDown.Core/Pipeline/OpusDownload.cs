@@ -105,7 +105,7 @@ public static class OpusDownload
             EmbedFrontMatter: myOption.Content.Has(DownloadContent.FrontMatter),
             ImagePathMap: imageMap));
 
-        // Encoding.UTF8 会写出 BOM，多数 YAML front matter 解析器会因此认不出首行的 ---
+        // Encoding.UTF8 会写出 BOM，多数 YAML Frontmatter 解析器会因此认不出首行的 ---
         await File.WriteAllTextAsync(mdPath, markdown, new UTF8Encoding(false), ct);
         Log($"已保存到 {mdPath}");
         sink.Saved?.Invoke(mdPath);

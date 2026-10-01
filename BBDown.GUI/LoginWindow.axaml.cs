@@ -16,6 +16,9 @@ namespace BBDown.GUI;
 
 public partial class LoginWindow : Window
 {
+    // 上次使用的登录通道：模态对话框同一时刻至多一个实例，仅在 UI 线程读写
+    private static LoginChannel lastChannel = LoginChannel.Web;
+
     private CancellationTokenSource? tokenSource;
     private volatile bool closed;
     private bool ready;
@@ -24,14 +27,9 @@ public partial class LoginWindow : Window
     public LoginResult? Result { get; private set; }
 
     public LoginWindow( )
-        : this(LoginChannel.Web)
-    {
-    }
-
-    public LoginWindow(LoginChannel initial)
     {
         InitializeComponent( );
-        ApplyChannel(initial);
+        ApplyChannel(lastChannel);
         Opened += LoginWindowOpened;
         Closed += LoginWindowClosed;
     }
@@ -88,6 +86,7 @@ public partial class LoginWindow : Window
     private void StartLogin(LoginChannel value)
     {
         channel = value;
+        lastChannel = value;
         tokenSource?.Cancel( );
         tokenSource?.Dispose( );
         tokenSource = new CancellationTokenSource( );

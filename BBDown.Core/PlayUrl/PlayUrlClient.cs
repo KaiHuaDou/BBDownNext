@@ -16,12 +16,6 @@ namespace BBDown.Core.PlayUrl;
 /// </summary>
 internal static partial class PlayUrlClient
 {
-    // appkey 与其配对的 salt 必须成对出现，混用会被服务端判为签名错误
-    private const string TvAppKey = "4409e2ce8ffd12b8";
-    private const string TvAppSecret = "59b43e04ad6965f34319062b478f83dd";
-    private const string BiliPlusAppKey = "7d089525d3611b1c";
-    private const string BiliPlusAppSecret = "acd495b248ec528c2eed1e862d393126";
-
     internal static async Task<string> FetchAsync(PlayUrlRequest req, string qn = "0", CancellationToken ct = default)
     {
         LogDebug("aid={0},Cid={1},epId={2},api={3},qn={4}", req.Aid, req.Cid, req.EpId, req.Api, qn);
@@ -106,7 +100,7 @@ internal static partial class PlayUrlClient
             query.Append($"access_key={req.Cfg.Token}&");
         }
 
-        query.Append($"appkey={TvAppKey}&build=106500&cid={req.Cid}&device=android");
+        query.Append($"appkey={BiliApi.TvAppKey}&build=106500&cid={req.Cid}&device=android");
         if (req.IsBangumi)
         {
             query.Append($"&ep_id={req.EpId}&expire=0");
@@ -115,7 +109,7 @@ internal static partial class PlayUrlClient
         // TV 端点实测不提供 qn=100（智能修复），保持 4048 即可；强改 12240 无收益且可能触发风控
         query.Append("&fnval=4048&fnver=0&fourk=1&mid=0&mobi_app=android_tv_yst");
         query.Append($"&object_id={req.Aid}&platform=android&playurl_type=1&qn={qn}&ts={UnixTimestamp( )}");
-        return $"{query}&sign={AppSign(query.ToString( ), TvAppSecret)}";
+        return $"{query}&sign={AppSign(query.ToString( ), BiliApi.TvAppSecret)}";
     }
 
     internal static string BuildWebQuery(PlayUrlRequest req, string qn)
@@ -160,7 +154,7 @@ internal static partial class PlayUrlClient
         query.Append($"aid={req.Aid}");
         if (isBiliPlus)
         {
-            query.Append($"&appkey={BiliPlusAppKey}&area={(cfg.Area.Length == 0 ? "th" : cfg.Area)}");
+            query.Append($"&appkey={BiliApi.BiliPlusAppKey}&area={(cfg.Area.Length == 0 ? "th" : cfg.Area)}");
         }
 
         query.Append($"&cid={req.Cid}&ep_id={req.EpId}&platform=android&prefer_code_type={code}&qn={qn}");
@@ -171,7 +165,7 @@ internal static partial class PlayUrlClient
 
         query.Append("&s_locale=zh_SG");
         var param = query.ToString( );
-        return await GetWebSourceAsync(api + (isBiliPlus ? $"{param}&sign={AppSign(param, BiliPlusAppSecret)}" : param), cfg, null, ct);
+        return await GetWebSourceAsync(api + (isBiliPlus ? $"{param}&sign={AppSign(param, BiliApi.BiliPlusAppSecret)}" : param), cfg, null, ct);
     }
 
     // 网页源码兜底时抠取 window.__playinfo__ 里的 JSON；宿主类为 partial 以承载源生成正则

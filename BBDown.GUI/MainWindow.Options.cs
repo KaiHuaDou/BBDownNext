@@ -1,7 +1,6 @@
 #pragma warning disable CA1308, CS8600, CS8602 // CA1308：格式名取枚举名小写，与 Core 解析器共用同一来源；CS8600/CS8602：Avalonia 源生成的 x:Name 控件字段可空
 
 using System;
-using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,27 +12,6 @@ using Avalonia.Platform.Storage;
 using BBDown.Core.Download;
 
 namespace BBDown.GUI;
-
-/// <summary>内容复选项数据：字符键 + 显示名来自 ContentSelector.Order 单一来源；IsChecked 为 UI 勾选态，变化时通知绑定，使「重置选项」与载入配置能刷新复选框。</summary>
-public sealed record ContentOption(char Key, string Label) : INotifyPropertyChanged
-{
-    public bool IsChecked
-    {
-        get;
-        set
-        {
-            if (field == value)
-            {
-                return;
-            }
-
-            field = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked)));
-        }
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-}
 
 /// <summary>面板控件与 TaskParams 之间的映射，按 §3 控件组拆分为 partial，控制 MainWindow.xaml.cs 行数。</summary>
 public partial class MainWindow
@@ -75,12 +53,12 @@ public partial class MainWindow
             NoForceHost = NoForceHostCheckBox.IsChecked == true,
             NoForceHttp = NoForceHttpCheckBox.IsChecked == true,
             Mux = ReadMux( ),
-            EncodingPriority = EncodingPriorityBox.Text.Trim( ),
-            DfnPriority = DfnPriorityBox.Text.Trim( ),
-            AudioQuality = AudioQualityBox.Text.Trim( ),
+            EncodingPriority = EncodingPriorityPicker.Priority,
+            DfnPriority = DfnPriorityPicker.Priority,
+            AudioQuality = AudioQualityPicker.Priority,
             Pages = PagesBox.Text.Trim( ),
             DanmakuFormats = ReadDanmakuFormats( ),
-            CommentsCount = CommentsCountBox.Text.Trim( ),
+            CommentsCount = ((int)(CommentsCountBox.Value ?? 0)).ToString( ),
             CommentsSort = ReadCommentsSort( ),
             CommentsFormats = ReadCommentsFormats( ),
             Lang = LangBox.Text.Trim( ),
@@ -91,10 +69,10 @@ public partial class MainWindow
             Aria2cPath = Aria2cPathBox.Text.Trim( ),
             PostProcessPath = PostProcessPathBox.Text.Trim( ),
             Aria2cArgs = Aria2cArgsBox.Text.Trim( ),
-            DelayPerPage = DelayPerPageBox.Text.Trim( ),
-            MaxRetry = MaxRetryBox.Text.Trim( ),
+            DelayPerPage = ((int)(DelayPerPageBox.Value ?? 0)).ToString( ),
+            MaxRetry = ((int)(MaxRetryBox.Value ?? 0)).ToString( ),
             LiveQuality = ReadLiveQuality( ),
-            Api = ApiBox.SelectedItem as string ?? "web",
+            Api = ReadApi( ),
             FilePattern = FilePatternBox.Text.Trim( ),
             MultiFilePattern = MultiFilePatternBox.Text.Trim( ),
             Host = HostBox.Text.Trim( ),
@@ -154,6 +132,33 @@ public partial class MainWindow
         return (LiveQualityBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "10000";
     }
 
+    private string ReadApi( )
+    {
+        return ApiTvRadioButton.IsChecked == true ? "tv"
+             : ApiAppRadioButton.IsChecked == true ? "app"
+             : ApiIntlRadioButton.IsChecked == true ? "intl"
+             : "web";
+    }
+
+    private void ApplyApi(string api)
+    {
+        if (api is not ("web" or "tv" or "app" or "intl"))
+        {
+            api = "web";
+        }
+
+        ApiWebRadioButton.IsChecked = api == "web";
+        ApiTvRadioButton.IsChecked = api == "tv";
+        ApiAppRadioButton.IsChecked = api == "app";
+        ApiIntlRadioButton.IsChecked = api == "intl";
+    }
+
+    /// <summary>NumericUpDown 无「留空」态，配置值为空串或非法时落回 Core 默认。</summary>
+    private static decimal ToNumber(string text, decimal fallback)
+    {
+        return int.TryParse(text, out var value) && value >= 0 ? value : fallback;
+    }
+
     private string ReadContent( )
     {
         var builder = new StringBuilder( );
@@ -189,12 +194,12 @@ public partial class MainWindow
         NoForceHostCheckBox.IsChecked = options.NoForceHost;
         NoForceHttpCheckBox.IsChecked = options.NoForceHttp;
         ApplyMux(options.Mux);
-        EncodingPriorityBox.Text = options.EncodingPriority;
-        DfnPriorityBox.Text = options.DfnPriority;
-        AudioQualityBox.Text = options.AudioQuality;
+        EncodingPriorityPicker.Reset(options.EncodingPriority);
+        DfnPriorityPicker.Reset(options.DfnPriority);
+        AudioQualityPicker.Reset(options.AudioQuality);
         PagesBox.Text = options.Pages;
         ApplyDanmakuFormats(options.DanmakuFormats);
-        CommentsCountBox.Text = options.CommentsCount;
+        CommentsCountBox.Value = ToNumber(options.CommentsCount, 0);
         ApplyCommentsSort(options.CommentsSort);
         ApplyCommentsFormats(options.CommentsFormats);
         LangBox.Text = options.Lang;
@@ -205,10 +210,10 @@ public partial class MainWindow
         Aria2cPathBox.Text = options.Aria2cPath;
         PostProcessPathBox.Text = options.PostProcessPath;
         Aria2cArgsBox.Text = options.Aria2cArgs;
-        DelayPerPageBox.Text = options.DelayPerPage;
-        MaxRetryBox.Text = options.MaxRetry;
+        DelayPerPageBox.Value = ToNumber(options.DelayPerPage, 0);
+        MaxRetryBox.Value = ToNumber(options.MaxRetry, 3);
         ApplyLiveQuality(options.LiveQuality);
-        ApiBox.SelectedItem = options.Api;
+        ApplyApi(options.Api);
         FilePatternBox.Text = options.FilePattern;
         MultiFilePatternBox.Text = options.MultiFilePattern;
         HostBox.Text = options.Host;
@@ -216,6 +221,7 @@ public partial class MainWindow
         TvHostBox.Text = options.TvHost;
         AreaBox.Text = options.Area;
         UposHostBox.Text = options.UposHost;
+        RefreshAvailability( );
     }
 
     private void ApplyDanmakuFormats(string formats)
@@ -272,14 +278,9 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>仅解析不下载时禁用下载相关选项（下载选项整块与内容选择），避免无效选项误导。</summary>
     private void InfoOnlyCheckBoxChanged(object? o, RoutedEventArgs e)
     {
-        var enabled = InfoOnlyCheckBox.IsChecked != true;
-        ContentGrid.IsEnabled = enabled;
-        DanmakuFormatPanel.IsEnabled = enabled;
-        CommentFormatPanel.IsEnabled = enabled;
-        DownloadExpander.IsEnabled = enabled;
+        RefreshAvailability( );
     }
 
     private void DebugCheckBoxChecked(object? o, RoutedEventArgs e)

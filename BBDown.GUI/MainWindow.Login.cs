@@ -16,7 +16,7 @@ public partial class MainWindow
 {
     private async void LoginButtonClicked(object? o, RoutedEventArgs e)
     {
-        var dialog = new LoginWindow(ReadLoginChannel( ));
+        var dialog = new LoginWindow( );
         await dialog.ShowDialog(this);
         if (dialog.Result is not { } result)
         {
@@ -33,16 +33,6 @@ public partial class MainWindow
         }
     }
 
-    private LoginChannel ReadLoginChannel( )
-    {
-        return (ApiBox.SelectedItem as string) switch
-        {
-            "tv" => LoginChannel.Tv,
-            "app" => LoginChannel.App,
-            _ => LoginChannel.Web,
-        };
-    }
-
     private async Task ApplyLoginResultAsync(LoginResult result)
     {
         var issueTs = DateTimeOffset.UtcNow.ToUnixTimeSeconds( );
@@ -50,17 +40,17 @@ public partial class MainWindow
         {
             case LoginChannel.Web:
                 await CredentialStore.SaveWebCookie(result.Credential, refreshToken: result.RefreshToken, issueTs: issueTs);
-                ApiBox.SelectedItem = "web";
+                ApplyApi("web");
                 AppendLog("WEB 登录成功，Cookie 已写入 BBDown.data");
                 break;
             case LoginChannel.Tv:
                 await CredentialStore.SaveTvToken(result.Credential, issueTs: issueTs);
-                ApiBox.SelectedItem = "tv";
+                ApplyApi("tv");
                 AppendLog("TV 登录成功，access_token 已写入 BBDown.data");
                 break;
             case LoginChannel.App:
                 await CredentialStore.SaveAppToken(result.Credential, issueTs: issueTs);
-                ApiBox.SelectedItem = "app";
+                ApplyApi("app");
                 AppendLog("APP 登录成功，access_token 已写入 BBDown.data");
                 break;
         }

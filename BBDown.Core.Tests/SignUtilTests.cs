@@ -128,11 +128,18 @@ public class SignUtilTests
         Assert.Equal("oid=1&wts=1702204169", signed);
     }
 
-    [Fact]
-    public void AppSign_HashesQueryConcatenatedWithSecret( )
+    [Theory]
+    [InlineData("a=1&b=2", "secret", "8d9f51949e440aa629fd1a035708473a")]
+    [InlineData("a=1&b=2", "", "ed04c91cf6f6ab5a01a31c0295c5da34")]
+    [InlineData("abc", "secret", "33e7cb694fb6fb2f848af6774d9ff138")]
+    [InlineData("a=1", "sec", "66af090a3f7b90241b548ea0371db311")]
+    [InlineData("", "secret", "5ebe2294ecd0e0f08eab7690d2a6ee69")]
+    [InlineData("x", "59b43e04ad6965f34319062b478f83dd", "b87ec59fee04ef877bbee79f1b0e55ff")]
+    [InlineData("foo=1&wts=1", "59b43e04ad6965f34319062b478f83dd", "5638bbf60cf4ecf5a72ebcfe2eb57b84")]
+    public void AppSign_HashesQueryConcatenatedWithSecret(string query, string secret, string expected)
     {
-        Assert.Equal("8d9f51949e440aa629fd1a035708473a", SignUtil.AppSign("a=1&b=2", "secret"));
-        Assert.Equal("ed04c91cf6f6ab5a01a31c0295c5da34", SignUtil.AppSign("a=1&b=2", ""));
+        // query + secret 拼接后做 MD5，输出小写十六进制
+        Assert.Equal(expected, SignUtil.AppSign(query, secret));
     }
 
     [Fact]

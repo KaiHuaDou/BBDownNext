@@ -2,20 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace BBDown.Core.Auth;
 
 public static partial class Login
 {
-    // appkey 与签名密钥必须配对；手机端登录使用粉版 appkey 时须传入对应密钥
-    public static string GetSign(string parms, string secret)
-    {
-        var toEncode = parms + secret;
-        return string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(toEncode)).Select(i => i.ToString("x2")));
-    }
-
     public static string GetTimeStamp(bool bflag)
     {
         var ts = DateTimeOffset.Now;
