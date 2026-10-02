@@ -6,6 +6,24 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
+## [v2.3.0]
+
+### 新增
+
+- **`login status` 登录状态查询**
+    - 一次输出 WEB / TV / APP 三个通道的登录状态，各自标明本地是否持有凭据、服务端是否确认登录、账号昵称与等级、凭据签发时间；WEB 通道在服务端要求刷新 Cookie 时附带续期提示。
+    - 四种状态区分「未登录」（本地无凭据）/「已登录」/「凭据无效」（本地有凭据但服务端不认可）/「探测失败」（未能连上服务端，无法判断有效性），后两者不混为一谈。
+    - 三个通道统一经服务端校验，TV / APP 的凭据一并纳入校验范围。
+    - 退出码：至少一个通道已登录返回 `0`，其余返回 `1`。
+- **`login refresh` 续期 WEB Cookie**
+    - 用本地 `refresh_token` 向 passport 续期 WEB Cookie，忽略服务端的「是否需要刷新」信号（该信号用于避免无谓刷新），成功后回写 `BBDown.data` 并打印打码后的 `SESSDATA`。
+    - 与下载前的自动续期分开：失败时打印原因并以退出码表达成败（自动续期失败只静默沿用旧凭据）。
+    - 退出码：续期成功返回 `0`，否则返回 `1`。
+- **测试补充**
+    - `Account`：APP / TV 账号信息（`account/myinfo`）的字段解析，字段名与 nav 全部不同，缺失与类型异常均不抛。
+    - `Login`：状态行渲染（四种状态 × 三通道的定宽补齐、签发时间与续期提示的条件出现、凭据明文不外泄）与状态退出码。
+    - `Utils`：显示宽度按东亚宽字符计 2 cell。
+
 ## [v2.2.2]
 
 ### 新增
@@ -665,3 +683,4 @@
 [v2.2.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.1.1...v2.2.0
 [v2.2.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.2.0...v2.2.1
 [v2.2.2]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.2.1...v2.2.2
+[v2.3.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.2.2...v2.3.0

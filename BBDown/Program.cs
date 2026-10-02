@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Linq;
@@ -6,12 +6,10 @@ using System.Threading.Tasks;
 
 using BBDown.Cli;
 using BBDown.Core;
-using BBDown.Core.Auth;
 using BBDown.Core.Download;
 using BBDown.Core.Live;
 using BBDown.Core.Pipeline;
 using BBDown.Core.Util;
-using BBDown.Serve;
 
 using static BBDown.Core.Logger;
 
@@ -75,8 +73,8 @@ internal sealed class Program
         // 的宽容匹配（任意串）由根命令声明兜底；强校验交给 TryReportParseErrors 的显式错误路径
         rootCommand.TreatUnmatchedTokensAsErrors = false;
 
-        rootCommand.Subcommands.Add(BuildLoginCommand( ));
-        rootCommand.Subcommands.Add(BuildServeCommand( ));
+        rootCommand.Subcommands.Add(SubCommands.LoginCommand( ));
+        rootCommand.Subcommands.Add(SubCommands.ServeCommand( ));
 
         var parserConfiguration = new ParserConfiguration( )
         {
@@ -122,88 +120,6 @@ internal sealed class Program
     internal static string[] NormalizeArguments(string[] args)
     {
         return [.. args.Select(value => value.Trim('\r', '\n', '\t').Trim( ))];
-    }
-
-    // 子命令构造器：只负责把选项与动作装配成 Command，不含任何业务逻辑（业务逻辑在 RunApp / StartServer）
-    private static Command BuildLoginCommand( )
-    {
-        var loginTvOption = new Option<bool>("--tv") { Description = "登录 TV 账号（默认登录 WEB 账号）" };
-        var loginAppOption = new Option<bool>("--app") { Description = "登录 APP 账号（默认登录 WEB 账号）" };
-        Command command = new("login", "通过 APP 扫描二维码以登录您的账号（默认 WEB，加 --tv 登录 TV，加 --app 登录 APP）");
-        command.Options.Add(loginTvOption);
-        command.Options.Add(loginAppOption);
-        command.SetAction(result =>
-        {
-            if (result.GetValue(loginTvOption))
-            {
-                return Login.TV(AppEnv.CancellationToken);
-            }
-
-            if (result.GetValue(loginAppOption))
-            {
-                return Login.App(AppEnv.CancellationToken);
-            }
-
-            return Login.Web(AppEnv.CancellationToken);
-        });
-        return command;
-    }
-
-    private static Command BuildServeCommand( )
-    {
-        Command command = new("serve", "以服务器模式运行")
-        {
-            new Option<string>("--listen", "-l")
-            {
-                Description = "服务器监听地址，默认 http://127.0.0.1:23333；是否强制令牌鉴权取决于是否传入 --serve-token，未传入则默认免令牌开放并仅警告"
-            },
-            new Option<string>("--serve-token")
-            {
-                Description = "serve 模式鉴权令牌；显式传入后才启用强制鉴权（所有访问均须带 X-BBDown-Token 头或 ?token= 查询参数），未传入则默认免令牌开放并仅警告"
-            },
-            new Option<string>("--work-dir")
-            {
-                Description = "所有任务的下载输出目录，请求中的同名字段会被忽略"
-            },
-            new Option<string>("--host")
-            {
-                Description = "API 请求 Host，所有任务统一使用此值；请求体不再能指定 host（防止凭据被导向外部服务器）"
-            },
-            new Option<string>("--ep-host")
-            {
-                Description = "番剧/影视 API 请求 Host，所有任务统一使用此值"
-            },
-            new Option<string>("--tv-host")
-            {
-                Description = "TV 端 API 请求 Host，所有任务统一使用此值"
-            },
-            new Option<string>("--cors-origin")
-            {
-                Description = "仅允许该单一来源跨域调用 serve（CORS）。不指定则完全关闭 CORS，从根本上阻止恶意网页发起请求"
-            },
-            new Option<int>("--max-concurrent")
-            {
-                Description = "同时下载的任务数上限，默认 0 表示不限制；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队，单个任务内部的下载并行度由多线程下载器自行决定",
-                DefaultValueFactory = _ => 0,
-            },
-            new Option<bool>("--webui")
-            {
-                Description = "将内嵌的 Web 前端与 API 同源托管在同一端口（静态资源根路径托管，前端自动以同源地址调用 API）。需构建时已将 WebUI dist 嵌入，否则该选项无效果。"
-            }
-        };
-        // server.Run 阻塞整个进程生命周期直到关服：挪到线程池让 InvokeAsync 真正异步等待，
-        // 也与 login 命令的真异步动作形态保持一致
-        command.SetAction(result => Task.Run(( ) => StartServer(new ServeConfig(
-            result.GetValue<string>("--listen"),
-            result.GetValue<string>("--work-dir"),
-            result.GetValue<string>("--serve-token"),
-            result.GetValue<string>("--host"),
-            result.GetValue<string>("--ep-host"),
-            result.GetValue<string>("--tv-host"),
-            result.GetValue<string>("--cors-origin"),
-            result.GetValue<int>("--max-concurrent"),
-            result.GetValue<bool>("--webui")))));
-        return command;
     }
 
     private static bool HasUrlArgument(ParseResult parseResult)
@@ -368,30 +284,5 @@ internal sealed class Program
         return e is ChargedPreviewException
                || (e is AggregateException agg && agg.InnerExceptions.Count > 0
                    && agg.InnerExceptions.All(inner => inner is ChargedPreviewException));
-    }
-
-    private static int StartServer(ServeConfig config)
-    {
-        // serve 的工作目录在启动时一次性校验：坏值会让每个任务都在运行时失败，不如启动即报错退出
-        if (!string.IsNullOrWhiteSpace(config.WorkDir))
-        {
-            try
-            {
-                WorkSetup.ValidateWorkDir(config.WorkDir);
-            }
-            catch (WorkDirException e)
-            {
-                LogError(e.Message);
-                return 1;
-            }
-        }
-
-        // 渲染器已由 Main 顶层装配并覆盖 serve 生命周期，此处不得重复创建，避免双订阅导致日志双打印
-        var server = new BBDownServer( );
-        server.SetUpServer(config);
-#pragma warning disable CA2234 // 保留 Run(string) 内的 URL 合法性校验与友好退出
-        server.Run(string.IsNullOrEmpty(config.ListenUrl) ? BBDownServer.DefaultListenUrl : config.ListenUrl);
-#pragma warning restore CA2234
-        return 0;
     }
 }

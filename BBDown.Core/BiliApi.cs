@@ -37,6 +37,7 @@ public static class BiliApi
     public const string ViewWbi = $"https://{MainHost}/x/web-interface/wbi/view";
     public const string FingerSpi = $"https://{MainHost}/x/frontend/finger/spi";
     public const string Nav = $"https://{MainHost}/x/web-interface/nav";
+    public const string AccountMyInfo = "https://app.bilibili.com/x/v2/account/myinfo";
     public const string PlayerWbiV2 = $"https://{MainHost}/x/player/wbi/v2";
     public const string PlayerSo = $"https://{MainHost}/x/player.so";
     public const string EdgeInfo = $"https://{MainHost}/x/stein/edgeinfo_v2";

@@ -1,8 +1,11 @@
 using System;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+
+using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.Util.HTTPUtil;
@@ -18,20 +21,58 @@ public static class Account
     {
         try
         {
-            var source = await GetWebSourceAsync(BiliApi.Nav, cfg, null, ct);
-            using var doc = JsonDocument.Parse(source);
-            var data = doc.RootElement.GetProperty("data");
-            var info = ParseNav(data);
-            var wbi_img = data.GetProperty("wbi_img");
-            var wbi = GetMixinKey(RSubString(wbi_img.GetProperty("img_url").GetString( )!) + RSubString(wbi_img.GetProperty("sub_url").GetString( )!));
-            LogDebug("wbi: {0}", wbi);
-            return (info, wbi);
+            return await ProbeAsync(cfg, ct);
         }
         catch (Exception ex)
         {
             LogDebug("获取账号信息失败: {0}", ex.Message);
             return (new AccountInfo(false, "", 0, false, ""), "");
         }
+    }
+
+    /// <summary>
+    /// nav 探测本体，异常上抛。调用方需自行区分「服务端否认」与「探测未完成」——
+    /// <see cref="ProbeAccountAsync"/> 把两者一并压成未登录，只适用于不关心该差异的链路。
+    /// </summary>
+    internal static async Task<(AccountInfo Info, string Wbi)> ProbeAsync(Core.AppConfig cfg, CancellationToken ct)
+    {
+        var source = await GetWebSourceAsync(BiliApi.Nav, cfg, null, ct);
+        using var doc = JsonDocument.Parse(source);
+        var data = doc.RootElement.GetProperty("data");
+        var info = ParseNav(data);
+        var wbi_img = data.GetProperty("wbi_img");
+        var wbi = GetMixinKey(RSubString(wbi_img.GetProperty("img_url").GetString( )!) + RSubString(wbi_img.GetProperty("sub_url").GetString( )!));
+        LogDebug("wbi: {0}", wbi);
+        return (info, wbi);
+    }
+
+    /// <summary>
+    /// 用 access_token 探测 APP / TV 通道账号信息。请求只带 User-Agent：令牌在 query 且目标是
+    /// 写死的 B 站官方主机，不存在外发用户 Cookie 的路径，故不经凭据门
+    /// （<see cref="BiliHeaders.TrustedCookieHosts"/> 的语义是「允许接收 Cookie」，加入该主机等于放开 SESSDATA 的可达范围）。
+    /// </summary>
+    internal static async Task<AccountInfo> ProbeTokenAsync(string appKey, string appSecret, string accessToken, CancellationToken ct)
+    {
+        // 签名字符串与实际请求串须完全一致，参数按 key 字典序排列
+        var query = $"access_key={accessToken}&appkey={appKey}&ts={SignUtil.UnixTimestamp( )}";
+        var url = $"{BiliApi.AccountMyInfo}?{query}&sign={SignUtil.AppSign(query, appSecret)}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.TryAddWithoutValidation("User-Agent", BiliHeaders.UserAgent);
+        using var response = await HTTPUtil.AppHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode( );
+
+        using var doc = JsonDocument.Parse(await HttpTransfer.ReadBodyAsync(response.Content, ct));
+        var root = doc.RootElement;
+        var code = root.GetProperty("code").GetInt32( );
+        return code switch
+        {
+            0 => ParseMyInfo(root.GetProperty("data")),
+            // -101：格式合法但令牌无效 / 已过期；-400：令牌长度或字符集不合规（实测非 32 位 hex 即此码）。
+            // 两者都是「服务端不接受该凭据」，与探测未完成是不同语义
+            -101 or -400 => new AccountInfo(false, "", 0, false, ""),
+            _ => throw new InvalidOperationException($"账号信息查询失败：{code} {(root.TryGetProperty("message", out var m) ? m.GetString( ) : "")}")
+        };
     }
 
     /// <summary>
@@ -55,6 +96,29 @@ public static class Account
         }
 
         return new AccountInfo(isLogin, uname, level, isVip, vipLabel);
+    }
+
+    /// <summary>
+    /// 从 account/myinfo 的 data 节点解析账号信息。字段名与 nav 不同（name / level / vip.status），
+    /// 但语义一一对应，缺失保护与 <see cref="ParseNav"/> 同规格。
+    /// </summary>
+    internal static AccountInfo ParseMyInfo(JsonElement data)
+    {
+        // 服务端改字段类型时 GetString / TryGetInt32 会抛，状态查询是尽力而为的旁路，不得因单字段异常丢掉整行输出
+        var uname = data.TryGetProperty("name", out var u) && u.ValueKind == JsonValueKind.String ? (u.GetString( ) ?? "") : "";
+        var level = data.TryGetProperty("level", out var l) && l.ValueKind == JsonValueKind.Number && l.TryGetInt32(out var lv) ? lv : 0;
+        var isVip = false;
+        var vipLabel = "";
+        if (data.TryGetProperty("vip", out var vip))
+        {
+            isVip = vip.TryGetProperty("status", out var vs) && vs.ValueKind == JsonValueKind.Number && vs.TryGetInt32(out var st) && st == 1;
+            if (vip.TryGetProperty("label", out var label) && label.TryGetProperty("text", out var lt) && lt.ValueKind == JsonValueKind.String)
+            {
+                vipLabel = lt.GetString( ) ?? "";
+            }
+        }
+
+        return new AccountInfo(true, uname, level, isVip, vipLabel);
     }
 
     // 取 url 末段文件名（去掉扩展名），用于拼接 WBI 原串

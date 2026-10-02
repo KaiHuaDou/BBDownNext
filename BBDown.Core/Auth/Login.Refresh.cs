@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BBDown.Core;
 using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;
@@ -34,6 +35,52 @@ public static partial class Login
         """;
 
     /// <summary>
+    /// 显式续期（<c>login refresh</c>）。与 <see cref="TryRefreshWebCookieIfStaleAsync"/> 的差异：
+    /// 那条路径是下载前的 best-effort 兜底，失败静默沿用旧凭据；本方法面向用户主动操作，
+    /// 逐项汇报结果并以退出码表达成败。仅 WEB 通道有续期能力。
+    /// </summary>
+    public static async Task<int> RefreshAsync(CancellationToken token = default)
+    {
+        var (cookie, refreshToken, _) = CredentialStore.LoadWebCredential( );
+        if (string.IsNullOrEmpty(cookie))
+        {
+            LogError("未登录 WEB 账号，无可续期的 Cookie，请先运行 BBDown login");
+            return 1;
+        }
+
+        if (string.IsNullOrEmpty(refreshToken))
+        {
+            LogError("本地没有 refresh_token，无法续期，请重新运行 BBDown login 扫码登录");
+            return 1;
+        }
+
+        try
+        {
+            // force：用户主动要求续期，不看 /cookie/info 的「是否需要刷新」信号。
+            // 该信号用于避免无谓刷新，与显式续期的意图相反
+            var (newCookie, newRefresh) = await RefreshWebCookieAsync(cookie, refreshToken, true, token);
+            if (string.IsNullOrEmpty(newCookie))
+            {
+                LogError("Cookie 续期未返回新 Cookie");
+                return 1;
+            }
+
+            await CredentialStore.SaveWebCookie(newCookie, refreshToken: newRefresh ?? refreshToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
+            Log($"WEB Cookie 已续期：SESSDATA={MaskSecret(GetCookieValue("SESSDATA", newCookie))}");
+            return 0;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            LogError($"Cookie 续期失败：{e.Message}");
+            return 1;
+        }
+    }
+
+    /// <summary>
     /// 主动续期 web cookie（best-effort）。仅当本地持有 refresh_token 时尝试；先问 /cookie/info 是否需要刷新，
     /// 需要才走 RSA 签名 → 取 refresh_csrf → POST refresh → confirm 全流。任一步失败都回退到原 cookie，绝不阻断下载。
     /// </summary>
@@ -47,7 +94,7 @@ public static partial class Login
 
         try
         {
-            var (newCookie, newRefresh) = await RefreshWebCookieAsync(cookie, refreshToken, token);
+            var (newCookie, newRefresh) = await RefreshWebCookieAsync(cookie, refreshToken, false, token);
             if (!string.IsNullOrEmpty(newCookie))
             {
                 await CredentialStore.SaveWebCookie(newCookie, dir: dir, refreshToken: newRefresh ?? refreshToken, issueTs: DateTimeOffset.UtcNow.ToUnixTimeSeconds( ));
@@ -63,20 +110,16 @@ public static partial class Login
         return cookie;
     }
 
-    private static async Task<(string? cookie, string? refreshToken)> RefreshWebCookieAsync(string cookie, string refreshToken, CancellationToken token)
+    private static async Task<(string? cookie, string? refreshToken)> RefreshWebCookieAsync(string cookie, string refreshToken, bool force, CancellationToken token)
     {
-        var cfg = new Core.AppConfig(cookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", "");
+        var cfg = new AppConfig(cookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", "");
 
-        // 1) /cookie/info 是否需要刷新（B 站官方信号，避免无谓刷新）
-        using var infoResp = await HTTPUtil.GetRawResponseAsync(CookieInfoUrl, cfg, token);
-        using var infoDoc = JsonDocument.Parse(await HttpTransfer.ReadBodyAsync(infoResp.Content, token));
-        var data = infoDoc.RootElement.GetProperty("data");
-        if (!data.GetProperty("refresh").GetBoolean( ))
+        // 1) 无论 force 与否都要读 cookie/info：needRefresh 决定是否走全流，timestamp 是 CorrespondPath 的输入
+        var (needRefresh, timestamp) = await ReadCookieInfoAsync(cookie, token);
+        if (!force && !needRefresh)
         {
             return (null, null);
         }
-
-        var timestamp = data.GetProperty("timestamp").GetInt64( );
 
         // 2) CorrespondPath = RSA-OAEP(SHA-256)("refresh_{ts}") 小写 hex
         var correspondPath = MakeCorrespondPath(timestamp);
@@ -118,7 +161,7 @@ public static partial class Login
                 ["csrf"] = GetCookieValue("bili_jct", newCookie) ?? "",
                 ["refresh_token"] = refreshToken,
             };
-            await HTTPUtil.PostFormRawAsync(ConfirmUrl, confirmForm, new Core.AppConfig(newCookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", ""), token);
+            await HTTPUtil.PostFormRawAsync(ConfirmUrl, confirmForm, new AppConfig(newCookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", ""), token);
         }
         catch (Exception e)
         {
@@ -134,6 +177,19 @@ public static partial class Login
         rsa.ImportFromPem(RefreshRsaPublicKey);
         var encrypted = rsa.Encrypt(Encoding.UTF8.GetBytes($"refresh_{timestamp}"), RSAEncryptionPadding.OaepSHA256);
         return Convert.ToHexString(encrypted).ToLowerInvariant( );
+    }
+
+    /// <summary>
+    /// 问 /cookie/info 是否需要刷新 Cookie，并取当前毫秒时间戳（后者用于生成 CorrespondPath）。
+    /// 该端点对无效 Cookie 返回 <c>code = -400</c>（与 nav 的 -101 不同），异常上抛由调用方处置。
+    /// </summary>
+    internal static async Task<(bool needRefresh, long timestamp)> ReadCookieInfoAsync(string cookie, CancellationToken token)
+    {
+        var cfg = new AppConfig(cookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", "");
+        using var response = await HTTPUtil.GetRawResponseAsync(CookieInfoUrl, cfg, token);
+        using var doc = JsonDocument.Parse(await HttpTransfer.ReadBodyAsync(response.Content, token));
+        var data = doc.RootElement.GetProperty("data");
+        return (data.GetProperty("refresh").GetBoolean( ), data.GetProperty("timestamp").GetInt64( ));
     }
 
     [GeneratedRegex("<div id=\"1-name\">(.*?)</div>")]

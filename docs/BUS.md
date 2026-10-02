@@ -7,11 +7,11 @@
 
 ## 0. 总览
 
-| 总线 | 事件形态 | 频次 | 状态 |
-| ---- | ---- | ---- | ---- |
-| `MessageBus`（消息） | `LogMessage`（Level / Text / Time / Scope） | 低频语义 | 已实施 |
+| 总线                  | 事件形态                                                          | 频次                                                                  | 状态   |
+| --------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------- | ------ |
+| `MessageBus`（消息）  | `LogMessage`（Level / Text / Time / Scope）                       | 低频语义                                                              | 已实施 |
 | `ProgressBus`（进度） | 阶段边界 `ProgressRangeStart / End` + 阶段内快照 `ProgressSample` | 低频边界 + 高频样本（采样 125ms；serve 快照帧 200ms；CLI 渲染 125ms） | 已实施 |
-| `AskBus`（交互） | 请求 `OptionRequestEvent` → 应答（结构化 `AskAnswer`） | 低频请求-应答 | 已实施 |
+| `AskBus`（交互）      | 请求 `OptionRequestEvent` → 应答（结构化 `AskAnswer`）            | 低频请求-应答                                                         | 已实施 |
 
 共性：
 
@@ -34,14 +34,14 @@
 
 ### 1.3 发射端
 
-`Logger` 纯发射门面：`Log / LogWarn / LogError / LogDebug / LogColor` → `MessageBus.Publish`。Debug 级由 `Config.DebugLog` 门控，不产生消息。
+`Logger` 纯发射门面：`Log / LogWarn / LogError / LogDebug / LogColor` → `MessageBus.Publish`。Debug 级由 `Config.DebugLog` 门控，不产生消息；`Log` 的 `time` 开关关掉时间戳前缀，供定宽表格类输出使用。
 
 ### 1.4 消费端
 
-| 宿主 | 订阅位置 | 展示 |
-| ---- | ---- | ---- |
-| CLI | `BBDown/Cli/ConsoleMessageRenderer.cs` | 控制台渲染（颜色 / 时间戳 / 写前调 `ConsoleHost.BeforeWrite` 擦活动状态行） |
-| GUI | `BBDown.GUI/MainWindow.axaml.cs` `OnLogMessage` | 窗口日志区，`[任务{scope}]` 加前缀，Error 标红，回投 UI 线程，上限 5000 行 |
+| 宿主  | 订阅位置                                             | 展示                                                                                        |
+| ----- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| CLI   | `BBDown/Cli/ConsoleMessageRenderer.cs`               | 控制台渲染（颜色 / 时间戳 / 写前调 `ConsoleHost.BeforeWrite` 擦活动状态行）                 |
+| GUI   | `BBDown.GUI/MainWindow.axaml.cs` `OnLogMessage`      | 窗口日志区，`[任务{scope}]` 加前缀，Error 标红，回投 UI 线程，上限 5000 行                  |
 | serve | `BBDown/Serve/Http/TaskMessageBridge.cs` `OnMessage` | 无 Scope 忽略；按 Scope 命中任务事件上下文 → 队列 → WebSocket `event` 帧（`type: message`） |
 
 ---
@@ -52,11 +52,11 @@
 
 `BBDown.Core/Workflow/WorkflowEvent.cs`：
 
-| 事件 | 字段 | 语义 |
-| ---- | ---- | ---- |
-| `ProgressRangeStartEvent` | `Scope, StageName` | 低频：阶段开始，宿主据此显示进度 UI |
-| `ProgressSampleEvent` | `Scope, Ratio, TotalBytes, Speed, Detail` | 高频快照：阶段内样本，宿主可丢帧只渲染最新 |
-| `ProgressRangeEndEvent` | `Scope` | 低频：阶段结束，宿主据此隐藏 / 收尾进度 UI |
+| 事件                      | 字段                                      | 语义                                       |
+| ------------------------- | ----------------------------------------- | ------------------------------------------ |
+| `ProgressRangeStartEvent` | `Scope, StageName`                        | 低频：阶段开始，宿主据此显示进度 UI        |
+| `ProgressSampleEvent`     | `Scope, Ratio, TotalBytes, Speed, Detail` | 高频快照：阶段内样本，宿主可丢帧只渲染最新 |
+| `ProgressRangeEndEvent`   | `Scope`                                   | 低频：阶段结束，宿主据此隐藏 / 收尾进度 UI |
 
 ### 2.2 总线
 
@@ -72,22 +72,22 @@
 
 ### 2.4 发射端（链路接入点）
 
-| 位置 | 阶段 / 动作 |
-| ---- | ---- |
-| `Download/DownloaderAdapter.cs` | 采样回调 → `ProgressBus.Publish(ratio, delta, delta / SampleInterval)`（阶段外静默忽略，封面 / 弹幕等附属下载不发射） |
-| `Media/FlvDownload.cs` / `Media/DashDownload.cs` | `BeginStage("下载")` 包住主媒体下载段 |
-| `Pipeline/AudioDownload.cs` | `BeginStage("下载音频")` |
-| `Pipeline/OpusDownload.cs` | `BeginStage("下载图片")`：图片有明确总量，按张数上报 ratio，detail 为「图片 i/n」 |
-| `Pipeline/LiveDownload.cs` | `BeginStage("录制")`：直播无总量，Ratio 恒 0，detail 承载时长 / 分段 / 清晰度，累计字节经 `ProgressSampler.Report` 上报 |
+| 位置                                             | 阶段 / 动作                                                                                                             |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `Download/DownloaderAdapter.cs`                  | 采样回调 → `ProgressBus.Publish(ratio, delta, delta / SampleInterval)`（阶段外静默忽略，封面 / 弹幕等附属下载不发射）   |
+| `Media/FlvDownload.cs` / `Media/DashDownload.cs` | `BeginStage("下载")` 包住主媒体下载段                                                                                   |
+| `Pipeline/AudioDownload.cs`                      | `BeginStage("下载音频")`                                                                                                |
+| `Pipeline/OpusDownload.cs`                       | `BeginStage("下载图片")`：图片有明确总量，按张数上报 ratio，detail 为「图片 i/n」                                       |
+| `Pipeline/LiveDownload.cs`                       | `BeginStage("录制")`：直播无总量，Ratio 恒 0，detail 承载时长 / 分段 / 清晰度，累计字节经 `ProgressSampler.Report` 上报 |
 
 ### 2.5 消费端
 
-| 宿主 | 订阅位置 | 展示 |
-| ---- | ---- | ---- |
-| CLI | `BBDown/ProgressBar.cs` | 1/8 秒（125ms）控制台进度条（ratio / speed / ETA / spinner），阶段开始显示 / 结束清行隐藏，超过 1 秒无采样兜底清行，交互读输入前暂停渲染（`CliInteraction.BeforeRead / AfterRead`） |
-| CLI（直播） | `BBDown/Cli/LiveProgress.cs` | 0.5 秒单行状态（detail + 体积 + 速度），重定向到文件时改 60 秒落一行日志 |
-| GUI | `BBDown.GUI/MainWindow.Progress.cs` `OnProgress` | 阶段开始 → 重置该任务 ETA 基准；样本 → 任务行进度 / 速度 / ETA（detail 优先展示）；阶段结束 → 无动作，任务收尾随状态隐藏 |
-| serve | `TaskMessageBridge`（阶段边界 → 事件帧）+ `TaskWorker.OnProgress`（样本 → `DownloadTask` 的 REST 字段 `Progress` / `DownloadSpeed` / `TotalDownloadedBytes`）+ `TaskSocketHub.ForwardSnapshots`（200ms 轮询 `Latest(scope)`，样本引用变化才推 `snapshot` 帧） | WebSocket `event` / `snapshot` 帧 + `/api/v1/tasks` 契约 |
+| 宿主        | 订阅位置                                                                                                                                                                                                                                                      | 展示                                                                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CLI         | `BBDown/ProgressBar.cs`                                                                                                                                                                                                                                       | 1/8 秒（125ms）控制台进度条（ratio / speed / ETA / spinner），阶段开始显示 / 结束清行隐藏，超过 1 秒无采样兜底清行，交互读输入前暂停渲染（`CliInteraction.BeforeRead / AfterRead`） |
+| CLI（直播） | `BBDown/Cli/LiveProgress.cs`                                                                                                                                                                                                                                  | 0.5 秒单行状态（detail + 体积 + 速度），重定向到文件时改 60 秒落一行日志                                                                                                            |
+| GUI         | `BBDown.GUI/MainWindow.Progress.cs` `OnProgress`                                                                                                                                                                                                              | 阶段开始 → 重置该任务 ETA 基准；样本 → 任务行进度 / 速度 / ETA（detail 优先展示）；阶段结束 → 无动作，任务收尾随状态隐藏                                                            |
+| serve       | `TaskMessageBridge`（阶段边界 → 事件帧）+ `TaskWorker.OnProgress`（样本 → `DownloadTask` 的 REST 字段 `Progress` / `DownloadSpeed` / `TotalDownloadedBytes`）+ `TaskSocketHub.ForwardSnapshots`（200ms 轮询 `Latest(scope)`，样本引用变化才推 `snapshot` 帧） | WebSocket `event` / `snapshot` 帧 + `/api/v1/tasks` 契约                                                                                                                            |
 
 ---
 
@@ -144,20 +144,20 @@ OptionRequestEvent(Guid RequestId, string Scope, string Prompt,
 
 ### 3.4 调用点
 
-| 调用点 | 行为 |
-| ---- | ---- |
-| `Pipeline/PageSelect.cs` `ResolveInteractiveAsync` | 对每个分 P 提问 y / n / a / q，回车（default= n）跳过，按 `OptionId` 分支累计选中集 |
-| `Media/TrackSelect.cs` `PickTracksAsync` / `PickDfnAsync` | 选项 Id 即序号字符串，`PickIndexAsync` 应答回落 0（同现状非法输入回落 0） |
+| 调用点                                                    | 行为                                                                                |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `Pipeline/PageSelect.cs` `ResolveInteractiveAsync`        | 对每个分 P 提问 y / n / a / q，回车（default= n）跳过，按 `OptionId` 分支累计选中集 |
+| `Media/TrackSelect.cs` `PickTracksAsync` / `PickDfnAsync` | 选项 Id 即序号字符串，`PickIndexAsync` 应答回落 0（同现状非法输入回落 0）           |
 
 CLI 输入规范化映射（属 CLI 消费端职责）：`Trim` + 大小写归一 + 常见全拼缩写（YES→Y、ALL→A、QUIT→Q、NO→N）后匹配 `OptionId`，匹配失败回落（默认选项或首选项）。
 
 ### 3.5 消费端
 
-| 宿主 | 订阅位置 | 行为 |
-| ---- | ---- | ---- |
-| CLI | `BBDown/Cli/CliInteraction.cs`（CLI 运行入口最早装配，先于一切下载链路） | 收到请求 → `BeforeRead`（暂停进度条渲染）→ 打印提示 → `Console.ReadLine` → 规范化映射 → `AskBus.Answer` → `AfterRead` |
-| GUI | `BBDown.GUI/MainWindow.Ask.cs` `OnAsk` | 回投 UI 线程弹 `AskDialog`，选择后应答；请求已过 `Deadline` 不弹窗直接回落默认选项；`AskDialog` 按剩余时间自动关闭（窗口关闭未选同样回落默认选项）；弹窗过程异常回落默认选项，不触发全局错误对话框；关窗时对全部任务序号 `AskBus.CancelPending` |
-| serve | `TaskMessageBridge.OnAsk` → 按 Scope 入任务事件队列 → WebSocket `optionRequest` 帧；`TaskSocketHub.SubmitChoiceAsync` → 校验任务存在后 `AskBus.Answer`（`choice` 必须 ∈ 选项集合，帧协议既有安全限制）→ 回执 `choiceResult` 帧 | 远程枚举应答 |
+| 宿主  | 订阅位置                                                                                                                                                                                                                       | 行为                                                                                                                                                                                                                                            |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CLI   | `BBDown/Cli/CliInteraction.cs`（CLI 运行入口最早装配，先于一切下载链路）                                                                                                                                                       | 收到请求 → `BeforeRead`（暂停进度条渲染）→ 打印提示 → `Console.ReadLine` → 规范化映射 → `AskBus.Answer` → `AfterRead`                                                                                                                           |
+| GUI   | `BBDown.GUI/MainWindow.Ask.cs` `OnAsk`                                                                                                                                                                                         | 回投 UI 线程弹 `AskDialog`，选择后应答；请求已过 `Deadline` 不弹窗直接回落默认选项；`AskDialog` 按剩余时间自动关闭（窗口关闭未选同样回落默认选项）；弹窗过程异常回落默认选项，不触发全局错误对话框；关窗时对全部任务序号 `AskBus.CancelPending` |
+| serve | `TaskMessageBridge.OnAsk` → 按 Scope 入任务事件队列 → WebSocket `optionRequest` 帧；`TaskSocketHub.SubmitChoiceAsync` → 校验任务存在后 `AskBus.Answer`（`choice` 必须 ∈ 选项集合，帧协议既有安全限制）→ 回执 `choiceResult` 帧 | 远程枚举应答                                                                                                                                                                                                                                    |
 
 自适应回落：无订阅者时 `Ask` 立即返回 null，调用点按「不交互」处理（逐集全跳过、选轨落回默认序号）。
 
@@ -172,21 +172,21 @@ CLI 输入规范化映射（属 CLI 消费端职责）：`Trim` + 大小写归�
 
 ## 4. 宿主接入矩阵
 
-| 总线 | 事件 | CLI | GUI | serve |
-| ---- | ---- | ---- | ---- | ---- |
-| 消息 | `message` | ConsoleMessageRenderer | 日志区（[任务 N] 前缀） | TaskMessageBridge → 事件帧 |
+| 总线 | 事件                                                  | CLI                                                     | GUI                                  | serve                                          |
+| ---- | ----------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ | ---------------------------------------------- |
+| 消息 | `message`                                             | ConsoleMessageRenderer                                  | 日志区（[任务 N] 前缀）              | TaskMessageBridge → 事件帧                     |
 | 进度 | `progressStart / progressSample / progressEnd` + 快照 | ProgressBar（视频 / 图片 / 音频）+ LiveProgress（直播） | 任务行进度条（含阶段边界，ETA 重置） | TaskMessageBridge + TaskWorker + TaskSocketHub |
-| 交互 | `optionRequest` → `submitChoice` | CliInteraction（控制台读输入） | AskDialog（弹窗，默认回落） | TaskMessageBridge + TaskSocketHub 应答 |
+| 交互 | `optionRequest` → `submitChoice`                      | CliInteraction（控制台读输入）                          | AskDialog（弹窗，默认回落）          | TaskMessageBridge + TaskSocketHub 应答         |
 
 ---
 
 ## 5. 与旧通道的关系（迁移已完成）
 
-| 旧通道 | 去向 |
-| ---- | ---- |
-| `Logger` Console 渲染 | 迁 `ConsoleMessageRenderer`（CLI 装配） |
-| `WorkflowContextHost` | 删除（MessageBus 接管） |
-| `Interaction` 静态类 | 退役（AskBus + CliInteraction 接管） |
-| `ChannelWorkflowContext.AskOptionAsync` | 上移 AskBus（TCS 机制） |
-| `IProgressScope` / `ProgressStage.Report` | 删除（`BeginStage` 返回的 `IDisposable` 接管） |
-| `IWorkflowContext` 接口 | 删除（参数类型换为具体类 `ChannelWorkflowContext?`） |
+| 旧通道                                    | 去向                                                 |
+| ----------------------------------------- | ---------------------------------------------------- |
+| `Logger` Console 渲染                     | 迁 `ConsoleMessageRenderer`（CLI 装配）              |
+| `WorkflowContextHost`                     | 删除（MessageBus 接管）                              |
+| `Interaction` 静态类                      | 退役（AskBus + CliInteraction 接管）                 |
+| `ChannelWorkflowContext.AskOptionAsync`   | 上移 AskBus（TCS 机制）                              |
+| `IProgressScope` / `ProgressStage.Report` | 删除（`BeginStage` 返回的 `IDisposable` 接管）       |
+| `IWorkflowContext` 接口                   | 删除（参数类型换为具体类 `ChannelWorkflowContext?`） |

@@ -4,8 +4,9 @@
 
 27 个结果 - 18 文件
 
+```
 BBDown\Program.cs:
-  254:             myOption = myOption with { Url = url };
+  170:             myOption = myOption with { Url = url };
 
 BBDown\Serve\Tasks\TaskStore.cs:
   305:             return option with { WorkDir = workDir };
@@ -54,9 +55,9 @@ BBDown.Core\Pipeline\SpaceOpusDownload.cs:
 
 BBDown.Core\Pipeline\VideoInfo.cs:
   37:         cfg = cfg with { Cookie = newCookie };
-  59:         cfg = cfg with { Wbi = wbi };
-  134:             return myOption with { Api = ApiType.Web };
-  140:             return myOption with { Api = ApiType.Web };
+  58:         cfg = cfg with { Wbi = wbi };
+  133:             return myOption with { Api = ApiType.Web };
+  139:             return myOption with { Api = ApiType.Web };
 
 BBDown.GUI\MainWindow.Download.cs:
   39:                     req = req with { Url = url };
@@ -66,3 +67,4 @@ BBDown.Core.Tests\BiliHeadersTests.cs:
 
 BBDown.Core.Tests\DownloadTests.cs:
   240:         var cfg = AppConfig.Empty with { Cookie = "SESSDATA=abc" };
+```

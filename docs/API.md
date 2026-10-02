@@ -20,8 +20,8 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | 参数               | 简写 | 说明                                                                                                                                                                          |
 | ------------------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--listen`         | `-l` | 监听地址，默认 `http://127.0.0.1:23333`                                                                                                                                       |
-| `--serve-token`    |      | 鉴权令牌；显式传入后才启用强制鉴权（所有接口均须携带 `X-BBDown-Token` 头，WebSocket 握手经 `?token=` 查询参数），未传入则默认免令牌开放并仅警告                                                                       |
-| `--work-dir`       |      | 所有任务的下载输出目录（请求体中的 `WorkDir` 字段会被忽略，一律以服务端为准）                                                                                                     |
+| `--serve-token`    |      | 鉴权令牌；显式传入后才启用强制鉴权（所有接口均须携带 `X-BBDown-Token` 头，WebSocket 握手经 `?token=` 查询参数），未传入则默认免令牌开放并仅警告                               |
+| `--work-dir`       |      | 所有任务的下载输出目录（请求体中的 `WorkDir` 字段会被忽略，一律以服务端为准）                                                                                                 |
 | `--max-concurrent` |      | 同时下载的任务数上限，默认 `0` 表示不限制；设为 `N > 0` 时最多 `N` 个任务同时下载，其余按提交顺序排队（`Status` 为 `Queued`），单个任务内部的下载并行度由多线程下载器自行决定 |
 
 服务器启动后会一直运行，直到进程被终止（可用 `Ctrl+C` 优雅取消正在进行的下载）。
@@ -34,21 +34,21 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 所有响应均为 JSON。任务标识（`{id}`）为 **ResourceId**（见 [任务标识](#任务标识)）：在 `DownloadTask` 的 JSON 中序列化为规范字符串（如 `season2539`），路径参数使用同一编码。
 
-| 方法   | 路径                            | 说明                                                  |
-| ------ | ------------------------------- | ----------------------------------------------------- |
-| GET    | `/api/v1/tasks`                 | 获取运行中与已完成任务的整体快照                      |
-| GET    | `/api/v1/tasks/running`         | 获取正在运行的任务列表                                |
-| GET    | `/api/v1/tasks/finished`        | 获取已完成的任务列表                                  |
-| GET    | `/api/v1/tasks/{id}`            | 获取指定任务详情                                      |
+| 方法   | 路径                            | 说明                                                                                                   |
+| ------ | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| GET    | `/api/v1/tasks`                 | 获取运行中与已完成任务的整体快照                                                                       |
+| GET    | `/api/v1/tasks/running`         | 获取正在运行的任务列表                                                                                 |
+| GET    | `/api/v1/tasks/finished`        | 获取已完成的任务列表                                                                                   |
+| GET    | `/api/v1/tasks/{id}`            | 获取指定任务详情                                                                                       |
 | POST   | `/api/v1/tasks`                 | 新增下载任务（202 受理 / 200 命中已有 / 400 / 429）；`?mode=enqueue` 仅入暂停表不执行，待 `start` 触发 |
-| POST   | `/api/v1/tasks/{id}/start`      | 启动 enqueue 暂停的任务（200 已启动 / 404 非暂停态 / 429 队列满） |
-| DELETE | `/api/v1/tasks/finished`        | 移除所有已完成任务                                    |
-| DELETE | `/api/v1/tasks/finished/failed` | 移除所有已失败（`IsSuccessful == false`）的已完成任务 |
-| DELETE | `/api/v1/tasks/{id}`            | 移除指定已完成任务                                    |
-| POST   | `/api/v1/tasks/{id}/stop`       | 取消指定运行中 / 排队中任务（不影响其他任务）         |
-| POST   | `/api/v1/login/qr`              | 起点扫码登录：返回二维码 PNG（base64）与轮询键（见 [扫码登录](#扫码登录)） |
-| GET    | `/api/v1/login/qr/{qrcodeKey}`  | 轮询扫码登录状态，成功时一次性携带凭据（见 [扫码登录](#扫码登录)） |
-| GET    | `/healthz`                      | 健康检查（匿名放行，不要求令牌）                      |
+| POST   | `/api/v1/tasks/{id}/start`      | 启动 enqueue 暂停的任务（200 已启动 / 404 非暂停态 / 429 队列满）                                      |
+| DELETE | `/api/v1/tasks/finished`        | 移除所有已完成任务                                                                                     |
+| DELETE | `/api/v1/tasks/finished/failed` | 移除所有已失败（`IsSuccessful == false`）的已完成任务                                                  |
+| DELETE | `/api/v1/tasks/{id}`            | 移除指定已完成任务                                                                                     |
+| POST   | `/api/v1/tasks/{id}/stop`       | 取消指定运行中 / 排队中任务（不影响其他任务）                                                          |
+| POST   | `/api/v1/login/qr`              | 起点扫码登录：返回二维码 PNG（base64）与轮询键（见 [扫码登录](#扫码登录)）                             |
+| GET    | `/api/v1/login/qr/{qrcodeKey}`  | 轮询扫码登录状态，成功时一次性携带凭据（见 [扫码登录](#扫码登录)）                                     |
+| GET    | `/healthz`                      | 健康检查（匿名放行，不要求令牌）                                                                       |
 
 ---
 
@@ -198,21 +198,21 @@ WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录
 
 **客户端 → 服务端：**
 
-| `kind` | 字段 | 说明 |
-| ------ | ---- | ---- |
-| `subscribe` | `taskId` | 订阅任务（规范 id，如 `av170001`）；订阅后立即收到一次当前进度快照 |
-| `unsubscribe` | `taskId` | 退订任务 |
-| `submitChoice` | `taskId`、`requestId`、`choice` | 应答任务抛出的选项请求；`choice` 为选项 Id，必须属于选项集合 |
-| `ping` | — | 保活探测（可选） |
+| `kind`         | 字段                            | 说明                                                               |
+| -------------- | ------------------------------- | ------------------------------------------------------------------ |
+| `subscribe`    | `taskId`                        | 订阅任务（规范 id，如 `av170001`）；订阅后立即收到一次当前进度快照 |
+| `unsubscribe`  | `taskId`                        | 退订任务                                                           |
+| `submitChoice` | `taskId`、`requestId`、`choice` | 应答任务抛出的选项请求；`choice` 为选项 Id，必须属于选项集合       |
+| `ping`         | —                               | 保活探测（可选）                                                   |
 
 **服务端 → 客户端：**
 
-| `kind` | 字段 | 说明 |
-| ------ | ---- | ---- |
-| `event` | `taskId`、`event` | 可靠事件（`WorkflowEvent`，`type` 判别符区分 `message` / `progressStart` / `progressSample` / `progressEnd` / `optionRequest`）。进度是阶段性的：`progressStart`（阶段开始，含 `stageName`）与 `progressEnd`（阶段结束）为低频语义事件，宿主据此显隐进度；阶段内高频样本不进本通道 |
-| `snapshot` | `taskId`、`snapshot` | 阶段内最新进度样本（`ratio` 0-1 / `totalBytes` / `speed` / `detail`），订阅时推一次，此后约每 200 ms 推变化帧；阶段结束后样本清空 |
-| `choiceResult` | `requestId`、`ok`、`error?` | 选项应答结果；`ok=false` 表示任务不存在、选项非法或已应答 |
-| `error` | `error` | 订阅失败（任务不存在、已结束或未启用交互） |
+| `kind`         | 字段                        | 说明                                                                                                                                                                                                                                                                               |
+| -------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `event`        | `taskId`、`event`           | 可靠事件（`WorkflowEvent`，`type` 判别符区分 `message` / `progressStart` / `progressSample` / `progressEnd` / `optionRequest`）。进度是阶段性的：`progressStart`（阶段开始，含 `stageName`）与 `progressEnd`（阶段结束）为低频语义事件，宿主据此显隐进度；阶段内高频样本不进本通道 |
+| `snapshot`     | `taskId`、`snapshot`        | 阶段内最新进度样本（`ratio` 0-1 / `totalBytes` / `speed` / `detail`），订阅时推一次，此后约每 200 ms 推变化帧；阶段结束后样本清空                                                                                                                                                  |
+| `choiceResult` | `requestId`、`ok`、`error?` | 选项应答结果；`ok=false` 表示任务不存在、选项非法或已应答                                                                                                                                                                                                                          |
+| `error`        | `error`                     | 订阅失败（任务不存在、已结束或未启用交互）                                                                                                                                                                                                                                         |
 
 ### 选项交互流程
 
@@ -231,26 +231,26 @@ WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录
 
 在 `DownloadTask` 的 JSON 中，`Id` 序列化为**规范字符串**（如 `"season2539"`），`/api/v1/tasks/{id}` 的路径参数使用**同一编码**，客户端拿到 `Id` 即可直接回显到路径：
 
-| 类型                       | `Id`（JSON 字段与路径参数同一串） |
-| -------------------------- | --------------------------------- |
-| `av`（普通视频）           | `av170001`                        |
-| `ep`（番剧单集）           | `ep2539`                          |
-| `season`（番剧整季）       | `season2539`                      |
-| `cheeseEp`（课程单集）     | `cheeseEp123`                     |
-| `cheeseSeason`（课程整季） | `cheeseSeason123`                 |
-| `fav`（收藏夹）            | `fav100_200`                      |
-| `mediaList`（合集）        | `mediaList789`                    |
-| `series`（系列）           | `series789`                       |
-| `space`（UP 主空间）       | `space402787936`                  |
-| `watchLater`（稍后再看）   | `watchLater`                      |
-| `live`（直播间录制）       | `live502144`                      |
-| `cv`（专栏文章）           | `cv5806746`                       |
-| `opus`（图文动态，按动态 id） | `opus1230485246732926996`      |
-| `readlist`（文集）         | `readlist1234`（亦接受 `rl1234`） |
-| `spaceOpus`（空间图文投稿） | `spaceOpus402787936`             |
-| `spaceAudio`（空间音频投稿） | `spaceAudio402787936`           |
-| `spaceDynamic`（空间动态） | `spaceDynamic402787936`           |
-| `au`（音频投稿）           | `au123456`                        |
+| 类型                          | `Id`（JSON 字段与路径参数同一串） |
+| ----------------------------- | --------------------------------- |
+| `av`（普通视频）              | `av170001`                        |
+| `ep`（番剧单集）              | `ep2539`                          |
+| `season`（番剧整季）          | `season2539`                      |
+| `cheeseEp`（课程单集）        | `cheeseEp123`                     |
+| `cheeseSeason`（课程整季）    | `cheeseSeason123`                 |
+| `fav`（收藏夹）               | `fav100_200`                      |
+| `mediaList`（合集）           | `mediaList789`                    |
+| `series`（系列）              | `series789`                       |
+| `space`（UP 主空间）          | `space402787936`                  |
+| `watchLater`（稍后再看）      | `watchLater`                      |
+| `live`（直播间录制）          | `live502144`                      |
+| `cv`（专栏文章）              | `cv5806746`                       |
+| `opus`（图文动态，按动态 id） | `opus1230485246732926996`         |
+| `readlist`（文集）            | `readlist1234`（亦接受 `rl1234`） |
+| `spaceOpus`（空间图文投稿）   | `spaceOpus402787936`              |
+| `spaceAudio`（空间音频投稿）  | `spaceAudio402787936`             |
+| `spaceDynamic`（空间动态）    | `spaceDynamic402787936`           |
+| `au`（音频投稿）              | `au123456`                        |
 
 > 注意：旧版 `Aid` 字段（字符串）与「裸 AID 数字」路径参数已废弃。规范编码只接受上表形态，`/api/v1/tasks` 的 `Url` 仍使用命令行输入写法（`av|bv|BV|ep|ss` 等），两者互不通用。
 
@@ -262,23 +262,23 @@ WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录
 
 表示一个下载任务。
 
-| 属性                   | 类型                 | 说明                                                                                                                                                   |
-| ---------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Id`                   | `string`             | 资源 id 的规范字符串（见 [任务标识](#任务标识)），作为任务唯一标识。同一 id 在运行中与已完成列表内各自唯一，重复提交同一 id 会直接返回已有的运行中任务 |
-| `Url`                  | `string`             | 任务请求时的 URL。不要求完整 URL，命令行支持的 `av\|bv\|BV\|ep\|ss` 均可                                                                               |
-| `TaskCreateTime`       | `long`               | 任务创建时间，Unix 时间戳，**精确到毫秒**（UTC 纪元，与时区无关）                                                                                        |
-| `Title`                | `string?`            | 视频标题                                                                                                                                               |
-| `Pic`                  | `string?`            | 视频封面图片链接                                                                                                                                       |
-| `VideoPubTime`         | `long?`              | 视频发布时间，Unix 时间戳，精确到秒                                                                                                                    |
-| `TaskFinishTime`       | `long?`              | 任务完成时间，Unix 时间戳，**精确到毫秒**（UTC 纪元，与时区无关）                                                                                        |
-| `Progress`             | `double`             | 下载进度，0–1 之间的小数                                                                                                                               |
-| `DownloadSpeed`        | `double`             | 下载速度，单位 Byte/s。下载中为最后一次更新的实时速度，完成后为平均速度                                                                                |
-| `TotalDownloadedBytes` | `long`               | 总下载字节数（Byte）；完成后的数值比实际文件略小（见下方注意事项）                                                                                     |
-| `ErrorMessage`         | `string?`            | 失败原因（本机绝对路径已替换为 `<redacted-path>`）；任务成功或未失败时为 `null`                                                                        |
-| `IsSuccessful`         | `bool`               | 任务是否成功完成                                                                                                                                       |
-| `IsCancelled`          | `bool`               | 任务是否被取消（用户停止 / 服务器退出）；取消的任务 `IsSuccessful == false` 且此字段为 `true`，客户端据此区分「已取消」与真实失败                  |
-| `Status`               | `string`             | 任务状态：`Pending`（已受理、等待手动启动，仅 `?mode=enqueue` 提交时出现）/ `Queued`（已提交执行、等待并发额度，仅 `--max-concurrent > 0` 时出现）/ `Running`（下载中）/ `Finished`（已结束，成败见 `IsSuccessful`）     |
-| `SavePaths`            | `Collection<string>` | 已生成文件的本地路径集合（可能包含视频、音频、弹幕、封面等）                                                                                           |
+| 属性                   | 类型                 | 说明                                                                                                                                                                                                                 |
+| ---------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Id`                   | `string`             | 资源 id 的规范字符串（见 [任务标识](#任务标识)），作为任务唯一标识。同一 id 在运行中与已完成列表内各自唯一，重复提交同一 id 会直接返回已有的运行中任务                                                               |
+| `Url`                  | `string`             | 任务请求时的 URL。不要求完整 URL，命令行支持的 `av\|bv\|BV\|ep\|ss` 均可                                                                                                                                             |
+| `TaskCreateTime`       | `long`               | 任务创建时间，Unix 时间戳，**精确到毫秒**（UTC 纪元，与时区无关）                                                                                                                                                    |
+| `Title`                | `string?`            | 视频标题                                                                                                                                                                                                             |
+| `Pic`                  | `string?`            | 视频封面图片链接                                                                                                                                                                                                     |
+| `VideoPubTime`         | `long?`              | 视频发布时间，Unix 时间戳，精确到秒                                                                                                                                                                                  |
+| `TaskFinishTime`       | `long?`              | 任务完成时间，Unix 时间戳，**精确到毫秒**（UTC 纪元，与时区无关）                                                                                                                                                    |
+| `Progress`             | `double`             | 下载进度，0–1 之间的小数                                                                                                                                                                                             |
+| `DownloadSpeed`        | `double`             | 下载速度，单位 Byte/s。下载中为最后一次更新的实时速度，完成后为平均速度                                                                                                                                              |
+| `TotalDownloadedBytes` | `long`               | 总下载字节数（Byte）；完成后的数值比实际文件略小（见下方注意事项）                                                                                                                                                   |
+| `ErrorMessage`         | `string?`            | 失败原因（本机绝对路径已替换为 `<redacted-path>`）；任务成功或未失败时为 `null`                                                                                                                                      |
+| `IsSuccessful`         | `bool`               | 任务是否成功完成                                                                                                                                                                                                     |
+| `IsCancelled`          | `bool`               | 任务是否被取消（用户停止 / 服务器退出）；取消的任务 `IsSuccessful == false` 且此字段为 `true`，客户端据此区分「已取消」与真实失败                                                                                    |
+| `Status`               | `string`             | 任务状态：`Pending`（已受理、等待手动启动，仅 `?mode=enqueue` 提交时出现）/ `Queued`（已提交执行、等待并发额度，仅 `--max-concurrent > 0` 时出现）/ `Running`（下载中）/ `Finished`（已结束，成败见 `IsSuccessful`） |
+| `SavePaths`            | `Collection<string>` | 已生成文件的本地路径集合（可能包含视频、音频、弹幕、封面等）                                                                                                                                                         |
 
 ### `DownloadTaskSnapshot`
 

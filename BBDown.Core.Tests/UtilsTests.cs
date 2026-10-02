@@ -128,4 +128,15 @@ public class UtilsTests
         File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         Assert.Equal(file, Utils.FindExecutableIn([dir.FullPath], "dummy-tool"));
     }
+
+    [Theory]
+    [InlineData("abc 12|/-\\", 10)]
+    [InlineData("录制中", 6)]
+    [InlineData("录制中 00:00:01 | 分段 1 | 原画(avc)", 36)]
+    [InlineData("", 0)]
+    [InlineData("：", 2)]
+    public void CellWidth_CountsEastAsianWideCharsAsTwo(string text, int expected)
+    {
+        Assert.Equal(expected, Utils.CellWidth(text));
+    }
 }

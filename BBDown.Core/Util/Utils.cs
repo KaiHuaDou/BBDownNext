@@ -245,6 +245,34 @@ public static partial class Utils
         return string.Join(' ', args.Select(a => a.Length == 0 || a.Contains(' ') ? $"\"{a}\"" : a));
     }
 
+    // 控制台按 cell 渲染，CJK 等 East Asian Wide 字符占 2 cell；补齐与擦行须按 cell 数计数才擦得干净
+    public static int CellWidth(string text)
+    {
+        var cells = 0;
+        foreach (var ch in text)
+        {
+            cells += IsWide(ch) ? 2 : 1;
+        }
+
+        return cells;
+    }
+
+    // 常用 East Asian Wide 字符块的近似覆盖，未含罕用块与 emoji 序列
+    private static bool IsWide(char ch)
+    {
+        return ch is (>= '\u1100' and <= '\u115F')
+            or (>= '\u2E80' and <= '\u303E')
+            or (>= '\u3041' and <= '\u33FF')
+            or (>= '\u3400' and <= '\u4DBF')
+            or (>= '\u4E00' and <= '\u9FFF')
+            or (>= '\uA000' and <= '\uA4CF')
+            or (>= '\uAC00' and <= '\uD7A3')
+            or (>= '\uF900' and <= '\uFAFF')
+            or (>= '\uFE30' and <= '\uFE4F')
+            or (>= '\uFF00' and <= '\uFF60')
+            or (>= '\uFFE0' and <= '\uFFE6');
+    }
+
     /// <summary>
     /// 提取番剧/播放页面源码中 window.__INITIAL_STATE__ 内嵌的 JSON。
     /// </summary>

@@ -106,7 +106,9 @@ public static class CredentialStore
 
     // ── JSON 序列化 / 反序列化（源生成器，AOT 安全）────────────────────────────
 
-    private static Credential LoadCredential(string? dir)
+    /// <summary>读取完整凭据快照（含签发时间戳）。<see cref="LoadWebCredential"/> 等便捷方法只取所需字段，
+    /// 需要跨通道一次性取齐时走本方法，避免为拿时间戳重复读盘。</summary>
+    internal static Credential LoadCredential(string? dir = null)
     {
         return ParseCredentialJson(TryRead(dir, DataFile));
     }

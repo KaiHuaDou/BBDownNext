@@ -4,25 +4,25 @@
 
 ## 命名空间清单
 
-| 命名空间 | 职责 |
-| ---------------------- | --------------------------------------------------- |
-| `BBDown.Core` | 根命名空间：API 常量、全局配置、日志门面、资源 ID 判别联合、播放轨道解析 |
-| `BBDown.Core.Auth` | 账号探测、登录（Web / TV / App）、凭据存取 |
-| `BBDown.Core.Comment` | 评论抓取与渲染 |
+| 命名空间               | 职责                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `BBDown.Core`          | 根命名空间：API 常量、全局配置、日志门面、资源 ID 判别联合、播放轨道解析     |
+| `BBDown.Core.Auth`     | 账号探测、登录（Web / TV / App）、登录态查询、凭据存取                       |
+| `BBDown.Core.Comment`  | 评论抓取与渲染                                                               |
 | `BBDown.Core.Download` | 下载域数据结构（请求 / 会话 / 上下文）与下载执行（内置 downloader / aria2c） |
-| `BBDown.Core.Entity` | 视频信息实体（VInfo / Page / Video / Audio 等） |
-| `BBDown.Core.Fetcher` | 视频信息抓取器与资源分发注册表 |
-| `BBDown.Core.Live` | 直播信息抓取、录制、分段写入、合并 |
-| `BBDown.Core.Logging` | 日志底层：消息总线、控制台宿主 |
-| `BBDown.Core.Media` | 单分 P 下载编排：DASH / FLV 分支、轨道选择、附属产物 |
-| `BBDown.Core.Music` | 音频投稿（AU）信息抓取 |
-| `BBDown.Core.Mux` | 混流执行（FFmpeg / MP4Box）、章节元数据、收尾 |
-| `BBDown.Core.Opus` | 专栏（opus / cv）解析与 Markdown 渲染 |
-| `BBDown.Core.Pipeline` | 下载管道编排：输入解析、工作分发、各类下载入口 |
-| `BBDown.Core.PlayUrl` | playurl 请求构造与各 API 通道的轨道读取 |
-| `BBDown.Core.Protobuf` | proto 生成的 gRPC 消息类型 |
-| `BBDown.Core.Util` | HTTP 传输、签名、JSON、字幕、弹幕等通用工具 |
-| `BBDown.Core.Workflow` | 宿主事件流：消息 / 进度总线、交互问答 |
+| `BBDown.Core.Entity`   | 视频信息实体（VInfo / Page / Video / Audio 等）                              |
+| `BBDown.Core.Fetcher`  | 视频信息抓取器与资源分发注册表                                               |
+| `BBDown.Core.Live`     | 直播信息抓取、录制、分段写入、合并                                           |
+| `BBDown.Core.Logging`  | 日志底层：消息总线、控制台宿主                                               |
+| `BBDown.Core.Media`    | 单分 P 下载编排：DASH / FLV 分支、轨道选择、附属产物                         |
+| `BBDown.Core.Music`    | 音频投稿（AU）信息抓取                                                       |
+| `BBDown.Core.Mux`      | 混流执行（FFmpeg / MP4Box）、章节元数据、收尾                                |
+| `BBDown.Core.Opus`     | 专栏（opus / cv）解析与 Markdown 渲染                                        |
+| `BBDown.Core.Pipeline` | 下载管道编排：输入解析、工作分发、各类下载入口                               |
+| `BBDown.Core.PlayUrl`  | playurl 请求构造与各 API 通道的轨道读取                                      |
+| `BBDown.Core.Protobuf` | proto 生成的 gRPC 消息类型                                                   |
+| `BBDown.Core.Util`     | HTTP 传输、签名、JSON、字幕、弹幕等通用工具                                  |
+| `BBDown.Core.Workflow` | 宿主事件流：消息 / 进度总线、交互问答                                        |
 
 ## 命名空间级依赖总览
 
@@ -209,7 +209,8 @@ flowchart TB
         direction LR
         Account["Account"]
         AccountInfo["AccountInfo"]
-        Login["Login（partial：主 / App / Web / Refresh / Sign）"]
+        LoginStatus["LoginStatus"]
+        Login["Login（partial：主 / App / Web / Refresh / Sign / Status）"]
         CredentialStore["CredentialStore + Credential"]
     end
 
@@ -377,12 +378,19 @@ flowchart TB
 
     %% Auth
     Account --> HTTPUtil
+    Account --> HttpTransfer
+    Account --> BiliHeaders
+    Account --> SignUtil
     Login --> CredentialStore
     Login --> Account
     Login --> Buvid
     Login --> HTTPUtil
     Login --> HttpTransfer
     Login --> BiliHeaders
+    Login --> LoginStatus
+    Login --> AccountInfo
+    Login --> Utils
+    LoginStatus --> AccountInfo
 
     %% Comment
     CommentFetcher --> HTTPUtil

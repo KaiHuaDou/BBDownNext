@@ -42,13 +42,15 @@ flowchart LR
 ```
 BBDown/
 ├── BBDown/                 # 入口可执行项目 (Sdk.Web, PackAsTool)，命名空间 BBDown
-│   ├── Program.cs          # Main、子命令装配（login/serve）、全局取消、RunApp 入口编排（专栏/直播分流）
+│   ├── Program.cs          # Main、全局取消、RunApp 入口编排（专栏/直播分流）
 │   ├── ProgressBar.cs      # 控制台进度条渲染器（接收 ProgressSampler 采样回调）
 │   │
 │   ├── Cli/                # 命名空间 BBDown.Cli — 命令行解析
 │   │   ├── CliOptions.cs           # 全部 CLI 选项与别名的静态定义（按 README 分组，注册顺序即 --help 顺序）
 │   │   ├── CommandLineInvoker.cs   # GetRootCommand 装配与参数 → DownloadRequest 映射
-│   │   └── ConfigParser.cs         # 配置文件解析 (仅补齐命令行未指定项)
+│   │   ├── SubCommands.cs          # login / serve 子命令装配（选项与动作，不含业务逻辑；login 下挂 status / refresh）
+│   │   ├── ConfigParser.cs         # 配置文件解析 (仅补齐命令行未指定项)
+│   │   └── LiveProgress.cs         # 直播录制单行进度渲染（显示宽度按 Utils.CellWidth 计）
 │   │
 │   └── Serve/              # 命名空间 BBDown.Serve — serve 模式
 │       ├── BBDownServer.cs             # 服务装配：SetUpServer / 令牌鉴权 / CORS / 并发限流
@@ -131,7 +133,6 @@ BBDown/
 │   │   ├── LiveRoomInfo.cs         # 房间信息 + 清晰度档位 LiveQuality
 │   │   ├── LiveRecorder.cs         # 录制状态机（断流退避重连 / CDN failover / 编码锁定）
 │   │   ├── LiveSegmentWriter.cs    # 单段 FLV 落盘
-│   │   ├── LiveProgress.cs         # 录制进度回吐
 │   │   ├── LiveFileNaming.cs       # 分段/产物文件名（主播名-标题-时间戳）
 │   │   ├── LiveMuxer.cs            # 分段 FLV → mp4 合并（avc/hevc bitstream filter 分派、+genpts）
 │   │   └── LiveSignal.cs           # 按 sessionId 键控的直播停录注册表（Register / TryRequestStop / LiveSignalScope，并发录制互不干扰）
@@ -140,9 +141,11 @@ BBDown/
 │   │   ├── Login.cs                # 扫码登录公共轮询编排（QrLoginPlan / RunQrLoginAsync，接入全局取消与失败重试）
 │   │   ├── Login.Web.cs            # WEB 登录（BuildWebCookieResilient 多源合并 Cookie + 登录后账号名校验）
 │   │   ├── Login.App.cs            # TV / APP 登录（LoginWithAppKey，各自 appkey/secret）
-│   │   ├── Login.Refresh.cs        # refresh_token 主动续期（RSA-OAEP 加密请求）
+│   │   ├── Login.Refresh.cs        # refresh_token 续期（下载前自动 + login refresh 显式，RSA-OAEP 加密请求）
 │   │   ├── Login.Sign.cs           # TV/APP 登录签名（appkey sign / 时间戳 / 随机串）
-│   │   ├── Account.cs              # 账号探测
+│   │   ├── Login.Status.cs         # 登录态查询（StatusAsync 编排 + Format / ExitCode 纯函数）
+│   │   ├── LoginStatus.cs          # 单通道登录态 record
+│   │   ├── Account.cs              # 账号探测（nav 与 account/myinfo 两个接口）
 │   │   ├── AccountInfo.cs          # 账号信息
 │   │   └── CredentialStore.cs      # 单一 JSON 凭据读写 (源生成器 AOT 安全)
 │   │
@@ -202,7 +205,6 @@ BBDown/
 │   ├── Buvid.cs            # buvid3/4 获取
 │   ├── Config.cs           # 清晰度档位 (Qualities/MaxQn/DolbyVisionQn) + 调试日志开关
 │   ├── IdPrefix.cs         # 输入编号前缀常量 (ep:/ss:/lists:/series:/fav:/cheese:/spaceMid:/watchLater: 等)
-│   ├── Interaction.cs      # 交互式提问（AskLine / AskIndex，读控制台）
 │   ├── Logger.cs           # 日志（Output 可注入，GUI 等宿主替换输出目标）
 │   └── DEPENDENCIES.md     # 依赖架构说明
 │
@@ -253,7 +255,7 @@ BBDown/
 
 **依赖方向**：`BBDown` → `BBDown.Core`；两个测试项目分别依赖对应实现。Core 不反向依赖入口项目，保证核心逻辑可独立测试。`BBDown.GUI` 只依赖 `BBDown.Core`，不引用 CLI 项目，其测试由独立 CI（`gui.yml`）覆盖构建。`Plugins/BBDown.Sample` 引用 `BBDown.Core`（协议 record 对齐），以独立进程被主程序按需调起，不在主构建链路上；其余插件为独立仓库。
 
-**入口项目职责**：`BBDown` 主项目只保留命令行解析（`Cli`）、serve 服务器（`Serve`）与入口编排（`Program`：login/serve 子命令装配、独立链路早分流、异常→退出码映射）。下载链路全部在 `BBDown.Core`，`Program.RunApp` 经纯字符串探测 `InputResolver.TryDispatch` 识别独立链路形态后统一交 `WorkerDispatcher` 分发（直播 `LiveDownload` / 专栏 `OpusDownload` / 文集与空间集合 `ReadListDownload` 等运行器 / 视频管道 `DownloadPipeline`）。子命名空间之间的引用一律显式 `using`；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。
+**入口项目职责**：`BBDown` 主项目只保留命令行解析（`Cli`，子命令装配在 `Cli/SubCommands.cs`）、serve 服务器（`Serve`）与入口编排（`Program`：独立链路早分流、异常→退出码映射）。下载链路全部在 `BBDown.Core`，`Program.RunApp` 经纯字符串探测 `InputResolver.TryDispatch` 识别独立链路形态后统一交 `WorkerDispatcher` 分发（直播 `LiveDownload` / 专栏 `OpusDownload` / 文集与空间集合 `ReadListDownload` 等运行器 / 视频管道 `DownloadPipeline`）。子命名空间之间的引用一律显式 `using`；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。
 
 ---
 
@@ -351,7 +353,7 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 `BBDown serve` 用 ASP.NET Minimal API 暴露任务增删查接口（完整契约见 [API.md](./API.md)）。主干为 `BBDownServer`，端点注册在 `Http/ServeEndpoints.cs`、WebSocket 在 `Http/TasksSocket.cs`、任务表与消费循环在 `Tasks/`（TaskStore / TaskWorker），SSRF 防护抽到独立静态类 `SsrfGuard`，启动参数聚合为 `ServeConfig` record。设计要点：
 
 - **令牌鉴权**：`SetUpServer` → `FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时启用强制鉴权；未传入则默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。强制鉴权时客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，否则返回 `401`。
-- **请求契约收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在契约中，serve 未以 `--no-interactive` 关闭时 Web 前端经 WebSocket 事件流远程应答选项请求。
+- **请求契约收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在契约中，Web 前端经 WebSocket 事件流远程应答选项请求。
 - **SSRF 防护**（`SsrfGuard`）：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点；专用 `WebHookClient` 关闭自动重定向并在连接前二次校验端点 IP。
 - **CORS**：默认放行**回环来源**（`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环判定），非回环 `Origin` 依旧无 `Access-Control-Allow-Origin` 头、被浏览器拦截，与写端点 / WebSocket 的 Origin 校验（防 DNS rebinding）保持一致；公网暴露仍需配合反向代理与 TLS。
 - **容量上限**：已完成任务保留上限 `MaxFinishedTasks = 200`，超出按策略淘汰。
@@ -385,9 +387,13 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 
 ### 7.2 Web Cookie 续期
 
-`Login.TryRefreshWebCookieIfStaleAsync` 在下载前 best-effort 检测 Cookie 是否过旧，用 `refresh_token` 经 **RSA-OAEP** 加密请求续期，刷新 `cookie` 与 `refresh_token` 并回写；续期失败不影响正常下载（回退到已有 Cookie）。续期进程内仅触发一次。
+`Login.TryRefreshWebCookieIfStaleAsync` 在下载前 best-effort 检测 Cookie 是否过旧，用 `refresh_token` 经 **RSA-OAEP** 加密请求续期，刷新 `cookie` 与 `refresh_token` 并回写；续期失败不影响正常下载（回退到已有 Cookie）。续期进程内仅触发一次。`Login.RefreshAsync`（`login refresh`）复用同一条链路的 `RefreshWebCookieAsync`，以 `force` 跳过服务端的「是否需要刷新」信号，失败打印原因并以退出码表达成败。
 
-### 7.3 传输与接口安全
+### 7.3 登录态查询
+
+`Login.StatusAsync`（`login status`）经 `CredentialStore.LoadCredential` 一次取齐三通道凭据与签发时间戳，三通道并行探测后按固定顺序渲染（`Login.Format`），退出码由 `Login.ExitCode` 决定。WEB 走 `Account.ProbeAsync`（nav），TV / APP 走 `Account.ProbeTokenAsync`（`account/myinfo`，令牌在 query，请求不带 Cookie）；探测未完成（`LoginStatus.Verified` 为 null）与服务端否认分列两种状态。
+
+### 7.4 传输与接口安全
 
 - **TLS 逃生舱**：`BBDOWN_INSECURE_TLS=1` 用于关闭证书校验（无常规代理配置项，HTTPUtil 不读取系统代理）。
 - **SSRF**：仅 `CallBackWebHook` 回调做内网 / 回环地址校验（`SsrfGuard`，见第 5 节）。
