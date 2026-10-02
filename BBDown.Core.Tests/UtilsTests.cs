@@ -110,7 +110,7 @@ public class UtilsTests
     }
 
     // 仅 Unix 生效：Windows 上 FindExecutable 不检查执行位，直接跳过
-    // 目录序列显式传入 FindExecutableIn，不再改进程级 PATH——并行测试下改 PATH 会互相踩踏
+    // 目录序列显式传入 FindExecutableIn，不改进程级 PATH——并行测试下改 PATH 会互相踩踏
     [Fact]
     public void FindExecutable_SkipsNonExecutableOnUnix( )
     {

@@ -8,13 +8,13 @@ using BBDown.Serve.Tasks;
 namespace BBDown.Tests;
 
 /// <summary>
-/// P0-9：为 <see cref="BBDownServer"/> 补回归测试。
+/// <see cref="BBDownServer"/> 回归测试。
 /// 重点是 serve 请求契约 <see cref="ServeRequestOptions"/>（受控子集，结构上无法注入主机可控字段）
-/// 与 <see cref="SsrfGuard.IsSafeWebHook"/>（SSRF 防护），以及变更类端点必须是 POST（P1-15）。
+/// 与 <see cref="SsrfGuard.IsSafeWebHook"/>（SSRF 防护），以及变更类端点必须是 POST。
 /// </summary>
 public class BBDownApiServerTests
 {
-    #region ServeRequestOptions 受控子集（P0-2 / P0-9）
+    #region ServeRequestOptions 受控子集
 
     [Fact]
     public void ServeRequestOptions_ToDownloadRequest_IgnoresHostControlledInjection( )
@@ -53,7 +53,7 @@ public class BBDownApiServerTests
         Assert.False(opts.Debug);
         Assert.Equal("", opts.UserAgent);
         Assert.Null(opts.ConfigFile);
-        // 请求不带 cookie 时会回落本机 SESSDATA，host 若可由请求体控制就成了凭据外泄链（P0-1）
+        // 请求不带 cookie 时会回落本机 SESSDATA，host 若可由请求体控制就成了凭据外泄链
         Assert.Equal(BiliApi.MainHost, opts.Host);
         Assert.Equal(BiliApi.MainHost, opts.EpHost);
         Assert.Equal(BiliApi.TvHost, opts.TvHost);
@@ -126,7 +126,7 @@ public class BBDownApiServerTests
 
     #endregion
 
-    #region IsSafeWebHook（P1-14 SSRF 防护）
+    #region IsSafeWebHook（SSRF 防护）
 
     [Theory]
     [InlineData("http://example.com/hook")]
@@ -199,12 +199,12 @@ public class BBDownApiServerTests
 
     [Theory]
     [InlineData("")]
-    [InlineData("114514")]              // 裸数字（旧 AID 契约，已废弃）
+    [InlineData("114514")]              // 裸数字，缺前缀
     [InlineData("av")]                  // 缺值
     [InlineData("avabc")]               // 非数字
-    [InlineData("av:1:2")]              // 旧冒号形态，已废弃
+    [InlineData("av:1:2")]              // 冒号形态非规范 id
     [InlineData("BV1xx411c7XD")]        // 输入简写，非规范 id
-    [InlineData("ep:ss2539")]           // 旧打标形态
+    [InlineData("ep:ss2539")]           // 打标形态非规范 id
     [InlineData("fav100")]              // fav 缺 mid
     [InlineData("watchLater:")]         // watchLater 无值形态不带冒号
     public void ResourceId_TryParse_RejectsNonCanonical(string input)
@@ -224,7 +224,7 @@ public class BBDownApiServerTests
 
     #endregion
 
-    #region IsPrivateAddress（§2.4 私网段补全）
+    #region IsPrivateAddress 私网段判定
 
     [Theory]
     [InlineData("::")]                       // IPv6 未指定地址
@@ -271,7 +271,7 @@ public class BBDownApiServerTests
 
     #region 任务回吐（PipelineSink）
 
-    // 下载链路不再持有 DownloadTask，只通过回调回吐；这里锁住元数据与产物回调的映射
+    // 下载链路不持有 DownloadTask，只通过回调回吐；这里锁住元数据与产物回调的映射
     [Fact]
     public void SinkFor_RoutesCallbacksIntoTask( )
     {

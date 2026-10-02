@@ -13,7 +13,7 @@ public class ConfigTests
         Assert.Equal(expected, Config.GetQualityName(qn));
     }
 
-    // B 站新增 qn 时旧版本不应崩，只降级为提示原始值
+    // 未知 qn（含 B 站未来新增档位）不应抛异常，只降级为提示原始值
     [Theory]
     [InlineData("999")]
     [InlineData("")]

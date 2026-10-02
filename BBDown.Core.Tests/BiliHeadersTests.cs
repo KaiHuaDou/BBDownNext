@@ -19,7 +19,7 @@ public class BiliHeadersTests
         Assert.Equal(expected, BiliHeaders.IsBangumiPlayPage(url));
     }
 
-    // 旧实现是裸 Contains("/ep") || Contains("/ss")，这些都会被误判
+    // 裸 Contains("/ep") || Contains("/ss") 会把这些 URL 误判为番剧页
     [Theory]
     [InlineData("https://api.bilibili.com/x/player/pagelist?bvid=BV1x")]
     [InlineData("https://api.bilibili.com/pgc/view/web/season?ep_id=123456")]

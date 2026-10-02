@@ -85,7 +85,6 @@ public static partial class IntlBangumiInfoFetcher
             PubTime = pubTime,
             PagesInfo = pagesInfo,
             IsBangumi = true,
-            // 国际版番剧同样不是课程（cheese），原 IsCheese = true 为误设（P1-5）
             IsBangumiEnd = result.TryGetProperty("is_finish", out var f) && f.GetInt32( ) == 1,
             Index = index
         };

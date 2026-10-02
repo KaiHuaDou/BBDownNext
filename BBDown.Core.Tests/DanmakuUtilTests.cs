@@ -130,7 +130,7 @@ public class DanmakuUtilTests
         return DanmakuUtil.ParseXml(new MemoryStream(Encoding.UTF8.GetBytes(content)));
     }
 
-    // B 站 XML 颜色是整数 RGB，ASS 的 \c&H...& 却是 BGR 字节序，直接照搬会让红蓝对调 (P0-5)
+    // B 站 XML 颜色是整数 RGB，ASS 的 \c&H...& 却是 BGR 字节序，直接照搬会让红蓝对调
     [Theory]
     [InlineData("FFFFFF", "FFFFFF")]   // 白：BGR 不变
     [InlineData("FF0000", "0000FF")]   // 红 → 蓝

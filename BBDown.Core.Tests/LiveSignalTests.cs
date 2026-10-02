@@ -91,7 +91,6 @@ public class LiveSignalTests
     }
 
     // 同标识被覆盖注册后，旧 scope 的释放不得动新注册：原子比较移除的语义锚定。
-    // 旧实现「先无条件 TryRemove 再判断回填」在两步之间有窗口，且实现依赖回填路径；
     // 本用例锁定「只有槽位仍是自己时才摘除」的对外契约
     [Fact]
     public void DisposingStaleScope_KeepsOverwritingRegistration( )

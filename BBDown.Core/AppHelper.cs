@@ -98,7 +98,7 @@ internal static class AppHelper
     }
 
     // 入参是完整端点地址而非主机名：Host 头必须与 TLS 的 SNI 一致，
-    // 交给调用方传主机名就会出现「Host 写死、目标已迁移」的不一致（P1 遗留形态）
+    // 交给调用方传主机名就会出现「Host 写死、目标已迁移」的不一致
     internal static Dictionary<string, string> GetHeader(AppConfig cfg, string api)
     {
         var headers = new Dictionary<string, string>( )

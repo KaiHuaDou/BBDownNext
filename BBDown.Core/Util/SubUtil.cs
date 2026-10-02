@@ -89,7 +89,7 @@ public static partial class SubUtil
                 ? [( ) => FromAppAsync(aid, cid, pathPrefix, cfg, ct)]
                 :
                 [
-                    // wbi 接口未签名会被服务端拒绝（P1-27）
+                    // wbi 接口未签名会被服务端拒绝
                     ( ) => FromJsonAsync($"{BiliApi.PlayerWbiV2}?{SignUtil.WbiSignNow($"aid={aid}&cid={cid}", cfg)}",
                         root => root.GetProperty("data").GetProperty("subtitle").GetProperty("subtitles"), "lan", "subtitle_url", pathPrefix, intl, cfg, ct),
                     ( ) => FromJsonAsync($"{BiliApi.View}?aid={aid}&cid={cid}",
@@ -142,8 +142,7 @@ public static partial class SubUtil
             .ToList( ) ?? [];
     }
 
-    // CA1054: url 保持 string —— 该方法被 BBDown 主项目直接调用（传入 Subtitle.Url 字符串），
-    // 改为 System.Uri 属于跨项目破坏性变更（本次改动范围仅限 BBDown.Core）
+    // CA1054: url 保持 string —— 该方法被 BBDown 主项目直接调用（传入 Subtitle.Url 字符串）
     public static async Task SaveSubtitleAsync(string url, string path, AppConfig cfg, CancellationToken ct = default)
     {
         if (path.EndsWith(".srt"))

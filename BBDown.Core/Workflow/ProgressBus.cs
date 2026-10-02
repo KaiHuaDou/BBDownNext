@@ -41,7 +41,7 @@ public static class ProgressBus
 
     /// <summary>
     /// 上报阶段内增量字节：累计由本总线按 scope 维护（同一任务多下载器并发互不覆盖，
-    /// 多实例交替上报不再回退），speed 为折算速率（Byte/s）。无活跃阶段时静默忽略。
+    /// 多实例交替上报不回退），speed 为折算速率（Byte/s）。无活跃阶段时静默忽略。
     /// 同步回调订阅者，订阅端须保证短快（渲染锁短，不阻塞采样线程）。
     /// </summary>
     public static void Publish(double ratio, long bytesDelta, double speed, string? detail = null)

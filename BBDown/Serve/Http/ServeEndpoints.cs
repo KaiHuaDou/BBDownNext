@@ -87,7 +87,7 @@ internal static class ServeEndpoints
 
             return Results.NotFound( );
         });
-        // 变更类端点必须用 POST/DELETE，不能暴露为 GET，否则与本就全开的 CORS 叠加形成 CSRF（P1-15）
+        // 变更类端点必须用 POST/DELETE，不能暴露为 GET，否则与本就全开的 CORS 叠加形成 CSRF
         tasks.MapPost("/{id}/stop", (string id, TaskStore store) =>
         {
             if (!ResourceId.TryParse(id, out var rid))
@@ -116,7 +116,7 @@ internal static class ServeEndpoints
         });
         tasks.MapDelete("/{id}", (string id, TaskStore store) =>
         {
-            // 规范 id 解析失败视为不存在，仍返回 200（与旧行为一致：无论是否找到都 200）；
+            // 规范 id 解析失败视为不存在，仍返回 200；
             // RemoveTask 同时清理已完成与 enqueue 暂停态任务
             if (ResourceId.TryParse(id, out var rid))
             {
@@ -160,7 +160,7 @@ internal static class ServeEndpoints
         });
 
         // 健康检查：匿名放行（探活不要求令牌）；计数排除 enqueue 暂停态（Pending 尚未进入执行队列，不计入运行中）。
-        // 事件流（WebSocket /hubs/tasks）始终启用，无需开关字段；前端经 WS 推送感知任务状态，不再轮询。
+        // 事件流（WebSocket /hubs/tasks）始终启用，无需开关字段；任务状态经 WS 推送感知，无轮询端点。
         app.MapGet("/healthz", (TaskStore store) =>
                 Results.Ok(new HealthStatus("ok", store.RunningSnapshot( ).FindAll(t => t.Status != DownloadStatus.Pending).Count)))
             .AllowAnonymous( );

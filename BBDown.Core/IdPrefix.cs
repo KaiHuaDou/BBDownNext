@@ -30,7 +30,7 @@ public static class IdPrefix
     /// <summary>稍后再看列表前缀，切片长度 11</summary>
     public const string WatchLater = "watchLater:";
 
-    /// <summary>直播间前缀（直写形式，live12345，不再支持 live: 冒号前缀），切片长度 4</summary>
+    /// <summary>直播间前缀（直写形式 live12345，无冒号形态），切片长度 4</summary>
     public const string Live = "live";
 
     /// <summary>BV 号前缀，切片长度 3</summary>

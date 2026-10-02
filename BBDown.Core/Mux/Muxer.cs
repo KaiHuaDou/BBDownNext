@@ -16,7 +16,7 @@ namespace BBDown.Core.Mux;
 
 /// <summary>
 /// 一次混流的不可变入参集合，由 <see cref="MuxFinish"/> 组装后交给 <see cref="Muxer.MuxAV"/>。
-/// 调用方按名填字段，下游 <see cref="MuxArgs"/> 的 <c>Build*</c> 直接读 <c>req</c> 上的路径与元数据，不再数位置。
+/// 调用方按名填字段，下游 <see cref="MuxArgs"/> 的 <c>Build*</c> 直接读 <c>req</c> 上的路径与元数据。
 /// </summary>
 public sealed record MuxRequest(
     MuxMode Mux,

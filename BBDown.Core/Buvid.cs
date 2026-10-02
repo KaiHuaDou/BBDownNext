@@ -23,7 +23,7 @@ public static class Buvid
     private static readonly Lock gate = new( );
 
     /// <summary>
-    /// 缓存初始化任务，保证只发起一次成功拉取；若拉取失败则标记，下次调用可重试（修复 P1-1：原 Interlocked 方案在首次失败后会永久禁用）。
+    /// 缓存初始化任务，保证只发起一次成功拉取；拉取失败则标记，下次调用可重试。
     /// </summary>
     public static Task InitAsync(CancellationToken ct = default)
     {

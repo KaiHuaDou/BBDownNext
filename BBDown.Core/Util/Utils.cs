@@ -149,13 +149,10 @@ public static partial class Utils
         }
 
         var res = al.ToArray( );
-        Array.Sort(res); //排序
+        Array.Sort(res);
         return res;
     }
 
-    /// <summary>
-    /// 获取 url 字符串参数，返回参数值字符串
-    /// </summary>
     public static string GetQueryString(string name, string url)
     {
         var re = QueryRegex( );

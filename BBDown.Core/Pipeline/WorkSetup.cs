@@ -176,9 +176,7 @@ public static class WorkSetup
     }
 
     /// <summary>
-    /// 解析外部工具路径，返回不可变快照。原 FindBinaries 会把这些路径写进进程级可变静态字段
-    /// （Muxer.ffmpeg/mp4box、BBDownAria2c.aria2c），在 serve 并发任务下互相踩踏；改为纯函数返回快照，
-    /// 由调用方作为 ToolPaths 参数向下透传。
+    /// 解析外部工具路径，返回不可变快照，由调用方作为 ToolPaths 参数向下透传，serve 并发任务互不踩踏。
     /// </summary>
     internal static ToolPaths ResolveToolPaths(DownloadRequest myOption)
     {
@@ -213,7 +211,7 @@ public static class WorkSetup
     }
 
     /// <summary>
-    /// 处理有冲突的选项。不原地改写入参（DownloadRequest 不可变），返回修正后的副本（C2）。
+    /// 处理有冲突的选项。不原地改写入参（DownloadRequest 不可变），返回修正后的副本。
     /// 内容字符的冲突（AudioOnly / VideoOnly 互斥等）已由 <see cref="ContentSelector.Resolve"/> 在解析层消解。
     /// </summary>
     internal static DownloadRequest HandleConflictingOptions(DownloadRequest myOption)

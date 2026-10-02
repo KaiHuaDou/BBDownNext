@@ -25,7 +25,7 @@ public static partial class Login
         return element.TryGetProperty("message", out var m) ? (m.GetString( ) ?? "") : "";
     }
 
-    // 日志中只展示凭据首尾，避免明文泄露（P0-3）
+    // 日志中只展示凭据首尾，避免明文泄露
     private static string MaskSecret(string? s)
     {
         return string.IsNullOrEmpty(s) || s.Length <= 8 ? "***" : $"{s[..4]}****{s[^4..]}";

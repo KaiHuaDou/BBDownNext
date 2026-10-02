@@ -16,7 +16,7 @@ namespace BBDown.Cli;
 public sealed class LiveProgress : IDisposable
 {
     private static readonly TimeSpan RenderInterval = TimeSpan.FromSeconds(0.5);
-    // 输出重定向时状态行改为定期打日志，否则日志文件里只会剩最后一行
+    // 输出重定向时状态行以定期日志输出，否则日志文件里只会剩最后一行
     private static readonly TimeSpan RedirectedLogInterval = TimeSpan.FromSeconds(60);
 
     private readonly bool drawToConsole = !Console.IsOutputRedirected;

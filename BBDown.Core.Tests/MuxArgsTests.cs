@@ -282,7 +282,7 @@ public class MuxArgsTests
 
         Assert.Contains("/tmp/m1.m4a:lang=und", args);
         Assert.Contains("/tmp/m2.m4a:lang=und", args);
-        // 视频 1 / 音频 2，配音轨 3、4；title 缺失回落 personName，personName 与 name 相同不再重复写 artist
+        // 视频 1 / 音频 2，配音轨 3、4；title 缺失回落 personName，personName 与 name 相同不重复写 artist
         Assert.Equal("3:type=name:str=配音", ValueAfter(args, "-udta"));
         Assert.Contains("3:type=artist:str=甲", args);
         Assert.Contains("4:type=name:str=乙", args);

@@ -83,8 +83,8 @@ internal static class DashTrackReader
 
     private static void CollectAudioTracks(ParsedResult result, JsonElement root, int pDur, bool tvApi)
     {
-        // 即使 dash.Audio 为 null（杜比/Hi-Res-only 片源），也要从 root 收集 dolby/flac 音轨（§2.7）；
-        // 旧实现在此提前 return，会连带丢掉杜比/FLAC
+        // 即使 dash.Audio 为 null（杜比/Hi-Res-only 片源），也要从 root 收集 dolby/flac 音轨：
+        // 此处提前 return 会连带丢掉杜比/FLAC
         var audio = ArrayAtPath(root, "dash", "audio") ?? [];
         foreach (var node in audio)
         {

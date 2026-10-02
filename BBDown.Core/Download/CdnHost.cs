@@ -26,7 +26,7 @@ public static partial class CdnHost
         selectedAudio?.BaseUrl = ApplyCdnHostPolicy(selectedAudio.BaseUrl, myOption, cfg, "音频流");
     }
 
-    // FLV 走分段直链，同样需要按 upos-host / PCDN / 海外源策略换域名（P1-21）
+    // FLV 走分段直链，同样需要按 upos-host / PCDN / 海外源策略换域名
     internal static void Apply(DownloadRequest myOption, List<string> clips, AppConfig cfg)
     {
         ArgumentNullException.ThrowIfNull(clips);
@@ -60,8 +60,8 @@ public static partial class CdnHost
         }
 
         // 4. 默认强制替换为备用 host，除非 --no-force-host。
-        //    但若 --allow-pcdn 且当前 URL 仍是 PCDN 域名（带显式端口），则不再强行覆盖，
-        //    否则 --allow-pcdn 必须在 --no-force-host 同时存在时才生效，等于死选项（P0-7）
+        //    但若 --allow-pcdn 且当前 URL 仍是 PCDN 域名（带显式端口），则不强行覆盖，
+        //    否则 --allow-pcdn 必须与 --no-force-host 同时存在才生效，等于死选项
         if (!myOption.NoForceHost && !(myOption.AllowPcdn && PcdnRegex( ).IsMatch(url)))
         {
             url = Replace(UposRegex( ), BACKUP_HOST, "默认强制替换");

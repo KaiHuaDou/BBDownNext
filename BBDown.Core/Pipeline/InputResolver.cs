@@ -262,7 +262,7 @@ public static partial class InputResolver
 
     // 课程（cheese）解析：纯字符串，不触网。
     // ep 形式直接取 ep_id；ss 形式保留 season_id，交由 CheeseInfoFetcher 按 season_id 直接拉取整季，
-    // 避免旧实现「先请求一次接口取首集 ep_id、再请求一次拉整季」的冗余往返（见 cheese-review 的 S1/C1）。
+    // 避免先请求接口取首集 ep_id 再请求拉整季的冗余往返。
     private static ResourceId ResolveCheese(string input)
     {
         if (input.Contains("/ep"))
@@ -387,7 +387,7 @@ public static partial class InputResolver
     }
 
     // md（番剧详情页 id）本质是 media_id，需经 pgc/review/user 映射出 season_id，
-    // 交由 BangumiInfoFetcher 按 season_id 拉取整季正片。旧实现取 new_ep.Id（最新一集）改为整季，用户可用 -p 选定具体集。
+    // 交由 BangumiInfoFetcher 按 season_id 拉取整季正片，用户可用 -p 选定具体集。
     private static async Task<long> GetSeasonIdByMDAsync(string mdId, Core.AppConfig cfg, CancellationToken ct = default)
     {
         var api = $"{BiliApi.ReviewUser}?media_id={mdId}";

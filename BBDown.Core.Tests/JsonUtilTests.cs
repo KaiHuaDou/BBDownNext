@@ -80,7 +80,7 @@ public class JsonUtilTests
         Assert.Equal(expected, JsonUtil.ContainsEpisode(Parse(json), epId));
     }
 
-    // 旧实现把整棵子树 ToString 后找 "/ep123"，ep1234 的链接会误命中
+    // 必须按字段精确匹配：子串匹配会让 "123" 误命中 id 1234 / ep1234
     [Fact]
     public void ContainsEpisode_DoesNotMatchLongerIdPrefix( )
     {

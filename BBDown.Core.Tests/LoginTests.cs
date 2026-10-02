@@ -2,7 +2,7 @@ namespace BBDown.Core.Tests;
 
 public class LoginTests
 {
-    // MaskSecret 是 private，借反射覆盖：日志里只露凭据首尾，避免明文泄露 (P0-3)
+    // MaskSecret 是 private，借反射覆盖：日志里只露凭据首尾，避免明文泄露
     private static readonly System.Reflection.MethodInfo MaskSecretMethod =
         typeof(Login).GetMethod("MaskSecret", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
 

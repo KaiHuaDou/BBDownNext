@@ -11,7 +11,7 @@ namespace BBDown.Core.Tests;
 [Collection<HttpStubCollectionDefinition>]
 public class BangumiMdTests
 {
-    // 仅保留映射所需的字段：result.media.season_id。旧实现取 new_ep.Id（最新一集）已改为整季。
+    // 仅保留映射所需的字段：result.media.season_id
     private const string ReviewUserJson = """
     {
       "code": 0,
@@ -95,8 +95,7 @@ public class BangumiMdTests
     [Fact]
     public async Task ResolveIdAsync_BangumiMd_ApiError_ThrowsReadableMessage( )
     {
-        // 旧实现会把 "md2539" 直接拼进 media_id 导致 -400，再因缺 result 抛 KeyNotFoundException。
-        // 现在应抛带 code/message 的可读异常，而非 KeyNotFoundException。
+        // 接口报错时应抛带 code/message 的可读异常，而非 KeyNotFoundException
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) => HttpStub.WithResponder(
             _ => HttpStub.Json("""{"code":-400,"message":"请求错误"}"""),
             ( ) => InputResolver.ResolveIdAsync("md2539", AppConfig.Empty)));

@@ -96,8 +96,7 @@ public class ResumeDownloadTests
         }
     }
 
-    // 独占语义：用信号在达到目标并发数时精确放行，确保重叠窗口确定存在，
-    // 不再依赖固定延时窗（旧实现固定 Delay(20) 在慢机上偶发 peak=1）。
+    // 独占语义：用信号在达到目标并发数时精确放行，确保重叠窗口确定存在，不依赖固定延时窗。
     // releaseAt=1：首请求立即放行（单连接场景）；releaseAt=2：需等到第二请求在飞才放行（多线程场景）
     private sealed class GatedServingHandler(byte[] data, int releaseAt = 2) : HttpMessageHandler
     {
@@ -345,7 +344,7 @@ public class ResumeDownloadTests
         }
     }
 
-    // 下载请求头与旧 AddDownloadHeaders 一致：UA、非 android 平台 Referer、Cookie 都带上
+    // 下载请求头须带全：UA、非 android 平台 Referer、Cookie
     [Fact]
     public async Task Download_SendsBrowserLikeHeaders( )
     {

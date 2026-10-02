@@ -1,18 +1,50 @@
 # AGENTS
 
-下述“我”指用户。
+下述“我”指用户
 
-如果我使用“分析”二字，就一定不要修改代码！
+如果我使用“分析”二字，就不要修改代码
 
 ## 概览
 
-BBDown 是 B 站视频下载器，C# / .NET（AOT 单文件发布）。命令入口在 `BBDown/Program.cs`，下载编排在 `BBDown.Core`，测试在 `BBDown.Tests` / `BBDown.Core.Tests`。
+BBDown 是 B 站视频下载器，C# / .NET（AOT 单文件发布）。命令入口在 `BBDown/Program.cs`，下载编排在 `BBDown.Core`，测试在 `BBDown.Tests` / `BBDown.Core.Tests`
+
+`Plugins` 文件夹中有插件，每个插件文件夹都单独成一个 git 仓库
+
+## bilibili
 
 bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 另有新版文档：`./bilibili-API-collect/0-BACNext-Main-2MB.md` 和 `./bilibili-API-collect/0-BACNext-Passport-57KB.md`
 
-`Plugins` 文件夹中有插件，每个插件文件夹都单独成一个 git 仓库。
+## 环境要求
+
+所有命令必须在**沙箱外**运行
+
+### Skills
+
+在以下任务中，建议使用 Skills，Skills 位于 `D:\Code\Clones\openclaw\.agents\skills` 以及 `C:\Users\Administrator\.agents\skills`
+
+- 审查代码
+- 审查测试
+- 更新文档
+
+### dotnet
+
+运行前先执行 `taskkill -f -im dotnet.exe`（Git Bash 下用 `-` 前缀，`//` 前缀无效）清理残留进程，必要时连带 `testhost.exe` / `BBDown.Tests.exe`
+
+### Node.js
+
+优先使用 `pnpm`/`pnpx`
+
+**禁用** `npm`/`npx`
+
+许多常用命令已使用 `pnpm add -g` 安装，使用 `pnpm list -g`，此时不应使用 `pnpx` / `npx` （如 `skills`）
+
+`corepack` 不可用，也不要试图安装
+
+### 其他工具
+
+使用 `scoop list` 发现工具
 
 ## 强制要求
 
@@ -20,7 +52,7 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 - **去 OOP 过度包装**：不要多余的包装层 / 接口 / 枚举
     - 一个 Interface 如果没有 3+ 实现就不要设计出来
-    - 不要为了方便测试去做 Dependency Injection。
+    - 不要为了方便测试去做 Dependency Injection
     - 能合并的重复逻辑不要轻易制造基类
     - 严禁任何 pass-through 转发类、转发函数
 - 除非即特别情况，**禁止**任何嵌套函数/嵌套类
@@ -34,13 +66,13 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 #### 文件规模
 
-- 单个 `.cs` 文件不得超过 384 行（测试除外）、单个方法不得超过 128 行（测试除外）。
-    - 如因清理历史遗留问题暂时超过，必须在在后续改动中尽快拆分。
-    - 使用 `just tokei` 来分析行数
+- 单个 `.cs` 文件不得超过 384 行（测试除外）、单个方法不得超过 128 行（测试除外）
+    - 如因清理历史遗留问题暂时超过，必须在在后续改动中尽快拆分
+    - 使用 `tokei` 来分析行数
 
 #### 注释
 
-- 所有注释均使用中文。
+- 所有注释均使用中文
 - 注释只描述**当前**情况，禁止写入任何变更记录
 - 代码必须自描述（Code describe itself）。**不写复述代码行为的注释。**
   注释仅用于解释代码无法表达的契约，例如：
@@ -50,12 +82,12 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 #### 文档与提交
 
-- **禁止**将你自行编写的任何计划、设计草稿、临时文档提交或暂存到仓库。
-- 所有对外文档（`README.md`、命令行帮助、提示语）**只陈述事实**，不得添加任何多余的形容词或修饰性语言。
-- 全文（注释、文档、提交信息）**禁用“收敛”一词**。
+- **禁止**将你自行编写的任何计划、设计草稿、临时文档提交或暂存到仓库
+- 所有对外文档（`README.md`、命令行帮助、提示语）**只陈述事实**，不得添加任何多余的形容词或修饰性语言
+- 全文（注释、文档、提交信息）**禁用“收敛”一词**
 - 当我直接要求你提交 commit 时，将暂存区的所有内容全部提交，不要将非暂存区内容提交到暂存区
 - 更新文档时，严格以实际代码为准，参考最近的 git commit 记录（一定看完整提交信息）
-- 每次提交之前都先更新 `CHANGELOG.md`/`README.md`，更新到最后一节，永远不要新建一节。
+- 每次提交之前都先更新 `CHANGELOG.md`/`README.md`，更新到最后一节，永远不要新建一节
 - 提交信息使用中文，格式严格为：
 
 ```commit-msg
@@ -70,10 +102,10 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 #### 书写格式
 
-- 在注释、文档、帮助文本中，中文与英文/数字之间必须保留一个半角空格。
+- 在注释、文档、帮助文本中，中文与英文/数字之间必须保留一个半角空格
     - 正确：`使用 FFmpeg 合并音视频`
     - 错误：`使用FFmpeg合并音视频`
-- 中文内容一律使用中文全角标点（，。！？）；代码块、标识符和内联命令不受此限制。
+- 中文内容一律使用中文全角标点（，。！？）；代码块、标识符和内联命令不受此限制
 
 ### 语法
 
@@ -93,7 +125,7 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 - 空括号中间要加空格，即`( )`
 - 不要在方法/嵌套方法/构造函数上使用 `=>`，属性可以
 - `<summary>`、`</summary>` 无论如何都单独占一行
-- **除非冲突的情况**，不要在 class 前使用 namespace 前缀，尽量使用 `using <namespace>;`（即便只有一处调用也要。
+- **除非冲突的情况**，不要在 class 前使用 namespace 前缀，尽量使用 `using <namespace>;`（即便只有一处调用也要
 - `#pragma`
     - 整文件抑制
     - `#pragma` 放在文件顶部，后留一空行
@@ -146,9 +178,23 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
     - 输入格式
         - 涉及音视频的：`<ID><value>`（如 opusXXXXXX、BVXXXXXX）或直接 url
 
+## 测试
+
+**测试范围**：只测静态 / 纯函数；涉及耗时复杂操作（真实服务器、WebSocket、网络请求、文件 IO、解析等）一律不测。测试过不了直接删除该测试，不反复调试
+
+### Stub 归属
+
+`BBDown.Core.Tests/Stubs/` 是测试替身的唯一来源，属「一个测试代码文件最多对应一个项目代码文件」的已确认例外：这些文件不对应任何项目代码文件。测试文件内**不再** private 复制 `HttpMessageHandler` / `HttpContent` / 临时目录 / 脚本序列，一律调用 `Stubs` 下已有的类型
+
+- `Stubs/HttpStub.cs` 是替换进程级静态 `HTTPUtil.AppHttpClient` 的**唯一**入口，用例不得直接改这个静态
+- 替换其它静态的测试用各自独立的集合定义，并在注释中写明换的是哪个静态
+- 确有独占语义、无人复用的桩（如 `ResumeDownloadTests` 的 Range / 并发峰值桩）可留在测试文件内保持 `private`，但须在注释中说明独占理由
+
+**序列化约定**：xUnit 不会因漏挂 `[Collection]` 报错，漏挂只表现为偶发失败。凡替换进程级静态的测试类必须挂对应的 `[CollectionDefinition]`，且**必须用类型形式** `[Collection<XxxDefinition>]`；字符串形式 `[Collection("名字")]` 在没有同名 `[CollectionDefinition("名字")]` 时会静默另开一个可并行的集合，串行保护完全失效
+
 ## WPF 要求
 
-- 注意：本节针对已废弃的 WPF 实现；`BBDown.GUI` 已迁移至 Avalonia（`.axaml`），以下规则不再适用，请勿套用。
+- 注意：本节针对已废弃的 WPF 实现；`BBDown.GUI` 已迁移至 Avalonia（`.axaml`），以下规则不再适用，请勿套用
 
 - 开发 WPF 遵守以下要求，与其他冲突以此为准
 
@@ -211,7 +257,7 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
     - 永远要注册 `Application.DispatcherUnhandledException` 兜住所有异常
     - 所有窗体类都应为 `public`
     - 单独分出 `UserControl` 要经过我确认
-    - 应用程序全局变量放在 `App` 下的 `static` (`readonly` 可选) 属性。
+    - 应用程序全局变量放在 `App` 下的 `static` (`readonly` 可选) 属性
     - 充分使用 `VirtualizingStackPanel`
     - 避免过深视觉树
     - 样式具有大量重复的，在 `Theme.xaml` 新建 `Style`
@@ -240,39 +286,23 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 - 异步 - 多余等待、缺少等待
 - 检查代码 - 检查过晚，检查在嵌套中过深等
 
-根本：维护代码的长期质量，在保持性能基线的情况保持极高的可维护性、可扩展性（但不要过度 OOP）。
+根本：维护代码的长期质量，在保持性能基线的情况保持极高的可维护性、可扩展性（但不要过度 OOP）
 
 ## 其他内容
 
-AGENT 对此文档的修改只能添加在本节，在本节添加内容无需经过批准。
+AGENT 对此文档的修改只能添加在本节，在本节添加内容无需经过批准
 
-其他节不许动。我会定期从中选取移动到上面。
+其他节不许动。我会定期从中选取移动到上面
 
-此处应做为添加**约定**的最高优先级。超越 `MEMORY.md` 和工作日志。
+此处应做为添加**约定**的最高优先级。超越 `MEMORY.md` 和工作日志
 
 ### 判别联合特例
 
-`BBDown.Core/ResourceId.cs` 采用嵌套 `record`（`abstract record ResourceId` 内含 `Av` / `Ep` / `Season` / `CheeseEp` / `CheeseSeason` / `Fav` / `MediaList` / `Series` / `Space` / `WatchLater` 等 `sealed record` 子类型）实现判别联合，属「禁止嵌套类」规则的已确认例外：它以类型安全替代字符串前缀打标，且 `FetcherRegistry` 的 `switch` 据此分发、缺分支编译报错。其余场景仍遵守「禁止嵌套类」。注意直播录制走独立链路（`LiveInputResolver` → `LiveDownload`），不经 `ResourceId`，故无对应子类型。
+`BBDown.Core/ResourceId.cs` 采用嵌套 `record`（`abstract record ResourceId` 内含 `Av` / `Ep` / `Season` / `CheeseEp` / `CheeseSeason` / `Fav` / `MediaList` / `Series` / `Space` / `WatchLater` 等 `sealed record` 子类型）实现判别联合，属「禁止嵌套类」规则的已确认例外：它以类型安全替代字符串前缀打标，且 `FetcherRegistry` 的 `switch` 据此分发、缺分支编译报错。其余场景仍遵守「禁止嵌套类」。注意直播录制走独立链路（`LiveInputResolver` → `LiveDownload`），不经 `ResourceId`，故无对应子类型
 
 ### FLV 交互选清晰度不生效（故意设计）
 
-`FlvDownload` 交互式清晰度选择（`PickDfn` → 按所选 dfn 重解析）对最终产物**没有影响**：`Parser` 对 WEB 通道一律按 `Config.MaxQn` 请求，FLV 强制最高清晰度，所选 dfn 不会改变下载的分片。该行为是既定设计，**不要**“修复”成让所选 dfn 真正生效。`Parser.ExtractTracksAsync` 的 `qn` 参数对 WEB 通道被刻意忽略（INTL 通道除外），改 `Parser` 时须保持这一点。
-
-### dotnet 命令执行方式（沙箱与进程清理）
-
-所有 `dotnet` 命令（build / test 等）必须在**沙箱外**运行，且运行前先执行 `taskkill -f -im dotnet.exe`（Git Bash 下用 `-` 前缀，`//` 前缀无效）清理残留进程，必要时连带 `testhost.exe` / `BBDown.Tests.exe`。
-
-**测试范围约定**：只测静态 / 纯函数；涉及耗时复杂操作（真实服务器、WebSocket、网络请求、文件 IO、解析等）一律不测。测试过不了直接删除该测试，不反复调试。
-
-### 测试替身（Stub）归属
-
-`BBDown.Core.Tests/Stubs/` 是测试替身的唯一来源，属「一个测试代码文件最多对应一个项目代码文件」的已确认例外：这些文件不对应任何项目代码文件。测试文件内**不再** private 复制 `HttpMessageHandler` / `HttpContent` / 临时目录 / 脚本序列，一律调用 `Stubs` 下已有的类型。
-
-- `Stubs/HttpStub.cs` 是替换进程级静态 `HTTPUtil.AppHttpClient` 的**唯一**入口，用例不得直接改这个静态
-- 替换其它静态的测试用各自独立的集合定义，并在注释中写明换的是哪个静态
-- 确有独占语义、无人复用的桩（如 `ResumeDownloadTests` 的 Range / 并发峰值桩）可留在测试文件内保持 `private`，但须在注释中说明独占理由
-
-**序列化约定**：xUnit 不会因漏挂 `[Collection]` 报错，漏挂只表现为偶发失败。凡替换进程级静态的测试类必须挂对应的 `[CollectionDefinition]`，且**必须用类型形式** `[Collection<XxxDefinition>]`；字符串形式 `[Collection("名字")]` 在没有同名 `[CollectionDefinition("名字")]` 时会静默另开一个可并行的集合，串行保护完全失效。
+`FlvDownload` 交互式清晰度选择（`PickDfn` → 按所选 dfn 重解析）对最终产物**没有影响**：`Parser` 对 WEB 通道一律按 `Config.MaxQn` 请求，FLV 强制最高清晰度，所选 dfn 不会改变下载的分片。该行为是既定设计，**不要**“修复”成让所选 dfn 真正生效。`Parser.ExtractTracksAsync` 的 `qn` 参数对 WEB 通道被刻意忽略（INTL 通道除外），改 `Parser` 时须保持这一点
 
 ### 进程级静态检查单
 
@@ -282,4 +312,4 @@ AGENT 对此文档的修改只能添加在本节，在本节添加内容无需�
 - 上下文作用域 → AsyncLocal 作用域句柄（参照 `MessageBus.BeginScope`）
 - 跨宿主注册表 → 按会话键控的 `ConcurrentDictionary` + 原子摘除（参照 `LiveSignal`）
 
-只读缓存与宿主固有单例（如 CLI 控制台钩子）可保留进程级，但须在注释中声明写者与写入时机。
+只读缓存与宿主固有单例（如 CLI 控制台钩子）可保留进程级，但须在注释中声明写者与写入时机

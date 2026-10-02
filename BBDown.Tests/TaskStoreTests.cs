@@ -19,7 +19,6 @@ public class TaskStoreTests
     [Fact]
     public void ApplyServeWorkDir_FallsBackToServerConfig( )
     {
-        // 缺陷回归：此前 SetUpServer 丢弃了 --work-dir，serve 任务始终落到进程当前目录。
         // 验证服务端配置的工作目录会被注入到每个任务（且请求体不含该字段，无法被客户端覆盖）。
         var tmp = Path.Combine(Path.GetTempPath( ), "bbdown-workdir-" + Guid.NewGuid( ).ToString("N"));
         var store = NewStore(new ServeConfig(WorkDir: tmp));
@@ -32,7 +31,7 @@ public class TaskStoreTests
     [Fact]
     public void ApplyServeHost_FallsBackToServerConfig( )
     {
-        // P0-1 回归：host 由 serve 启动参数决定，请求体不含该字段，无法被客户端覆盖。
+        // host 由 serve 启动参数决定，请求体不含该字段，无法被客户端覆盖。
         var store = NewStore(new ServeConfig(Host: "https://biliplus.example.com", EpHost: "https://biliplus.example.com", TvHost: "api.snm0516.aisee.tv"));
 
         var opts = store.ApplyServeHost(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
@@ -45,7 +44,7 @@ public class TaskStoreTests
     [Fact]
     public void ApplyServeHost_EmptyFallsBackToDefault( )
     {
-        // §2.5：serve 启动参数 host 为空时回落官方默认，避免空 host 抛出 UriFormatException
+        // serve 启动参数 host 为空时回落官方默认，避免空 host 抛出 UriFormatException
         var store = NewStore(new ServeConfig(Host: "", EpHost: null, TvHost: "  "));
 
         var opts = store.ApplyServeHost(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });

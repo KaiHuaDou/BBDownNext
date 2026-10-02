@@ -16,8 +16,8 @@ namespace BBDown.Serve;
 /// 进程级全局字段（Debug / UserAgent）与本地配置文件（ConfigFile）——
 /// 这样新增一个下载选项时不会自动变成 serve 的可注入点，也不必再维护一份「清零列表」。
 /// 交互式选项（InteractivePages / InteractiveQuality）经 WebSocket 事件流送达客户端应答，随任务提交。
-/// 其中 Host/EpHost/TvHost 因「请求不带 cookie 时回落本机 SESSDATA、host 又由请求体控制」会形成凭据外泄链（P0-1），
-/// 已整体移出请求契约，改为 serve 启动参数（--host/--ep-host/--tv-host）固定，详见 <see cref="TaskStore.ApplyServeHost"/>。
+/// 其中 Host/EpHost/TvHost 因「请求不带 cookie 时回落本机 SESSDATA、host 又由请求体控制」会形成凭据外泄链，
+/// 不在请求契约中：由 serve 启动参数（--host/--ep-host/--tv-host）固定，详见 <see cref="TaskStore.ApplyServeHost"/>。
 /// </summary>
 internal sealed class ServeRequestOptions
 {

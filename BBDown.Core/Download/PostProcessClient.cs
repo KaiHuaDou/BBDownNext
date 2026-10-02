@@ -13,8 +13,7 @@ namespace BBDown.Core.Download;
 // 外部后处理进程的文件交换协议：请求 JSON 落盘 → 调起进程单次执行 → 产物文件即响应。
 // 未配置 --post-process 时整个路径不启用：默认静默，原文件照常混流输出。
 // 请求只携带轨道定位与本地路径，不携带任何加密特征与凭据——处理方自行获取所需信息。
-// 处理程序路径随 DownloadRequest.PostProcessPath 按任务透传（取代进程级全局，
-// 避免 GUI 并发任务互相覆盖配置）。
+// 处理程序路径随 DownloadRequest.PostProcessPath 按任务透传，避免 GUI 并发任务互相覆盖配置。
 public static class PostProcessClient
 {
     // 插件需完成 playurl 重抓（可能含 drm_tech_type=2 重试）、license 取钥与 ffmpeg 解密，20 秒在慢网络下不够

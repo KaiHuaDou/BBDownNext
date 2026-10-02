@@ -13,7 +13,7 @@ using BBDown.Core.Download;
 
 namespace BBDown.GUI;
 
-/// <summary>面板控件与 TaskParams 之间的映射，按 §3 控件组拆分为 partial，控制 MainWindow.xaml.cs 行数。</summary>
+/// <summary>面板控件与 TaskParams 之间的映射，按控件组拆分为 partial，控制 MainWindow.xaml.cs 行数。</summary>
 public partial class MainWindow
 {
     private static readonly (string Value, string Label)[] MuxChoices =

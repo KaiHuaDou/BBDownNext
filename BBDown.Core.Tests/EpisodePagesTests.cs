@@ -41,7 +41,7 @@ public class EpisodePagesTests
         Assert.Equal("2 终点", pages[1].Title);
     }
 
-    // dimension / pub_time 在部分分集上缺失，旧实现分别靠 catch 和 TryGetProperty 兜底，行为不一致
+    // dimension / pub_time 在部分分集上缺失，缺失时须回落空串 / 0 而非抛异常
     [Fact]
     public void BuildEpisodePages_ToleratesMissingDimensionAndPubTime( )
     {

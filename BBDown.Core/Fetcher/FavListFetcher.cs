@@ -122,7 +122,6 @@ public static class FavListFetcher
         return (allMedias, title, intro, pubTime);
     }
 
-    // 多 P 视频此前逐个串行发 view 拿分 P 列表，N 个多 P = N 次串行 RTT；改为限并发并行拉取。
     // 单个视频被删 / 风控时跳过该视频，不让整个收藏夹因一条失败而中断（与 SpaceListFetcher 一致）
     private static async Task<ConcurrentDictionary<string, VInfo>> BackfillMultiPAsync(List<string> multiPIds, AppConfig cfg, CancellationToken ct)
     {

@@ -30,7 +30,6 @@ public static class Parser
         var effectiveQn = req.Api == ApiType.Intl ? qn : Config.MaxQn;
         ParsedResult result = new( )
         {
-            //调用解析
             RawResponse = await PlayUrlClient.FetchAsync(req, effectiveQn, ct)
         };
 
@@ -68,7 +67,6 @@ public static class Parser
             }
 
             // 单次 MaxQn 请求的降级盲区：dash 响应却收集不到任何音轨，多半是限流/风控降级
-            //（旧逻辑在二次请求降级时回退首次响应的音轨，单次请求没有兜底，只能提示重试）
             if (result.AudioTracks.Count == 0)
             {
                 LogWarn("拉流响应异常：未解析到任何音轨（可能被限流或风控降级），可稍后重试");

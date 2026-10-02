@@ -19,7 +19,6 @@ internal static class PageQueue
     {
         var vInfo = fetch.VInfo;
         var pagesInfo = vInfo.PagesInfo;
-        //获取已选择的分 P 列表：交互式优先，此时命令行 --pages 无意义
         List<string>? selectedPages;
         if (myOption.InteractivePages)
         {
@@ -38,7 +37,6 @@ internal static class PageQueue
         Log($"共计 {pagesInfo.Count} 个分 P，已选择：" + (selectedPages == null ? "ALL" : FormatSelected(selectedPages)));
         var totalPages = pagesInfo.Count;
 
-        //过滤不需要的分 P
         if (selectedPages != null)
         {
             // 逐页对选中列表做线性扫描是 O(分 P 数 × 选中数)；转 Ordinal 集合后为 O(1)，展示顺序仍由上面的列表决定
@@ -170,7 +168,7 @@ internal static class PageQueue
                 await run(page, ct);
             }
             // 仅当用户真的取消（ct 已请求取消）时才上抛；HttpClient 超时等瞬态故障被包装成
-            // OperationCanceledException 但 ct 未取消，应落入普通错误分支继续下载其余分 P（§2.2）
+            // OperationCanceledException 但 ct 未取消，应落入普通错误分支继续下载其余分 P
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 throw;

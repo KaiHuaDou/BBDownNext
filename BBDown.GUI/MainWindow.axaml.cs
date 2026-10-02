@@ -59,7 +59,7 @@ public partial class MainWindow : Window
 
         MuxBox.SelectedIndex = 0;
 
-        // 下载核心的日志直接进窗口日志区（替代原解析子进程 stdout），按级别着色；Scope 标注任务序号
+        // 下载核心的日志直接进窗口日志区，按级别着色；Scope 标注任务序号
         MessageBus.Subscribe(OnLogMessage);
         // 下载进度样本按 Scope（任务序号）回投到对应任务行
         ProgressBus.Subscribe(OnProgress);

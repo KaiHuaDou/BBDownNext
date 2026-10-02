@@ -19,7 +19,7 @@ public partial class AskDialog : Window
     /// <summary>用户选择的选项 Id；窗口被关闭（未选）为 null。</summary>
     public string? Result { get; private set; }
 
-    private DispatcherTimer? deadlineTimer;
+    private readonly DispatcherTimer? deadlineTimer;
 
     // 无参构造仅用于 Avalonia XamlLoader 的运行时可达性检查，实际使用走带参构造
     public AskDialog( )

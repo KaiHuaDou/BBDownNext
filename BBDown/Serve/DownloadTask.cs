@@ -11,7 +11,7 @@ public enum DownloadStatus
 {
     Pending,  // 已受理、等待手动 start（enqueue 提交，不自动执行）
     Queued,   // 已提交执行、等待并发额度（仅 --max-concurrent > 0 时出现）
-    Running,  // 下载中
+    Running,
     Finished, // 已结束，成败见 IsSuccessful
 }
 

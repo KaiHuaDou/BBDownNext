@@ -1,6 +1,6 @@
 namespace BBDown.Core.Download;
 
-// Aborted 为 true 表示该分 P 应立即结束（不再登记 SavePath）；
+// Aborted 为 true 表示该分 P 应立即结束（不产出 SavePath）；
 // Preview 为 true 表示产出的是充电试看片段，不应写入归档记录
 public readonly record struct PageOutcome(
     bool Aborted,

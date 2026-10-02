@@ -124,7 +124,7 @@ public class DashTrackReaderTests
         Assert.False(DashTrackReader.DeclaredButMissing(root, result, "100"));
     }
 
-    // dolby.type=2 标为「杜比全景声」，不再只标杜比音效
+    // dolby.type=2 应标为「杜比全景声」而非「杜比音效」
     [Fact]
     public void Collect_DolbyType2LabelsAtmos( )
     {

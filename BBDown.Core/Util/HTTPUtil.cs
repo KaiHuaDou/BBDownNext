@@ -138,9 +138,8 @@ public static class HTTPUtil
 
     /// <summary>
     /// 登录专用：GET 指定地址（通常是 poll 成功返回的 crossDomain 端点），通过独立 <see cref="CookieContainer"/>
-    /// 接收其 <c>Set-Cookie</c> 并返回容器。这是 B 站下发登录 cookie 的正规通道——浏览器正是靠「导航到该 URL」
-    /// 拿到 cookie，而 BBDown 之前从未执行这步，只从 <c>data.Url</c> 的 query 解析（该通道已被移除），
-    /// 因此拿不到 cookie。重定向由 <see cref="HttpTransfer"/> 逐跳手动跟随，各跳的 Set-Cookie 都进容器。
+    /// 接收其 <c>Set-Cookie</c> 并返回容器。这是 B 站下发登录 cookie 的正规通道——cookie 只能靠「导航到该 URL」
+    /// 的响应获得。重定向由 <see cref="HttpTransfer"/> 逐跳手动跟随，各跳的 Set-Cookie 都进容器。
     /// </summary>
     public static async Task<CookieContainer> GetCookieJarAsync(string url, AppConfig cfg, CancellationToken ct = default)
     {

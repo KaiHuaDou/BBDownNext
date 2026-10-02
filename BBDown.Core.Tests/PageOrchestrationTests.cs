@@ -52,7 +52,7 @@ public class PageOrchestrationTests
         Assert.Equal("boom", error.Error.Message);
     }
 
-    // --stop-on-error：第一个失败即停，后续分P 不再执行
+    // --stop-on-error：第一个失败即停，后续分 P 不执行
     [Fact]
     public async Task StopOnError_AbortsAfterFirstFailure( )
     {

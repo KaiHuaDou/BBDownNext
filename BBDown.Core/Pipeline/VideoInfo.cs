@@ -18,9 +18,9 @@ public static class VideoInfo
     // Web Cookie 主动续期只跑一次，避免批量下载时每个视频都打 /cookie/info
     private static int cookieRefreshed;
 
-    // nav 探测（wbi 密钥）缓存：进程内只探测一次，批量下载不再逐 URL 打 nav 接口。
+    // nav 探测（wbi 密钥）缓存：进程内只探测一次。
     // 读写都用 lock 保护：并发探测只保留一个 task；失败清空时校验引用，
-    // 防止并发期间他人新建的探测被误清（旧实现无条件置 null 存在竞态窗口）
+    // 防止并发期间他人新建的探测被误清
     private static readonly Lock probeGate = new( );
     private static Task<(AccountInfo Info, string Wbi)>? accountProbeTask;
 
@@ -39,8 +39,7 @@ public static class VideoInfo
         }
 
         // nav 无需登录即可返回 wbi 密钥；TV/国际版模式同样会命中 wbi 接口（view、player/wbi/v2），
-        // 跳过取密钥会让签名为空而被服务端拒绝（P1-27）。nav 探测与 buvid 拉取互不依赖，并行执行；
-        // nav 结果进程内只探测一次（accountProbeTask 缓存），批量下载不再逐 URL 打 nav 接口。
+        // 跳过取密钥会让签名为空而被服务端拒绝。nav 探测与 buvid 拉取互不依赖，并行执行
         Log("检测账号登录...");
         var navTask = EnsureAccountProbedAsync(cfg, ct);
         var buvidTask = Buvid.InitAsync(ct);
@@ -181,7 +180,6 @@ public static class VideoInfo
 
     private static void PrintPagesInfo(VInfo vInfo, DownloadRequest myOption)
     {
-        //打印分 P 信息
         var pagesInfo = vInfo.PagesInfo;
         var more = false;
         foreach (var p in pagesInfo)

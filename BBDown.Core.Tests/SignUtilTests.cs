@@ -6,7 +6,7 @@ namespace BBDown.Core.Tests;
 
 public class SignUtilTests
 {
-    // P0-10: WBI 签名是 Web 端鉴权命门（MD5 + mixinKey），错一位全线 -403。
+    // WBI 签名是 Web 端鉴权命门（MD5 + mixinKey），错一位全线 -403。
     // 下列向量取自 bilibili-API-collect/docs/misc/sign/wbi.md 的官方 Rust/Haskell 参考实现，
     // 用同一个 mixinKey 复算，确保本实现与服务端算法逐字节一致。
     private static readonly AppConfig WbiTestConfig =

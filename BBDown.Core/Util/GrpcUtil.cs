@@ -8,7 +8,7 @@ namespace BBDown.Core.Util;
 public static class GrpcUtil
 {
     /// <summary>
-    /// 读取 gRPC 响应流 通过前 5 字节信息 解析/解压后面的报文体
+    /// 按 gRPC 帧格式解包：1 字节压缩标志 + 4 字节大端长度 + 报文体
     /// </summary>
     public static byte[] ReadMessage(byte[] data)
     {

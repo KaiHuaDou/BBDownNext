@@ -151,7 +151,7 @@ public static class CredentialStore
         HardenFilePermissions(path);
     }
 
-    // 凭据明文落盘，尽量收紧文件权限：类 Unix 系统设为 600（仅 owner 可读写）；Windows 暂不收紧以避免误锁自身（P0-1）
+    // 凭据明文落盘，尽量收紧文件权限：类 Unix 系统设为 600（仅 owner 可读写）；Windows 暂不收紧以避免误锁自身
     private static void HardenFilePermissions(string path)
     {
         try

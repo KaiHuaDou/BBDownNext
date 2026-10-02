@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace BBDown.Core.Util;
 
-// debug 日志脱敏：凭据不落明文（与 DownloadOptions.WithSecretsRedacted 同一安全意图，P0-3）
+// debug 日志脱敏：凭据不落明文（与 DownloadOptions.WithSecretsRedacted 同一安全意图）
 public static partial class Redactor
 {
     private static readonly HashSet<string> SecretHeaderNames = ["Cookie", "Set-Cookie", "Authorization"];

@@ -94,7 +94,7 @@ public class LiveMuxerArgsTests
         Assert.Equal("ignore_err", ValueAfter(ts, "-err_detect"));
         Assert.True(ts.IndexOf("-fflags") < ts.IndexOf("-i"));
         Assert.True(ts.IndexOf("-err_detect") < ts.IndexOf("-i"));
-        // 非调试路径不再刷 warning 级 demux 噪声（如 Track size mismatch / corrupt input packet）
+        // 非调试路径 loglevel=error，不刷 warning 级 demux 噪声（如 Track size mismatch / corrupt input packet）
         Assert.Equal("error", ValueAfter(ts, "-loglevel"));
 
         var mp4 = LiveMuxer.BuildLiveRemuxArgs("in", "out.mp4", faststart: true, debugLog: false);

@@ -35,7 +35,7 @@ internal static class IntlTrackReader
 
     internal static void Collect(ParsedResult result, JsonElement videoInfo)
     {
-        // 缺字段时不应抛 KeyNotFoundException（P1-6）
+        // 缺字段时不应抛 KeyNotFoundException
         var pDur = videoInfo.TryGetProperty("timelength", out var tl) ? tl.GetInt32( ) / 1000 : 0;
         result.Duration = pDur;
 
@@ -58,7 +58,7 @@ internal static class IntlTrackReader
             }
         }
 
-        // 缺字段时不应抛 KeyNotFoundException（P1-6）
+        // 缺字段时不应抛 KeyNotFoundException
         if (videoInfo.TryGetProperty("dash_audio", out var dashAudioArr) && dashAudioArr.ValueKind == JsonValueKind.Array)
         {
             foreach (var node in dashAudioArr.EnumerateArray( ))

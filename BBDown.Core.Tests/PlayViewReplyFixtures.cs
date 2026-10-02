@@ -6,7 +6,7 @@ using VideoInfo = BBDown.Core.Protobuf.VideoInfo;
 
 namespace BBDown.Core.Tests;
 
-// 现网 gRPC 响应无法在离线测试中抓取, 改为按 playviewreply.proto 构造等价报文。
+// 现网 gRPC 响应无法在离线测试中抓取，按 playviewreply.proto 构造等价报文。
 // 构造完的对象一律经 PackMessage/ReadMessage 走一遍真实 gzip 封帧再 ParseFrom,
 // 这样 proto2 的字段默认值语义(未设置的 optional string 读出 "" 而非 null)与线上一致。
 internal static class PlayViewReplyFixtures

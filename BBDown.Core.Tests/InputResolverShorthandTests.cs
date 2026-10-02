@@ -3,8 +3,8 @@ using System.Threading.Tasks;
 
 namespace BBDown.Core.Tests;
 
-// 简写输入解析的畸形输入保护：此前 av/ep 前缀后跟非数字会在 long.Parse 处抛晦涩的
-// FormatException，现应落入统一的「输入有误」ArgumentException（或 BV 号的可读 InvalidOperationException）。
+// 简写输入解析的畸形输入保护：前缀后跟非数字应落入统一的「输入有误」
+// ArgumentException（或 BV 号的可读 InvalidOperationException）。
 // 这些用例都在触网前的纯解析阶段失败，可离线断言。
 public class InputResolverShorthandTests
 {

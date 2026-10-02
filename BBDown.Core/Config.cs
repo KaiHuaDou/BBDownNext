@@ -103,7 +103,7 @@ public static class Config
         return AudioQualityNameMap.TryGetValue(id, out var name) ? name : $"未知音质(id={id})";
     }
 
-    // 轨道排序权重（越小越优先），以 Qualities 的排列为准；取代原先隐式的 qn 数值降序。
+    // 轨道排序权重（越小越优先），以 Qualities 的排列为准。
     // 未收录的新档位按 qn 数值算插入位，与同位次的已知档位并列（再由码率决胜），
     // 不会被一律甩到末尾——B 站新增档位时不至于被当成最低画质
     public static int QualityRank(string qn)
@@ -119,7 +119,7 @@ public static class Config
             : Qualities.Length;
     }
 
-    //设置一次日志级别（仅允许在启动装配阶段调用，避免任意代码点改动全局状态）
+    // 仅允许在启动装配阶段调用，避免任意代码点改动全局状态
     public static void SetDebugLog(bool on)
     {
         DebugLog = on;

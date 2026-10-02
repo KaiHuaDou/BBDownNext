@@ -12,8 +12,7 @@ using static BBDown.Core.Logger;
 
 namespace BBDown.Core.PlayUrl;
 
-// App 端走 gRPC 拿到的是强类型 PlayViewReply, 直接构建轨道,
-// 不再序列化成网页那套 JSON 再解析回来
+// App 端走 gRPC 拿到的是强类型 PlayViewReply, 直接构建轨道, 无需经 JSON 转换
 internal static class AppTrackReader
 {
     internal static async Task<ParsedResult> FetchAsync(PlayUrlRequest req, CancellationToken ct = default)

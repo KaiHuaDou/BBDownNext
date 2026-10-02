@@ -4,8 +4,7 @@ namespace BBDown.Core.Tests;
 
 public class InputResolverCheeseTests
 {
-    // cheese 解析为纯字符串处理，不触网（ss 形式不再预先请求接口取首集 ep），
-    // 故可在无网络环境下断言内部 id 形态。
+    // cheese 解析为纯字符串处理，不触网，故可在无网络环境下断言内部 id 形态。
     public static TheoryData<string, ResourceId> CheeseCases => new( )
     {
         { "https://www.bilibili.com/cheese/play/ep790", new ResourceId.CheeseEp(790) },

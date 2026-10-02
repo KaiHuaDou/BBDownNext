@@ -18,7 +18,6 @@ internal static class FlvTrackReader
     {
         double size = 0;
         double length = 0;
-        //获取所有分段
         foreach (var node in root.GetProperty("durl").EnumerateArray( ))
         {
             result.Clips.Add(node.GetProperty("url").ToString( ));

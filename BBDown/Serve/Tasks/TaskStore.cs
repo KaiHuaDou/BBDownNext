@@ -15,7 +15,7 @@ namespace BBDown.Serve.Tasks;
 
 /// <summary>
 /// 任务状态容器与受理入口：running / finished 两表、按 ResourceId 去重、完成后裁剪。
-/// host 三兄弟与工作目录由服务端启动参数固定，经 ApplyServe* 注入每个任务（P0-1 / P0-2）。
+/// host 三兄弟与工作目录由服务端启动参数固定，经 ApplyServe* 注入每个任务。
 /// </summary>
 internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> queueWriter)
 {
@@ -36,7 +36,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
 
     /// <summary>
     /// 任务结构变更通知通道：任何 running / finished / pending 的增删改都写入一个标记项，
-    /// 由 WebSocket Hub 后台读取并广播全量列表帧（taskList）。这样前端可放弃轮询、改为事件流推送。
+    /// 由 WebSocket Hub 后台读取并广播全量列表帧（taskList），前端经事件流感知任务列表、无需轮询。
     /// 单消费者（Hub 单例）读取，writer 用 TryWrite 保证变更点不抛。
     /// </summary>
     private readonly Channel<StoreChanged> changes = Channel.CreateUnbounded<StoreChanged>( );
@@ -281,7 +281,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
         NotifyChanged( );
     }
 
-    // 已完成任务无上限增长会造成内存泄漏，超过阈值后按完成时间淘汰最旧的（P1-18）
+    // 已完成任务无上限增长会造成内存泄漏，超过阈值后按完成时间淘汰最旧的
     private void TrimFinishedTasks( )
     {
         if (finished.Count <= MaxFinishedTasks)
@@ -297,7 +297,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
     }
 
     // serve 模式的工作目录由启动参数 --work-dir 决定，覆盖请求体（请求体根本不含该字段），
-    // 这样客户端无法把落盘位置指向任意目录（P0-2 / P1-16）
+    // 客户端无法把落盘位置指向任意目录
     internal DownloadRequest ApplyServeWorkDir(DownloadRequest option)
     {
         if (!string.IsNullOrEmpty(workDir))
@@ -309,7 +309,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
     }
 
     // serve 模式的 API host 由启动参数（--host/--ep-host/--tv-host）决定，覆盖请求体（请求体已不含该字段），
-    // 客户端无法把请求导向自己控制的服务器、从而窃走操作者的 SESSDATA（P0-1）。空值回落官方默认 host。
+    // 客户端无法把请求导向自己控制的服务器、从而窃走操作者的 SESSDATA。空值回落官方默认 host。
     internal DownloadRequest ApplyServeHost(DownloadRequest option)
     {
         return option with

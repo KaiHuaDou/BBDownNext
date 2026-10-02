@@ -11,7 +11,7 @@ using BBDown.Core.Download;
 namespace BBDown.GUI;
 
 /// <summary>
-/// 控件可用性联动：界面「可用」的选项与「实际生效」的选项保持同步，规则矩阵见 docs/GUI-AVAILABILITY-PLAN.md §3.3。
+/// 控件可用性联动：界面「可用」的选项与「实际生效」的选项保持同步。
 /// 单点幂等刷新，任何相关事件只调 <see cref="RefreshAvailability"/>；禁用不清空值，ReadOptions 照读、Core 自然失效兜底。
 /// </summary>
 public partial class MainWindow

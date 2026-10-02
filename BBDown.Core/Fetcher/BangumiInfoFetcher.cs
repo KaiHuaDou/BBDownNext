@@ -83,8 +83,7 @@ public static class BangumiInfoFetcher
             PubTime = pubTime,
             PagesInfo = pagesInfo,
             IsBangumi = true,
-            // 番剧不是课程（cheese），原 IsCheese = true 为误设（P1-5）
-            // 完结状态从 season 接口的 is_finish 读取，避免 IsBangumiEnd 永远为 false（P1-4）
+            // 完结状态从 season 接口的 is_finish 读取
             IsBangumiEnd = result.TryGetProperty("is_finish", out var f) && f.GetInt32( ) == 1,
             Index = index
         };

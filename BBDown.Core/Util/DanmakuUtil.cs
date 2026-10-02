@@ -72,16 +72,9 @@ public static class DanmakuUtil
         return [.. danmakus];
     }
 
-    /// <summary>
-    /// 保存为 ASS 字幕文件
-    /// </summary>
-    /// <param name="danmakus">弹幕</param>
-    /// <param name="outputPath">保存路径</param>
-    /// <returns></returns>
     public static async Task SaveAsAssAsync(DanmakuItem[] danmakus, string outputPath, CancellationToken ct = default)
     {
         var sb = new StringBuilder( );
-        // ASS 字幕文件头
         sb.AppendLine("[Script Info]");
         sb.AppendLine("Script Updated By: BBDown(https://github.com/KaiHuaDou/BBDownNext)");
         sb.AppendLine("ScriptType: v4.00+");
@@ -98,8 +91,8 @@ public static class DanmakuUtil
         sb.AppendLine("[Events]");
         sb.AppendLine("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text");
 
-        PositionController controller = new( );   // 弹幕位置控制器
-        // 排序应在副本上进行，避免就地改写调用方传入的数组（P1-26）
+        PositionController controller = new( );
+        // 排序应在副本上进行，避免就地改写调用方传入的数组
         var sorted = (DanmakuItem[]) danmakus.Clone( );
         Array.Sort(sorted, comparer);
         foreach (var danmaku in sorted)
@@ -136,7 +129,7 @@ public static class DanmakuUtil
             .Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
     }
 
-    // B 站 XML 的颜色是整数 RGB，ASS 的 \c&H...& 却是 BGR 字节序，直接照搬会让红蓝对调（P0-5）
+    // B 站 XML 的颜色是整数 RGB，ASS 的 \c&H...& 却是 BGR 字节序，直接照搬会让红蓝对调
     internal static string ToAssColor(string rgbHex)
     {
         if (!int.TryParse(rgbHex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
@@ -150,7 +143,7 @@ public static class DanmakuUtil
 
     internal class PositionController
     {
-        private readonly int maxLine = MONITOR_HEIGHT * PROTECT_LENGTH / FONT_SIZE / 100;    //总行数
+        private readonly int maxLine = MONITOR_HEIGHT * PROTECT_LENGTH / FONT_SIZE / 100;
         // 三个位置的弹幕队列，记录弹幕结束时间
 
         private readonly List<double> moveQueue = [];
@@ -169,7 +162,6 @@ public static class DanmakuUtil
 
         public int UpdatePosition(int type, double time, int length)
         {
-            // 获取可用位置
             List<double> vs;
             var displayTime = TOP_SPEND_TIME;
             if (type == POS_BOTTOM)
@@ -189,7 +181,7 @@ public static class DanmakuUtil
             for (var i = 0; i < maxLine; i++)
             {
                 if (time >= vs[i])
-                {   // 此条弹幕已结束，更新该位置信息
+                {   // 该行上一条弹幕已结束，位置可复用
                     vs[i] = time + displayTime;
                     return i * FONT_SIZE;
                 }

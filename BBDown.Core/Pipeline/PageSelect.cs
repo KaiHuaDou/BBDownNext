@@ -52,7 +52,7 @@ public static class PageSelect
         }
 
         var pagesInfo = vInfo.PagesInfo;
-        // 空系列/空收藏夹：显式 -p 时无可选项，返回空选中列表而非因 pagesInfo[^1] 越界崩溃（§2.6）
+        // 空系列/空收藏夹：显式 -p 时无可选项，返回空选中列表而非因 pagesInfo[^1] 越界崩溃
         if (pagesInfo.Count == 0)
         {
             return [];

@@ -95,7 +95,7 @@ public static class PageDownload
     }
 
     // 只有用户真的取消了（ct 已请求取消）才判定为取消；HttpClient 超时等瞬态故障被包装成
-    // OperationCanceledException 但用户令牌并未取消，必须当作可重试的失败（§2.2）
+    // OperationCanceledException 但用户令牌并未取消，必须当作可重试的失败
     internal static bool IsCancellation(Exception ex, CancellationToken ct)
     {
         if (!ct.IsCancellationRequested)
@@ -212,8 +212,8 @@ public static class PageDownload
         }
 
         // 两个分支都不命中：响应正常但未解析出任何轨道（风控降级 / 接口变更等）。
-        // 此前静默返回 Done 会让整个任务以「成功」退出（退出码 0），脚本无法感知失败；改为抛异常，
-        // 由外层重试（瞬态限流可自愈）并在重试耗尽后上报为分 P 失败
+        // 必须抛异常而非静默返回 Done，否则整个任务以「成功」退出（退出码 0），脚本无法感知失败；
+        // 抛出后由外层重试（瞬态限流可自愈）并在重试耗尽后上报为分 P 失败
         LogError("解析此分 P 失败（使用 --debug 以查看详细信息）");
         if (parsedResult.RawResponse.Length < 100)
         {

@@ -26,7 +26,7 @@ internal sealed partial class TaskWorker : BackgroundService
 {
     private readonly ChannelReader<TaskEnvelope> queueReader;
     private readonly TaskStore store;
-    private readonly SemaphoreSlim? gate;   // null = 不限制（历史行为）
+    private readonly SemaphoreSlim? gate;   // null = 不限制
     // scope（ResourceId 规范串）→ 任务：进度样本按字符串匹配回写，不经 ResourceId 解析
     private readonly ConcurrentDictionary<string, DownloadTask> byScope = new( );
 
@@ -34,8 +34,8 @@ internal sealed partial class TaskWorker : BackgroundService
     {
         this.queueReader = queueReader;
         this.store = store;
-        // <=0 一律视为不限制：不建闸门，行为与旧版一致；>0 时仅限制同时下载的任务数，
-        // 多余任务排队，单个任务内部的下载并行度交给多线程下载器自行决定（不再压到 1）
+        // <=0 一律视为不限制：不建闸门；>0 时仅限制同时下载的任务数，多余任务排队，
+        // 单个任务内部的下载并行度交给多线程下载器自行决定
         if (maxConcurrent > 0)
         {
             gate = new SemaphoreSlim(maxConcurrent, maxConcurrent);
@@ -156,7 +156,7 @@ internal sealed partial class TaskWorker : BackgroundService
             }
             catch (Exception e)
             {
-                // 走 Logger 才有全局锁，serve 模式并发任务直接写 Console 会互相插字（P1-17）；
+                // 走 Logger 才有全局锁，serve 模式并发任务直接写 Console 会互相插字；
                 // 错误消息经路径脱敏后写入任务契约，客户端经 /get-tasks 或事件流可读
                 var msg = RedactPaths(Config.DebugLog ? e.ToString( ) : e.Message);
                 task.ErrorMessage = msg;
@@ -192,7 +192,7 @@ internal sealed partial class TaskWorker : BackgroundService
         }
     }
 
-    // 错误消息路径脱敏：替换绝对路径，避免 /get-tasks 或事件流泄露本机目录结构（improvement-review 草案 C）
+    // 错误消息路径脱敏：替换绝对路径，避免 /get-tasks 或事件流泄露本机目录结构
     [GeneratedRegex(@"(?<![/:\w])([A-Za-z]:\\|/)([\w./\\-]+)")]
     private static partial Regex AbsolutePathRegex( );
 
@@ -258,7 +258,7 @@ internal sealed partial class TaskWorker : BackgroundService
                 try
                 {
                     using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-                    // 走专用 WebHookClient：关重定向 + 连接前二次校验私网（§2.3），不使用共享的 AppHttpClient
+                    // 走专用 WebHookClient：关重定向 + 连接前二次校验私网，不使用共享的 AppHttpClient
                     using var response = await SsrfGuard.WebHookClient.PostAsync(hookUri, content, AppEnv.CancellationToken);
                     return;
                 }

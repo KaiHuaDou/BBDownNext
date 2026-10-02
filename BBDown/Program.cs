@@ -258,7 +258,7 @@ internal sealed class Program
         // ServeRequestOptions 已剔除 Debug/UserAgent，故 serve 任务不触碰这些全局，避免并发互相踩踏）。
         Config.SetDebugLog(myOption.Debug);
         // UA 不在此设置：WorkSetup.ResolveConfig 已把 myOption.UserAgent 落入请求级 AppConfig，
-        // GUI 等并发宿主按任务各自生效，不再共享进程级全局
+        // GUI 等并发宿主按任务各自生效，不经进程级全局
 
         Log($"任务开始时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         try
@@ -386,7 +386,7 @@ internal sealed class Program
             }
         }
 
-        // 渲染器已由 Main 顶层装配并覆盖 serve 生命周期，此处不再创建，避免双订阅导致日志双打印
+        // 渲染器已由 Main 顶层装配并覆盖 serve 生命周期，此处不得重复创建，避免双订阅导致日志双打印
         var server = new BBDownServer( );
         server.SetUpServer(config);
 #pragma warning disable CA2234 // 保留 Run(string) 内的 URL 合法性校验与友好退出
