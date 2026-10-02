@@ -1,9 +1,5 @@
-#pragma warning disable CA1308 // 产物文件名使用小写扩展名
-
 using System.Globalization;
 using System.IO;
-using System.Text.Encodings.Web;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,20 +12,13 @@ using static BBDown.Core.Logger;
 namespace BBDown.Core.Media;
 
 /// <summary>
-/// 把已下载分 P 的评论区导出为 JSON / TXT（按 <c>--comment-formats</c>）。
-/// 评论区按 aid 绑定，与 cid / 分 P 无关，挂 PageQueue 时用局部 HashSet 按 aid 去重；
+/// 把已下载分 P 的评论区导出为 JSON / TXT（按 <c>--comments-formats</c>）。
+/// 评论区按 oid 绑定，与 cid / 分 P 无关，挂 PageQueue 时用局部 HashSet 按 aid 去重；
 /// 与视频下载互不干扰：抓取失败只告警，不影响视频本体。
 /// </summary>
 public static class CommentDownload
 {
-    // JsonSerializerContext 的 Encoder 默认会把中文转成 \u4e2d\u6587，AOT 下必须显式放开转义
-    private static readonly CommentJsonContext JsonContext = new(new JsonSerializerOptions
-    {
-        WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-    });
-
-    public static async Task RunAsync(WorkContext ctx, PageContext pageCtx, PipelineSink sink = default, CancellationToken ct = default)
+    public static async Task RunAsync(WorkContext ctx, PageContext pageCtx, PipelineSink sink = default, CancellationToken token = default)
     {
         if (ctx.Run.CommentCount <= 0 || pageCtx.Page.Aid.Length == 0)
         {
@@ -44,12 +33,13 @@ public static class CommentDownload
         }
 
         var document = await CommentFetcher.FetchAsync(
+            1,
             oid.ToString(CultureInfo.InvariantCulture),
             ctx.Run.CommentCount,
             ctx.Run.CommentSortHot,
             ctx.Run.Content.Has(DownloadContent.FullComments),
             ctx.Fetch.Cfg,
-            ct);
+            token);
 
         document.Title = pageCtx.Title;
         document.Bvid = pageCtx.Page.Bvid;
@@ -60,28 +50,11 @@ public static class CommentDownload
 
         Directory.CreateDirectory(Path.GetDirectoryName(basePath)!);
 
-        foreach (var format in ctx.Run.CommentFormats)
-        {
-            var path = Path.ChangeExtension(basePath, $".comments.{format.ToString( ).ToLowerInvariant( )}");
-            try
-            {
-                switch (format)
-                {
-                    case CommentFormat.Json:
-                        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(document, JsonContext.CommentDocument), ct);
-                        break;
-                    case CommentFormat.Txt:
-                        await File.WriteAllTextAsync(path, CommentRenderer.Render(document, ctx.Run.Content.Has(DownloadContent.FullComments)), ct);
-                        break;
-                }
-            }
-            catch (IOException ex) when (ex is PathTooLongException or DirectoryNotFoundException)
-            {
-                // FileNameUtil 的 200 字节截断只作用于标题，再追加 .comments.json 可能越限；不阻断其余格式
-                LogWarn($"评论文件因路径过长无法写入（{path}）：{ex.Message}");
-                continue;
-            }
+        var paths = await CommentWriter.WriteAsync(
+            basePath, document, ctx.Run.CommentFormats, ctx.Run.Content.Has(DownloadContent.FullComments), token);
 
+        foreach (var path in paths)
+        {
             Log($"已保存评论：{path}");
             sink.Saved?.Invoke(path);
         }

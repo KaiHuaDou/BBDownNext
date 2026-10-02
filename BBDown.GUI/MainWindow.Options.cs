@@ -62,6 +62,8 @@ public partial class MainWindow
             CommentsSort = ReadCommentsSort( ),
             CommentsFormats = ReadCommentsFormats( ),
             Lang = LangBox.Text.Trim( ),
+            Cookie = CookieBox.Text.Trim( ),
+            AccessToken = AccessTokenBox.Text.Trim( ),
             UserAgent = UserAgentBox.Text.Trim( ),
             WorkDir = WorkDirBox.Text.Trim( ),
             FFmpegPath = FFmpegPathBox.Text.Trim( ),
@@ -203,6 +205,8 @@ public partial class MainWindow
         ApplyCommentsSort(options.CommentsSort);
         ApplyCommentsFormats(options.CommentsFormats);
         LangBox.Text = options.Lang;
+        CookieBox.Text = options.Cookie;
+        AccessTokenBox.Text = options.AccessToken;
         UserAgentBox.Text = options.UserAgent;
         WorkDirBox.Text = options.WorkDir;
         FFmpegPathBox.Text = options.FFmpegPath;
@@ -327,15 +331,14 @@ public partial class MainWindow
             return;
         }
 
+        // exe 过滤仅 Windows 有意义，其余平台直接列全部文件
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "选择可执行文件",
             AllowMultiple = false,
-            FileTypeFilter =
-            [
-                new FilePickerFileType("可执行文件") { Patterns = ["*.exe"] },
-                new FilePickerFileType("所有文件") { Patterns = ["*"] },
-            ],
+            FileTypeFilter = OperatingSystem.IsWindows( )
+                ? [new FilePickerFileType("可执行文件") { Patterns = ["*.exe"] }, new FilePickerFileType("所有文件") { Patterns = ["*"] }]
+                : [new FilePickerFileType("所有文件") { Patterns = ["*"] }],
         });
         if (files.Count > 0)
         {

@@ -27,6 +27,8 @@ public partial class MainWindow : Window
     private readonly Brush okBrush = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
     private readonly Brush hintBrush = new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E));
     private const int DefaultConcurrency = 3;
+    private const int MinConcurrency = 1;
+    private const int MaxConcurrency = 8;
     private string lastConcurrency = DefaultConcurrency.ToString( );
     private volatile bool closed;
 
@@ -118,7 +120,8 @@ public partial class MainWindow : Window
             ConfigData config = new( )
             {
                 Options = ReadOptions( ),
-                Concurrency = int.TryParse(ConcurrencyBox.Text, out var value) ? value : 3,
+                // 保存前夹取到合法区间：与失焦校验同一标准，非法值不落盘，避免配置往返后无法自愈
+                Concurrency = int.TryParse(ConcurrencyBox.Text, out var value) ? Math.Clamp(value, MinConcurrency, MaxConcurrency) : DefaultConcurrency,
                 WindowLeft = lastLeft,
                 WindowTop = lastTop,
                 WindowWidth = lastWidth,
@@ -270,7 +273,10 @@ public partial class MainWindow : Window
         }
 
         ApplyOptions(config.Options);
-        ConcurrencyBox.Text = config.Concurrency.ToString( );
+        // 并发数必须回放给调度器：UI 文本只是展示，queue.Concurrency 不随 LostFocus 自动初始化
+        var concurrency = Math.Clamp(config.Concurrency, MinConcurrency, MaxConcurrency);
+        queue.Concurrency = concurrency;
+        ConcurrencyBox.Text = concurrency.ToString( );
         lastConcurrency = ConcurrencyBox.Text;
         ApplyWindowBounds(config);
     }

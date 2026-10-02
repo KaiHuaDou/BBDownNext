@@ -3,9 +3,10 @@
              xmlns:gui="using:BBDown.GUI"
              x:Class="BBDown.GUI.PriorityPicker">
     <StackPanel Spacing="4">
-        <!--已选 chips 流：从左到右即优先序，chip 可拖拽换位、点 × 移除-->
+        <!--已选 chips 流：从左到右即优先序，chip 可拖拽换位、点 × 移除；空白区落下移到末尾-->
         <ItemsControl x:Name="PriorityList"
-                      DragDrop.AllowDrop="True" DragDrop.Drop="ListDrop">
+                      DragDrop.AllowDrop="True"
+                      DragDrop.DragOver="ListDragOver" DragDrop.Drop="ListDrop">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                     <WrapPanel />

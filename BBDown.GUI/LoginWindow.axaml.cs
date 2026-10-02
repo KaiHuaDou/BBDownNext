@@ -24,6 +24,9 @@ public partial class LoginWindow : Window
     private bool ready;
     private LoginChannel channel;
 
+    // 会话代际：每次启动登录自增；通道切换 / 重试后旧会话的迟到回投按代际整体丢弃，避免状态文本互相覆盖
+    private int session;
+
     public LoginResult? Result { get; private set; }
 
     public LoginWindow( )
@@ -75,6 +78,11 @@ public partial class LoginWindow : Window
         Close( );
     }
 
+    private void RetryButtonClicked(object? o, RoutedEventArgs e)
+    {
+        StartLogin(channel);
+    }
+
     private void ApplyChannel(LoginChannel value)
     {
         channel = value;
@@ -87,26 +95,41 @@ public partial class LoginWindow : Window
     {
         channel = value;
         lastChannel = value;
+        session++;
         tokenSource?.Cancel( );
         tokenSource?.Dispose( );
         tokenSource = new CancellationTokenSource( );
-        UpdateStateText("正在生成二维码...");
+        var current = session;
+        PostState(current, ( ) =>
+        {
+            QrImage.Source = null;
+            StatusText.Text = "正在生成二维码...";
+            RetryButton.IsVisible = false;
+        });
         var token = tokenSource.Token;
-        _ = Task.Run(( ) => RunLoginAsync(value, token));
+        _ = Task.Run(( ) => RunLoginAsync(value, current, token));
     }
 
-    private async Task RunLoginAsync(LoginChannel value, CancellationToken token)
+    private async Task RunLoginAsync(LoginChannel value, int current, CancellationToken token)
     {
         try
         {
-            var result = await LoginAsync(value, token);
+            var result = await LoginAsync(value, current, token);
             if (result is null)
             {
-                UpdateStateText("二维码已过期，请重新登录");
+                PostState(current, ( ) =>
+                {
+                    StatusText.Text = "二维码已过期，可重新生成";
+                    RetryButton.IsVisible = true;
+                });
                 return;
             }
 
-            CompleteLogin(result);
+            PostState(current, ( ) =>
+            {
+                Result = result;
+                Close( );
+            });
         }
         catch (OperationCanceledException)
         {
@@ -114,34 +137,38 @@ public partial class LoginWindow : Window
         }
         catch (Exception e)
         {
-            UpdateStateText($"登录失败：{e.Message}");
+            PostState(current, ( ) =>
+            {
+                StatusText.Text = $"登录失败：{e.Message}";
+                RetryButton.IsVisible = true;
+            });
         }
     }
 
-    private async Task<LoginResult?> LoginAsync(LoginChannel value, CancellationToken token)
+    private async Task<LoginResult?> LoginAsync(LoginChannel value, int current, CancellationToken token)
     {
         switch (value)
         {
             case LoginChannel.Web:
             {
-                var (cookie, refreshToken) = await Login.WebCredentialAsync(ShowQrAsync, UpdateStateText, token);
+                var (cookie, refreshToken) = await Login.WebCredentialAsync(url => ShowQrAsync(url, current), state => SetQrState(state, current), token);
                 return cookie is null ? null : new LoginResult(value, cookie, refreshToken);
             }
             case LoginChannel.Tv:
             {
-                var accessToken = await Login.TvCredentialAsync(ShowQrAsync, UpdateStateText, token);
+                var accessToken = await Login.TvCredentialAsync(url => ShowQrAsync(url, current), state => SetQrState(state, current), token);
                 return accessToken is null ? null : new LoginResult(value, accessToken, null);
             }
             default:
             {
-                var accessToken = await Login.AppCredentialAsync(ShowQrAsync, UpdateStateText, token);
+                var accessToken = await Login.AppCredentialAsync(url => ShowQrAsync(url, current), state => SetQrState(state, current), token);
                 return accessToken is null ? null : new LoginResult(value, accessToken, null);
             }
         }
     }
 
     // showQr 在后台线程调用：QRCoder 在后台生成，Bitmap 构造回投 UI 线程
-    private Task ShowQrAsync(string url)
+    private Task ShowQrAsync(string url, int current)
     {
         if (closed)
         {
@@ -149,22 +176,17 @@ public partial class LoginWindow : Window
         }
 
         var bytes = Login.GenerateQrPng(url);
-        Dispatcher.UIThread.Post(( ) =>
+        PostState(current, ( ) =>
         {
-            if (closed)
-            {
-                return;
-            }
-
             QrImage.Source = MakeBitmap(bytes);
             StatusText.Text = "等待扫码";
         });
         return Task.CompletedTask;
     }
 
-    private void UpdateStateText(Login.QrState state)
+    private void SetQrState(Login.QrState state, int current)
     {
-        UpdateStateText(state switch
+        PostState(current, ( ) => StatusText.Text = state switch
         {
             Login.QrState.WaitingScan => "等待扫码",
             Login.QrState.WaitingConfirm => "已扫码，请在手机上确认",
@@ -174,32 +196,22 @@ public partial class LoginWindow : Window
         });
     }
 
-    private void UpdateStateText(string text)
+    // 回投 UI 线程并校验会话代际：旧会话（已切换通道 / 已重试）的更新直接丢弃
+    private void PostState(int current, Action action)
     {
-        if (!Dispatcher.UIThread.CheckAccess( ))
+        if (closed)
         {
-            if (!closed)
-            {
-                Dispatcher.UIThread.Post(( ) => UpdateStateText(text));
-            }
-
             return;
         }
 
-        StatusText.Text = text;
-    }
-
-    private void CompleteLogin(LoginResult result)
-    {
         Dispatcher.UIThread.Post(( ) =>
         {
-            if (closed)
+            if (closed || session != current)
             {
                 return;
             }
 
-            Result = result;
-            Close( );
+            action( );
         });
     }
 

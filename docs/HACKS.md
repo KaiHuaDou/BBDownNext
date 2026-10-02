@@ -42,6 +42,7 @@
 | `BBDown.Core/Util/BiliHeaders.cs` | 直播拉流头单独构造，部分 CDN 节点强制校验 Referer | 缺失直接 403 |
 | `BBDown.Core/Media/DashDownload.cs` | 杜比视界（id=126）+ FFmpeg < 5.0 时混流方式降级为 MP4Box | 旧版 ffmpeg 对 DOVI 的 mp4 封装有缺陷 |
 | `BBDown.Core/Opus/OpusFetcher.Paragraph.cs` DetectHeadingLevel | 字号 24 / 22 映射 H2 / H3 | 专栏编辑器字号体系无接口化字段 |
+| `BBDown.Core/Opus/OpusFetcher.cs` TryGetCvId | 仅 `fallback.type == 2` 或 `item.type == 1`（专栏动态）时取 cv 号；纯动态（type == 0）的 `basic.rid_str` 明确不当作 cv | rid_str 语义随 item.type 变化，盲取会把图文动态误判为专栏（article/view 404） |
 
 ## 5. 并发与生命周期
 

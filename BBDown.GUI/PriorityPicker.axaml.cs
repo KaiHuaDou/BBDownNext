@@ -157,7 +157,14 @@ public sealed partial class PriorityPicker : UserControl
         e.Handled = true;
     }
 
-    // 拖到某个 chip 上：插入到它前面；Handled 阻止冒泡到 ListDrop
+    // 空白区必须自报 Move 效果：缺 DragOver 时事件冒泡到窗口按文本判定，chip 专用格式会被拒收，Drop 永不触发
+    private void ListDragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = e.DataTransfer.Contains(ChipFormat) ? DragDropEffects.Move : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    // 拖到某个 chip 上：插到它前面；Move 先移除再插入，向下拖需回退一位
     private void ChipDrop(object? sender, DragEventArgs e)
     {
         if (sender is not Control { DataContext: PriorityOption target } ||
@@ -172,7 +179,14 @@ public sealed partial class PriorityPicker : UserControl
             return;
         }
 
-        priority.Move(priority.IndexOf(dragged), priority.IndexOf(target));
+        var from = priority.IndexOf(dragged);
+        var to = priority.IndexOf(target);
+        if (from < to)
+        {
+            to--;
+        }
+
+        priority.Move(from, to);
         Sync( );
         e.Handled = true;
     }

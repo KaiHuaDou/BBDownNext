@@ -11,7 +11,8 @@ public class CommentRendererTests
     {
         var doc = new CommentDocument
         {
-            Aid = "170001",
+            Type = 1,
+            Oid = "170001",
             Bvid = "BV1xx",
             Title = "测试标题",
             Sort = "hot",
@@ -75,6 +76,29 @@ public class CommentRendererTests
     }
 
     [Fact]
+    public void Render_Type12HeadlineUsesCvPrefix( )
+    {
+        var doc = SampleDoc(false);
+        doc.Type = 12;
+        doc.Bvid = "";
+        doc.Oid = "5806746";
+        var text = CommentRenderer.Render(doc, fullReplies: false);
+        Assert.Contains("# cv5806746 |", text);
+        Assert.DoesNotContain("av5806746", text);
+    }
+
+    [Fact]
+    public void Render_Type11HeadlineUsesAlbumPrefix( )
+    {
+        var doc = SampleDoc(false);
+        doc.Type = 11;
+        doc.Bvid = "";
+        doc.Oid = "383127023";
+        var text = CommentRenderer.Render(doc, fullReplies: false);
+        Assert.Contains("# album383127023 |", text);
+    }
+
+    [Fact]
     public void JsonContext_KeepsChineseUnescaped( )
     {
         var context = new CommentJsonContext(new JsonSerializerOptions
@@ -85,6 +109,7 @@ public class CommentRendererTests
         var json = JsonSerializer.Serialize(SampleDoc(false), context.CommentDocument);
         Assert.Contains("测试标题", json); // 未被转义成 \u4e2d\u6587
         Assert.DoesNotContain("\\u6d4b", json); // 确认没有走默认转义
-        Assert.Contains("\"Aid\"", json);
+        Assert.Contains("\"Oid\"", json);
+        Assert.Contains("\"Type\"", json);
     }
 }

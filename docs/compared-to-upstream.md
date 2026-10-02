@@ -21,7 +21,7 @@
 | **WBI 签名降风控** | playurl / view 等接口明文或仅简单 sign | 对 playurl（wbi/playurl）、view（wbi/view）、字幕（player/wbi/v2）、空间列表（space/wbi/arc/search）均做标准 WBI 签名；未探测账号时退化为不签名 |
 | **serve 鉴权** | 基础令牌 | 默认免令牌开放并仅警告；显式传入 `--serve-token` 后强制所有接口鉴权（`X-BBDown-Token` 头或 `?token=` 查询），否则 401 |
 | **serve 安全** | 请求体基本透传 | 请求契约收窄为受控子集 DTO；host 三兄弟与下载输出目录服务端固定；回调地址 **SSRF 防护**（拒绝内网/回环，连接前二次校验）；**CORS 默认关闭** |
-| **专栏/图文导出** | 无 | 主命令自动识别专栏地址（`/opus/`、`/read/`、`opus{id}` / `cv{id}`），导出为 Markdown + 图片目录；纯图文动态（`item.type == 0`）按正文导出，顶部相册一并下载置于文档最前 |
+| **专栏/图文导出** | 无 | 主命令自动识别专栏地址（`/opus/`、`/read/`、`opus{id}` / `cv{id}`），导出为 Markdown + 图片目录；纯图文动态（`item.type == 0`）按正文导出，顶部相册一并下载置于文档最前；内容含 `o` / `O` 时同时导出评论区（`O` 抓全楼中楼），产物为 Markdown 同名的 `.comments.json` / `.comments.txt` |
 | **稍后再看列表** | 无 | `watchlater` 系列地址解析为整个列表（按添加顺序），多 P 自动展开，支持 `-p` / `-iap`；接口私有，需登录 Cookie |
 | **UP 主空间投稿列表** | 无 | 新增 `SpaceListFetcher` 与 space URL 解析，可下载某 UP 全部投稿 |
 | **充电专属试看识别** | 无专门处理（按普通失败或下载残缺片段） | `IsTruncatedPreview` 双条件判定，命中抛 `ChargedPreviewException`，退出码 2 表示全部为试看（可 `--allow-preview` 放行） |
@@ -98,7 +98,8 @@
     - `OpusHtmlToMarkdown`：将专栏正文 HTML 转为 Markdown（标签模式用 `[GeneratedRegex]` 集中在 `OpusRegexes`）；旧版专栏（`data.type == 0`）HTML 降级转换采用**白名单策略**——链接/加粗/斜体/代码/引用/标题/列表/分割线等可靠标签转 Markdown，其余标签（img、span 样式、figure、table 等）原样保留（CommonMark 支持内嵌 HTML），仅解码正文文本段；产物标记 `IsRawMarkdown`，渲染时跳过行内转义（`OpusFetcher.Parse.cs`）。
     - `OpusMarkdownRenderer`：渲染为带 YAML front matter（标题/作者/段落数等，可用 `-W M` 关闭）的 Markdown，图片按 `OpusImageUtil` 下载到 `<标题>/images/` 并以相对路径内联。
     - `OpusImageUtil`：`NormalizeProtocol` 统一协议补全（`//` 补 https、http 升 https），`OpusHtmlToMarkdown` 与 `OpusMarkdownRenderer` 复用；按 SHA256 前 8 位命名去重、失败时保留远程链接。
-- **产物**：`<标题>.md` + `<标题>/images/` 目录；已存在非空 `.md` 时跳过（与 `MuxFinish.TrySkipExisting` 同语义）。内容集沿用默认 `avmsCiM`（专栏下仅 `i` / `M` 生效）：`-W i` 保留远程图片链接，`-W M` 不加 front matter。
+- **产物**：`<标题>.md` + `<标题>/images/` 目录；已存在非空 `.md` 时跳过（与 `MuxFinish.TrySkipExisting` 同语义）。内容集沿用默认 `avmsCiM`（专栏下生效的是 `i` / `M` / `o` / `O`）：`-W i` 保留远程图片链接，`-W M` 不加 front matter。
+- **评论区导出**（`OpusDownload.DownloadCommentsAsync`，复用视频链路的 `CommentFetcher` / `CommentWriter`）：内容含 `o` / `O` 且 `--comments-count > 0` 时，在 Markdown 落盘前导出评论区；定位随文档携带——专栏文章 `type=12 / oid=cvid`，图文动态取 opus/detail 下发的 `basic.comment_type / comment_id_str`（相簿区）。WBI 密钥在本链路内经 `Account.ProbeAccountAsync` 补齐（旁路了视频信息获取的探测点）。产物 `.comments.json` / `.comments.txt` 与 Markdown 同名；重跑时产物齐备则跳过抓取，部分缺失则全量重抓；抓取失败仅告警，不影响 Markdown 导出。
 
 ### 2.6 UP 主空间投稿列表
 
@@ -196,7 +197,7 @@
 - **凭据单文件 + 源生成器**：`BBDown.Core/Auth/CredentialStore.cs`（`Credential` / `CredentialJsonContext` / `SaveWebCookie` 等）。
 - **WBI 签名**：`BBDown.Core/Util/SignUtil.cs`（`WbiSign` / `WbiEncodeValue`）；应用点 `NormalInfoFetcher.cs`、`SubUtil.cs`、`SpaceListFetcher.cs`、`BiliApi.cs`（`PlayUrlWebPath` / `ViewWbi` / `PlayerWbiV2` / `SpaceArcSearch`），playurl 侧由 `PlayUrlClient` 调用。
 - **serve 安全**：`BBDown/Serve/`（`BBDownServer.cs` 主干 + `Http/`（端点 `ServeEndpoints.cs`、WebSocket `TasksSocket.cs`）+ `Tasks/`（任务表 `TaskStore.cs`、消费循环 `TaskWorker.cs`）；`SsrfGuard.cs`：`IsSafeWebHook` / `IsPrivateAddress` / `IsLoopbackUrl` / `WebHookClient`；`ServeConfig.cs` / `ServeRequestOptions.cs` / `ServeBindingResult.cs` / `ApiTypeJsonConverter.cs`）。
-- **Opus 导出**：`BBDown.Core/Opus/`（`OpusFetcher` partial：`OpusFetcher.cs` / `OpusFetcher.Parse.cs` / `OpusFetcher.Paragraph.cs`；`OpusInputResolver` / `OpusHtmlToMarkdown` / `OpusMarkdownRenderer` / `OpusImageUtil` / `OpusRegexes` / `OpusDocument`）与 `BBDown.Core/Pipeline/OpusDownload.cs`。
+- **Opus 导出**：`BBDown.Core/Opus/`（`OpusFetcher` partial：`OpusFetcher.cs` / `OpusFetcher.Parse.cs` / `OpusFetcher.Paragraph.cs`；`OpusInputResolver` / `OpusHtmlToMarkdown` / `OpusMarkdownRenderer` / `OpusImageUtil` / `OpusRegexes` / `OpusDocument`）与 `BBDown.Core/Pipeline/OpusDownload.cs`；评论导出复用 `BBDown.Core/Comment/`（`CommentFetcher` / `CommentWriter` / `CommentRenderer` / `CommentDocument`）。
 - **空间列表**：`BBDown.Core/Fetcher/SpaceListFetcher.cs`、`BBDown.Core/Pipeline/InputResolver.cs`、`BBDown.Core/Fetcher/FetcherRegistry.cs`。
 - **稍后再看**：`BBDown.Core/Fetcher/WatchLaterFetcher.cs`、`BBDown.Core/Pipeline/InputResolver.cs`、`BBDown.Core/IdPrefix.cs`（`WatchLater`）。
 - **外部后处理**：`BBDown.Core/Download/PostProcessClient.cs`（`Configure` / `TryProcessAsync` / `PostProcessRequest`）、`BBDown.Core/Media/DashDownload.cs`（`TryPostProcessAsync`）。

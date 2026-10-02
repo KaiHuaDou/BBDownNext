@@ -4,11 +4,14 @@ using System.Text.Json.Serialization;
 namespace BBDown.Core.Comment;
 
 /// <summary>
-/// 一个视频稿件的评论区导出结果。JSON 与 TXT 两种产物都由它渲染而来。
+/// 一份评论区的导出结果。JSON 与 TXT 两种产物都由它渲染而来。
 /// </summary>
 public sealed class CommentDocument
 {
-    public string Aid { get; set; } = "";
+    /// <summary>评论区类型代码：1 视频稿件 / 12 专栏 / 17 纯文字动态，见 bilibili-API-collect comment 类型表</summary>
+    public int Type { get; set; }
+    /// <summary>评论区对象 id：视频为 avid、专栏为 cvid、图文动态为相簿 id</summary>
+    public string Oid { get; set; } = "";
     public string Bvid { get; set; } = "";
     public string Title { get; set; } = "";
     /// <summary>hot 或 time，与 --comment-sort 一致</summary>

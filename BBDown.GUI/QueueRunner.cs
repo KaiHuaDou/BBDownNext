@@ -41,9 +41,43 @@ public sealed class TaskState : INotifyPropertyChanged
 
     public required TaskParams Params { get; init; }
     public required string Url { get; init; }
-    public required TaskKind Kind { get; init; }
+
+    /// <summary>直播 / 视频形态；b23 短链展开后才暴露直播形态时由执行器补记。空串通知用于重估按整项绑定的转换器。</summary>
+    public required TaskKind Kind
+    {
+        get;
+        set
+        {
+            if (field == value)
+            {
+                return;
+            }
+
+            field = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
+        }
+    }
+
     public required int Index { get; init; }
-    public TaskStatus Status { get; set; }
+
+    public TaskStatus Status
+    {
+        get;
+        set
+        {
+            if (field == value)
+            {
+                return;
+            }
+
+            field = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Status)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StatusText)));
+            // 进度条可见性 / 直播不确定态等转换器按整项绑定，需整体通知触发重估
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
+        }
+    }
+
     public CancellationTokenSource? TokenSource { get; set; }
 
     /// <summary>解析出的视频标题（Meta 回吐后填充）；空则列表回退显示 Url。</summary>
@@ -176,16 +210,17 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>启动队列调度，幂等。</summary>
-    public void StartSchedule( )
+    /// <summary>启动队列调度；已调度中时返回 false，调用方据此区分提示文案。</summary>
+    public bool StartSchedule( )
     {
         if (scheduling)
         {
-            return;
+            return false;
         }
 
         scheduling = true;
         _ = Task.Run(RunScheduleAsync);
+        return true;
     }
 
     /// <summary>移除指定任务：等待中或已完成直接移除；运行中不处理（用取消）。</summary>

@@ -70,6 +70,7 @@ flowchart TB
     ns_pipeline --> ns_opus
     ns_pipeline --> ns_music
     ns_pipeline --> ns_auth
+    ns_pipeline --> ns_comment
     ns_pipeline --> ns_util
     ns_pipeline --> ns_workflow
     ns_pipeline --> ns_entity
@@ -214,8 +215,9 @@ flowchart TB
 
     subgraph S_comment["Comment"]
         direction LR
-        CommentDocument["CommentDocument + CommentItem"]
+        CommentDocument["CommentDocument + CommentItem / CommentJsonContext"]
         CommentFetcher["CommentFetcher"]
+        CommentWriter["CommentWriter"]
         CommentRenderer["CommentRenderer"]
     end
 
@@ -387,6 +389,8 @@ flowchart TB
     CommentFetcher --> SignUtil
     CommentFetcher --> JsonUtil
     CommentFetcher --> CommentDocument
+    CommentWriter --> CommentDocument
+    CommentWriter --> CommentRenderer
     CommentRenderer --> CommentDocument
 
     %% Music
@@ -515,7 +519,7 @@ flowchart TB
     PageAssets --> SavePath
     PageAssets --> RetryUtil
     CommentDownload --> CommentFetcher
-    CommentDownload --> CommentRenderer
+    CommentDownload --> CommentWriter
     CommentDownload --> SavePath
     CommentDownload --> MuxFinish
     TrackSelect --> AskBus
@@ -573,6 +577,12 @@ flowchart TB
     OpusDownload --> WorkSetup
     OpusDownload --> HTTPUtil
     OpusDownload --> VInfo
+    OpusDownload --> Buvid
+    OpusDownload --> Account
+    OpusDownload --> RetryUtil
+    OpusDownload --> ProgressBus
+    OpusDownload --> CommentFetcher
+    OpusDownload --> CommentWriter
     LiveDownload --> LiveFetcher
     LiveDownload --> LiveRecorder
     LiveDownload --> LiveSegmentWriter
@@ -621,6 +631,6 @@ flowchart TB
 
 - 视频管道：`WorkerDispatcher` → `DownloadPipeline` → `WorkSetup` / `VideoInfo`（→ `InputResolver` → `ResourceId`，→ `FetcherRegistry` → 各 Fetcher）→ `PageQueue` → `PageDownload` → `DashDownload` / `FlvDownload` → `DownloadUtil`（→ `DownloaderAdapter` / `BBDownAria2c`）→ `MuxFinish` → `Muxer`。
 - 直播链路（独立）：`WorkerDispatcher` → `LiveDownload` → `LiveFetcher` → `LiveRecorder`（→ `LiveSegmentWriter`）→ `LiveMuxer`。
-- 专栏链路（独立）：`WorkerDispatcher` → `OpusDownload` → `OpusInputResolver` / `OpusFetcher` → `OpusMarkdownRenderer`；文集（`ReadListDownload`）与空间图文（`SpaceOpusDownload`）逐条复用 `OpusDownload`。
+- 专栏链路（独立）：`WorkerDispatcher` → `OpusDownload` → `OpusInputResolver` / `OpusFetcher` → `OpusMarkdownRenderer`（评论导出经 `CommentFetcher` / `CommentWriter`）；文集（`ReadListDownload`）与空间图文（`SpaceOpusDownload`）逐条复用 `OpusDownload`。
 - 音频链路（独立）：`WorkerDispatcher` → `AudioDownload` → `AudioFetcher`；空间音频（`SpaceAudioDownload`）逐条复用 `AudioDownload`。
 - 播放地址解析：`Parser` → `PlayUrlClient`（WEB / TV / INTL）或 `AppTrackReader`（App gRPC，经 `AppHelper`）→ 各 TrackReader → `TrackFactory` → `ParsedResult`。

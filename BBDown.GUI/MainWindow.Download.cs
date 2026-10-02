@@ -2,6 +2,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Avalonia.Threading;
+
 using BBDown.Core;
 using BBDown.Core.Download;
 using BBDown.Core.Live;
@@ -29,36 +31,28 @@ public partial class MainWindow
         {
             try
             {
-                // 直播录制以任务序号注册会话（LiveSignal），停止按钮按序号精准停录，不经统一分发
-                if (state.Kind == TaskKind.Live)
+                // b23 短链先展开再识别形态（与 CLI RunApp 一致），否则直播 / 集合形态的短链会误入视频管道
+                var url = state.Url;
+                if (url.Contains("b23.tv", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!LiveInputResolver.TryParse(state.Url, out var live))
-                    {
-                        throw new InvalidOperationException("直播地址解析失败");
-                    }
+                    url = await HTTPUtil.GetWebLocationAsync(url, token);
+                    req = req with { Url = url };
+                }
 
-                    var liveSink = MakeSink(state);
-                    await LiveDownload.RunAsync(req, live, state.Index.ToString( ), liveSink, ct: token);
+                // 直播单独链路：录制会话以任务序号注册（LiveSignal），停止按钮按序号精准停录；
+                // 直播形态以展开后的 url 重判，入队时的 Kind 不可作为路由依据
+                if (LiveInputResolver.TryParse(url, out var live))
+                {
+                    MarkLive(state);
+                    await LiveDownload.RunAsync(req, live, state.Index.ToString( ), MakeSink(state), ct: token);
+                }
+                else if (InputResolver.TryDispatch(url, out var id))
+                {
+                    await WorkerDispatcher.RunAsync(id, req, MakeSink(state), null, token);
                 }
                 else
                 {
-                    // b23 短链先展开再识别形态（与 CLI RunApp 一致），否则集合形态的短链会误入视频管道
-                    var url = state.Url;
-                    if (url.Contains("b23.tv", StringComparison.OrdinalIgnoreCase))
-                    {
-                        url = await HTTPUtil.GetWebLocationAsync(url, token);
-                        req = req with { Url = url };
-                    }
-
-                    // 独立链路（专栏 / 文集 / 空间图文 / 音频 / 动态）统一经 WorkerDispatcher，与 CLI / serve 同一分发点
-                    if (InputResolver.TryDispatch(url, out var id))
-                    {
-                        await WorkerDispatcher.RunAsync(id, req, MakeSink(state), null, token);
-                    }
-                    else
-                    {
-                        await DownloadPipeline.RunAsync(req, MakeSink(state), null, token);
-                    }
+                    await DownloadPipeline.RunAsync(req, MakeSink(state), null, token);
                 }
 
                 return 0;
@@ -74,6 +68,17 @@ public partial class MainWindow
                 return 1;
             }
         }
+    }
+
+    // b23 短链展开后才暴露直播形态：回投 UI 线程补记 Kind，停止按钮 / 不确定进度条按整项绑定的转换器随之联动
+    private static void MarkLive(TaskState state)
+    {
+        if (state.Kind == TaskKind.Live)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(( ) => state.Kind = TaskKind.Live);
     }
 
     private PipelineSink MakeSink(TaskState state)

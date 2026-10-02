@@ -1,9 +1,11 @@
 #pragma warning disable CS8602 // Avalonia 源生成的 x:Name 控件字段可空
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 
 using BBDown.Core.Live;
@@ -20,10 +22,34 @@ public partial class MainWindow
 
     private void RefreshTaskList( )
     {
-        tasks.Clear( );
-        foreach (var state in queue.All)
+        var latest = queue.All.ToList( );
+        var present = new HashSet<TaskState>(latest);
+
+        // 引用级增量同步：只增删 / 移位不重建，保住列表选中态与滚动位置；行内状态变化由 TaskState 属性通知直达绑定
+        for (var i = tasks.Count - 1; i >= 0; i--)
         {
-            tasks.Add(state);
+            if (!present.Contains(tasks[i]))
+            {
+                tasks.RemoveAt(i);
+            }
+        }
+
+        for (var i = 0; i < latest.Count; i++)
+        {
+            if (i < tasks.Count && ReferenceEquals(tasks[i], latest[i]))
+            {
+                continue;
+            }
+
+            var from = tasks.IndexOf(latest[i]);
+            if (from >= 0)
+            {
+                tasks.Move(from, i);
+            }
+            else
+            {
+                tasks.Insert(i, latest[i]);
+            }
         }
 
         lock (indexGate)
@@ -74,8 +100,7 @@ public partial class MainWindow
             return;
         }
 
-        queue.StartSchedule( );
-        AppendLog("队列调度已启动");
+        AppendLog(queue.StartSchedule( ) ? "队列调度已启动" : "队列调度已在运行中");
     }
 
     private void RemoveItemButtonClicked(object? o, RoutedEventArgs e)
@@ -118,9 +143,25 @@ public partial class MainWindow
         queue.ClearFinished( );
     }
 
+    private void ConcurrencyBoxTextChanged(object? o, TextChangedEventArgs e)
+    {
+        // 输入即时反馈：非法值标红，合法值消除；回退与落盘仍统一发生在失焦 / 关窗
+        var valid = int.TryParse(ConcurrencyBox.Text, out var value)
+                    && value is >= MinConcurrency and <= MaxConcurrency;
+        if (valid)
+        {
+            ConcurrencyBox.Classes.Remove("invalid");
+        }
+        else
+        {
+            ConcurrencyBox.Classes.Add("invalid");
+        }
+    }
+
     private void ConcurrencyBoxLostFocus(object? o, RoutedEventArgs e)
     {
-        if (int.TryParse(ConcurrencyBox.Text, out var value) && value is >= 1 and <= 8)
+        ConcurrencyBox.Classes.Remove("invalid");
+        if (int.TryParse(ConcurrencyBox.Text, out var value) && value is >= MinConcurrency and <= MaxConcurrency)
         {
             lastConcurrency = value.ToString( );
             queue.Concurrency = value;

@@ -2,18 +2,18 @@
 
 ## record 复制
 
-25 个结果 - 17 文件
+27 个结果 - 18 文件
 
 BBDown\Program.cs:
-  241:             myOption = myOption with { Url = url };
+  254:             myOption = myOption with { Url = url };
 
 BBDown\Serve\Tasks\TaskStore.cs:
   305:             return option with { WorkDir = workDir };
 
 BBDown.Core\Auth\CredentialStore.cs:
-  74:         var c = LoadCredential(dir) with { Cookie = cookie, RefreshToken = refreshToken, Ts = issueTs };
-  80:         var c = LoadCredential(dir) with { TvAccessToken = accessToken, TvTs = issueTs };
-  86:         var c = LoadCredential(dir) with { AppAccessToken = accessToken, AppTs = issueTs };
+  80:         return SaveCredential(dir, c => c with { Cookie = cookie, RefreshToken = refreshToken, Ts = issueTs });
+  85:         return SaveCredential(dir, c => c with { TvAccessToken = accessToken, TvTs = issueTs });
+  90:         return SaveCredential(dir, c => c with { AppAccessToken = accessToken, AppTs = issueTs });
 
 BBDown.Core\Download\DownloadRequest.cs:
   83:         return this with { Cookie = "", AccessToken = "" };
@@ -22,7 +22,8 @@ BBDown.Core\Media\DashDownload.cs:
   73:             selection = selection with { Selected = true, VIndex = vIndex, AIndex = aIndex };
 
 BBDown.Core\Media\FlvDownload.cs:
-  48:                         selection = selection with { Selected = true, VIndex = await TrackSelect.PickDfnAsync(dfns, ct) };
+  156:                         selection = selection with { Selected = true, VIndex = await TrackSelect.PickDfnAsync(dfns, ct) };
+  189:         var clipConfig = downloadConfig with { ParallelCount = DownloaderAdapter.MaxRangeConcurrency / MaxClipParallelism };
 
 BBDown.Core\Media\PageDownload.cs:
   61:                 pageCtx = pageCtx with { IsPreview = true };
@@ -31,6 +32,9 @@ BBDown.Core\Media\PageDownload.cs:
 
 BBDown.Core\Mux\Muxer.cs:
   65:         req = req with { VideoPath = videoPath, AudioPath = audioPath, Subs = validSubs };
+
+BBDown.Core\Pipeline\OpusDownload.cs:
+  151:                 config = config with { Wbi = wbi };
 
 BBDown.Core\Pipeline\ReadListDownload.cs:
   47:             var itemReq = myOption with { Url = $"{BiliApi.ReadPage}/cv{cvId}", WorkDir = itemDir };
@@ -43,22 +47,22 @@ BBDown.Core\Pipeline\SpaceDynamicDownload.cs:
   89:                     var opusReq = myOption with { Url = $"{BiliApi.OpusPage}/{item.OpusId}", WorkDir = itemDir };
 
 BBDown.Core\Pipeline\SpaceDynamicFeed.cs:
-  31:         return cfg with { Wbi = wbi };
+  38:         return cfg with { Wbi = wbi };
 
 BBDown.Core\Pipeline\SpaceOpusDownload.cs:
   50:             var itemReq = myOption with { Url = $"{BiliApi.OpusPage}/{item.OpusId}", WorkDir = itemDir };
 
 BBDown.Core\Pipeline\VideoInfo.cs:
-   34:             cfg = cfg with { Cookie = await Login.TryRefreshWebCookieIfStaleAsync(token: ct) };
-   55:         cfg = cfg with { Wbi = wbi };
-  130:             return myOption with { Api = ApiType.Web };
-  136:             return myOption with { Api = ApiType.Web };
+  37:         cfg = cfg with { Cookie = newCookie };
+  59:         cfg = cfg with { Wbi = wbi };
+  134:             return myOption with { Api = ApiType.Web };
+  140:             return myOption with { Api = ApiType.Web };
+
+BBDown.GUI\MainWindow.Download.cs:
+  39:                     req = req with { Url = url };
 
 BBDown.Core.Tests\BiliHeadersTests.cs:
   97:         var cfg = AppConfig.Empty with { EpHost = "mirror.example.com" };
 
 BBDown.Core.Tests\DownloadTests.cs:
-  242:         var cfg = AppConfig.Empty with { Cookie = "SESSDATA=abc" };
-
-BBDown.GUI\MainWindow.Download.cs:
-  50:                         req = req with { Url = url };
+  240:         var cfg = AppConfig.Empty with { Cookie = "SESSDATA=abc" };

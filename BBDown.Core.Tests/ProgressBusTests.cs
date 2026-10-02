@@ -34,8 +34,23 @@ public class ProgressBusTests
     {
         var scopeId = Guid.NewGuid( ).ToString( );
         var events = new List<WorkflowEvent>( );
-        Action<WorkflowEvent> handler = events.Add;
-        ProgressBus.Subscribe(handler);
+        // 总线广播给所有订阅者，并行测试的事件也会到达，只认本作用域的边界事件
+        void onEvent(WorkflowEvent evt)
+        {
+            var match = evt switch
+            {
+                ProgressRangeStartEvent start => start.Scope == scopeId,
+                ProgressRangeEndEvent end => end.Scope == scopeId,
+                _ => false,
+            };
+
+            if (match)
+            {
+                events.Add(evt);
+            }
+        }
+
+        ProgressBus.Subscribe(onEvent);
         try
         {
             using (MessageBus.BeginScope(scopeId))
@@ -53,7 +68,7 @@ public class ProgressBusTests
         }
         finally
         {
-            ProgressBus.Unsubscribe(handler);
+            ProgressBus.Unsubscribe(onEvent);
         }
     }
 
@@ -98,8 +113,23 @@ public class ProgressBusTests
     {
         var scopeId = Guid.NewGuid( ).ToString( );
         var events = new List<WorkflowEvent>( );
-        Action<WorkflowEvent> handler = events.Add;
-        ProgressBus.Subscribe(handler);
+        // 只认本作用域的边界事件，并行测试广播的事件不计数
+        void onEvent(WorkflowEvent evt)
+        {
+            var match = evt switch
+            {
+                ProgressRangeStartEvent start => start.Scope == scopeId,
+                ProgressRangeEndEvent end => end.Scope == scopeId,
+                _ => false,
+            };
+
+            if (match)
+            {
+                events.Add(evt);
+            }
+        }
+
+        ProgressBus.Subscribe(onEvent);
         try
         {
             using (MessageBus.BeginScope(scopeId))
@@ -120,7 +150,7 @@ public class ProgressBusTests
         }
         finally
         {
-            ProgressBus.Unsubscribe(handler);
+            ProgressBus.Unsubscribe(onEvent);
         }
     }
 

@@ -117,7 +117,7 @@ BBDown/
 │   │   ├── DashDownload.cs         # DASH 轨下载 (RunAsync；下载后调用外部后处理，见 TryPostProcessAsync)
 │   │   ├── FlvDownload.cs          # FLV 分段下载与合并 (RunAsync)
 │   │   ├── PageAssets.cs           # 封面/字幕准备、弹幕下载（`PrepareAsync` 现收窄接收 `DownloadSession`）
-│   │   ├── CommentDownload.cs      # 评论区导出（按 --comment-formats 落盘 json/txt，挂 PageQueue）
+│   │   ├── CommentDownload.cs      # 评论区导出（按 --comments-formats 落盘 json/txt，挂 PageQueue）
 │   │   └── TrackSelect.cs          # 轨道排序、信息打印、交互选轨
 │   │
 │   ├── Mux/                # 命名空间 BBDown.Core.Mux — 混流与收尾
@@ -183,9 +183,10 @@ BBDown/
 │   │   └── AudioDocument.cs        # AudioInfo / AudioPlayUrl record
 │   │
 │   ├── Comment/            # 命名空间 BBDown.Core.Comment — 评论区
-│   │   ├── CommentFetcher.cs       # WBI 分页抓取
+│   │   ├── CommentFetcher.cs       # WBI 分页抓取（type/oid 参数化，覆盖视频 / 专栏 / 图文动态）
+│   │   ├── CommentWriter.cs        # 按格式写盘（.comments.json / .comments.txt，视频与专栏链路共用）
 │   │   ├── CommentRenderer.cs      # JSON / TXT 渲染
-│   │   └── CommentDocument.cs      # 评论域模型
+│   │   └── CommentDocument.cs      # 评论域模型（Oid + Type 定位评论区对象）
 │   │
 │   ├── Entity/             # VInfo / Page / Video / Audio / ParsedResult 等
 │   ├── Util/               # BV 转换、FileNameUtil(200 字节截断)、HTTPUtil、SignUtil(WBI)、SubUtil、GrpcUtil(gRPC 帧)、DanmakuUtil(弹幕 xml/ass)、ProgressSampler(进度采样)、ArchiveLog、Redactor、JsonUtil、Utils、ViewPointUtil
@@ -209,22 +210,29 @@ BBDown/
 │   ├── Program.cs          # 入口：Avalonia 应用装配与启动
 │   ├── App.axaml.cs        # Application 入口
 │   ├── MainWindow.axaml    # 主窗口布局（任务列表 / 日志区 / 选项面板）
-│   ├── MainWindow.axaml.cs # 主窗口：初始化、队列执行与直播/专栏分流
-│   ├── MainWindow.Options.cs # 选项面板与下载参数的双向绑定
-│   ├── MainWindow.Download.cs # 下载提交与参数组装
-│   ├── MainWindow.Tasks.cs # 任务列表交互（取消 / 停止录制 / 重试 / 移除）
+│   ├── MainWindow.axaml.cs # 主窗口：初始化、配置加载与关窗保存（并发数在此回放给调度器）
+│   ├── MainWindow.Options.cs # 选项面板与下载参数的双向绑定（ReadOptions / ApplyOptions）
+│   ├── MainWindow.Availability.cs # 按下载目标联动控件可用性与内容提示（VideoLike / Commentable 门控）
+│   ├── MainWindow.PlaceholderTexts.cs # 「留空即自动值」字段的占位文本（与 Core 探测值同源）
+│   ├── MainWindow.NamingTable.cs  # 命名变量表（SavePath.Variables 同源，双击复制占位符）
+│   ├── MainWindow.Download.cs # 任务执行：b23 短链展开 → 直播/独立链路/视频管道分流 + PipelineSink 装配
+│   ├── MainWindow.Tasks.cs # 任务列表交互（增量同步 / 取消 / 停止录制 / 重试 / 移除 / 并发输入校验）
 │   ├── MainWindow.Progress.cs # 进度区渲染（阶段化显隐）
-│   ├── MainWindow.Log.cs   # 日志区（ListBox 虚拟化 + 导出）
-│   ├── MainWindow.Login.cs # 扫码登录入口与登录态展示
-│   ├── MainWindow.Ask.cs   # 交互请求弹窗（逐集确认 / 选清晰度 / 选轨）
-│   ├── AskDialog.axaml(.cs) # 交互弹窗视图
-│   ├── LoginWindow.axaml(.cs) # 扫码登录弹窗（WEB / TV / APP）
+│   ├── MainWindow.Log.cs   # 日志区（ListBox 虚拟化 + 贴底跟随滚动 + 导出）
+│   ├── MainWindow.Login.cs # 扫码登录入口与登录态展示（WEB 失效时回落探测 TV / APP）
+│   ├── MainWindow.Ask.cs   # 交互请求弹窗（逐集确认 / 选清晰度 / 选轨；异常与到期回落默认选项）
+│   ├── AskDialog.axaml(.cs) # 交互弹窗视图（到期自动关闭）
+│   ├── LoginWindow.axaml(.cs) # 扫码登录弹窗（WEB / TV / APP；会话代际守卫 + 重新生成二维码）
 │   ├── LoginResult.cs      # 登录结果模型
-│   ├── QueueRunner.cs      # 任务队列与并发池（1–8，运行中可调）
+│   ├── QueueRunner.cs      # 任务队列与并发池（1–8，运行中可调；TaskState 经 INPC 通知绑定）
 │   ├── QueueRunner.Execute.cs # 并发执行循环（取额度 / 分发 / 归还）
 │   ├── QueueStore.cs       # 队列持久化（BBDown.GUI.queue.json）
 │   ├── TaskParams.cs       # 单任务参数模型 + DownloadRequest 映射
-│   ├── UrlDetector.cs      # 下载目标识别
+│   ├── UrlDetector.cs      # 下载目标识别（直播判定委托 Core 的 LiveInputResolver）
+│   ├── ContentOption.cs    # 内容选项模型（字符键 + 描述）
+│   ├── PriorityOption.cs   # 优先级选择器选项模型
+│   ├── PriorityPicker.axaml(.cs) # 编码 / 画质 / 音质优先级拖拽排序选择器
+│   ├── AtomicFile.cs       # 原子写文件工具
 │   ├── GuiPaths.cs         # 程序 / 数据 / 队列路径解析
 │   ├── ConfigStore.cs      # 面板选项便携保存（BBDown.GUI.config.json）
 │   ├── StatusConverters.cs # 状态 → 颜色 / 可见性转换器
@@ -276,7 +284,7 @@ DownloadPipeline.RunAsync (BBDown.Core.Pipeline，三段下载主干，CLI 与 s
   │  ② VideoInfo.FetchAsync → WorkContext (标题/分 P /封面/弹幕入口)
   │  ③ PageQueue.RunAsync   → 逐分 P 编排（-iap 时先 PageSelect.ResolveInteractive 逐集交互确认；
   │                            --comments-count>0 时逐分 P 委托内先跑 CommentDownload，按 aid 去重；与视频下载互不干扰）
-  │     └─ CommentDownload.RunAsync (WBI 分页抓评论 → 按 --comment-formats 落盘 json/txt)
+  │     └─ CommentDownload.RunAsync (WBI 分页抓评论 → 按 --comments-formats 落盘 json/txt)
   ▼
 PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分派 DASH/FLV)
   │  ├─ DashDownload.RunAsync   / FlvDownload.RunAsync
@@ -392,7 +400,7 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 
 - **字幕 (`SubUtil`)**：已登录账号可走 WEB/TV；**未登录时只能走 APP gRPC** 获取字幕。AI 字幕默认不下载，需内容集含 `S`（`-w S`）显式开启。
 - **弹幕 (`DanmakuUtil`)**：支持 XML / ASS 两种格式（`--danmaku-formats`），ASS 参数全部硬编码不可配，无去重 / 过滤。
-- **评论 (`CommentFetcher` / `CommentRenderer` / `CommentDownload`)**：走 `/x/v2/reply/wbi/main`（WBI 签名 + 游标分页）。`--comments-count` / `-cn` 默认 `0`（不下载，且需内容集含 `o` / `O` 才真正抓取），`--comments-sort` / `-cs` 选 `hot`/`time`，`--comments-formats` / `-cf` 选 `json`/`txt`（`CommentFormat` 与弹幕格式**两个互不相干的特性，解析逻辑各自独立**）。评论区按 **aid** 绑定、与 cid / 分 P 无关，挂在 `PageQueue.RunAsync` 逐分 P 委托里用局部 `HashSet` 按 aid 去重，**DASH 与 FLV 两条路径都覆盖**；多 P 同 aid 只抓一次。默认只保留一级评论内联的最多 3 条楼中楼预览，内容集含 `O`（`-g O`）才额外翻页抓全。抓取失败一律降级为「拿到多少算多少」，只有 WBI 签名错误（`-403`）才抛异常——评论下载与视频下载互不干扰。
+- **评论 (`CommentFetcher` / `CommentRenderer` / `CommentWriter` / `CommentDownload`)**：走 `/x/v2/reply/wbi/main`（WBI 签名 + 游标分页），type / oid 参数化：视频稿件 `1/avid`、专栏文章 `12/cvid`、图文动态直接采用 opus/detail 下发的 `basic.comment_type / comment_id_str`（相簿区）。`--comments-count` / `-cn` 默认 `0`（不下载，且需内容集含 `o` / `O` 才真正抓取），`--comments-sort` / `-cs` 选 `hot`/`time`，`--comments-formats` / `-cf` 选 `json`/`txt`（`CommentFormat` 与弹幕格式**两个互不相干的特性，解析逻辑各自独立**）。评论区按 **oid** 绑定、与 cid / 分 P 无关：视频链路挂在 `PageQueue.RunAsync` 逐分 P 委托里用局部 `HashSet` 按 aid 去重，**DASH 与 FLV 两条路径都覆盖**，多 P 同 aid 只抓一次；专栏 / 图文链路由 `OpusDownload` 在 Markdown 落盘前导出，产物齐备则跳过抓取。写盘统一经 `CommentWriter`（`.comments.json` / `.comments.txt` 与 Markdown / 视频产物同名）。默认只保留一级评论内联的最多 3 条楼中楼预览，内容集含 `O`（`-g O`）才额外翻页抓全。抓取失败一律降级为「拿到多少算多少」（专栏链路整体重试耗尽后只告警，不影响 Markdown 导出），只有 WBI 签名错误（`-403`）才抛异常——评论下载与视频 / 专栏下载互不干扰。
 - **文件名 (`FileNameUtil`)**：按 **UTF-8 字节数截断，上限 200 字节**（约 66 个汉字），避免过长路径；变量支持自定义日期格式 `<publishDate:yyyyMMdd>` / `<videoDate:格式>`。
 
 ---
@@ -440,6 +448,9 @@ OpusDownload.RunAsync (BBDown.Core.Pipeline)  不走 WorkSetup.Build / 不构造
   │  ├─ Buvid.InitAsync           获取 buvid3/4（沿用既有 HTTP 栈）
   │  ├─ OpusFetcher.FetchAsync     先试 opus/detail（htmlNewStyle）→ 按 TryGetCvId 判定：
   │  │                             专栏 → 回退 article/view(cv)；纯图文动态（无 cv）→ 直接按 MODULE_TYPE_CONTENT 导出
+  │  ├─ DownloadCommentsAsync     内容含 o / O 时先导出评论区（先于 md 存在性早退，重跑可补抓）：
+  │  │                             专栏 type=12/oid=cvid、图文取 opus/detail 下发值；WBI 密钥经 Account.ProbeAccountAsync 补齐；
+  │  │                             经 CommentWriter 落盘 .comments.json / .comments.txt，失败只告警
   │  ├─ OpusFetcher.ParseTopAlbum  顶部相册（MODULE_TYPE_TOP → module_top.display.album.pics）置于正文最前
   │  ├─ OpusHtmlToMarkdown        把 B 站专栏结构化的段落 JSON 转成 Markdown 模型（旧版 HTML 白名单降级，产物标记 IsRawMarkdown）
   │  ├─ OpusMarkdownRenderer      渲染标题/front matter/图片/列表/代码/公式等
@@ -455,6 +466,7 @@ OpusDownload.RunAsync (BBDown.Core.Pipeline)  不走 WorkSetup.Build / 不构造
 - **不用 `SavePath.Format`**：输出文件名由 `FileNameUtil.GetValidFileName` 直接处理，按 `<标题>.md` 落盘，图片进 `<标题>/images/`，与音视频的 `.mp4` 命名体系解耦。
 - **解析拆分**：`OpusFetcher` 为 partial class，拆为网络编排与判定（`OpusFetcher.cs`）/ 文档级解析（`OpusFetcher.Parse.cs`）/ 段落与节点解析（`OpusFetcher.Paragraph.cs`）三份，便于控制单文件行数。
 - **复用的 HTTP 桩点**：`OpusFetcher` 通过替换 `HTTPUtil.AppHttpClient` 进行单测（`StubHttpMessageHandler` + 路由桩），与 `BBDown.Core.Tests` 中其他 HTTP 测试共用 `HttpStubCollectionDefinition` 串行集合，避免 HttpClient 静态字段竞争。
+- **评论导出复用主干组件**：`DownloadCommentsAsync` 与视频链路共用 `CommentFetcher` / `CommentWriter` / `CommentDocument`，但 WBI 密钥不走 `VideoInfo.FetchAsync` 的探测点，而是在本链路内经 `Account.ProbeAccountAsync` 补齐（专栏旁路了视频信息获取，nav 探测需自行触发）。
 - **AOT 约束一致**：`OpusFetcher` 解析接口 JSON 一律用 `JsonDocument` / `GetProperty`，不依赖运行时反射，与全项目 AOT 策略一致。
 
 ### 11.3 serve 模式说明

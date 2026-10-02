@@ -12,6 +12,11 @@
         <Setter Property="Margin" Value="0,3,5,3" />
     </Style>
 
+    <!--并发数输入框非法值：失焦前即时反馈，失焦回退后移除-->
+    <Style Selector="TextBox.invalid">
+        <Setter Property="BorderBrush" Value="#E53935" />
+    </Style>
+
     <!--表单行浏览按钮：纵向拉伸至行高与同行 TextBox 等高（Avalonia 12 Button 默认垂直居中不再拉伸）-->
     <Style Selector="Button.FieldButton">
         <Setter Property="VerticalAlignment" Value="Stretch" />

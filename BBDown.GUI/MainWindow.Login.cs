@@ -58,7 +58,8 @@ public partial class MainWindow
         await RefreshLoginStatusAsync( );
     }
 
-    /// <summary>探测当前登录态并刷新状态文字；无凭据时显示「未登录」。WEB 走 nav 探测昵称，TV/APP 仅判断 token 是否已保存。</summary>
+    /// <summary>探测当前登录态并刷新状态文字；无凭据时显示「未登录」。WEB 走 nav 探测昵称，TV/APP 仅判断 token 是否已保存；
+    /// WEB cookie 存在但探测未确认登录（失效 / 探测失败）时继续回落探测 TV / APP，避免误报「未登录」。</summary>
     private async Task RefreshLoginStatusAsync( )
     {
         var status = "未登录";
@@ -77,18 +78,23 @@ public partial class MainWindow
                     Wbi: "",
                     UserAgent: "");
                 var (info, _) = await Account.ProbeAccountAsync(config);
-                status = info.IsLogin ? $"WEB 已登录：{info.UserName}" : "未登录";
+                if (info.IsLogin)
+                {
+                    status = $"WEB 已登录：{info.UserName}";
+                }
             }
             catch (Exception e)
             {
                 AppendLog($"登录态探测失败（可忽略）：{e.Message}");
             }
         }
-        else if (CredentialStore.LoadTvToken( ).Length > 0)
+
+        if (status == "未登录" && CredentialStore.LoadTvToken( ).Length > 0)
         {
             status = "TV 已登录（access_token 已保存）";
         }
-        else if (CredentialStore.LoadAppToken( ).Length > 0)
+
+        if (status == "未登录" && CredentialStore.LoadAppToken( ).Length > 0)
         {
             status = "APP 已登录（access_token 已保存）";
         }

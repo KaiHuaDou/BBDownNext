@@ -21,7 +21,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
   <a href="#快速开始">快速开始</a> ·
   <a href="#参数说明">参数说明</a> ·
   <a href="#子命令">子命令</a> ·
-  <a href="#GUI">GUI</a> ·
+  <a href="#图形界面">GUI</a> ·
   <a href="#服务器模式">服务器模式</a> ·
   <a href="#数据文件格式">数据文件格式</a> ·
   <a href="./docs/PROTOCOL.md">后处理协议</a> ·
@@ -52,7 +52,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
     - **视频 / 番剧 / 课程** · 直播回放、收藏夹、合集 / 系列、UP 主空间列表、稍后再看列表
     - **内容组合选择** · `-g` / `-w` / `-W` 自由组合音频、视频、字幕、弹幕、封面、评论等（get ∪ with − without）
     - **多 P 批量选择** · `-p` 支持单集、列表、区间、`latest`；`-iap` 逐集交互确认
-    - **专栏 / 图文导出** · 专栏、文集、空间图文投稿与空间动态页导出为 Markdown，图片可选本地下载；空间动态页同时下载其中的视频与转发内容（该接口当前不可用，见 [#2](https://github.com/KaiHuaDou/BBDownNext/issues/2)）
+    - **专栏 / 图文导出** · 专栏、文集、空间图文投稿与空间动态页导出为 Markdown，图片可选本地下载；内容含 `o` / `O` 时同时导出评论区（`O` 抓全楼中楼）；空间动态页同时下载其中的视频与转发内容（该接口当前不可用，见 [#2](https://github.com/KaiHuaDou/BBDownNext/issues/2)）
     - **空间音频 / 单音频** · 空间音频投稿逐条下载音频与歌词 `.lrc`，付费曲目未登录时下载试听片段并提示；`au{数字}` 下载单条音频
 - 解析
     - **4 种 API 通道** · `--api` 单选 `web` / `tv` / `app` / `intl`；兼容 BiliPlus 代理，WEB 通道自动 WBI 签名
@@ -95,7 +95,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
     - **1200+ 单元测试**，覆盖解析、混流、serve 安全等全部核心路径
     - **分层清晰** · 下载能力集中在 `BBDown.Core`（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`），CLI 与 serve 留在 `BBDown`（`Cli` / `Serve`）；依赖单向成树（`check-deps` 守护）
     - **代码规模约束** · 单文件 ≤ 384 行、单方法 ≤ 128 行（`just tokei` 守护），超出即拆分
-    - **类型安全** · `ResourceId` 判别联合（12 个 sealed 子类型：Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater / LiveRoom / OpusArticle）取代字符串前缀打标，按类型分发、缺分支编译报错
+    - **类型安全** · `ResourceId` 判别联合（17 个 sealed 子类型：Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater / LiveRoom / OpusArticle / ReadList / SpaceOpus / SpaceAudio / SpaceDynamic / Audio）取代字符串前缀打标，按类型分发、缺分支编译报错
     - **现代测试栈** · 测试运行器迁移至 Microsoft Testing Platform（xunit.v3 4.0.0），原生运行更快，自带代码覆盖率与 Trx 报告
     - **现代 .NET** · C# 15、全部语法兼容 AOT（正则源生成、源生成器）、不可变 record 契约、纯函数优先、单一来源化（清晰度档位 / 内容字符表由 Core 枚举生成）
 
@@ -357,6 +357,7 @@ BBDown "live12345" -lq 400
 - 纯图文动态（非专栏的文章类 opus）也按正文导出为 Markdown
 - 默认会把正文中的图片下载到本地 `<标题>/images/` 子目录，并在 Markdown 中用相对路径引用
 - 专栏 / 图文动态的顶部相册图片随正文一并下载，并置于文档最前。
+- 内容包含 `o` / `O` 时同时导出评论区（前 `--comments-count` 条；`O` 抓全楼中楼），产物为 Markdown 同名的 `.comments.json` / `.comments.txt`；文集与空间图文批量导出时逐篇生效，批量配合 `O` 的请求量较大，建议控制 `--comments-count`。
 
 ### 下载方式与性能
 

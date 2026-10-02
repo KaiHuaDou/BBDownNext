@@ -311,7 +311,8 @@ public class ResumeDownloadTests
             var samples = new List<double>( );
             void onProgress(WorkflowEvent evt)
             {
-                if (evt is ProgressSampleEvent sample)
+                // 总线广播给所有订阅者，并行测试的样本也会到达，只认本任务作用域的样本
+                if (evt is ProgressSampleEvent { Scope: "test-download" } sample)
                 {
                     lock (samples)
                     {

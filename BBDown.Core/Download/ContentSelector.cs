@@ -64,7 +64,7 @@ public static class ContentSelector
 
     private static readonly string ValidChars = string.Concat(Order.Select(e => e.Ch));
 
-    /// <summary>默认内容集 a v m s C i M（opus 模式下仅 i / M 生效）。</summary>
+    /// <summary>默认内容集 a v m s C i M（opus 模式下仅 i / M / o / O 生效）。</summary>
     public static DownloadContent DefaultFlags { get; } = Resolve([Default], [], [], false, false, false, false, out _);
 
     /// <summary>
@@ -117,7 +117,8 @@ public static class ContentSelector
     {
         var active = mode switch
         {
-            ContentMode.Opus => DownloadContent.OpusImage | DownloadContent.FrontMatter,
+            ContentMode.Opus => DownloadContent.OpusImage | DownloadContent.FrontMatter
+                              | DownloadContent.Comments | DownloadContent.FullComments,
             ContentMode.Live => DownloadContent.Audio | DownloadContent.Video,
             ContentMode.Audio => DownloadContent.Audio,
             // 图文项用 i / M、视频项用其余字符，混合域内不存在自然失效的标志

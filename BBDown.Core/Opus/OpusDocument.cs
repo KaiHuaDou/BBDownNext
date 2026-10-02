@@ -84,6 +84,9 @@ public sealed class OpusDocument
     public string Summary { get; set; } = "";
     public string OpusId { get; set; } = "";
     public string CvId { get; set; } = "";
+    /// <summary>评论区类型代码与对象 id：专栏文章固定 12/{CvId}；图文动态取 opus/detail 下发的 basic.comment_type / comment_id_str。0 为无评论区</summary>
+    public int CommentType { get; set; }
+    public string CommentOid { get; set; } = "";
     public string SourceUrl { get; set; } = "";
     public List<OpusParagraph> Paragraphs { get; set; } = [];
 }

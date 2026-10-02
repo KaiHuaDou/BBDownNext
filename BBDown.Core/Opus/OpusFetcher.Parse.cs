@@ -16,6 +16,9 @@ public static partial class OpusFetcher
         {
             CvId = cvId,
             SourceUrl = sourceUrl,
+            // 专栏文章的评论区类型固定为 12（实测 cv5806746：type=12&oid=cvid 返回评论区明细）
+            CommentType = 12,
+            CommentOid = cvId,
             Title = data.TryGetProperty("title", out var t) ? (t.GetString( ) ?? "") : "",
             Summary = data.TryGetProperty("summary", out var sm) ? (sm.GetString( ) ?? "") : "",
             OpusId = data.TryGetProperty("dyn_id_str", out var d) ? (d.GetString( ) ?? "") : "",
@@ -102,13 +105,22 @@ public static partial class OpusFetcher
 
         if (data.TryGetProperty("item", out var item) && item.ValueKind == JsonValueKind.Object)
         {
+            if (item.TryGetProperty("id_str", out var dynId) && dynId.ValueKind == JsonValueKind.String)
+            {
+                doc.OpusId = dynId.GetString( ) ?? "";
+            }
+
             if (item.TryGetProperty("basic", out var basic) && basic.ValueKind == JsonValueKind.Object)
             {
                 doc.Title = basic.TryGetProperty("title", out var t) ? (t.GetString( ) ?? "") : "";
-                doc.OpusId = basic.TryGetProperty("comment_id_str", out var cid) ? (cid.GetString( ) ?? "") : "";
                 doc.AuthorMid = basic.TryGetProperty("uid", out var uid) && uid.ValueKind == JsonValueKind.Number
                     ? uid.GetRawText( )
                     : (basic.TryGetProperty("uid", out var us) ? (us.GetString( ) ?? "") : "");
+                // basic 直接下发评论区定位（图文动态为相簿区，comment_id_str 是相簿 id 而非动态 id），照单全收不做猜测
+                doc.CommentType = basic.TryGetProperty("comment_type", out var cType) && cType.ValueKind == JsonValueKind.Number
+                    ? cType.GetInt32( )
+                    : 0;
+                doc.CommentOid = basic.TryGetProperty("comment_id_str", out var cId) ? (cId.GetString( ) ?? "") : "";
             }
 
             if (item.TryGetProperty("modules", out var modules) && modules.ValueKind == JsonValueKind.Array)

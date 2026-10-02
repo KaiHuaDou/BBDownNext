@@ -50,6 +50,12 @@ public partial class MainWindow
         return mode is null or ContentMode.Video or ContentMode.Mixed;
     }
 
+    // 评论选项对视频域与专栏 / 图文域都生效；其余选项维持各自域
+    private static bool Commentable(ContentMode? mode)
+    {
+        return VideoLike(mode) || mode is ContentMode.Opus;
+    }
+
     private static bool HasBothAv(DownloadContent content)
     {
         return (content & (DownloadContent.Audio | DownloadContent.Video)) == (DownloadContent.Audio | DownloadContent.Video);
@@ -60,7 +66,7 @@ public partial class MainWindow
     private void ApplyContentArea(ContentMode? mode, bool infoOnly, int comments)
     {
         var videoLike = VideoLike(mode);
-        var commentRow = videoLike && comments > 0;
+        var commentRow = Commentable(mode) && comments > 0;
 
         ContentGrid.IsEnabled = !infoOnly && mode is not ContentMode.Live;
         foreach (var item in ContentItems.Items.Cast<ContentOption>( ))
@@ -70,7 +76,7 @@ public partial class MainWindow
                 null => true,
                 ContentMode.Video => item.Key is not ('i' or 'M'),
                 ContentMode.Mixed => true,
-                ContentMode.Opus => item.Key is 'i' or 'M',
+                ContentMode.Opus => item.Key is 'i' or 'M' or 'o' or 'O',
                 ContentMode.Audio => item.Key is 'a',
                 _ => false,
             };
@@ -80,7 +86,7 @@ public partial class MainWindow
         InteractivePagesCheckBox.IsEnabled = videoLike;
         ShowAllCheckBox.IsEnabled = videoLike;
         AllowPreviewCheckBox.IsEnabled = videoLike;
-        CommentsCountBox.IsEnabled = videoLike;
+        CommentsCountBox.IsEnabled = Commentable(mode);
         SortHotRadioButton.IsEnabled = commentRow;
         SortTimeRadioButton.IsEnabled = commentRow;
         CommentFormatPanel.IsEnabled = !infoOnly;
@@ -165,11 +171,12 @@ public partial class MainWindow
             {
                 AppendWarn(warnings, "已选择弹幕格式，但内容未勾选弹幕（d），弹幕不会下载");
             }
+        }
 
-            if (comments > 0 && (content & (DownloadContent.Comments | DownloadContent.FullComments)) == 0)
-            {
-                AppendWarn(warnings, "已设置评论条数，但内容未勾选评论（o / O），评论不会下载");
-            }
+        if (hasTarget && Commentable(mode) && !infoOnly
+            && comments > 0 && (content & (DownloadContent.Comments | DownloadContent.FullComments)) == 0)
+        {
+            AppendWarn(warnings, "已设置评论条数，但内容未勾选评论（o / O），评论不会下载");
         }
 
         ContentWarnText.Text = warnings.ToString( );

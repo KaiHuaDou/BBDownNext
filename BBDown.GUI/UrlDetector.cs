@@ -2,6 +2,7 @@ using System;
 using System.Text.RegularExpressions;
 
 using BBDown.Core;
+using BBDown.Core.Live;
 
 namespace BBDown.GUI;
 
@@ -29,6 +30,13 @@ public static partial class UrlDetector
         if (text.Length == 0)
         {
             return null;
+        }
+
+        // 直播形态以 Core 的 LiveInputResolver 为单一来源（live 号 / 带协议地址 / 无协议裸域名），
+        // 与任务执行期的路由判定同源，避免 GUI 预检与 Core 接受域不一致
+        if (LiveInputResolver.TryParse(text, out _))
+        {
+            return new TargetInfo("直播间（live 号或地址）", TargetKind.Live);
         }
 
         if (MatchKnownPrefix(text) is { } info)
@@ -134,26 +142,22 @@ public static partial class UrlDetector
             return new TargetInfo("音频（au 号）", TargetKind.Audio);
         }
 
-        if (StartsWithId(text, "live"))
-        {
-            return new TargetInfo("直播间（live 号）", TargetKind.Live);
-        }
-
         if (text.StartsWith("https://www.bilibili.com/watchlater", StringComparison.OrdinalIgnoreCase))
         {
             return new TargetInfo("稍后再看列表", TargetKind.Video);
         }
 
-        if (text.StartsWith("https://live.bilibili.com", StringComparison.OrdinalIgnoreCase))
-        {
-            return new TargetInfo("直播地址", TargetKind.Live);
-        }
-
         return null;
     }
 
-    private static TargetInfo DescribeUrl(string text)
+    private static TargetInfo? DescribeUrl(string text)
     {
+        // live 域名但无房间号（如直播首页）：LiveInputResolver 未命中才会走到这里，无法下载，按未识别处理
+        if (text.Contains("live.bilibili.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
         if (text.Contains("/cheese/", StringComparison.OrdinalIgnoreCase))
         {
             return new TargetInfo("课程地址", TargetKind.Pgc);

@@ -137,6 +137,27 @@ public class ContentSelectorTests
         Assert.False(flags.Has(DownloadContent.Comments));
     }
 
+    // ---- 模式生效集 ----
+
+    [Fact]
+    public void DescribeInactive_OpusMode_CommentsAreActive( )
+    {
+        var inactive = ContentSelector.DescribeInactive(
+            DownloadContent.OpusImage | DownloadContent.FrontMatter | DownloadContent.Comments | DownloadContent.FullComments,
+            ContentMode.Opus);
+
+        Assert.Empty(inactive);
+    }
+
+    [Fact]
+    public void DescribeInactive_OpusMode_AudioStillInactive( )
+    {
+        var inactive = ContentSelector.DescribeInactive(DownloadContent.Audio, ContentMode.Opus);
+
+        Assert.Single(inactive);
+        Assert.Contains("音频", inactive[0], System.StringComparison.Ordinal);
+    }
+
     // ---- 配套选项警告 ----
 
     [Theory]

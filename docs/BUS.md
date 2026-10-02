@@ -156,7 +156,7 @@ CLI 输入规范化映射（属 CLI 消费端职责）：`Trim` + 大小写归�
 | 宿主 | 订阅位置 | 行为 |
 | ---- | ---- | ---- |
 | CLI | `BBDown/Cli/CliInteraction.cs`（CLI 运行入口最早装配，先于一切下载链路） | 收到请求 → `BeforeRead`（暂停进度条渲染）→ 打印提示 → `Console.ReadLine` → 规范化映射 → `AskBus.Answer` → `AfterRead` |
-| GUI | `BBDown.GUI/MainWindow.Ask.cs` `OnAsk` | 回投 UI 线程弹 `AskDialog`，选择后应答；窗口关闭（未选）回落默认选项；关窗时对全部任务序号 `AskBus.CancelPending` |
+| GUI | `BBDown.GUI/MainWindow.Ask.cs` `OnAsk` | 回投 UI 线程弹 `AskDialog`，选择后应答；请求已过 `Deadline` 不弹窗直接回落默认选项；`AskDialog` 按剩余时间自动关闭（窗口关闭未选同样回落默认选项）；弹窗过程异常回落默认选项，不触发全局错误对话框；关窗时对全部任务序号 `AskBus.CancelPending` |
 | serve | `TaskMessageBridge.OnAsk` → 按 Scope 入任务事件队列 → WebSocket `optionRequest` 帧；`TaskSocketHub.SubmitChoiceAsync` → 校验任务存在后 `AskBus.Answer`（`choice` 必须 ∈ 选项集合，帧协议既有安全限制）→ 回执 `choiceResult` 帧 | 远程枚举应答 |
 
 自适应回落：无订阅者时 `Ask` 立即返回 null，调用点按「不交互」处理（逐集全跳过、选轨落回默认序号）。

@@ -26,6 +26,8 @@ public partial class MainWindow
         EpHostBox.PlaceholderText = BiliApi.MainHost;
         TvHostBox.PlaceholderText = BiliApi.TvHost;
         LangBox.PlaceholderText = "不写入语言标记";
+        CookieBox.PlaceholderText = "使用 BBDown.data 中的 WEB 登录态";
+        AccessTokenBox.PlaceholderText = "使用已保存的 access_token";
         Aria2cArgsBox.PlaceholderText = "-x16 -s16 -j16 -k5M";
         PagesBox.PlaceholderText = "下载全部（链接含集数时自动选中）";
         AreaBox.PlaceholderText = "不启用";

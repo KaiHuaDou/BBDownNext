@@ -16,8 +16,7 @@ public static class CommentRenderer
     {
         var text = new StringBuilder( );
         text.Append("# ").AppendLine(document.Title);
-        text.Append("# ")
-            .Append(document.Bvid.Length == 0 ? $"av{document.Aid}" : $"{document.Bvid} (av{document.Aid})")
+        text.Append("# ").Append(ObjectLabel(document))
             .Append(" | 排序：").Append(document.Sort == "time" ? "最新" : "热度")
             .Append(" | 已抓取 ").Append(document.Comments.Count);
         if (document.AllCount > 0)
@@ -52,6 +51,18 @@ public static class CommentRenderer
 
         // AppendLine 用平台换行（Windows 为 \r\n），产物统一 LF 行尾（跨平台 diff / 工具友好）
         return text.ToString( ).Replace("\r\n", "\n");
+    }
+
+    // 头部第二行的对象标识：视频沿用 bvid / av 前缀，专栏与图文按评论区类型代码给可读前缀
+    private static string ObjectLabel(CommentDocument document)
+    {
+        return document.Type switch
+        {
+            12 => $"cv{document.Oid}",
+            17 => $"opus{document.Oid}",
+            11 => $"album{document.Oid}",
+            _ => document.Bvid.Length == 0 ? $"av{document.Oid}" : $"{document.Bvid} (av{document.Oid})",
+        };
     }
 
     private static string Headline(CommentItem comment)

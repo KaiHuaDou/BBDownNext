@@ -28,6 +28,10 @@
                    Margin="0,15,0,0" HorizontalAlignment="Center"
                    FontSize="14"
                    Text="正在生成二维码..." />
+        <Button x:Name="RetryButton"
+                Margin="0,20,0,0" Padding="30,5" HorizontalAlignment="Center"
+                Click="RetryButtonClicked" Content="重新生成二维码"
+                IsVisible="False" />
         <Button x:Name="CancelButton"
                 Margin="0,20,0,0" Padding="30,5" HorizontalAlignment="Center"
                 Click="CancelButtonClicked" Content="取消" />

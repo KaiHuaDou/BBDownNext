@@ -15,7 +15,8 @@ using static BBDown.Core.Logger;
 namespace BBDown.Core.Comment;
 
 /// <summary>
-/// 抓取视频稿件的评论区（<c>/x/v2/reply/wbi/main</c>，游标分页 + WBI 签名）。
+/// 抓取评论区（<c>/x/v2/reply/wbi/main</c>，游标分页 + WBI 签名）。type 为评论区类型代码：
+/// 1 视频稿件 / 12 专栏 / 11 图文动态相簿区，oid 为对应对象 id。
 /// 抓取失败一律降级为「拿到多少算多少」，只有签名错误会抛出——那属于程序缺陷而非站点状态。
 /// </summary>
 public static class CommentFetcher
@@ -28,12 +29,13 @@ public static class CommentFetcher
     // 网页评论区固定携带，缺失时部分账号会被判为非法来源
     private const string WebLocation = "1315875";
 
-    public static async Task<CommentDocument> FetchAsync(string oid, int limit, bool sortHot, bool fullReplies, AppConfig cfg, CancellationToken ct = default)
+    public static async Task<CommentDocument> FetchAsync(int type, string oid, int limit, bool sortHot, bool fullReplies, AppConfig config, CancellationToken token = default)
     {
         var mode = sortHot ? 3 : 2;
         var document = new CommentDocument
         {
-            Aid = oid,
+            Type = type,
+            Oid = oid,
             Sort = sortHot ? "hot" : "time",
             FetchedAt = DateTimeOffset.Now.ToUnixTimeSeconds( )
         };
@@ -46,7 +48,7 @@ public static class CommentFetcher
         {
             var query = SignUtil.WbiSignedQuery(
                 [
-                    new("type", "1"),
+                    new("type", type.ToString(CultureInfo.InvariantCulture)),
                     new("oid", oid),
                     new("mode", mode.ToString(CultureInfo.InvariantCulture)),
                     new("plat", "1"),
@@ -54,9 +56,9 @@ public static class CommentFetcher
                     new("web_location", WebLocation),
                     new("pagination_str", PaginationStr(offset))
                 ],
-                cfg);
+                config);
 
-            using var response = await HTTPUtil.GetJsonAsync($"{BiliApi.ReplyWbiMain}?{query}", cfg, ct);
+            using var response = await HTTPUtil.GetJsonAsync($"{BiliApi.ReplyWbiMain}?{query}", config, token);
             var (code, message) = JsonUtil.ReadApiError(response.RootElement);
             switch (code)
             {
@@ -130,12 +132,12 @@ public static class CommentFetcher
             }
 
             offset = nextOffset;
-            await Task.Delay(PageDelayMs, ct);
+            await Task.Delay(PageDelayMs, token);
         }
 
         if (fullReplies)
         {
-            await FetchSubRepliesAsync(oid, document, cfg, ct);
+            await FetchSubRepliesAsync(type, oid, document, config, token);
         }
 
         return document;
@@ -161,7 +163,7 @@ public static class CommentFetcher
     /// <summary>
     /// 逐条把楼中楼抓全（<c>/x/v2/reply/reply</c>，无需签名）。请求量与评论条数成正比，故全程串行并限速。
     /// </summary>
-    private static async Task FetchSubRepliesAsync(string oid, CommentDocument document, AppConfig cfg, CancellationToken ct)
+    private static async Task FetchSubRepliesAsync(int type, string oid, CommentDocument document, AppConfig config, CancellationToken token)
     {
         var targets = document.Comments.FindAll(c => c.ReplyCount > c.Replies.Count);
         if (targets.Count == 0)
@@ -176,8 +178,8 @@ public static class CommentFetcher
             comment.Replies.Clear( );
             for (var pn = 1; comment.Replies.Count < comment.ReplyCount && comment.Replies.Count < MaxSubReplies; pn++)
             {
-                var url = $"{BiliApi.ReplyReply}?type=1&oid={oid}&root={comment.Rpid}&ps={SubReplyPageSize}&pn={pn}";
-                using var response = await HTTPUtil.GetJsonAsync(url, cfg, ct);
+                var url = $"{BiliApi.ReplyReply}?type={type}&oid={oid}&root={comment.Rpid}&ps={SubReplyPageSize}&pn={pn}";
+                using var response = await HTTPUtil.GetJsonAsync(url, config, token);
                 var (code, message) = JsonUtil.ReadApiError(response.RootElement);
                 if (code != 0)
                 {
@@ -202,7 +204,7 @@ public static class CommentFetcher
                     }
                 }
 
-                await Task.Delay(SubReplyDelayMs, ct);
+                await Task.Delay(SubReplyDelayMs, token);
             }
         }
     }
