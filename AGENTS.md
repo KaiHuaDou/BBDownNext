@@ -22,7 +22,7 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 ### Skills
 
-在以下任务中，建议使用 Skills，Skills 位于 `D:\Code\Clones\openclaw\.agents\skills` 以及 `C:\Users\Administrator\.agents\skills`
+在以下任务中，建议使用 Skills，Skills 位于 `D:\Code\Clones\openclaw\.agents\skills` 以及 `C:\Users\Administrator\.agents\skills`（非常多，~1000 个）
 
 - 审查代码
 - 审查测试
@@ -73,7 +73,9 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 #### 注释
 
 - 所有注释均使用中文
-- 注释只描述**当前**情况，禁止写入任何变更记录
+- 注释句尾不使用标点
+- 注释只描述**当前**情况，禁止写入任何变更记录（审查编号）
+    - 不要使用“不再...”、“此前...”、“本次...”等类似描述 
 - 代码必须自描述（Code describe itself）。**不写复述代码行为的注释。**
   注释仅用于解释代码无法表达的契约，例如：
     - 非显而易见的设计原因
