@@ -57,16 +57,47 @@
                           Margin="0,10,0,0"
                           HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel>
-                    <!--登录：凭据区，与下载 / 解析选项平级-->
-                    <StackPanel Margin="0,0,0,5" Orientation="Horizontal">
-                        <Button x:Name="LoginButton"
-                                MinHeight="{DynamicResource TextControlThemeMinHeight}"
-                                Padding="15,5"
-                                Click="LoginButtonClicked" Content="登录" />
-                        <TextBlock x:Name="LoginStatusText"
-                                   Margin="10,0,0,0" VerticalAlignment="Center"
-                                   Text="未登录" />
-                    </StackPanel>
+                    <!--登录：三通道各自独立登录与状态-->
+                    <Expander Header="登录"
+                              Margin="0,0,0,5" HorizontalAlignment="Stretch"
+                              HorizontalContentAlignment="Stretch">
+                        <Grid Margin="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="FieldLabel" Text="WEB" />
+                            <Button Grid.Row="0" Grid.Column="1"
+                                    Margin="0,3,10,3" Padding="15,5"
+                                    Click="LoginButtonClicked" Content="登录" Tag="web" />
+                            <TextBlock x:Name="WebLoginStatusText"
+                                       Grid.Row="0" Grid.Column="2" Margin="0,3,0,3"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="FieldLabel" Text="TV" />
+                            <Button Grid.Row="1" Grid.Column="1"
+                                    Margin="0,3,10,3" Padding="15,5"
+                                    Click="LoginButtonClicked" Content="登录" Tag="tv" />
+                            <TextBlock x:Name="TvLoginStatusText"
+                                       Grid.Row="1" Grid.Column="2" Margin="0,3,0,3"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="FieldLabel" Text="APP" />
+                            <Button Grid.Row="2" Grid.Column="1"
+                                    Margin="0,3,10,3" Padding="15,5"
+                                    Click="LoginButtonClicked" Content="登录" Tag="app" />
+                            <TextBlock x:Name="AppLoginStatusText"
+                                       Grid.Row="2" Grid.Column="2" Margin="0,3,0,3"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" />
+                        </Grid>
+                    </Expander>
 
                     <!--内容选项：从下载 / 解析选项提取的内容相关项-->
                     <Expander Header="内容选项"

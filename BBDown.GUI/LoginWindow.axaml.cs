@@ -16,31 +16,42 @@ namespace BBDown.GUI;
 
 public partial class LoginWindow : Window
 {
-    // 上次使用的登录通道：模态对话框同一时刻至多一个实例，仅在 UI 线程读写
-    private static LoginChannel lastChannel = LoginChannel.Web;
+    private readonly LoginChannel channel;
 
     private CancellationTokenSource? tokenSource;
     private volatile bool closed;
-    private bool ready;
-    private LoginChannel channel;
 
-    // 会话代际：每次启动登录自增；通道切换 / 重试后旧会话的迟到回投按代际整体丢弃，避免状态文本互相覆盖
+    // 会话代际：每次重试自增；旧会话的迟到回投按代际整体丢弃，避免状态文本被上一次运行的回调覆盖
     private int session;
 
     public LoginResult? Result { get; private set; }
 
-    public LoginWindow( )
+    // 无参构造仅用于 Avalonia XamlLoader 的运行时可达性检查，实际使用走带参构造
+    public LoginWindow( ) : this(LoginChannel.Web) { }
+
+    public LoginWindow(LoginChannel value)
     {
         InitializeComponent( );
-        ApplyChannel(lastChannel);
+        channel = value;
+        Title = $"{ChannelLabel(value)} 扫码登录";
+        ChannelText.Text = ChannelLabel(value);
         Opened += LoginWindowOpened;
         Closed += LoginWindowClosed;
     }
 
+    private static string ChannelLabel(LoginChannel value)
+    {
+        return value switch
+        {
+            LoginChannel.Tv => "TV",
+            LoginChannel.App => "APP",
+            _ => "WEB",
+        };
+    }
+
     private void LoginWindowOpened(object? o, EventArgs e)
     {
-        ready = true;
-        StartLogin(channel);
+        StartLogin( );
     }
 
     private void LoginWindowClosed(object? o, EventArgs e)
@@ -51,27 +62,6 @@ public partial class LoginWindow : Window
         tokenSource = null;
     }
 
-    private void ChannelRadioButtonChecked(object? o, RoutedEventArgs e)
-    {
-        if (!ready || o is not RadioButton { IsChecked: true, Tag: string tag })
-        {
-            return;
-        }
-
-        var selected = tag switch
-        {
-            "tv" => LoginChannel.Tv,
-            "app" => LoginChannel.App,
-            _ => LoginChannel.Web,
-        };
-        if (selected == channel)
-        {
-            return;
-        }
-
-        StartLogin(selected);
-    }
-
     private void CancelButtonClicked(object? o, RoutedEventArgs e)
     {
         tokenSource?.Cancel( );
@@ -80,21 +70,11 @@ public partial class LoginWindow : Window
 
     private void RetryButtonClicked(object? o, RoutedEventArgs e)
     {
-        StartLogin(channel);
+        StartLogin( );
     }
 
-    private void ApplyChannel(LoginChannel value)
+    private void StartLogin( )
     {
-        channel = value;
-        WebRadioButton.IsChecked = value == LoginChannel.Web;
-        TvRadioButton.IsChecked = value == LoginChannel.Tv;
-        AppRadioButton.IsChecked = value == LoginChannel.App;
-    }
-
-    private void StartLogin(LoginChannel value)
-    {
-        channel = value;
-        lastChannel = value;
         session++;
         tokenSource?.Cancel( );
         tokenSource?.Dispose( );
@@ -107,14 +87,14 @@ public partial class LoginWindow : Window
             RetryButton.IsVisible = false;
         });
         var token = tokenSource.Token;
-        _ = Task.Run(( ) => RunLoginAsync(value, current, token));
+        _ = Task.Run(( ) => RunLoginAsync(current, token));
     }
 
-    private async Task RunLoginAsync(LoginChannel value, int current, CancellationToken token)
+    private async Task RunLoginAsync(int current, CancellationToken token)
     {
         try
         {
-            var result = await LoginAsync(value, current, token);
+            var result = await LoginAsync(current, token);
             if (result is null)
             {
                 PostState(current, ( ) =>
@@ -145,24 +125,24 @@ public partial class LoginWindow : Window
         }
     }
 
-    private async Task<LoginResult?> LoginAsync(LoginChannel value, int current, CancellationToken token)
+    private async Task<LoginResult?> LoginAsync(int current, CancellationToken token)
     {
-        switch (value)
+        switch (channel)
         {
             case LoginChannel.Web:
             {
                 var (cookie, refreshToken) = await Login.WebCredentialAsync(url => ShowQrAsync(url, current), state => SetQrState(state, current), token);
-                return cookie is null ? null : new LoginResult(value, cookie, refreshToken);
+                return cookie is null ? null : new LoginResult(channel, cookie, refreshToken);
             }
             case LoginChannel.Tv:
             {
                 var accessToken = await Login.TvCredentialAsync(url => ShowQrAsync(url, current), state => SetQrState(state, current), token);
-                return accessToken is null ? null : new LoginResult(value, accessToken, null);
+                return accessToken is null ? null : new LoginResult(channel, accessToken, null);
             }
             default:
             {
                 var accessToken = await Login.AppCredentialAsync(url => ShowQrAsync(url, current), state => SetQrState(state, current), token);
-                return accessToken is null ? null : new LoginResult(value, accessToken, null);
+                return accessToken is null ? null : new LoginResult(channel, accessToken, null);
             }
         }
     }
@@ -196,7 +176,7 @@ public partial class LoginWindow : Window
         });
     }
 
-    // 回投 UI 线程并校验会话代际：旧会话（已切换通道 / 已重试）的更新直接丢弃
+    // 回投 UI 线程并校验会话代际：重试后旧会话的更新直接丢弃
     private void PostState(int current, Action action)
     {
         if (closed)

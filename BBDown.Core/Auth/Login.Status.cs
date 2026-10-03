@@ -13,9 +13,10 @@ namespace BBDown.Core.Auth;
 
 public static partial class Login
 {
-    private const string WebChannel = "WEB";
-    private const string TvChannel = "TV";
-    private const string AppChannel = "APP";
+    // 通道名对外公开：GUI 按通道名把 LoginStatus 归到各自的状态行，不依赖返回顺序
+    public const string WebChannel = "WEB";
+    public const string TvChannel = "TV";
+    public const string AppChannel = "APP";
 
     private const int ChannelCells = 4;
 
@@ -28,18 +29,28 @@ public static partial class Login
     /// </summary>
     public static async Task<int> StatusAsync(CancellationToken token = default)
     {
-        var credential = CredentialStore.LoadCredential( );
-        var webTask = ProbeWebAsync(credential, token);
-        var tvTask = ProbeTokenAsync(TvChannel, BiliApi.TvAppKey, BiliApi.TvAppSecret, credential.TvAccessToken, credential.TvTs, token);
-        var appTask = ProbeTokenAsync(AppChannel, BiliApi.PhoneAppKey, BiliApi.PhoneAppSecret, credential.AppAccessToken, credential.AppTs, token);
-
-        var statuses = new[] { await webTask, await tvTask, await appTask };
+        var statuses = await QueryStatusAsync(token);
         foreach (var status in statuses)
         {
             Log(Format(status), time: false);
         }
 
         return ExitCode(statuses);
+    }
+
+    /// <summary>
+    /// 探测三通道登录态，按 WEB / TV / APP 顺序返回。CLI 的 <see cref="StatusAsync"/> 只在其上追加渲染与退出码，
+    /// GUI 按 <see cref="LoginStatus.Channel"/> 归位到各通道的状态行。探测异常按通道收敛为
+    /// <see cref="LoginStatus.Verified"/> 为 null，不外抛。
+    /// </summary>
+    public static async Task<IReadOnlyList<LoginStatus>> QueryStatusAsync(CancellationToken token = default)
+    {
+        var credential = CredentialStore.LoadCredential( );
+        var webTask = ProbeWebAsync(credential, token);
+        var tvTask = ProbeTokenAsync(TvChannel, BiliApi.TvAppKey, BiliApi.TvAppSecret, credential.TvAccessToken, credential.TvTs, token);
+        var appTask = ProbeTokenAsync(AppChannel, BiliApi.PhoneAppKey, BiliApi.PhoneAppSecret, credential.AppAccessToken, credential.AppTs, token);
+
+        return [await webTask, await tvTask, await appTask];
     }
 
     private static async Task<LoginStatus> ProbeWebAsync(CredentialStore.Credential credential, CancellationToken token)
@@ -123,7 +134,8 @@ public static partial class Login
     }
 
     // 状态词与详情分离渲染，便于单测分别断言；空详情不产生尾随空格
-    private static (string State, string Detail) Describe(LoginStatus status)
+    /// <summary>状态词（未登录 / 探测失败 / 凭据无效 / 已登录）与详情，供 GUI 渲染到界面。</summary>
+    public static (string State, string Detail) Describe(LoginStatus status)
     {
         var credential = status.Channel == WebChannel ? "Cookie" : "access_token";
         if (!status.Saved)

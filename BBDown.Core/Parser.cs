@@ -55,6 +55,15 @@ public static class Parser
                 : $"获取播放信息失败（code={code}）：{message}");
         }
 
+        // 人机验证风控：code=0、数据合法，但只有 v_voucher 凭据而无 dash/durl。
+        // 抛出可读错误才能进入 PageDownload 的解析重试并按退避节奏重来，
+        // 否则一路静默解析出空轨道，用户只看到「未解析到任何音视频轨道」而无从判断原因。
+        // 仅在尚未收到任何轨道时判：INTL 的 prefer_code_type=1 重发若被风控，首轮轨道仍可用
+        if (result.VideoTracks.Count == 0 && result.AudioTracks.Count == 0)
+        {
+            PlayUrlResponse.ThrowIfRiskControlled(doc.RootElement);
+        }
+
         var nodeName = PlayUrlResponse.ResolveDataNodeName(doc.RootElement);
         var root = PlayUrlResponse.GetRootNode(doc.RootElement, nodeName);
 

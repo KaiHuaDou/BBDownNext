@@ -221,10 +221,10 @@ BBDown/
 │   ├── MainWindow.Tasks.cs # 任务列表交互（增量同步 / 取消 / 停止录制 / 重试 / 移除 / 并发输入校验）
 │   ├── MainWindow.Progress.cs # 进度区渲染（阶段化显隐）
 │   ├── MainWindow.Log.cs   # 日志区（ListBox 虚拟化 + 贴底跟随滚动 + 导出）
-│   ├── MainWindow.Login.cs # 扫码登录入口与登录态展示（WEB 失效时回落探测 TV / APP）
+│   ├── MainWindow.Login.cs # 三通道扫码登录入口与登录态展示（复用 Login.QueryStatusAsync）
 │   ├── MainWindow.Ask.cs   # 交互请求弹窗（逐集确认 / 选清晰度 / 选轨；异常与到期回落默认选项）
 │   ├── AskDialog.axaml(.cs) # 交互弹窗视图（到期自动关闭）
-│   ├── LoginWindow.axaml(.cs) # 扫码登录弹窗（WEB / TV / APP；会话代际守卫 + 重新生成二维码）
+│   ├── LoginWindow.axaml(.cs) # 扫码登录弹窗（通道由构造参数指定；会话代际守卫 + 重新生成二维码）
 │   ├── LoginResult.cs      # 登录结果模型
 │   ├── QueueRunner.cs      # 任务队列与并发池（1–8，运行中可调；TaskState 经 INPC 通知绑定）
 │   ├── QueueRunner.Execute.cs # 并发执行循环（取额度 / 分发 / 归还）
@@ -391,7 +391,7 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 
 ### 7.3 登录态查询
 
-`Login.StatusAsync`（`login status`）经 `CredentialStore.LoadCredential` 一次取齐三通道凭据与签发时间戳，三通道并行探测后按固定顺序渲染（`Login.Format`），退出码由 `Login.ExitCode` 决定。WEB 走 `Account.ProbeAsync`（nav），TV / APP 走 `Account.ProbeTokenAsync`（`account/myinfo`，令牌在 query，请求不带 Cookie）；探测未完成（`LoginStatus.Verified` 为 null）与服务端否认分列两种状态。
+`Login.QueryStatusAsync` 并行探测三通道并按 WEB / TV / APP 顺序返回 `LoginStatus`，是 GUI 登录态展示与 `login status` 的共同来源。`Login.StatusAsync`（`login status`）在其上追加渲染（`Login.Format`）与退出码（`Login.ExitCode`）；GUI 取返回值经 `Login.Describe` 渲染到三个通道各自的状态行。WEB 走 `Account.ProbeAsync`（nav），TV / APP 走 `Account.ProbeTokenAsync`（`account/myinfo`，令牌在 query，请求不带 Cookie）；探测未完成（`LoginStatus.Verified` 为 null）与服务端否认分列两种状态。
 
 ### 7.4 传输与接口安全
 

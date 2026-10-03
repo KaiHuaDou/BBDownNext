@@ -154,8 +154,8 @@ public class ContentSelectorTests
     {
         var inactive = ContentSelector.DescribeInactive(DownloadContent.Audio, ContentMode.Opus);
 
-        Assert.Single(inactive);
-        Assert.Contains("音频", inactive[0], System.StringComparison.Ordinal);
+        var item = Assert.Single(inactive);
+        Assert.Contains("音频", item, System.StringComparison.Ordinal);
     }
 
     // ---- 配套选项警告 ----

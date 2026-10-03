@@ -3,20 +3,31 @@
 using System;
 using System.Threading.Tasks;
 
+using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 
-using BBDown.Core;
 using BBDown.Core.Auth;
 
 namespace BBDown.GUI;
 
-/// <summary>扫码登录入口与登录态展示，控制 MainWindow.axaml.cs 行数。</summary>
+/// <summary>三通道登录入口与登录态展示，控制 MainWindow.axaml.cs 行数。</summary>
 public partial class MainWindow
 {
     private async void LoginButtonClicked(object? o, RoutedEventArgs e)
     {
-        var dialog = new LoginWindow( );
+        if (o is not Button { Tag: string tag })
+        {
+            return;
+        }
+
+        var channel = tag switch
+        {
+            "tv" => LoginChannel.Tv,
+            "app" => LoginChannel.App,
+            _ => LoginChannel.Web,
+        };
+        var dialog = new LoginWindow(channel);
         await dialog.ShowDialog(this);
         if (dialog.Result is not { } result)
         {
@@ -58,62 +69,59 @@ public partial class MainWindow
         await RefreshLoginStatusAsync( );
     }
 
-    /// <summary>探测当前登录态并刷新状态文字；无凭据时显示「未登录」。WEB 走 nav 探测昵称，TV/APP 仅判断 token 是否已保存；
-    /// WEB cookie 存在但探测未确认登录（失效 / 探测失败）时继续回落探测 TV / APP，避免误报「未登录」。</summary>
+    /// <summary>
+    /// 探测三通道登录态并分别展示。三通道各自独立呈现，未登录的通道不再被已登录的通道遮蔽；
+    /// 已保存但服务端未认可（失效）与探测失败分列两态。
+    /// </summary>
     private async Task RefreshLoginStatusAsync( )
     {
-        var status = "未登录";
-        var cookie = CredentialStore.LoadWebCookie( );
-        if (cookie.Length > 0)
+        try
         {
-            try
+            foreach (var status in await Login.QueryStatusAsync( ))
             {
-                var config = new AppConfig(
-                    Cookie: cookie,
-                    Token: "",
-                    Host: BiliApi.MainHost,
-                    EpHost: BiliApi.MainHost,
-                    TvHost: BiliApi.TvHost,
-                    Area: "",
-                    Wbi: "",
-                    UserAgent: "");
-                var (info, _) = await Account.ProbeAccountAsync(config);
-                if (info.IsLogin)
-                {
-                    status = $"WEB 已登录：{info.UserName}";
-                }
-            }
-            catch (Exception e)
-            {
-                AppendLog($"登录态探测失败（可忽略）：{e.Message}");
+                SetLoginStatus(ChannelOf(status.Channel), Describe(status));
             }
         }
-
-        if (status == "未登录" && CredentialStore.LoadTvToken( ).Length > 0)
+        catch (Exception e)
         {
-            status = "TV 已登录（access_token 已保存）";
+            AppendLog($"登录态探测失败：{e.Message}");
         }
-
-        if (status == "未登录" && CredentialStore.LoadAppToken( ).Length > 0)
-        {
-            status = "APP 已登录（access_token 已保存）";
-        }
-
-        SetLoginStatus(status);
     }
 
-    private void SetLoginStatus(string text)
+    private static LoginChannel ChannelOf(string channel)
+    {
+        return channel switch
+        {
+            Login.TvChannel => LoginChannel.Tv,
+            Login.AppChannel => LoginChannel.App,
+            _ => LoginChannel.Web,
+        };
+    }
+
+    private static string Describe(LoginStatus status)
+    {
+        var (state, detail) = Login.Describe(status);
+        return detail.Length > 0 ? $"{state}：{detail}" : state;
+    }
+
+    private void SetLoginStatus(LoginChannel channel, string text)
     {
         if (!Dispatcher.UIThread.CheckAccess( ))
         {
             if (!closed)
             {
-                Dispatcher.UIThread.Post(( ) => SetLoginStatus(text));
+                Dispatcher.UIThread.Post(( ) => SetLoginStatus(channel, text));
             }
 
             return;
         }
 
-        LoginStatusText.Text = text;
+        var block = channel switch
+        {
+            LoginChannel.Web => WebLoginStatusText,
+            LoginChannel.Tv => TvLoginStatusText,
+            _ => AppLoginStatusText,
+        };
+        block.Text = text;
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 
 using static BBDown.Core.Util.JsonUtil;
@@ -40,6 +41,31 @@ internal static class PlayUrlResponse
     }
 
     private static readonly string[] VipRestrictionMessageKeys = ["message", "msg"];
+
+    // 风控人机验证的凭据：HTTP 200、code=0，数据根下只有 v_voucher，既无 dash 也无 durl。
+    // 抛出可读错误，使其与 code=-352 同等待遇：按重试设置退避重来，而不是静默产出空轨道
+    internal static void ThrowIfRiskControlled(JsonElement root)
+    {
+        if (!IsRiskControlled(root)
+            && !(TryGetObject(root, "data", out var data) && IsRiskControlled(data))
+            && !(TryGetObject(root, "result", out var result) && IsRiskControlled(result)))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"播放信息被风控拦截：接口要求人机验证（{VoucherName}），未返回任何播放地址。请稍后重试；若持续出现，请在浏览器打开该视频完成验证后再运行");
+    }
+
+    private const string VoucherName = "v_voucher";
+
+    private static bool IsRiskControlled(JsonElement root)
+    {
+        return root.ValueKind == JsonValueKind.Object
+               && root.TryGetProperty(VoucherName, out var voucher)
+               && voucher.ValueKind == JsonValueKind.String
+               && !string.IsNullOrEmpty(voucher.GetString( ));
+    }
 
     // data 节点一次性判断完；v2 接口把有效载荷藏在 result.video_info 下
     internal static string? ResolveDataNodeName(JsonElement data)

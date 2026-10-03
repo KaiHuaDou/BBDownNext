@@ -51,7 +51,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
 - **工程规范**：下载能力集中 `BBDown.Core`、依赖单向无环、`ResourceId` 判别联合缺分支编译报错、单文件 / 单方法行数上限、Microsoft Testing Platform 现代测试栈。
 - **拿来即用**：AOT 单文件发布，免安装 .NET 运行时；另有 Windows 7 兼容产物与 musl 静态产物。
 - **CLI 干净直接**：顶层子命令只有 `login` / `serve`，其余输入（视频 / 番剧 / 课程 / 直播 / 专栏 / 文集 / 空间 / 稍后再看等）由根命令自动识别，裸编号与 b23.tv 短链可直接输入；下载内容由 `-g` / `-w` / `-W` 字符集表达；退出码 0 / 1 / 2 / 130。
-- **可扩展**：外部后处理协议与插件生态，含官方 DRM 解密插件 `Plugins/BBDown.DRM`（独立仓库）。
+- **可扩展**：外部后处理协议与插件生态
 - **测试覆盖**：解析、混流、serve 安全等核心路径有单元测试守护。
 
 ## 特性
@@ -90,13 +90,12 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
     - **请求凭据门** · 携带 Cookie 的请求仅发往 B 站官方域或显式配置的 host（`--host` / `--ep-host` / `--tv-host`）
 - 形态
     - **CLI** · 跨平台（Win / Linux / macOS），AOT 单文件发布
-    - **GUI** · 单窗口 Avalonia：任务队列与并发控制、扫码登录、拖放输入、队列持久化、窗口尺寸记忆、选项随程序便携保存；交互选项在窗口内弹窗应答；发布 Windows / macOS / Linux 三平台（Windows x64 另有 Win7 兼容包）
+    - **GUI** · 单窗口 Avalonia：任务队列与并发控制、WEB / TV / APP 三通道各自独立扫码登录与登录态展示、拖放输入、队列持久化、窗口尺寸记忆、选项随程序便携保存；交互选项在窗口内弹窗应答；发布 Windows / macOS / Linux 三平台（Windows x64 另有 Win7 兼容包）
     - **serve** · HTTP JSON API 与 WebSocket 事件流（[API.md](./docs/API.md)）：任务队列、并发控制、令牌鉴权、限流与错误脱敏
     - **WebUI 前端** · `BBDown.WebUI`（WIP，尚未生产可用）
 - 插件与产物
-    - **官方 DRM 解密插件** · `Plugins/BBDown.DRM`（独立仓库）：bili\_drm 通道 clearkey 自动取钥，widevine 通道经 Widevine CDM 取钥（需自备 `device.wvd`）
     - **示例插件** · `Plugins/BBDown.Sample` 提供协议最小实现模板
-    - **Windows 7 兼容** · `win-x64` 产物可直接在 Windows 7 运行（无需安装 .NET 运行时）
+    - **Windows 7 兼容** · `win7-x64` 产物可直接在 Windows 7 运行（无需安装 .NET 运行时）
     - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行
 - 工程品质
     - **消息 / 进度 / 交互总线** · `MessageBus` / `ProgressBus` / `AskBus` 三总线：Core 只产生值对象消息与交互请求，CLI / GUI / serve 宿主订阅展示与应答；进度按阶段划分，高频快照不进事件队列、低频事件不丢失
@@ -105,7 +104,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
     - **代码规模约束** · 单文件 ≤ 384 行、单方法 ≤ 128 行（`just tokei` 守护），超出即拆分
     - **类型安全** · `ResourceId` 判别联合（17 个 sealed 子类型：Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater / LiveRoom / OpusArticle / ReadList / SpaceOpus / SpaceAudio / SpaceDynamic / Audio）取代字符串前缀打标，按类型分发、缺分支编译报错
     - **现代测试栈** · 测试运行器迁移至 Microsoft Testing Platform（xunit.v3 4.0.0），原生运行更快，自带代码覆盖率与 Trx 报告
-    - **现代 .NET** · C# 15、全部语法兼容 AOT（正则源生成、源生成器）、不可变 record 契约、纯函数优先、单一来源化（清晰度档位 / 内容字符表由 Core 枚举生成）
+    - **现代 .NET** · C# 15、全部语法兼容 AOT（正则源生成、源生成器）、不可变 record、纯函数优先、单一来源化（清晰度档位 / 内容字符表由 Core 枚举生成）
 
 ## 与原版 BBDown 的差异
 
@@ -119,7 +118,6 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
 | 下载引擎   | 自研分片下载器 + 清单文件，基础续传                | Downloader 库：分片级重试、自愈式断点续传（并发 32）、下载头统一注入                                                                  |
 | 内容能力   | 基础                                               | 直播录制、专栏 / 图文导出、空间投稿、稍后再看、充电试看识别（退出码 2）、封面嵌入 `C`、mkv 混流                                       |
 | serve      | `/add-task` 散点端点 + 基础令牌                    | `/api/v1/tasks` 规范 REST（202 受理 / 200 重复 / 400 非法 / 429 限流）+ WebSocket 事件流 + SSRF / CORS / 凭据门 / 限流 / 脱敏全套安全 |
-| DRM 解密   | 内置 `--drm-key`                                   | 外部后处理协议 + 官方插件 `Plugins/BBDown.DRM`（bili\_drm clearkey 自动取钥 / Widevine CDM 自动取钥）                                 |
 | 形态与发布 | 仅 CLI，无 AOT 产物                                | CLI + GUI（Avalonia）+ serve + WebUI + 插件生态；AOT 单文件、Win7 兼容、musl 静态产物                                                 |
 | 工程与测试 | VSTest，测试较少                                   | 1200+ 单元测试（Microsoft Testing Platform）、依赖单向无环、单文件 / 单方法行数约束、日志脱敏                                         |
 
@@ -621,6 +619,10 @@ FLV 封装固定以最高清晰度（qn=127）请求播放地址，用户的清�
 **Q：WBI 签名解决什么问题？**
 
 B 站 web 接口要求 WBI 签名，未签名的请求更容易触发风控。BBDown 对 playurl、view、字幕、空间列表均做标准 WBI 签名；未探测到账号时自动退化为不签名。
+
+**Q：报错说「接口要求人机验证」怎么办？**
+
+B 站对播放信息请求做了人机验证，此时响应里只有一个验证凭据而没有任何播放地址。BBDown 会按 `--retry-count` / `--retry-delay` 自动退避重试；持续出现时请稍后重试，或在浏览器打开该视频完成验证后再运行。
 
 **Q：如何把 serve 安全地暴露到局域网 / 公网？**
 

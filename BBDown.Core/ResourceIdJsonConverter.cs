@@ -6,7 +6,7 @@ namespace BBDown.Core;
 
 /// <summary>
 /// <see cref="ResourceId"/> ↔ 规范字符串的 JSON 转换：serve API 中任务 id 以字符串形态出现
-/// （如 "season2539"），与 <see cref="ResourceId.TryParse"/> 的路径参数编码严格对称，
+/// 与 <see cref="ResourceId.TryParse"/> 的路径参数编码严格对称，
 /// 客户端拿到即可直接回显到 /get-tasks/{id} 等路径。
 /// </summary>
 public sealed class ResourceIdJsonConverter : JsonConverter<ResourceId>
@@ -19,7 +19,7 @@ public sealed class ResourceIdJsonConverter : JsonConverter<ResourceId>
             return id;
         }
 
-        throw new JsonException("ResourceId 应为规范字符串（如 \"season2539\"）");
+        throw new JsonException("ResourceId 应为规范字符串");
     }
 
     public override void Write(Utf8JsonWriter writer, ResourceId value, JsonSerializerOptions options)

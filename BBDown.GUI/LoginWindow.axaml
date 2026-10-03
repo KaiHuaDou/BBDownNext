@@ -1,25 +1,13 @@
 <Window x:Class="BBDown.GUI.LoginWindow"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="扫码登录"
         Width="320"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
     <StackPanel Margin="20">
-        <StackPanel Margin="0,0,0,10" HorizontalAlignment="Center" Orientation="Horizontal">
-            <RadioButton x:Name="WebRadioButton"
-                         Margin="0,0,10,0"
-                         IsChecked="True"
-                         Content="WEB" GroupName="LoginChannel"
-                         IsCheckedChanged="ChannelRadioButtonChecked" Tag="web" />
-            <RadioButton x:Name="TvRadioButton"
-                         Margin="0,0,10,0"
-                         Content="TV" GroupName="LoginChannel"
-                         IsCheckedChanged="ChannelRadioButtonChecked" Tag="tv" />
-            <RadioButton x:Name="AppRadioButton"
-                         Content="APP" GroupName="LoginChannel"
-                         IsCheckedChanged="ChannelRadioButtonChecked" Tag="app" />
-        </StackPanel>
+        <TextBlock x:Name="ChannelText"
+                   Margin="0,0,0,10" HorizontalAlignment="Center"
+                   FontSize="16" FontWeight="Bold" />
         <Image x:Name="QrImage"
                Width="240" Height="240"
                HorizontalAlignment="Center"
