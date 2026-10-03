@@ -237,8 +237,17 @@ public closed record ResourceId
     }
 
     // 前缀按长度降序
-    private static readonly string[] TypePrefixes =
-        ["spaceDynamic", "cheeseSeason", "spaceAudio", "mediaList", "spaceOpus", "cheeseEp", "readlist", "season", "series", "space", "opus", "live", "fav", "ep", "cv", "au", "av", "rl"];
+    private static readonly string[] TypePrefixes = [
+        "spaceDynamic", "cheeseSeason",
+        "spaceAudio",
+        "mediaList", "spaceOpus",
+        "cheeseEp", "readlist",
+        "season", "series",
+        "space",
+        "opus", "live",
+        "fav",
+        "ep", "cv", "au", "av", "rl"
+    ];
 
     // 仅接受纯数字（无符号/空白/千分位），保证规范形态与非法输入严格区分
     private static bool TryLong(string value, out long result)

@@ -4,12 +4,12 @@
 >
 > 本项目与哔哩哔哩及其关联公司（以下统称「平台方」）无隶属、授权、合作或背书关系，不提供平台方内容，主程序不含解密能力。
 >
-> 本项目仅供个人学习、研究和非商业性用途。请自行确认有权下载与使用目标内容，并遵守所在地法律法规与平台服务条款；开发者不对因使用本工具产生的版权纠纷或法律责任承担责任，本项目按现状提供，无任何担保。权利人认为本项目侵犯权益的，可通过 [Issues](https://github.com/KaiHuaDou/BBDownNext/issues) 联系，本项目将立即处理。
+> 本项目仅供个人学习、研究和非商业性用途。请自行确认有权下载与使用目标内容，并遵守所在地法律法规与平台服务条款；开发者不承担因使用本工具引发的版权纠纷或法律责任，本项目按现状提供，无任何担保。权利人认为本项目侵犯权益的，可通过 [Issues](https://github.com/KaiHuaDou/BBDownNext/issues) 联系，本项目将立即处理。
 
 <h1 align="center">BBDown vNEXT</h1>
 
 <p align="center">
-nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费、跨平台的哔哩哔哩（B 站）视频下载 / 解析工具：命令行（CLI）与图形界面（BBDown.GUI，Avalonia 桌面端）双形态，支持视频 / 番剧 / 课程 / 直播 / 专栏 / 文集 / 空间图文 / 空间音频与动态 / 单音频（au 号）/ 稍后再看、8K / HDR / 杜比视界 / DASH / FLV、多线程与断点续传，并提供带鉴权令牌的 HTTP API 服务器。
+nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费、跨平台的哔哩哔哩（B 站）视频下载 / 解析工具：命令行（CLI）与图形界面（BBDown.GUI，Avalonia 桌面端）两种客户端，支持视频 / 番剧 / 课程 / 直播 / 专栏 / 文集 / 空间图文 / 空间音频与动态 / 单音频（au 号）/ 稍后再看、8K / HDR / 杜比视界 / DASH / FLV、多线程与断点续传，并提供带鉴权令牌的 HTTP API 服务器。
 </p>
 
 <p align="center">
@@ -47,8 +47,8 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
 
 - **下载可靠**：多线程分片与断点续传、分片级重试、续传元数据自愈校验、下载请求头统一注入。
 - **serve 开箱即用**：`/api/v1/tasks` REST 接口、任务队列与并发控制、始终开启的 WebSocket 事件流；安全侧含 SSRF 防护、CORS 默认仅回环放行、凭据门、令牌鉴权、限流与错误脱敏，详见 [服务器模式](#服务器模式)。
-- **三种形态共享同一核心**：CLI、GUI、serve 使用同一下载链路与配置语义，交互请求（逐集确认 / 选清晰度 / 选轨）由各宿主应答。
-- **工程规范**：下载能力集中 `BBDown.Core`、依赖单向无环、`ResourceId` 判别联合缺分支编译报错、单文件 / 单方法行数上限、Microsoft Testing Platform 现代测试栈。
+- **三种客户端共享同一核心**：CLI、GUI、serve 使用同一下载链路与同一套配置，交互请求（逐集确认 / 选清晰度 / 选轨）由各宿主应答。
+- **工程规范**：下载能力集中 `BBDown.Core`、依赖单向无环、`ResourceId` 联合类型缺分支编译报错、单文件 / 单方法行数上限、Microsoft Testing Platform 测试栈。
 - **拿来即用**：AOT 单文件发布，免安装 .NET 运行时；另有 Windows 7 兼容产物与 musl 静态产物。
 - **CLI 干净直接**：顶层子命令只有 `login` / `serve`，其余输入（视频 / 番剧 / 课程 / 直播 / 专栏 / 文集 / 空间 / 稍后再看等）由根命令自动识别，裸编号与 b23.tv 短链可直接输入；下载内容由 `-g` / `-w` / `-W` 字符集表达；退出码 0 / 1 / 2 / 130。
 - **可扩展**：外部后处理协议与插件生态
@@ -88,7 +88,7 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
     - **CDN / PCDN 控制** · `--upos-host` 自定义 CDN 服务器，`--allow-pcdn` 按需放行 PCDN 域名
     - **日志脱敏** · Cookie、access\_token 与密钥不落明文日志
     - **请求凭据门** · 携带 Cookie 的请求仅发往 B 站官方域或显式配置的 host（`--host` / `--ep-host` / `--tv-host`）
-- 形态
+- 客户端
     - **CLI** · 跨平台（Win / Linux / macOS），AOT 单文件发布
     - **GUI** · 单窗口 Avalonia：任务队列与并发控制、WEB / TV / APP 三通道各自独立扫码登录与登录态展示、拖放输入、队列持久化、窗口尺寸记忆、选项随程序便携保存；交互选项在窗口内弹窗应答；发布 Windows / macOS / Linux 三平台（Windows x64 另有 Win7 兼容包）
     - **serve** · HTTP JSON API 与 WebSocket 事件流（[API.md](./docs/API.md)）：任务队列、并发控制、令牌鉴权、限流与错误脱敏
@@ -98,28 +98,28 @@ nilaoda/BBDown 的全面重构增强分支（上游已归档）。开源免费�
     - **Windows 7 兼容** · `win7-x64` 产物可直接在 Windows 7 运行（无需安装 .NET 运行时）
     - **musl 静态产物** · `linux-musl-x64` / `linux-musl-arm64`，无动态依赖，可直接放入容器运行
 - 工程品质
-    - **消息 / 进度 / 交互总线** · `MessageBus` / `ProgressBus` / `AskBus` 三总线：Core 只产生值对象消息与交互请求，CLI / GUI / serve 宿主订阅展示与应答；进度按阶段划分，高频快照不进事件队列、低频事件不丢失
+    - **消息 / 进度 / 交互总线** · `MessageBus` / `ProgressBus` / `AskBus` 三总线：Core 侧只有值对象消息与交互请求，CLI / GUI / serve 宿主订阅展示与应答；进度按阶段划分，高频快照不进事件队列、低频事件不丢失
     - **1200+ 单元测试**，覆盖解析、混流、serve 安全等全部核心路径
     - **分层清晰** · 下载能力集中在 `BBDown.Core`（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`），CLI 与 serve 留在 `BBDown`（`Cli` / `Serve`）；依赖单向成树（`check-deps` 守护）
     - **代码规模约束** · 单文件 ≤ 384 行、单方法 ≤ 128 行（`just tokei` 守护），超出即拆分
-    - **类型安全** · `ResourceId` 判别联合（17 个 sealed 子类型：Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater / LiveRoom / OpusArticle / ReadList / SpaceOpus / SpaceAudio / SpaceDynamic / Audio）取代字符串前缀打标，按类型分发、缺分支编译报错
-    - **现代测试栈** · 测试运行器迁移至 Microsoft Testing Platform（xunit.v3 4.0.0），原生运行更快，自带代码覆盖率与 Trx 报告
-    - **现代 .NET** · C# 15、全部语法兼容 AOT（正则源生成、源生成器）、不可变 record、纯函数优先、单一来源化（清晰度档位 / 内容字符表由 Core 枚举生成）
+    - **类型安全** · `ResourceId` 联合类型（17 个子类型：Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater / LiveRoom / OpusArticle / ReadList / SpaceOpus / SpaceAudio / SpaceDynamic / Audio），按类型分发、缺分支编译报错
+    - **现代测试栈** · 测试运行器为 Microsoft Testing Platform（xunit.v3 4.0.0），自带代码覆盖率与 Trx 报告
+    - **现代 .NET** · C# 15、全部语法兼容 AOT、不可变 record、纯函数优先；清晰度档位与内容字符表由 Core 枚举生成
 
 ## 与原版 BBDown 的差异
 
 本仓库是 [nilaoda/BBDown](https://github.com/nilaoda/BBDown) 的增强分支。与原版相比：
 
-| 维度       | 原版 nilaoda/BBDown                                | 本分支                                                                                                                                |
-| ---------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| 登录与凭据 | `login` / `logintv` 分离，APP 需抓包，凭据分离文件 | 统一 `login`（`--tv` / `--app` 扫码），`refresh_token` RSA-OAEP 主动续期，单一 `BBDown.data`                                          |
-| 解析与风控 | 无 WBI 签名                                        | WBI 签名（playurl / view / 字幕 / 空间列表）、`--api` 四通道单选、BiliPlus 代理、intl 模式                                            |
-| CLI 设计   | 散点子命令 + 多布尔开关                            | 子命令精简为 `login` / `serve`，根命令自动识别输入；`-g` / `-w` / `-W` 字符集表达内容；退出码 0 / 1 / 2 / 130 语义化                  |
-| 下载引擎   | 自研分片下载器 + 清单文件，基础续传                | Downloader 库：分片级重试、自愈式断点续传（并发 32）、下载头统一注入                                                                  |
-| 内容能力   | 基础                                               | 直播录制、专栏 / 图文导出、空间投稿、稍后再看、充电试看识别（退出码 2）、封面嵌入 `C`、mkv 混流                                       |
-| serve      | `/add-task` 散点端点 + 基础令牌                    | `/api/v1/tasks` 规范 REST（202 受理 / 200 重复 / 400 非法 / 429 限流）+ WebSocket 事件流 + SSRF / CORS / 凭据门 / 限流 / 脱敏全套安全 |
-| 形态与发布 | 仅 CLI，无 AOT 产物                                | CLI + GUI（Avalonia）+ serve + WebUI + 插件生态；AOT 单文件、Win7 兼容、musl 静态产物                                                 |
-| 工程与测试 | VSTest，测试较少                                   | 1200+ 单元测试（Microsoft Testing Platform）、依赖单向无环、单文件 / 单方法行数约束、日志脱敏                                         |
+| 维度         | 原版 nilaoda/BBDown                                | 本分支                                                                                                                                |
+| ------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 登录与凭据   | `login` / `logintv` 分离，APP 需抓包，凭据分离文件 | 统一 `login`（`--tv` / `--app` 扫码），`refresh_token` RSA-OAEP 主动续期，单一 `BBDown.data`                                          |
+| 解析与风控   | 无 WBI 签名                                        | WBI 签名（playurl / view / 字幕 / 空间列表）、`--api` 四通道单选、BiliPlus 代理、intl 模式                                            |
+| CLI 设计     | 散点子命令 + 多布尔开关                            | 子命令精简为 `login` / `serve`，根命令自动识别输入；`-g` / `-w` / `-W` 字符集表达内容；退出码 0 / 1 / 2 / 130                         |
+| 下载引擎     | 自研分片下载器 + 清单文件，基础续传                | Downloader 库：分片级重试、自愈式断点续传、下载头统一注入                                                                             |
+| 内容能力     | 基础                                               | 直播录制、专栏 / 图文导出、空间投稿、稍后再看、充电试看识别（退出码 2）、封面嵌入 `C`、mkv 混流                                       |
+| serve        | `/add-task` 散点端点 + 基础令牌                    | `/api/v1/tasks` 规范 REST（202 受理 / 200 重复 / 400 非法 / 429 限流）+ WebSocket 事件流 + SSRF / CORS / 凭据门 / 限流 / 脱敏全套安全 |
+| 客户端与发布 | 仅 CLI，无 AOT 产物                                | CLI + GUI（Avalonia）+ serve + WebUI + 插件生态；AOT 单文件、Win7 兼容、musl 静态产物                                                 |
+| 工程与测试   | VSTest，测试较少                                   | 1200+ 单元测试（Microsoft Testing Platform）、依赖单向无环、单文件 / 单方法行数约束、日志脱敏                                         |
 
 逐项对照与源码位置见 [docs/compared-to-upstream.md](./docs/compared-to-upstream.md)。
 
@@ -208,7 +208,7 @@ pnpm fmt        # oxfmt 格式化
 
 ## 快速开始
 
-以下为命令行（CLI）用法；Windows 用户也可直接使用图形界面 BBDown.GUI，覆盖视频 / 番剧 / 直播录制 / 专栏 / 文集 / 空间投稿 / 单音频等形态，无需命令行操作。
+以下为命令行（CLI）用法；Windows 用户也可直接使用图形界面 BBDown.GUI，覆盖视频 / 番剧 / 直播录制 / 专栏 / 文集 / 空间投稿 / 单音频等目标，无需命令行操作。
 
 ```bash
 # 下载一个视频（默认下载最高清晰度）
@@ -263,7 +263,7 @@ BBDown "live12345" -lq 400
 - **番剧 / 影视 / 课程**：`/bangumi/play/...`、`/cheese/...`、番剧 `md{数字}` 详情页（如 `https://www.bilibili.com/bangumi/media/md2539`，或简写 `md2539`）、`/bangumi/play/ss{季_id}`（或简写 `ss{数字}`）。`md` 与 `ss` 两种入口**均默认下载整季全部正片分集**（不含 OP/ED/PV 等 `section` 内容，可用 `-p` 指定具体集）；`ep{数字}` 则只下载该单集。
 - **合集 / 系列**：UP 主空间的 `lists/` 页面（`business=space_collection` 为合集，`business=space_series` 为系列）
 - **收藏夹**：UP 主空间的 `favlist` 页面
-- **稍后再看**：`https://www.bilibili.com/watchlater/`、`https://www.bilibili.com/watchlater/#/list`、`https://www.bilibili.com/list/watchlater`（整个列表按添加顺序作为大列表下载，多 P 自动展开，支持 `-p` / `-iap`；接口私有，需登录 Cookie）。分享链接带 `bvid` / `oid` 参数时只下载该单个视频。
+- **稍后再看**：`https://www.bilibili.com/watchlater/`、`https://www.bilibili.com/watchlater/#/list`、`https://www.bilibili.com/list/watchlater`（整个列表按添加顺序作为大列表下载，多 P 自动按集拆分，支持 `-p` / `-iap`；接口私有，需登录 Cookie）。分享链接带 `bvid` / `oid` 参数时只下载该单个视频。
 - **空间投稿列表**：UP 主空间首页 / `upload/video` / `video?tid=0`，也可直接传 UP mid（`402787936`）或 `space402787936`。默认按**最新发布**（`pubdate`）倒序拉取**全部**投稿；课堂视频、无法解析的稿件（直播回放 / 充电专属 / 已删除等）会**跳过并告警**，不中断整批。
 - **专栏 / 图文**：`https://www.bilibili.com/opus/{opus_id}`、`https://www.bilibili.com/mobile/opus/{opus_id}`、`https://www.bilibili.com/read/cv{cv_id}`、`https://www.bilibili.com/read/mobile/{cv_id}`，以及前缀写法 `opus:{opus_id}` / `opus{opus_id}` / `cv{cv_id}`。专栏导出为 Markdown 文件，详见 [专栏 / 图文导出](#专栏--图文导出)。
 - **文集**（专栏合集）：`https://www.bilibili.com/read/readlist/rl{rl_id}`，或简写 `rl{rl_id}` / `readlist{rl_id}`。逐篇导出为 Markdown，落在 `工作目录/文集名/` 下；单篇失败跳过并告警，全部结束时汇总抛出。
@@ -298,14 +298,14 @@ BBDown "live12345" -lq 400
 | `--audio-ascending`     | `-aa`  | 音频升序（最小体积优先）                                 |
 | `--interactive-quality` | `-iaq` | 交互式选择清晰度                                         |
 | `--hide-streams`        | `-hs`  | 不显示所有可用音视频流                                   |
-| `--info-only`           | `-i`   | 仅解析而不进行下载                                       |
+| `--info-only`           | `-i`   | 仅解析，不下载                                           |
 | `--all`                 | <br /> | 展示所有分 P 标题                                        |
 
 > 同时指定 `-e` 与 `-q` 时，以命令行书写的先后为准（写在前的优先）。`-q` 仅作用于清晰度筛选，编码仍由 `-e` 控制。
 > **封装对** **`-q`** **的影响：**
 >
-> - **DASH**：先按 `-q` 请求一次，再额外以最高清晰度（qn=127）请求一次以取得「免二压 / 原始画质」视频轨（两次结果取并集）。因此 DASH 比 FLV 多一次播放地址请求。
-> - **FLV**：固定以最高清晰度（qn=127）请求播放地址，用户通过 `-q` 指定的清晰度优先级对它**不生效**——FLV 只会产出单一最高清视频流（仍可按 `-e` 选编码）。
+> - **DASH**：先按 `-q` 请求一次，再额外以最高清晰度请求一次以取得「免二压 / 原始画质」视频轨（两次结果取并集）。因此 DASH 比 FLV 多一次播放地址请求。
+> - **FLV**：固定以最高清晰度请求播放地址，用户通过 `-q` 指定的清晰度优先级对它**不生效**——FLV 只会产出单一最高清视频流（仍可按 `-e` 选编码）。
 
 ### 下载内容
 
@@ -369,7 +369,7 @@ BBDown "live12345" -lq 400
 
 | 参数               | 简写     | 说明                                                                                   |
 | ------------------ | -------- | -------------------------------------------------------------------------------------- |
-| `--aria2c`         | `-aria2` | 调用 aria2c 进行下载（需自行准备二进制）                                               |
+| `--aria2c`         | `-aria2` | 调用 aria2c 下载（需自行准备二进制）                                                   |
 | `--aria2c-args`    | <br />   | 调用 aria2c 的附加参数（详见脚注 [^aria2cargs]）                                       |
 | `--single-thread`  | `-st`    | 使用单线程下载，用于不支持 Range 的服务器；不加此选项即默认多线程                      |
 | `--delay-per-page` | <br />   | 分 P 之间下载的间隔时间，单位秒，默认 `0`（无间隔）                                    |
@@ -433,7 +433,7 @@ BBDown "live12345" -lq 400
 
 > **自定义日期格式**：`<publishDate>` / `<videoDate>` 后可接 `:` + .NET 的 `DateTime` 格式串，例如 `<publishDate:yyyyMMdd>`、`<videoDate:yyyy-MM-dd HH:mm>`。省略格式串时使用默认格式。
 >
-> **长度限制**：最终文件名按 **UTF-8 字节数截断，上限 200 字节**（约 66 个汉字），超出部分会被裁掉，避免过长路径导致写入失败。
+> **长度限制**：最终文件名按 **UTF-8 字节数截断，上限 200 字节**（约 66 个汉字），超出部分会被裁掉，避免过长路径写入失败。
 > 示例：
 
 ```bash
@@ -486,19 +486,19 @@ APP 未登录    本地无 access_token
 | `--listen`         | `-l`   | 监听地址，默认 `http://127.0.0.1:23333`                                                                                                          |
 | `--serve-token`    | <br /> | serve 鉴权令牌；显式传入后才启用强制鉴权（所有访问均须带 `X-BBDown-Token` 头或 WebSocket 握手 `?token=` 查询参数），未传入则默认免令牌开放并警告 |
 | `--work-dir`       | <br /> | 所有任务的下载输出目录，请求中的同名字段会被忽略                                                                                                 |
-| `--host`           | <br /> | API 请求 Host，所有任务统一使用此值；请求体不再能指定 host（防止凭据被导向外部服务器）                                                           |
+| `--host`           | <br /> | API 请求 Host，所有任务统一使用此值；请求体不能指定 host（防止凭据被导向外部服务器）                                                             |
 | `--ep-host`        | <br /> | 番剧 / 影视 API 请求 Host，所有任务统一使用此值                                                                                                  |
 | `--tv-host`        | <br /> | TV 端 API 请求 Host，所有任务统一使用此值                                                                                                        |
 | `--cors-origin`    | <br /> | 除回环来源（127.0.0.1 / localhost）外，额外允许该单一来源跨域调用 serve（CORS）                                                                  |
 | `--max-concurrent` | <br /> | 同时下载的任务数上限，默认 0（不限制）；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队                                                       |
-| `--webui`          | <br /> | 启用内嵌 WebUI：在同一监听端口同源托管前端（任意 `--listen` 均生效），无需单独部署 BBDown.WebUI；构建时未嵌入 dist 则启动告警并不托管前端        |
+| `--webui`          | <br /> | 启用内嵌 WebUI：在同一监听端口一并托管前端（任意 `--listen` 均生效），无需单独部署 BBDown.WebUI；构建时未嵌入 dist 则启动告警并不托管前端        |
 
 ```bash
 # 以默认地址启动服务器（本地回环，免令牌）
 BBDown serve
 # 指定监听地址与工作目录（未传 --serve-token 则免令牌，仅警告）
 BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
-# 启用内嵌 WebUI（同源托管前端，访问 http://127.0.0.1:23333/ 即可使用）
+# 启用内嵌 WebUI（前端与 API 同端口托管，访问 http://127.0.0.1:23333/ 即可使用）
 BBDown serve --webui
 # 显式指定令牌
 BBDown serve --serve-token "你的令牌"
@@ -525,7 +525,7 @@ BBDown 支持从配置文件读取参数，避免每次都在命令行重复输�
 - 配置文件每行一个参数（与命令行写法一致）
 - 以 `#` 开头的行为注释。
 - 视频地址也可写在配置文件里。
-- 同一选项重复出现以命令行为准。
+- 同一选项重复时以命令行为准。
 
 ```ini
 # BBDown.config 示例
@@ -543,7 +543,7 @@ BV1uv411q7Mv
 `BBDown serve` 会在本地启动一个 HTTP 服务器，对外暴露任务增删查的 JSON API，适合与下载器面板、自动化脚本集成。完整接口定义、数据结构与请求示例见 **[API.md](./docs/API.md)**。
 
 - **默认免令牌即可调用**，便于本机脚本使用；启动时若未通过 `--serve-token` 指定令牌，会打印警告提示暴露风险。
-- **显式传入 `--serve-token` 后**，BBDown 强制要求令牌鉴权：所有访问（含读端点与 WebSocket 握手）均须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，令牌不匹配一律返回 `401`。
+- **显式传入 `--serve-token` 后**，BBDown 强制要求令牌鉴权：所有访问均须携带 `X-BBDown-Token` 请求头（浏览器无法自定义 WebSocket 握手请求头，`/hubs/tasks` 例外接受 `?token=` 查询参数），令牌不匹配一律返回 `401`。
 - 服务器**默认仅对回环来源开放 CORS**（`127.0.0.1` / `localhost` 页面的跨源请求放行），其余来源需显式 `--cors-origin <url>` 指定。
 - 需要跨机器访问时请自行加反向代理与 TLS，并显式指定 `serve -l http://0.0.0.0:23333`。
 
@@ -600,21 +600,21 @@ WEB / TV / APP 三类凭据**全部合并进**`BBDown.data`
 | `<保存路径>` | 该分 P 完整下载成功（含混流）后的本地文件路径；可选，记录被删/移动后会被重新下载 |
 
 - 仅在该分 P 完整成功（含混流）后才**追加**写入；键为 `(aid, cid)`，同一视频不同分 P 互不干扰。
-- 再次运行同一视频时，`CheckArchive` 会跳过已记录且文件仍存在的分 P；文件被删/移走则视为未下载，重新下载。
+- 再次运行同一视频时，已记录且文件仍存在的分 P 会被跳过；文件被删 / 移走则视为未下载，重新下载。
 
 ## 常见问题
 
 **Q：FLV 模式下** **`-q`** **怎么没生效？**
 
-FLV 封装固定以最高清晰度（qn=127）请求播放地址，用户的清晰度优先级对它不生效；如需按清晰度选择，请使用默认的 **DASH** 封装，并通过 `-q` 指定。
+FLV 封装固定以最高清晰度请求播放地址，用户的清晰度优先级对它不生效；如需按清晰度选择，请使用默认的 **DASH** 封装，并通过 `-q` 指定。
 
 **Q：aria2c 怎么用？**
 
-下载 aria2c 二进制并放在 BBDown 同目录或 `PATH` 中，然后加 `--aria2c` 即可。可用 `--aria2c-args` 追加自定义参数（默认已含 `-x16 -s16 -j16 -k 5M`）。aria2c 子进程有 6 小时兜底超时：进程僵死时自动杀进程并报错，与用户取消区分；启动失败（未安装 / 路径错误）会给出含指引的可读错误。
+下载 aria2c 二进制并放在 BBDown 同目录或 `PATH` 中，然后加 `--aria2c` 即可。可用 `--aria2c-args` 追加自定义参数（默认已含 `-x16 -s16 -j16 -k 5M`）。aria2c 子进程有 6 小时硬超时：进程僵死时自动杀进程并报错，与用户取消区分；启动失败（未安装 / 路径错误）会给出含指引的可读错误。
 
 **Q：和原版 BBDown 有什么区别？**
 
-本分支在解析、安全与易用性上做了系统性增强，对照表见 [与原版 BBDown 的差异](#与原版-bbdown-的差异)：WBI 签名降低风控概率、serve 模式带 SSRF 防护与令牌鉴权、下载引擎统一为 Downloader 库（分片重试 + 自愈续传）、新增直播录制 / 专栏导出 / 空间投稿 / 稍后再看、图形界面与 AOT 单文件发布等。
+本分支与原版的逐项对照见 [与原版 BBDown 的差异](#与原版-bbdown-的差异)：WBI 签名、serve 的 SSRF 防护与令牌鉴权、Downloader 下载引擎、直播录制 / 专栏导出 / 空间投稿 / 稍后再看、图形界面与 AOT 单文件发布。
 
 **Q：WBI 签名解决什么问题？**
 
@@ -622,7 +622,7 @@ B 站 web 接口要求 WBI 签名，未签名的请求更容易触发风控。BB
 
 **Q：报错说「接口要求人机验证」怎么办？**
 
-B 站对播放信息请求做了人机验证，此时响应里只有一个验证凭据而没有任何播放地址。BBDown 会按 `--retry-count` / `--retry-delay` 自动退避重试；持续出现时请稍后重试，或在浏览器打开该视频完成验证后再运行。
+B 站对播放信息请求做了人机验证，此时响应里只有一个验证凭据而没有任何播放地址。BBDown 会按 `--max-retry` 退避重试；仍然报错时请稍后重试，或在浏览器打开该视频完成验证后再运行。
 
 **Q：如何把 serve 安全地暴露到局域网 / 公网？**
 
@@ -688,7 +688,7 @@ _BBDown 2.0 · 本项目不提供任何平台方内容，使用者的行为与�
 
 [^allowpreview]: UP 主的充电专属稿件，在当前账号没有充电权限时接口不会报错，而是照常返回成功并只下发几分钟的试看片段。BBDown 默认会在下载前识别并跳过（退出码 `2`），避免产出被报告为「下载成功」的残片。加此选项则保留试看片段，输出文件名带 `[试看]` 前缀以便与完整视频区分。登录一个已为该 UP 主充电的账号（`BBDown login`）即可正常下载完整视频，无需此选项。
 
-[^postprocess]: 指定外部后处理进程（可执行文件路径）。下载完成后轨道文件会交给该进程处理，是否加密由处理方自行判断（无需处理时退出码 0 且无产物，原文件照常混流）；成功产物替换原文件参与混流，进程不可用或处理失败时静默保留原文件。本程序不感知其语义。完整协议见 [PROTOCOL.md](./docs/PROTOCOL.md)。
+[^postprocess]: 指定外部后处理进程（可执行文件路径）。下载完成后轨道文件会交给该进程处理，是否加密由处理方自行判断（无需处理时退出码 0 且无产物，原文件照常混流）；成功产物替换原文件参与混流，进程不可用或处理失败时静默保留原文件。本程序不感知其含义。完整协议见 [PROTOCOL.md](./docs/PROTOCOL.md)。
 
 [^host]: 指定 BiliPlus host。使用 BiliPlus 需要 access\_token、不需要 cookie；解析服务器能够获取你账号的大部分权限，请谨慎使用！
 
