@@ -52,8 +52,9 @@ public static class DownloadUtil
 
         if (config.UseAria2c)
         {
-            // 最终文件已完整产出过：直接跳过（aria2 的续传元数据是其专属 .aria2 控制文件）
-            if (File.Exists(path))
+            // aria2c 中断后目标文件（预分配 / 半成品）与 .aria2 控制文件并存，
+            // 控制文件仍在时交给 aria2c --continue 恢复，不能把残缺文件当成品跳过
+            if (File.Exists(path) && !File.Exists(path + ".aria2"))
             {
                 LogDebug("文件已下载过，跳过下载");
                 return;

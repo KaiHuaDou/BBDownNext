@@ -23,7 +23,7 @@ BBDown.Core\Media\DashDownload.cs:
   73:             selection = selection with { Selected = true, VIndex = vIndex, AIndex = aIndex };
 
 BBDown.Core\Media\FlvDownload.cs:
-  156:                         selection = selection with { Selected = true, VIndex = await TrackSelect.PickDfnAsync(dfns, ct) };
+  156:             selection = selection with { Selected = true, VIndex = await TrackSelect.PickDfnAsync(dfns, ct) };
   189:         var clipConfig = downloadConfig with { ParallelCount = DownloaderAdapter.MaxRangeConcurrency / MaxClipParallelism };
 
 BBDown.Core\Media\PageDownload.cs:
@@ -54,7 +54,7 @@ BBDown.Core\Pipeline\SpaceOpusDownload.cs:
   50:             var itemReq = myOption with { Url = $"{BiliApi.OpusPage}/{item.OpusId}", WorkDir = itemDir };
 
 BBDown.Core\Pipeline\VideoInfo.cs:
-  37:         cfg = cfg with { Cookie = newCookie };
+  37:                 cfg = cfg with { Cookie = newCookie };
   58:         cfg = cfg with { Wbi = wbi };
   133:             return myOption with { Api = ApiType.Web };
   139:             return myOption with { Api = ApiType.Web };

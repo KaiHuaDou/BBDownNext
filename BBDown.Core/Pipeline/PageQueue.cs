@@ -138,9 +138,10 @@ internal static class PageQueue
         }
     }
 
-    private static string FormatPages(List<(Page Page, Exception Error)> items)
+    // 展示用：失败列表可达数万项（收藏夹全失败），只列前若干项，避免生成 MB 级日志行
+    internal static string FormatPages(List<(Page Page, Exception Error)> items)
     {
-        return string.Join(", ", items.Select(e => $"P{e.Page.Index}（{e.Page.Aid}）"));
+        return Utils.FormatBounded(items.Select(e => $"P{e.Page.Index}（{e.Page.Aid}）"), ", ", 20);
     }
 
     // 展示用：选中列表（含区间展开）可能极长，只列前若干项，完整列表由后续下载逻辑消费

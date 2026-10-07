@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 
 namespace BBDown.Core.Tests;
 
@@ -138,5 +139,44 @@ public class UtilsTests
     public void CellWidth_CountsEastAsianWideCharsAsTwo(string text, int expected)
     {
         Assert.Equal(expected, Utils.CellWidth(text));
+    }
+
+    // 汇总进异常 / 日志的列表可达数万项，超限时只列前若干项并附总数
+    [Fact]
+    public void FormatBounded_OverLimit_TruncatesWithCount( )
+    {
+        var message = Utils.FormatBounded([.. Enumerable.Range(1, 25).Select(i => $"cv{i}")], "；", 20);
+
+        Assert.Contains("cv20", message);
+        Assert.DoesNotContain("cv21", message);
+        Assert.Contains("共 25 条", message);
+        Assert.True(message.Length < 256);
+    }
+
+    [Fact]
+    public void FormatBounded_WithinLimit_ShowsAllWithoutCount( )
+    {
+        Assert.Equal("a；b；c", Utils.FormatBounded(["a", "b", "c"], "；", 20));
+    }
+
+    // AggregateException.Message 会全量拼接内层消息，展开后须有界
+    [Fact]
+    public void FormatErrorMessage_AggregateException_BoundsInnerMessages( )
+    {
+        var aggregate = new AggregateException([.. Enumerable.Range(1, 200).Select(i => new InvalidOperationException($"err{i}"))]);
+
+        var message = Utils.FormatErrorMessage(aggregate);
+
+        Assert.Contains("err100", message);
+        Assert.DoesNotContain("err101", message);
+        Assert.Contains("共 200 条", message);
+    }
+
+    [Fact]
+    public void FormatErrorMessage_NonAggregate_ReturnsMessageAsIs( )
+    {
+        var message = Utils.FormatErrorMessage(new InvalidOperationException("boom"));
+
+        Assert.Equal("boom", message);
     }
 }

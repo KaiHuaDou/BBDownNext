@@ -106,6 +106,24 @@ public static partial class Utils
         return $"{FormatFileSize((long) (delta / seconds))}/s";
     }
 
+    // 汇总进异常 / 日志的条目列表可能达数万项（收藏夹、动态、投稿列表全失败），直接 Join 会形成 MB 级单条消息，
+    // 只列前 maxShown 项并附总数
+    public static string FormatBounded(IEnumerable<string> items, string separator, int maxShown)
+    {
+        var list = items as IReadOnlyList<string> ?? [.. items];
+        return list.Count <= maxShown
+            ? string.Join(separator, list)
+            : string.Join(separator, list.Take(maxShown)) + $"...（共 {list.Count} 条）";
+    }
+
+    // AggregateException.Message 会全量拼接全部内层消息，条数大时同样形成 MB 级文本；此处有界展开
+    public static string FormatErrorMessage(Exception e, int maxShown = 100)
+    {
+        return e is AggregateException aggregate
+            ? FormatBounded(aggregate.InnerExceptions.Select(i => i.Message), "\n", maxShown)
+            : e.Message;
+    }
+
     public static string FormatTime(int time, bool absolute = false)
     {
         var ts = TimeSpan.FromSeconds(time);

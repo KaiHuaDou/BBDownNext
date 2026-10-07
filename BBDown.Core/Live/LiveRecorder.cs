@@ -129,7 +129,10 @@ internal sealed class LiveRecorder(
             }
             catch (Exception e)
             {
-                SafeDelete(partPath);
+                // 大量数据写入后抛出的非 IO 异常（如进度回调故障），已写内容多半完整，与磁盘错误路径同样保留；
+                // 保留的分段带入其编码，重试轮换只在同编码候选中进行
+                Keep(segments, partPath, candidate, ref codecName);
+                pinnedCodec = codecName;
                 var giveUp = await GiveUpAsync(e.Message, ++failures, recordToken);
                 if (giveUp is not null)
                 {

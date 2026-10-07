@@ -64,7 +64,7 @@ public static class ReadListDownload
 
         if (failures.Count > 0)
         {
-            throw new InvalidOperationException($"文集中 {failures.Count}/{articles.Count} 篇文章导出失败：{string.Join("；", failures)}");
+            throw new InvalidOperationException($"文集中 {failures.Count}/{articles.Count} 篇文章导出失败：{Utils.FormatBounded(failures, "；", 20)}");
         }
 
         Log("文集导出完成");

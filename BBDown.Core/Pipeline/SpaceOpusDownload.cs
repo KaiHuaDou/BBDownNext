@@ -67,7 +67,7 @@ public static class SpaceOpusDownload
 
         if (failures.Count > 0)
         {
-            throw new InvalidOperationException($"共 {failures.Count}/{items.Count} 条图文导出失败：{string.Join("；", failures)}");
+            throw new InvalidOperationException($"共 {failures.Count}/{items.Count} 条图文导出失败：{Utils.FormatBounded(failures, "；", 20)}");
         }
 
         Log("图文导出完成");

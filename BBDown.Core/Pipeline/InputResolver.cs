@@ -72,9 +72,9 @@ public static partial class InputResolver
             return new Av(BilibiliBvConverter.Decode(bvMatch.Groups[1].Value));
         }
 
-        // 稍后再看页：/watchlater/、/watchlater/#/list、/list/watchlater 等形态。
+        // 稍后再看页：/watchlater/、/watchlater/#/list、/list/watchlater、/?page=WatchLater 等形态。
         // 分享链接携带 bvid/oid 参数指向单个视频时只下载该视频（bvid 优先，本地解码），否则按整个列表处理。
-        if (input.Contains("/watchlater"))
+        if (input.Contains("/watchlater") || input.Contains("page=watchlater", StringComparison.OrdinalIgnoreCase))
         {
             var bvid = GetQueryString("bvid", input);
             if (bvid.Length > 0)

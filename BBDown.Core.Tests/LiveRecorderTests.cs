@@ -335,4 +335,80 @@ public sealed class LiveRecorderTests : IDisposable
         await Assert.ThrowsAsync<InvalidOperationException>(( ) => recorder.RunAsync(dest, 10000, record.Token, global.Token));
         Assert.False(File.Exists(seg1));
     }
+
+    // 非 IO 异常（如进度回调故障）发生在大量数据写入后：分段与磁盘错误路径一致保留，参与混流
+    [Fact]
+    public async Task NonIoError_LargePartial_IsKeptForMuxing( )
+    {
+        var (global, stop, record) = Tokens( );
+        using var _1 = global;
+        using var _2 = stop;
+        using var _3 = record;
+
+        var plan = new Script<LivePlayInfo?>(Info("cdn1"), null);
+        var h = new Harness( );
+        var recorder = h.Build(
+            (_, _) => Task.FromResult(plan.Next( )),
+            (_, path, _) =>
+            {
+                File.WriteAllBytes(path, new byte[999_999]);
+                return Task.FromException<long>(new HttpRequestException("boom"));
+            });
+
+        var result = await recorder.RunAsync(dest, 10000, record.Token, global.Token);
+
+        Assert.Equal([seg1], result.Segments);
+        Assert.True(File.Exists(seg1));
+        Assert.Equal(LiveStopReason.StreamEnded, result.Reason);
+    }
+
+    [Fact]
+    public async Task NonIoError_TinyPartial_IsDiscardedAndRetried( )
+    {
+        var (global, stop, record) = Tokens( );
+        using var _1 = global;
+        using var _2 = stop;
+        using var _3 = record;
+
+        var plan = new Script<LivePlayInfo?>(Info("cdn1"), null);
+        var h = new Harness( );
+        var recorder = h.Build(
+            (_, _) => Task.FromResult(plan.Next( )),
+            (_, _, _) => Task.FromException<long>(new HttpRequestException("boom")));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(( ) => recorder.RunAsync(dest, 10000, record.Token, global.Token));
+        Assert.False(File.Exists(seg1));
+    }
+
+    // cdn1 / cdn2 各写半截后抛非 IO 异常，failures 推到 2：保留的分段锁定编码后
+    // 轮换在 avc 池内选出 cdn1，未锁定会用全集选出 hevc 的 cdn3（混流时被单一 bsf 静默丢弃）
+    [Fact]
+    public async Task NonIoError_KeptSegments_PinCodecForRetry( )
+    {
+        var (global, stop, record) = Tokens( );
+        using var _1 = global;
+        using var _2 = stop;
+        using var _3 = record;
+
+        var plan = new Script<LivePlayInfo?>(MixedCodecInfo( ), MixedCodecInfo( ), MixedCodecInfo( ), null);
+        var h = new Harness( );
+        var recorder = h.Build(
+            (_, _) => Task.FromResult(plan.Next( )),
+            (candidate, path, _) =>
+            {
+                if (candidate.Host is "cdn1" or "cdn2")
+                {
+                    File.WriteAllBytes(path, new byte[999_999]);
+                    return Task.FromException<long>(new HttpRequestException("boom"));
+                }
+
+                return Task.FromResult(5000L);
+            });
+
+        var result = await recorder.RunAsync(dest, 10000, record.Token, global.Token);
+
+        Assert.Equal(3, result.Segments.Count);
+        Assert.Equal("avc", result.CodecName);
+        Assert.DoesNotContain("cdn3", h.UsedHosts);
+    }
 }

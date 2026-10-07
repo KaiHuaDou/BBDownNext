@@ -36,6 +36,7 @@ describe('describeTarget', () => {
     expect(describeTarget('https://www.bilibili.com/cheese/play/ep12345')).toBe('课程地址')
     expect(describeTarget('https://live.bilibili.com/12345')).toBe('直播地址')
     expect(describeTarget('https://www.bilibili.com/watchlater')).toBe('稍后再看列表')
+    expect(describeTarget('https://www.bilibili.com/?page=WatchLater')).toBe('稍后再看列表')
   })
 
   it('识别集合简写与集合 URL', () => {

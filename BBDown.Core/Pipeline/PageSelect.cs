@@ -40,7 +40,8 @@ public static class PageSelect
             if (!string.IsNullOrEmpty(urlPage))
             {
                 Log("程序已自动选择你输入的集数，如果要下载其他集数请自行指定分 P（如可使用 -p ALL 代表全部）。");
-                return [urlPage];
+                // 与下游 Index.ToString() 的匹配按规范化整数进行，保留前导零会匹配不上
+                return [int.TryParse(urlPage, out var urlPageIndex) ? urlPageIndex.ToString() : urlPage];
             }
 
             return null;

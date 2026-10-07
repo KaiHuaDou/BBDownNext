@@ -118,4 +118,28 @@ public class PageOrchestrationTests
         Assert.Equal([0, 1, 2], ran);
         Assert.Equal(3, errors.Count);
     }
+
+    // 收藏夹全失败时失败列表可达数万项，汇总行只列前 20 项与总数
+    [Fact]
+    public void FormatPages_ManyItems_TruncatesWithCount( )
+    {
+        var items = Enumerable.Range(0, 25).Select(i => (MakePage(i), new InvalidOperationException("boom") as Exception)).ToList( );
+
+        var message = PageQueue.FormatPages(items);
+
+        Assert.Contains("P19（aid19）", message);
+        Assert.DoesNotContain("P20（aid20）", message);
+        Assert.Contains("共 25 条", message);
+        Assert.True(message.Length < 512);
+    }
+
+    [Fact]
+    public void FormatPages_WithinLimit_ShowsAllWithoutCount( )
+    {
+        var items = Enumerable.Range(0, 3).Select(i => (MakePage(i), new InvalidOperationException("boom") as Exception)).ToList( );
+
+        var message = PageQueue.FormatPages(items);
+
+        Assert.Equal("P0（aid0）, P1（aid1）, P2（aid2）", message);
+    }
 }

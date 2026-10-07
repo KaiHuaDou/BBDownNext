@@ -1,23 +1,23 @@
 # BUS.md — 消息 / 进度 / 交互总线
 
-> 三大总线统一形态：静态门面 + 订阅 / 发布 + Scope 复用 + 判别联合事件。Core 只产生事件，展示与应答由宿主决定。
-> 当前实现状态，日期：2026-09-05。WebSocket 帧协议与 serve REST 契约见 `docs/API.md`，宿主结构见 `docs/ARCHITECTURE.md`。
+> 三大总线统一形式：静态门面 + 订阅 / 发布 + Scope 复用 + 联合类型事件。Core 只生成事件，展示与应答由宿主决定。
+> 当前实现状态，日期：2026-09-05。WebSocket 帧协议与 serve REST 接口约定见 `docs/API.md`，宿主结构见 `docs/ARCHITECTURE.md`。
 
 ---
 
 ## 0. 总览
 
-| 总线                  | 事件形态                                                          | 频次                                                                  | 状态   |
+| 总线                  | 事件形式                                                          | 频次                                                                  | 状态   |
 | --------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------- | ------ |
-| `MessageBus`（消息）  | `LogMessage`（Level / Text / Time / Scope）                       | 低频语义                                                              | 已实施 |
-| `ProgressBus`（进度） | 阶段边界 `ProgressRangeStart / End` + 阶段内快照 `ProgressSample` | 低频边界 + 高频样本（采样 125ms；serve 快照帧 200ms；CLI 渲染 125ms） | 已实施 |
-| `AskBus`（交互）      | 请求 `OptionRequestEvent` → 应答（结构化 `AskAnswer`）            | 低频请求-应答                                                         | 已实施 |
+| `MessageBus`（消息）  | `LogMessage`（Level / Text / Time / Scope）                       | 低频                                                                  | 已完成 |
+| `ProgressBus`（进度） | 阶段边界 `ProgressRangeStart / End` + 阶段内快照 `ProgressSample` | 低频边界 + 高频样本                                                   | 已完成 |
+| `AskBus`（交互）      | 请求 `OptionRequestEvent` → 应答（结构化 `AskAnswer`）            | 低频请求-应答                                                         | 已完成 |
 
 共性：
 
 - **静态门面**：`Subscribe / Unsubscribe` 委托组合（避免 CA1003 的 EventArgs 约束），`Publish` 无渲染无锁，同步回调订阅者（订阅端须短快）。
 - **Scope**：唯一来源是 `MessageBus.BeginScope`（AsyncLocal 栈式恢复）。CLI 无 scope（单任务）；GUI 以任务序号为 scope（`BeginScope(task.Index)`）；serve 以任务 id（`DownloadTask.Scope`，ResourceId 规范串）为 scope，事件自动携带。
-- **传输模型 == 帧协议**：事件复用 `WorkflowEvent` 判别联合（`[JsonPolymorphic]`，判别符 `type`），serve WebSocket 帧零转换。
+- **传输模型 == 帧协议**：事件复用 `WorkflowEvent` 联合类型（`[JsonPolymorphic]`，类型标识 `type`），serve WebSocket 帧零转换。
 - **阶段外 / 无宿主防护**：`ProgressBus.Publish` 阶段外静默忽略；`AskBus.Ask` 无订阅者立即回落（不等超时）。
 
 ---
@@ -26,7 +26,7 @@
 
 ### 1.1 事件模型
 
-`BBDown.Core/Logging/LogMessage.cs`：`LogMessage(Level, Text, Time, Emphasized, Scope, Enter, ShowTime)`——Level 语义化（Debug / Info / Warn / Error），渲染器决定颜色。
+`BBDown.Core/Logging/LogMessage.cs`：`LogMessage(Level, Text, Time, Emphasized, Scope, Enter, ShowTime)`——Level 取 Debug / Info / Warn / Error，渲染器决定颜色。
 
 ### 1.2 总线
 
@@ -34,7 +34,7 @@
 
 ### 1.3 发射端
 
-`Logger` 纯发射门面：`Log / LogWarn / LogError / LogDebug / LogColor` → `MessageBus.Publish`。Debug 级由 `Config.DebugLog` 门控，不产生消息；`Log` 的 `time` 开关关掉时间戳前缀，供定宽表格类输出使用。
+`Logger` 纯发射门面：`Log / LogWarn / LogError / LogDebug / LogColor` → `MessageBus.Publish`。Debug 级由 `Config.DebugLog` 门控，不生成消息；`Log` 的 `time` 开关关掉时间戳前缀，供定宽表格类输出使用。
 
 ### 1.4 消费端
 
@@ -52,7 +52,7 @@
 
 `BBDown.Core/Workflow/WorkflowEvent.cs`：
 
-| 事件                      | 字段                                      | 语义                                       |
+| 事件                      | 字段                                      | 含义                                       |
 | ------------------------- | ----------------------------------------- | ------------------------------------------ |
 | `ProgressRangeStartEvent` | `Scope, StageName`                        | 低频：阶段开始，宿主据此显示进度 UI        |
 | `ProgressSampleEvent`     | `Scope, Ratio, TotalBytes, Speed, Detail` | 高频快照：阶段内样本，宿主可丢帧只渲染最新 |
@@ -68,26 +68,26 @@
 
 ### 2.3 采样
 
-`BBDown.Core/Util/ProgressSampler.cs`：把下载线程高频的 `Report` 降频为每 **125ms** 一次 `(ratio, delta)` 回吐（每秒 8 次，与 CLI 渲染帧率一致）。速度类消费方按此周期把 delta 折算成每秒速率。
+`BBDown.Core/Util/ProgressSampler.cs`：把下载线程高频的 `Report` 降频为 `(ratio, delta)` 周期回吐。速度类消费方据此把 delta 折算成每秒速率。
 
 ### 2.4 发射端（链路接入点）
 
-| 位置                                             | 阶段 / 动作                                                                                                             |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `Download/DownloaderAdapter.cs`                  | 采样回调 → `ProgressBus.Publish(ratio, delta, delta / SampleInterval)`（阶段外静默忽略，封面 / 弹幕等附属下载不发射）   |
-| `Media/FlvDownload.cs` / `Media/DashDownload.cs` | `BeginStage("下载")` 包住主媒体下载段                                                                                   |
-| `Pipeline/AudioDownload.cs`                      | `BeginStage("下载音频")`                                                                                                |
-| `Pipeline/OpusDownload.cs`                       | `BeginStage("下载图片")`：图片有明确总量，按张数上报 ratio，detail 为「图片 i/n」                                       |
-| `Pipeline/LiveDownload.cs`                       | `BeginStage("录制")`：直播无总量，Ratio 恒 0，detail 承载时长 / 分段 / 清晰度，累计字节经 `ProgressSampler.Report` 上报 |
+| 位置                                             | 阶段 / 动作                                                                                                                 |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `Download/DownloaderAdapter.cs`                  | 采样回调 → `ProgressBus.Publish(ratio, delta, delta / SampleInterval)`（阶段外静默忽略，封面 / 弹幕等附属下载不发射）       |
+| `Media/FlvDownload.cs` / `Media/DashDownload.cs` | `BeginStage("下载")` 包住主媒体下载段                                                                                       |
+| `Pipeline/AudioDownload.cs`                      | `BeginStage("下载音频")`                                                                                                    |
+| `Pipeline/OpusDownload.cs`                       | `BeginStage("下载图片")`：图片有明确总量，按张数上报 ratio，detail 为「图片 i/n」                                           |
+| `Pipeline/LiveDownload.cs`                       | `BeginStage("录制")`：直播无总量，Ratio 始终为 0，detail 记录时长 / 分段 / 清晰度，累计字节经 `ProgressSampler.Report` 上报 |
 
 ### 2.5 消费端
 
 | 宿主        | 订阅位置                                                                                                                                                                                                                                                      | 展示                                                                                                                                                                                |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CLI         | `BBDown/ProgressBar.cs`                                                                                                                                                                                                                                       | 1/8 秒（125ms）控制台进度条（ratio / speed / ETA / spinner），阶段开始显示 / 结束清行隐藏，超过 1 秒无采样兜底清行，交互读输入前暂停渲染（`CliInteraction.BeforeRead / AfterRead`） |
-| CLI（直播） | `BBDown/Cli/LiveProgress.cs`                                                                                                                                                                                                                                  | 0.5 秒单行状态（detail + 体积 + 速度），重定向到文件时改 60 秒落一行日志                                                                                                            |
+| CLI         | `BBDown/ProgressBar.cs`                                                                                                                                                                                                                                       | 控制台进度条（ratio / speed / ETA / spinner），阶段开始显示 / 结束清行隐藏，超过 1 秒无采样则清行，交互读输入前暂停渲染（`CliInteraction.BeforeRead / AfterRead`）                  |
+| CLI（直播） | `BBDown/Cli/LiveProgress.cs`                                                                                                                                                                                                                                  | 单行状态（detail + 体积 + 速度），重定向到文件时落日志                                                                                                                              |
 | GUI         | `BBDown.GUI/MainWindow.Progress.cs` `OnProgress`                                                                                                                                                                                                              | 阶段开始 → 重置该任务 ETA 基准；样本 → 任务行进度 / 速度 / ETA（detail 优先展示）；阶段结束 → 无动作，任务收尾随状态隐藏                                                            |
-| serve       | `TaskMessageBridge`（阶段边界 → 事件帧）+ `TaskWorker.OnProgress`（样本 → `DownloadTask` 的 REST 字段 `Progress` / `DownloadSpeed` / `TotalDownloadedBytes`）+ `TaskSocketHub.ForwardSnapshots`（200ms 轮询 `Latest(scope)`，样本引用变化才推 `snapshot` 帧） | WebSocket `event` / `snapshot` 帧 + `/api/v1/tasks` 契约                                                                                                                            |
+| serve       | `TaskMessageBridge`（阶段边界 → 事件帧）+ `TaskWorker.OnProgress`（样本 → `DownloadTask` 的 REST 字段 `Progress` / `DownloadSpeed` / `TotalDownloadedBytes`）+ `TaskSocketHub.ForwardSnapshots`（周期轮询 `Latest(scope)`，样本引用变化才推 `snapshot` 帧）   | WebSocket `event` / `snapshot` 帧 + `/api/v1/tasks` 接口约定                                                                                                                        |
 
 ---
 
@@ -133,7 +133,7 @@ public static class AskBus
 
 ### 3.3 事件
 
-`OptionRequestEvent`（`WorkflowEvent` 判别联合成员，判别符 `optionRequest`）：
+`OptionRequestEvent`（`WorkflowEvent` 联合类型成员，类型标识 `optionRequest`）：
 
 ```csharp
 OptionRequestEvent(Guid RequestId, string Scope, string Prompt,
@@ -161,12 +161,12 @@ CLI 输入规范化映射（属 CLI 消费端职责）：`Trim` + 大小写归�
 
 自适应回落：无订阅者时 `Ask` 立即返回 null，调用点按「不交互」处理（逐集全跳过、选轨落回默认序号）。
 
-### 3.6 连带收窄（已完成）
+### 3.6 关联上下文
 
-- `ChannelWorkflowContext` 收窄为「可靠事件队列」：`EnqueueMessage / EnqueueEvent / ReadAllAsync`（有界 1024，写满降级丢弃，不阻塞下载链路）；`AskOptionAsync / SubmitChoice / CancelPendingChoices` 已删，TCS 机制整体上移 AskBus。
-- `IWorkflowContext` 接口已删（单实现接口），`DownloadPipeline.RunAsync / ComposeSink / WorkerDispatcher.RunAsync / SpaceDynamicDownload.RunAsync` 参数类型为 `ChannelWorkflowContext?`，null 表示 CLI 路径。
-- `Interaction` 静态类已退役：`AskLine / AskIndex` 删除，`BeforeRead / AfterRead` 能力移入 `CliInteraction` 静态属性（供 ProgressBar / LiveProgress 注册钩子）。
-- `TaskStore.ReleaseContext` 删除 `CancelPendingChoices` 调用 → `AskBus.CancelPending(scope)`。
+- `ChannelWorkflowContext` 为可靠事件队列：`EnqueueMessage / EnqueueEvent / ReadAllAsync`（有界 1024，写满降级丢弃，不阻塞下载链路）。
+- `DownloadPipeline.RunAsync / ComposeSink / WorkerDispatcher.RunAsync / SpaceDynamicDownload.RunAsync` 参数类型为 `ChannelWorkflowContext?`，null 表示 CLI 路径。
+- `BeforeRead / AfterRead` 由 `CliInteraction` 静态属性提供（供 ProgressBar / LiveProgress 注册钩子）。
+- `TaskStore.ReleaseContext` 调用 `AskBus.CancelPending(scope)`。
 
 ---
 
@@ -180,7 +180,7 @@ CLI 输入规范化映射（属 CLI 消费端职责）：`Trim` + 大小写归�
 
 ---
 
-## 5. 与旧通道的关系（迁移已完成）
+## 5. 旧通道的去向
 
 | 旧通道                                    | 去向                                                 |
 | ----------------------------------------- | ---------------------------------------------------- |

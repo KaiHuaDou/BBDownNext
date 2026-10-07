@@ -49,7 +49,7 @@ export function describeTarget(input?: string): string | null {
 }
 
 function matchKnownPrefix(text: string): string | null {
-  if (text.toLowerCase().startsWith('https://www.bilibili.com/watchlater')) {
+  if (text.toLowerCase().startsWith('https://www.bilibili.com/watchlater') || text.toLowerCase().includes('page=watchlater')) {
     return '稍后再看列表'
   }
 

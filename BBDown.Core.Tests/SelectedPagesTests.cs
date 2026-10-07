@@ -213,6 +213,20 @@ public class SelectedPagesTests
         Assert.Equal(Enumerable.Range(1, 10).Select(x => x.ToString( )), Select("0-10", pageCount: 10));
     }
 
+    // int.MaxValue 端点经夹紧进入真实分 P 范围，循环计数不会回绕
+    [Fact]
+    public void Range_AtIntMaxValue_IsClampedToLastIndex( )
+    {
+        Assert.Equal(["10"], Select("2147483647-2147483647", pageCount: 10));
+    }
+
+    // URL p 参数带前导零时按整数规范化，否则与 Index.ToString() 匹配不上
+    [Fact]
+    public void UrlPageParam_LeadingZero_IsNormalized( )
+    {
+        Assert.Equal(["3"], Select("", url: $"{PlainUrl}?p=03"));
+    }
+
     [Fact]
     public void InvalidToken_IsIgnored( )
     {

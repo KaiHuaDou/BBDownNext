@@ -57,8 +57,8 @@ BBDown/
 │       ├── DownloadTask.cs             # serve 任务状态/快照 record（DownloadStatus / DownloadTask / DownloadTaskSnapshot，Cts [JsonIgnore]）
 │       ├── ServeConfig.cs              # serve 启动参数聚合 record（取代 StartServer 散参，服务端固定不可覆盖）
 │       ├── ServeRequestOptions.cs      # serve 请求受控子集 + CallBackWebHook（含 InteractivePages / InteractiveQuality / LiveQuality）
-│       ├── ServeBindingResult.cs       # 请求绑定结果（含非法字段回落语义）
-│       ├── ApiTypeJsonConverter.cs     # serve 契约 Api 字段字符串 ↔ ApiType 转换
+│       ├── ServeBindingResult.cs       # 请求绑定结果（含非法字段的回落规则）
+│       ├── ApiTypeJsonConverter.cs     # serve 请求体 Api 字段字符串 ↔ ApiType 转换
 │       ├── ServeRequestOptionsJsonContext.cs # serve 请求 DTO 源生成器上下文
 │       ├── AppJsonSerializerContext.cs # serve 响应 DTO 源生成器上下文
 │       ├── HealthStatus.cs             # /healthz 响应 record（Status / Running）
@@ -107,7 +107,7 @@ BBDown/
 │   │   ├── PageQueue.cs            # 逐分 P 编排 (RunAsync；-iap 逐集交互确认走 PageSelect.ResolveInteractive)
 │   │   ├── PageSelect.cs           # 分 P 选择/范围 + 逐集交互选择
 │   │   ├── InputResolver.cs        # URL/编号 → ResourceId 解析（含稍后再看 /watchlater/ 与分享链接 bvid/oid）
-│   │   ├── InputResolver.Dispatch.cs # 纯字符串形态探测 TryDispatch（直播/专栏/文集/空间集合，CLI 早分流复用）
+│   │   ├── InputResolver.Dispatch.cs # 纯字符串类型探测 TryDispatch（直播/专栏/文集/空间集合，CLI 早分流复用）
 │   │   ├── LiveDownload.cs         # 直播录制编排 (RunAsync)：独立链路，不走 WorkContext
 │   │   ├── OpusDownload.cs         # 专栏导出入口 (RunAsync)：独立链路，不经混流（集合运行器逐条复用）
 │   │   ├── ReadListDownload.cs     # 文集导出编排：拉文章列表 → 逐篇 OpusDownload，产物落 工作目录/文集名/
@@ -163,7 +163,7 @@ BBDown/
 │   │
 │   ├── PlayUrl/            # 命名空间 BBDown.Core.PlayUrl — 播放地址解析
 │   │   ├── PlayUrlRequest.cs       # 顶层 internal record struct（aidOri/aid/cid/epId 与 API 模式）
-│   │   ├── PlayUrlClient.cs        # URL 构造 + 发送（WEB/TV/INTL/网页兜底）+ appkey 常量
+│   │   ├── PlayUrlClient.cs        # URL 构造 + 发送（WEB/TV/INTL/网页回退）+ appkey 常量
 │   │   ├── PlayUrlResponse.cs      # 响应形状导航（data/result/video_info 节点定位、大会员判定）
 │   │   ├── DashTrackReader.cs      # 纯函数：DASH JSON → 视频/音频轨（免二压两次响应并集、杜比/Hi-Res 回退）
 │   │   ├── FlvTrackReader.cs       # 纯函数：FLV 分段 → 轨道
@@ -180,7 +180,7 @@ BBDown/
 │   │   ├── OpusRegexes.cs          # [GeneratedRegex] 集中声明
 │   │   └── OpusDocument.cs         # 域模型
 │   │
-│   ├── Music/               # 命名空间 BBDown.Core.Music — 音频投稿（命名空间用 Music 对齐 music-service，
+│   ├── Music/               # 命名空间 BBDown.Core.Music — 音频投稿（命名空间取名 Music 与 music-service 一致，
 │   │   │                     避免 Audio 与 Entity.Audio 音轨实体同名冲突）
 │   │   ├── AudioFetcher.cs         # song/info（元信息）/ web/url（播放流，恒 192K）/ song/lyric（歌词文本）
 │   │   └── AudioDocument.cs        # AudioInfo / AudioPlayUrl record
@@ -195,7 +195,7 @@ BBDown/
 │   ├── Util/               # BV 转换、FileNameUtil(200 字节截断)、HTTPUtil、SignUtil(WBI)、SubUtil、GrpcUtil(gRPC 帧)、DanmakuUtil(弹幕 xml/ass)、ProgressSampler(进度采样)、ArchiveLog、Redactor、JsonUtil、Utils、ViewPointUtil
 │   ├── APP/                # APP gRPC 协议 (proto 生成代码)
 │   ├── Parser.cs           # 播放地址解析入口：编排 ExtractTracksAsync + 番剧分段点映射（请求构造/发送、响应导航、轨道读取已下沉到 PlayUrl/）
-│   ├── ResourceId.cs       # 判别联合（Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater）
+│   ├── ResourceId.cs       # 联合类型（Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater）
 │   ├── ResourceIdJsonConverter.cs # ResourceId JSON 序列化
 │   ├── AppEnv.cs           # 进程级环境：AppDir / CancellationToken / Cancel()
 │   ├── AppConfig.cs        # 请求级配置（cookie / token / host 三兄弟 / UA）
@@ -215,8 +215,8 @@ BBDown/
 │   ├── MainWindow.axaml.cs # 主窗口：初始化、配置加载与关窗保存（并发数在此回放给调度器）
 │   ├── MainWindow.Options.cs # 选项面板与下载参数的双向绑定（ReadOptions / ApplyOptions）
 │   ├── MainWindow.Availability.cs # 按下载目标联动控件可用性与内容提示（VideoLike / Commentable 门控）
-│   ├── MainWindow.PlaceholderTexts.cs # 「留空即自动值」字段的占位文本（与 Core 探测值同源）
-│   ├── MainWindow.NamingTable.cs  # 命名变量表（SavePath.Variables 同源，双击复制占位符）
+│   ├── MainWindow.PlaceholderTexts.cs # 「留空即自动值」字段的占位文本（与 Core 探测值同一来源）
+│   ├── MainWindow.NamingTable.cs  # 命名变量表（来自 SavePath.Variables，双击复制占位符）
 │   ├── MainWindow.Download.cs # 任务执行：b23 短链展开 → 直播/独立链路/视频管道分流 + PipelineSink 装配
 │   ├── MainWindow.Tasks.cs # 任务列表交互（增量同步 / 取消 / 停止录制 / 重试 / 移除 / 并发输入校验）
 │   ├── MainWindow.Progress.cs # 进度区渲染（阶段化显隐）
@@ -224,7 +224,7 @@ BBDown/
 │   ├── MainWindow.Login.cs # 三通道扫码登录入口与登录态展示（复用 Login.QueryStatusAsync）
 │   ├── MainWindow.Ask.cs   # 交互请求弹窗（逐集确认 / 选清晰度 / 选轨；异常与到期回落默认选项）
 │   ├── AskDialog.axaml(.cs) # 交互弹窗视图（到期自动关闭）
-│   ├── LoginWindow.axaml(.cs) # 扫码登录弹窗（通道由构造参数指定；会话代际守卫 + 重新生成二维码）
+│   ├── LoginWindow.axaml(.cs) # 扫码登录弹窗（通道由构造参数指定；会话标识守卫 + 重新生成二维码）
 │   ├── LoginResult.cs      # 登录结果模型
 │   ├── QueueRunner.cs      # 任务队列与并发池（1–8，运行中可调；TaskState 经 INPC 通知绑定）
 │   ├── QueueRunner.Execute.cs # 并发执行循环（取额度 / 分发 / 归还）
@@ -253,9 +253,9 @@ BBDown/
     └── BBDown.Sample/      # 外部后处理协议示例插件与模板（见第 9 节）
 ```
 
-**依赖方向**：`BBDown` → `BBDown.Core`；两个测试项目分别依赖对应实现。Core 不反向依赖入口项目，保证核心逻辑可独立测试。`BBDown.GUI` 只依赖 `BBDown.Core`，不引用 CLI 项目，其测试由独立 CI（`gui.yml`）覆盖构建。`Plugins/BBDown.Sample` 引用 `BBDown.Core`（协议 record 对齐），以独立进程被主程序按需调起，不在主构建链路上；其余插件为独立仓库。
+**依赖方向**：`BBDown` → `BBDown.Core`；两个测试项目分别依赖对应实现。Core 不反向依赖入口项目，保证核心逻辑可独立测试。`BBDown.GUI` 只依赖 `BBDown.Core`，不引用 CLI 项目，其测试由独立 CI（`gui.yml`）覆盖构建。`Plugins/BBDown.Sample` 引用 `BBDown.Core`（协议 record 与 `BBDown.Core` 一致），以独立进程被主程序按需调起，不在主构建链路上；其余插件为独立仓库。
 
-**入口项目职责**：`BBDown` 主项目只保留命令行解析（`Cli`，子命令装配在 `Cli/SubCommands.cs`）、serve 服务器（`Serve`）与入口编排（`Program`：独立链路早分流、异常→退出码映射）。下载链路全部在 `BBDown.Core`，`Program.RunApp` 经纯字符串探测 `InputResolver.TryDispatch` 识别独立链路形态后统一交 `WorkerDispatcher` 分发（直播 `LiveDownload` / 专栏 `OpusDownload` / 文集与空间集合 `ReadListDownload` 等运行器 / 视频管道 `DownloadPipeline`）。子命名空间之间的引用一律显式 `using`；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。
+**入口项目职责**：`BBDown` 主项目只保留命令行解析（`Cli`，子命令装配在 `Cli/SubCommands.cs`）、serve 服务器（`Serve`）与入口编排（`Program`：独立链路早分流、异常→退出码映射）。下载链路全部在 `BBDown.Core`，`Program.RunApp` 经纯字符串探测 `InputResolver.TryDispatch` 识别独立链路类型后统一交 `WorkerDispatcher` 分发（直播 `LiveDownload` / 专栏 `OpusDownload` / 文集与空间集合 `ReadListDownload` 等运行器 / 视频管道 `DownloadPipeline`）。子命名空间之间的引用一律显式 `using`；`Serve` 引用 `Pipeline` 与 `Auth`，**反向不成立**——下载链路只通过根层的 `PipelineSink` 回调回吐进度，不认识 `BBDown.Serve.DownloadTask`（由 `just check-deps` 守护）。
 
 ---
 
@@ -268,10 +268,10 @@ BBDown/
   │
   ▼
 InputResolver.ResolveIdAsync      URL/av/BV/ep/ss/md/合集/系列/收藏夹/空间/稍后再看/b23.tv/文集/空间集合 → ResourceId
-  │  直播 / 专栏 / 文集 / 空间集合形态在入口经 TryDispatch 识别（见「独立链路分支」），
-  │  视频形态继续走本链路
-  │  md{数字} 详情页 → pgc/review/user 映射出 season_id → 解析为 Season(season_id)（整季形态）
-  │  ss{数字} 季号 → pgc/view/web/season 取 season_id → 同样解析为 Season(season_id)（整季形态，与 md 对称）
+  │  直播 / 专栏 / 文集 / 空间集合在入口经 TryDispatch 识别（见「独立链路分支」），
+  │  视频继续走本链路
+  │  md{数字} 详情页 → pgc/review/user 映射出 season_id → 解析为 Season(season_id)（整季）
+  │  ss{数字} 季号 → pgc/view/web/season 取 season_id → 同样解析为 Season(season_id)（整季，与 md 对称）
   │  /watchlater/ 系列地址 → WatchLater（分享链接带 bvid/oid 时只取单个视频）
   │
   ▼
@@ -302,7 +302,7 @@ PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分�
 
 **独立链路分支**：输入命中 `InputResolver.TryDispatch`（纯字符串探测：直播 / 专栏 opus|cv / 文集 readlist / 空间图文 spaceOpus / 空间音频 spaceAudio / 空间动态 spaceDynamic）时，`RunApp` 早于 `WorkSetup.Build` 交 `WorkerDispatcher` 分发到对应独立链路。`WorkerDispatcher` 是 CLI 与 serve 共用的唯一分发点（serve 端 `TaskWorker.RunDownloadAsync` 亦经它执行），非视频链路不构造 `WorkContext`。集合运行器（文集 / 空间图文 / 空间音频）逐条复用单条链路（`OpusDownload` / `AudioDownload`）并聚合失败。
 
-**直播录制分支**：直播形态（`live:` / `live.bilibili.com/{数字}` / `m.live.bilibili.com`）同样经 `WorkerDispatcher` 分流到 `LiveDownload.RunAsync`，这是一条不经 `WorkContext` / 混流主干的独立链路：
+**直播录制分支**：直播输入（`live:` / `live.bilibili.com/{数字}` / `m.live.bilibili.com`）同样经 `WorkerDispatcher` 分流到 `LiveDownload.RunAsync`，这是一条不经 `WorkContext` / 混流主干的独立链路：
 
 ```
 用户输入（直播间地址）
@@ -323,7 +323,7 @@ LiveMuxer.MergeSegmentsAsync  Ctrl+Break 触发：分段 FLV → 单个 mp4（av
 落盘 <主播名>-<标题>-<yyyyMMdd_HHmmss>.mp4
 ```
 
-**取消令牌贯穿全链路**：全局 `CancellationTokenSource`，Ctrl+C 触发优雅取消，`OperationCanceledException` 被捕获后进程以 `130` 退出，已下载的 `.download` 临时文件保留，重跑同一条命令即可续传。直播录制同样接入该令牌：`LiveSignal` 区分 `Ctrl+Break`（停录并合并，退出码 `0`）与 `Ctrl+C`（中断保留分段，退出码 `130`）。直播停录信号 `LiveSignal` 现为按 `sessionId` 键控的注册表：CLI 以房间号、GUI 以任务序号、serve 以任务 id 作为标识分别挂载停止源，`Ctrl+Break` 只停对应会话、并发录制互不干扰；录制结束（`LiveSignalScope` 释放）自动摘除挂载。
+**取消令牌贯穿全链路**：全局 `CancellationTokenSource`，Ctrl+C 触发优雅取消，`OperationCanceledException` 被捕获后进程以 `130` 退出，已下载的 `.download` 临时文件保留，重跑同一条命令即可续传。直播录制同样接入该令牌：`LiveSignal` 区分 `Ctrl+Break`（停录并合并，退出码 `0`）与 `Ctrl+C`（中断保留分段，退出码 `130`）。直播停录信号 `LiveSignal` 是按 `sessionId` 键控的注册表：CLI 以房间号、GUI 以任务序号、serve 以任务 id 作为标识分别挂载停止源，`Ctrl+Break` 只停对应会话、并发录制互不干扰；录制结束（`LiveSignalScope` 释放）自动摘除挂载。
 
 ---
 
@@ -350,16 +350,16 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 
 ## 5. serve 模式与鉴权
 
-`BBDown serve` 用 ASP.NET Minimal API 暴露任务增删查接口（完整契约见 [API.md](./API.md)）。主干为 `BBDownServer`，端点注册在 `Http/ServeEndpoints.cs`、WebSocket 在 `Http/TasksSocket.cs`、任务表与消费循环在 `Tasks/`（TaskStore / TaskWorker），SSRF 防护抽到独立静态类 `SsrfGuard`，启动参数聚合为 `ServeConfig` record。设计要点：
+`BBDown serve` 用 ASP.NET Minimal API 暴露任务增删查接口（完整接口见 [API.md](./API.md)）。主干为 `BBDownServer`，端点注册在 `Http/ServeEndpoints.cs`、WebSocket 在 `Http/TasksSocket.cs`、任务表与消费循环在 `Tasks/`（TaskStore / TaskWorker），SSRF 防护抽到独立静态类 `SsrfGuard`，启动参数聚合为 `ServeConfig` record。设计要点：
 
 - **令牌鉴权**：`SetUpServer` → `FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时启用强制鉴权；未传入则默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。强制鉴权时客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，否则返回 `401`。
-- **请求契约收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在契约中，Web 前端经 WebSocket 事件流远程应答选项请求。
+- **请求字段收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在请求字段中，Web 前端经 WebSocket 事件流远程应答选项请求。
 - **SSRF 防护**（`SsrfGuard`）：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点；专用 `WebHookClient` 关闭自动重定向并在连接前二次校验端点 IP。
 - **CORS**：默认放行**回环来源**（`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环判定），非回环 `Origin` 依旧无 `Access-Control-Allow-Origin` 头、被浏览器拦截，与写端点 / WebSocket 的 Origin 校验（防 DNS rebinding）保持一致；公网暴露仍需配合反向代理与 TLS。
-- **容量上限**：已完成任务保留上限 `MaxFinishedTasks = 200`，超出按策略淘汰。
+- **容量上限**：已完成任务保留上限 200，超出按策略淘汰。
 - **任务表以 `ResourceId` 为键**（`ConcurrentDictionary<ResourceId, DownloadTask>`）：解析结果直接作键，值相等性天然去重，同资源重复提交命中同一任务；`DownloadTask.Id` 即该 `ResourceId`，JSON 序列化为规范字符串（如 `season2539`，与路径参数同一编码，见 [API.md](./API.md) 的任务标识一节）。
-- **并发限流**：`--max-concurrent N`（默认 `0` = 不限制，保持历史行为）。`SetUpServer` 在 `N > 0` 时建立 `SemaphoreSlim(N, N)`；任务经 `TaskWorker.RunGatedAsync` 在调用 `DownloadPipeline.RunAsync` 前取额度、`finally` 归还。取额度发生在 id 去重登记**之后**，因此排队中的任务已在 `runningTasks` 里可见，`DownloadTask.Status` 为 `Queued`，拿到额度转 `Running`，收尾转 `Finished`。`max-concurrent` 仅约束**同时下载的任务数**，多余任务排队；单个任务内部的下载并行度（分片并发）由多线程下载器自行决定（`PageDownload.BuildDownloadConfig` 始终将 `MaxDegreeOfParallelism` 设为 `0`，即回落到 `ProcessorCount`），不再随限流被压到 `1`。`0` 表示不限制（与 CLI 完全一致）。
-- **任务状态机**：`DownloadStatus` 四态——`Pending`（enqueue 提交、尚未 start）、`Queued`（已投入执行队列、等待并发额度，仅 `--max-concurrent > 0` 出现）、`Running`（下载中）、`Finished`（收尾，成败见 `IsSuccessful`）。`POST /api/v1/tasks?mode=enqueue` 创建 `Pending` 任务，`POST /api/v1/tasks/{id}/start` 将其转 `Queued`；`/running` 与 `/healthz` 计数排除 `Pending`（尚未占执行队列）。状态流转由 `TaskStore` 维护，详见 [API.md](./API.md)。
+- **并发限流**：`--max-concurrent N`（默认 `0` = 不限制）。`SetUpServer` 在 `N > 0` 时建立 `SemaphoreSlim(N, N)`；任务经 `TaskWorker.RunGatedAsync` 在调用 `DownloadPipeline.RunAsync` 前取额度、`finally` 归还。取额度在 id 去重登记**之后**，因此排队中的任务已在 `runningTasks` 里可见，`DownloadTask.Status` 为 `Queued`，拿到额度转 `Running`，收尾转 `Finished`。`max-concurrent` 仅约束**同时下载的任务数**，多余任务排队；单个任务内部的下载并行度（分片并发）由多线程下载器自行决定，不随限流被压到 `1`。`0` 表示不限制（与 CLI 完全一致）。
+- **任务状态机**：`DownloadStatus` 四态——`Pending`（enqueue 提交、尚未 start）、`Queued`（已投入执行队列、等待并发额度，仅 `--max-concurrent > 0` 时存在）、`Running`（下载中）、`Finished`（收尾，成败见 `IsSuccessful`）。`POST /api/v1/tasks?mode=enqueue` 创建 `Pending` 任务，`POST /api/v1/tasks/{id}/start` 将其转 `Queued`；`/running` 与 `/healthz` 计数排除 `Pending`（尚未占执行队列）。状态流转由 `TaskStore` 维护，详见 [API.md](./API.md)。
 
 > 注意：任务创建 / 清理为 **POST / DELETE**，查询类（`/api/v1/tasks/*`）为 GET，详见 [API.md](./API.md)。
 >
@@ -369,9 +369,9 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 
 ## 6. 断点续传
 
-下载统一走 [Downloader](https://www.nuget.org/packages/Downloader) 库（v5.9.6，`IsAotCompatible`），多线程分片与续传均由库实现（适配层 `DownloaderAdapter`）：
+下载统一走 [Downloader](https://www.nuget.org/packages/Downloader) 库（v5.9.8，`IsAotCompatible`），多线程分片与续传均由库实现（适配层 `DownloaderAdapter`）：
 
-- 每条流先写入 `<目标路径>.download` 临时文件，续传元数据（`DownloadPackage` JSON：总大小 + 各块位置）周期性内嵌在文件末尾；下载完成截断元数据并改名收尾。
+- 每条流先写入 `<目标路径>.download` 临时文件，续传元数据周期性内嵌在文件末尾；下载完成截断元数据并改名收尾。
 - 重跑时 downloader 先探测服务端文件大小，与元数据一致则从各块断点续下；不一致（URL 指向的内容已变，如换画质）自动删除临时文件重下。
 - 并行控制：`ParallelCount` 默认 32 条连接；`--single-thread` 或 CMCC 域名强制单块；FLV 片段间并行（上限 4）× 片段内连接合计不超过 32。
 - **重跑同一条命令即可从断点继续**，粒度覆盖：单条流（视频轨下完、音频轨失败 → 只补音频轨）与合集 / 多 P（某分 P 失败仅补该分 P）。所有分片（含边下边混流的临时文件）都成功后才清理临时文件。
@@ -417,7 +417,7 @@ playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）�
 
 - **调起**（`BBDown.Core/Download/PostProcessClient.cs`：`TryProcessAsync` / `Configure`）：`--post-process <exe>` 由 `CommandLineInvoker` 经 `PostProcessClient.Configure` 注册；对每条 DASH 轨写请求 JSON（`PostProcessRequest`：`Aid` / `Cid` / `Kind` / `TrackPath` / `DestPath` / `Ffmpeg`），以请求文件路径为唯一参数调起外部进程，20 秒超时。请求只携带轨道定位与本地路径，**不携带任何加密特征与凭据**。
 - **接入点与降级**（`BBDown.Core/Media/DashDownload.cs`：`TryPostProcessAsync`）：DASH 轨下载完成后对视频轨 / 音频轨 / 背景音 / 配音轨统一处理——进程退出码为 0 且产物非空时，产物覆盖原轨参与混流；退出码 0 且无产物视为无需处理；未配置 `--post-process` / 进程不可用 / 超时 / 失败，一律静默保留原文件，原文件照常参与混流。FLV 分支与直播录制不经此路径（直播对带加密标记的流直接跳过，见 `LiveFetcher`）。
-- **示例插件**：`Plugins/BBDown.Sample`（主仓库内置）即协议的最小实现与模板，演示请求字段访问与「无需处理」语义（构建与使用见其 [README](./Plugins/BBDown.Sample/README.md)）；文件交换协议见 [PROTOCOL.md](./PROTOCOL.md)。
+- **示例插件**：`Plugins/BBDown.Sample`（主仓库内置）即协议的最小实现与模板，演示请求字段访问与「无需处理」含义（构建与使用见其 [README](./Plugins/BBDown.Sample/README.md)）；文件交换协议见 [PROTOCOL.md](./PROTOCOL.md)。
 
 ---
 
@@ -426,7 +426,7 @@ playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）�
 - SDK：`Microsoft.NET.Sdk.Web`（`BBDown`）、`Microsoft.NET.Sdk`（`BBDown.Core` / 测试）、`Microsoft.NET.Sdk`（`BBDown.GUI`，Avalonia，`net10.0`）。
 - `BBDown.Core` 标记 `IsAotCompatible=true`；序列化一律用 `JsonSerializerContext` 源生成器（`CredentialJsonContext` / `DownloadRequestJsonContext` / `PartJsonContext` / `PostProcessJsonContext` / `AppJsonSerializerContext` / `ServeRequestOptionsJsonContext`），禁止运行时反射。
 - 全局 `TreatWarningsAsErrors=true`、`Nullable enable`、`LangVersion latest`、集中式包版本（`Directory.Packages.props`）。
-- 发布 AOT：`dotnet publish -c Release -r <RID> /p:PublishAot=true`。注意 AOT 下 `BBDown.data` 等 JSON 必须走源生成器，否则会被裁剪导致反序列化失败。
+- 发布 AOT：`dotnet publish -c Release -r <RID> /p:PublishAot=true`。注意 AOT 下 `BBDown.data` 等 JSON 必须走源生成器，否则会被裁剪，反序列化失败。
 - **图形界面发布**（`BBDown.GUI`）：`PublishAot` + `PublishSingleFile`，由独立 CI（`.github/workflows/gui.yml`）在 Windows / macOS / Linux（各 x64 / arm64，Linux 仅 glibc）上发布自包含单文件，并将整个发布目录打包为 zip 上传产物，可手动触发追加到最新 Release；主 CI（`ci.yml`）不构建 GUI。
 - **Win7 兼容构建**（CLI，`win-x64`）：`-p:Win7Compatitable=true` 接入 YY-Thunks 与 VC-LTL，产物可在 Windows 7 直接运行（需先装 KB3140245 提供 TLS 1.1/1.2）。
 
@@ -436,11 +436,11 @@ playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）�
 
 ## 11. 专栏导出旁路
 
-根命令识别到专栏地址（`https://www.bilibili.com/opus/...`、`cv{id}`、`opus{id}` 等）时，会把 B 站「专栏 / 图文」抓取并转换为 Markdown；纯图文动态（`item.type == 0`）同样按正文导出，不再误判为专栏。它与音视频下载链路**完全独立**，是一条旁路，目的是避免让专栏逻辑被 `WorkSetup.Build` 的 ffmpeg 探测、混流、`SavePath.Format`（硬编码 `.mp4`）等音视频专属步骤拖累。
+根命令识别到专栏地址（`https://www.bilibili.com/opus/...`、`cv{id}`、`opus{id}` 等）时，会把 B 站「专栏 / 图文」抓取并转换为 Markdown；纯图文动态（`item.type == 0`）同样按正文导出。它与音视频下载链路**完全独立**，是一条旁路，目的是避免让专栏逻辑被 `WorkSetup.Build` 的 ffmpeg 探测、混流、`SavePath.Format`（硬编码 `.mp4`）等音视频专属步骤拖累。
 
 ### 11.1 分流点
 
-分流发生在 `Program.RunApp` 顶部（`InputResolver.TryDispatch` 命中专栏形态）并经 `WorkerDispatcher` 派发，**早于** `DownloadPipeline.RunAsync` 内的 `WorkSetup.Build`。文集与空间图文 / 空间动态作为集合输入复用本链路：`ReadListDownload` / `SpaceOpusDownload` 拉取列表后逐条构造专栏地址调用 `OpusDownload`，产物落在 `工作目录/{文集名|UP 名}/` 下：
+分流在 `Program.RunApp` 顶部（`InputResolver.TryDispatch` 命中专栏类型）并经 `WorkerDispatcher` 派发，**早于** `DownloadPipeline.RunAsync` 内的 `WorkSetup.Build`。文集与空间图文 / 空间动态作为集合输入复用本链路：`ReadListDownload` / `SpaceOpusDownload` 拉取列表后逐条构造专栏地址调用 `OpusDownload`，产物落在 `工作目录/{文集名|UP 名}/` 下：
 
 ```
 用户输入
@@ -471,7 +471,7 @@ OpusDownload.RunAsync (BBDown.Core.Pipeline)  不走 WorkSetup.Build / 不构造
 - **不构造 `WorkContext`**：复用了 `HTTPUtil` / `Buvid` / `CredentialStore` 等底层能力，但绕开了 `WorkContext` 这一音视频上下文。
 - **不用 `SavePath.Format`**：输出文件名由 `FileNameUtil.GetValidFileName` 直接处理，按 `<标题>.md` 落盘，图片进 `<标题>/images/`，与音视频的 `.mp4` 命名体系解耦。
 - **解析拆分**：`OpusFetcher` 为 partial class，拆为网络编排与判定（`OpusFetcher.cs`）/ 文档级解析（`OpusFetcher.Parse.cs`）/ 段落与节点解析（`OpusFetcher.Paragraph.cs`）三份，便于控制单文件行数。
-- **复用的 HTTP 桩点**：`OpusFetcher` 通过替换 `HTTPUtil.AppHttpClient` 进行单测（`StubHttpMessageHandler` + 路由桩），与 `BBDown.Core.Tests` 中其他 HTTP 测试共用 `HttpStubCollectionDefinition` 串行集合，避免 HttpClient 静态字段竞争。
+- **复用的 HTTP 桩点**：`OpusFetcher` 经替换 `HTTPUtil.AppHttpClient` 单测，与 `BBDown.Core.Tests` 中其他 HTTP 测试共用串行集合，避免 HttpClient 静态字段竞争。
 - **评论导出复用主干组件**：`DownloadCommentsAsync` 与视频链路共用 `CommentFetcher` / `CommentWriter` / `CommentDocument`，但 WBI 密钥不走 `VideoInfo.FetchAsync` 的探测点，而是在本链路内经 `Account.ProbeAccountAsync` 补齐（专栏旁路了视频信息获取，nav 探测需自行触发）。
 - **AOT 约束一致**：`OpusFetcher` 解析接口 JSON 一律用 `JsonDocument` / `GetProperty`，不依赖运行时反射，与全项目 AOT 策略一致。
 
@@ -488,6 +488,6 @@ v1 的 `serve` JSON API 面向音视频、直播、专栏（opus / cv）与集�
 - **状态层与视图分离**：`state/` 持有全局状态（`store` + `types`），`snapshot` 把 WS 推送的 `taskList` 快照归一到统一视图模型，`taskView` 把 `DownloadTask` 映射为视图模型（按 `ResourceId` 规范 id 前缀识别资源类型）；`connection` 管理 WebSocket 订阅与重连，`actions` 收口提交 / 取消 / 移除 / 启动，`useTasks` 为组合式封装。
 - **网络层**：`api/client` 负责 REST 任务控制（提交 / 取消 / 移除 / 清空 / 启动）与扫码登录调用（`fetchLoginQr` / `pollLoginStatus`），`api/ws` 维护始终开启的 WebSocket 事件流连接（任务列表与完成态由 `taskList` 帧推送，断线指数退避自动重连），`api/login` 负责凭据读写（localStorage）、登录通道定义与去桩后的扫码登录流程。
 - **纯函数优先**：`lib/` 下 `content`（内容字符表与顺序）、`options`（选项映射）、`format`（ETA 与耗时格式化）、`urlDetector`（下载目标识别）、`live`（直播清晰度）均为可单测纯函数，测试在 `src/__tests__/` 与 `src/state/*.spec.ts`。
-- **视图组件**：`ConnectionBar`（纯状态栏，地址 / 令牌展示与「设置」入口）、`OptionsPanel`（内容 / 下载 / 解析选项，serve 契约排除的字段禁用并标注原因）、`TaskList`（任务队列与状态）、`LogPanel`（日志区）、`AskDialog`（交互选项弹窗）、`LoginDialog`（扫码登录弹窗，内部 1.5 秒轮询，成功后凭据上报 App 并联动 API 通道）、`ServeSettingsDialog`（连接设置弹窗，地址与令牌 localStorage 持久化）。三枚弹窗均由 App 根层持有，避免组件内部 `Teleport`。
+- **视图组件**：`ConnectionBar`（纯状态栏，地址 / 令牌展示与「设置」入口）、`OptionsPanel`（内容 / 下载 / 解析选项，serve 接口排除的字段禁用并标注原因）、`TaskList`（任务队列与状态）、`LogPanel`（日志区）、`AskDialog`（交互选项弹窗）、`LoginDialog`（扫码登录弹窗，内部 1.5 秒轮询，成功后凭据上报 App 并联动 API 通道）、`ServeSettingsDialog`（连接设置弹窗，地址与令牌 localStorage 持久化）。三枚弹窗均由 App 根层持有，避免组件内部 `Teleport`。
 
 构建与运行见 [README](./README.md)「Web 前端」节。

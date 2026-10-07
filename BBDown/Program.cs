@@ -257,15 +257,11 @@ internal sealed class Program
         {
             msg = e.ToString( );
         }
-        else if (e is AggregateException aggregate)
-        {
-            // AggregateException.Message 恒为「One or more errors occurred」，
-            // 非 DebugLog 下逐条展开内层异常，否则多分 P 失败只显示一行无信息文案
-            msg = $"\n{string.Join("\n", aggregate.InnerExceptions.Select(inner => inner.Message))}";
-        }
         else
         {
-            msg = e.Message;
+            // 非 DebugLog 下展开内层异常，否则多分 P 失败只显示一行无信息文案；
+            // 有界展开，避免数万分 P 全失败时拼接成 MB 级单条消息
+            msg = $"\n{Utils.FormatErrorMessage(e)}";
         }
 
         Console.BackgroundColor = ConsoleColor.Red;

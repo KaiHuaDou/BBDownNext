@@ -105,7 +105,7 @@ public static class SpaceDynamicDownload
 
         if (failures.Count > 0)
         {
-            throw new InvalidOperationException($"共 {failures.Count}/{items.Count} 条动态下载失败：{string.Join("；", failures)}");
+            throw new InvalidOperationException($"共 {failures.Count}/{items.Count} 条动态下载失败：{Utils.FormatBounded(failures, "；", 20)}");
         }
 
         Log("动态下载完成");

@@ -142,7 +142,8 @@ public static partial class UrlDetector
             return new TargetInfo("音频（au 号）", TargetKind.Audio);
         }
 
-        if (text.StartsWith("https://www.bilibili.com/watchlater", StringComparison.OrdinalIgnoreCase))
+        if (text.StartsWith("https://www.bilibili.com/watchlater", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("page=watchlater", StringComparison.OrdinalIgnoreCase))
         {
             return new TargetInfo("稍后再看列表", TargetKind.Video);
         }

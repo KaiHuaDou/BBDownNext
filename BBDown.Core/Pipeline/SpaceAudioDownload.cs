@@ -69,7 +69,7 @@ public static class SpaceAudioDownload
 
         if (failures.Count > 0)
         {
-            throw new InvalidOperationException($"共 {failures.Count}/{items.Count} 条音频下载失败：{string.Join("；", failures)}");
+            throw new InvalidOperationException($"共 {failures.Count}/{items.Count} 条音频下载失败：{Utils.FormatBounded(failures, "；", 20)}");
         }
 
         Log("音频下载完成");

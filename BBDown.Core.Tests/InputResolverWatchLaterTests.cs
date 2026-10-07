@@ -27,6 +27,8 @@ public class InputResolverWatchLaterTests
     [InlineData("https://www.bilibili.com/watchlater")]
     [InlineData("https://www.bilibili.com/watchlater/#/list")]
     [InlineData("https://www.bilibili.com/list/watchlater")]
+    [InlineData("https://www.bilibili.com/?page=WatchLater")]
+    [InlineData("https://www.bilibili.com/?page=watchlater")]
     public async Task ResolveIdAsync_WatchLaterUrl_ResolvesToListPrefix(string input)
     {
         var result = await InputResolver.ResolveIdAsync(input, AppConfig.Empty, TestContext.Current.CancellationToken);

@@ -13,6 +13,7 @@ using BBDown.Core;
 using BBDown.Core.Download;
 using BBDown.Core.Logging;
 using BBDown.Core.Pipeline;
+using BBDown.Core.Util;
 using BBDown.Core.Workflow;
 
 using Microsoft.Extensions.Hosting;
@@ -158,7 +159,7 @@ internal sealed partial class TaskWorker : BackgroundService
             {
                 // 走 Logger 才有全局锁，serve 模式并发任务直接写 Console 会互相插字；
                 // 错误消息经路径脱敏后写入任务契约，客户端经 /get-tasks 或事件流可读
-                var msg = RedactPaths(Config.DebugLog ? e.ToString( ) : e.Message);
+                var msg = RedactPaths(Config.DebugLog ? e.ToString( ) : Utils.FormatErrorMessage(e));
                 task.ErrorMessage = msg;
                 Logger.LogError($"{task.Id} 下载失败：{msg}");
             }

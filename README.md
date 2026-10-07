@@ -263,7 +263,7 @@ BBDown "live12345" -lq 400
 - **番剧 / 影视 / 课程**：`/bangumi/play/...`、`/cheese/...`、番剧 `md{数字}` 详情页（如 `https://www.bilibili.com/bangumi/media/md2539`，或简写 `md2539`）、`/bangumi/play/ss{季_id}`（或简写 `ss{数字}`）。`md` 与 `ss` 两种入口**均默认下载整季全部正片分集**（不含 OP/ED/PV 等 `section` 内容，可用 `-p` 指定具体集）；`ep{数字}` 则只下载该单集。
 - **合集 / 系列**：UP 主空间的 `lists/` 页面（`business=space_collection` 为合集，`business=space_series` 为系列）
 - **收藏夹**：UP 主空间的 `favlist` 页面
-- **稍后再看**：`https://www.bilibili.com/watchlater/`、`https://www.bilibili.com/watchlater/#/list`、`https://www.bilibili.com/list/watchlater`（整个列表按添加顺序作为大列表下载，多 P 自动按集拆分，支持 `-p` / `-iap`；接口私有，需登录 Cookie）。分享链接带 `bvid` / `oid` 参数时只下载该单个视频。
+- **稍后再看**：`https://www.bilibili.com/watchlater/`、`https://www.bilibili.com/watchlater/#/list`、`https://www.bilibili.com/list/watchlater`、`https://www.bilibili.com/?page=WatchLater`（整个列表按添加顺序作为大列表下载，多 P 自动按集拆分，支持 `-p` / `-iap`；接口私有，需登录 Cookie）。分享链接带 `bvid` / `oid` 参数时只下载该单个视频。
 - **空间投稿列表**：UP 主空间首页 / `upload/video` / `video?tid=0`，也可直接传 UP mid（`402787936`）或 `space402787936`。默认按**最新发布**（`pubdate`）倒序拉取**全部**投稿；课堂视频、无法解析的稿件（直播回放 / 充电专属 / 已删除等）会**跳过并告警**，不中断整批。
 - **专栏 / 图文**：`https://www.bilibili.com/opus/{opus_id}`、`https://www.bilibili.com/mobile/opus/{opus_id}`、`https://www.bilibili.com/read/cv{cv_id}`、`https://www.bilibili.com/read/mobile/{cv_id}`，以及前缀写法 `opus:{opus_id}` / `opus{opus_id}` / `cv{cv_id}`。专栏导出为 Markdown 文件，详见 [专栏 / 图文导出](#专栏--图文导出)。
 - **文集**（专栏合集）：`https://www.bilibili.com/read/readlist/rl{rl_id}`，或简写 `rl{rl_id}` / `readlist{rl_id}`。逐篇导出为 Markdown，落在 `工作目录/文集名/` 下；单篇失败跳过并告警，全部结束时汇总抛出。
@@ -465,8 +465,8 @@ BBDown "BV1xx" -M "<publishDate:yyyy>/<publishDate:MMdd> <pageTitle>"
 
 一次输出 WEB / TV / APP 三个通道，各自标明本地是否持有凭据、服务端是否确认登录、账号昵称与等级、凭据签发时间：
 
-```
-WEB 已登录    社会易姐QwQ（LV6 · 年度大会员）    凭据签发 2026-09-01 12:34
+```text
+WEB 已登录    XXXXXXXXX（LV6 · 年度大会员）    凭据签发 2026-09-01 12:34
 TV  凭据无效  本地 access_token 存在，服务端未认可
 APP 未登录    本地无 access_token
 ```
@@ -589,7 +589,7 @@ WEB / TV / APP 三类凭据**全部合并进**`BBDown.data`
 
 启用 `--save-records` 后写入，纯文本，**每行一条记录，字段以制表符（Tab，`\t`）分隔**：
 
-```
+```text
 <aid>\t<cid>\t<保存路径>
 ```
 
@@ -633,8 +633,6 @@ B 站对播放信息请求做了人机验证，此时响应里只有一个验证
 - [nilaoda/BBDown](https://github.com/nilaoda/BBDown) 用于原版 BBDown：本项目由其衍生，登录、接口解析等核心设计沿袭自原作者 nilaoda。
 - [aria2](https://github.com/aria2/aria2) 用于 aria2c 多线程下载。
 - [Avalonia](https://github.com/AvaloniaUI/Avalonia) 用于 GUI 跨平台 UI 框架（含 Avalonia.Desktop、Avalonia.Fonts.Inter、Avalonia.Themes.Fluent）。
-- [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect) 用于 B 站接口文档参考（随仓库以子目录形式附带）。
-- [bilibili-grpc-api](https://github.com/SeeFlowerX/bilibili-grpc-api) 用于 APP 端 gRPC 协议定义。
 - [Downloader](https://github.com/bezzad/Downloader) 用于多线程分片下载。
 - [FFmpeg](https://github.com/FFmpeg/FFmpeg) 用于音视频下载与混流。
 - [GPAC](https://github.com/gpac/gpac) 用于 MP4Box 混流。

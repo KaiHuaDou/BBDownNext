@@ -69,6 +69,26 @@ public partial class MainWindow
         await RefreshLoginStatusAsync( );
     }
 
+    /// <summary>启动即续期 WEB Cookie（best-effort），凭据落盘变化才提示；完成后探测登录态，展示续期后的结果。</summary>
+    private async Task RenewWebCookieOnStartupAsync( )
+    {
+        try
+        {
+            var before = CredentialStore.LoadWebCookie( );
+            await Login.TryRefreshWebCookieIfStaleAsync( );
+            if (CredentialStore.LoadWebCookie( ) != before)
+            {
+                AppendLog("WEB Cookie 已自动续期");
+            }
+        }
+        catch (Exception e)
+        {
+            AppendLog($"WEB Cookie 续期检查失败：{e.Message}");
+        }
+
+        await RefreshLoginStatusAsync( );
+    }
+
     /// <summary>
     /// 探测三通道登录态并分别展示。三通道各自独立呈现，未登录的通道不再被已登录的通道遮蔽；
     /// 已保存但服务端未认可（失效）与探测失败分列两态。

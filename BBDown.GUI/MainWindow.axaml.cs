@@ -74,7 +74,7 @@ public partial class MainWindow : Window
         LoadConfig( );
         ApplyPlaceholderTexts( );
         RestoreQueue( );
-        _ = RefreshLoginStatusAsync( );
+        _ = RenewWebCookieOnStartupAsync( );
         UpdateTargetHint( );
         AppendLog("就绪");
 
