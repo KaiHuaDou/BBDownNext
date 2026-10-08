@@ -102,6 +102,10 @@ public static partial class Login
                 return newCookie;
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             LogDebug("Cookie 主动续期失败，沿用现有凭据：{0}", e.Message);
@@ -161,7 +165,8 @@ public static partial class Login
                 ["csrf"] = GetCookieValue("bili_jct", newCookie) ?? "",
                 ["refresh_token"] = refreshToken,
             };
-            await HTTPUtil.PostFormRawAsync(ConfirmUrl, confirmForm, new AppConfig(newCookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", ""), token);
+            // PostFormRawAsync 返回未释放的响应，须由调用方 Dispose，否则连接池逐渐耗尽
+            using var _ = await HTTPUtil.PostFormRawAsync(ConfirmUrl, confirmForm, new AppConfig(newCookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", ""), token);
         }
         catch (Exception e)
         {

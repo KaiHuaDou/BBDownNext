@@ -19,8 +19,7 @@ public static class WorkerDispatcher
         switch (id)
         {
             case ResourceId.LiveRoom room:
-                // sessionId 供 LiveSignal 停录（Ctrl+Break / 停止端点按此定位录制会话）
-                await LiveDownload.RunAsync(req, new LiveTarget(room.RoomId.ToString( )), ResourceIdJsonConverter.Format(id), sink, ct);
+                await LiveDownload.RunAsync(req, new LiveTarget(room.RoomId.ToString( )), sink, ct);
                 break;
             case ResourceId.OpusArticle:
                 await OpusDownload.RunAsync(req, sink, ct);

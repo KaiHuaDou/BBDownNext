@@ -8,7 +8,6 @@ import {
   submitTask,
   type ServeConfig
 } from '../api/client'
-import { loadCredential } from '../api/login'
 import { errorMessage } from '../lib/errors'
 import { toServeRequest, type TaskOptions } from '../lib/options'
 import type { TaskView } from '../lib/types'
@@ -17,23 +16,24 @@ import { appendLog } from './snapshot'
 import type { TaskStore } from './store'
 import type { PendingAsk } from './types'
 
-/** 提交任务；成功则记录选项快照供重试。mode 为 enqueue 时进入暂停态（待 start）。返回 null 表示失败。 */
-export async function submit(
+/**
+ * 提交任务；成功则记录选项快照供重试。mode 为 enqueue 时进入暂停态（待 start）。
+ * 返回受理结果供调用方区分新受理与命中已有任务；抛错表示提交失败。
+ */
+export async function submitTaskAction(
   store: TaskStore,
   options: TaskOptions,
   url: string,
   mode: 'execute' | 'enqueue' = 'execute'
-): Promise<{ taskId: string; duplicate: boolean } | null> {
-  const request = toServeRequest(options, url, loadCredential())
-  try {
-    const { task, duplicate } = await submitTask(store.config.value, request, mode)
-    store.submittedOptions.set(task.id, { ...options })
-    appendLog(store, duplicate ? `任务已存在：${url}` : `任务已受理：${url}`)
-    return { taskId: task.id, duplicate }
-  } catch (e) {
-    appendLog(store, `任务提交失败：${errorMessage(e)}`, true)
-    return null
-  }
+): Promise<{ taskId: string; duplicate: boolean }> {
+  const { task, duplicate } = await submitTask(
+    store.config.value,
+    toServeRequest(options, url),
+    mode
+  )
+  store.submittedOptions.set(task.id, { ...options })
+  appendLog(store, duplicate ? `任务已存在：${url}` : `任务已受理：${url}`)
+  return { taskId: task.id, duplicate }
 }
 
 /** 停止任务：直播任务为「停止录制并合并」，其余为取消运行中 / 排队中任务。 */
@@ -71,12 +71,12 @@ export async function remove(store: TaskStore, view: TaskView): Promise<void> {
 }
 
 /** 继续：用提交时的选项快照重新提交；无快照时回落当前面板选项。 */
-export async function retry(
-  store: TaskStore,
-  view: TaskView,
-  fallback: TaskOptions
-): Promise<void> {
-  await submit(store, store.submittedOptions.get(view.id) ?? fallback, view.url)
+export async function retry(store: TaskStore, view: TaskView, fallback: TaskOptions): Promise<void> {
+  try {
+    await submitTaskAction(store, store.submittedOptions.get(view.id) ?? fallback, view.url)
+  } catch (e) {
+    appendLog(store, `继续失败：${errorMessage(e)}`, true)
+  }
 }
 
 /** 清空全部已完成任务（保留运行中 / 等待中）。 */
@@ -97,15 +97,47 @@ export async function clearFailed(store: TaskStore): Promise<void> {
   }
 }
 
-/** 应答选项请求；应答后从挂起列表移除。 */
-export async function answerAsk(store: TaskStore, ask: PendingAsk, choice: string): Promise<void> {
+/**
+ * 应答选项请求。服务端 choiceResult 回来前保留在挂起列表（标为已应答），
+ * 否则帧丢失时弹窗已消失而服务端仍在等应答，下载会挂到 AskTimeout。
+ */
+export function answerAsk(store: TaskStore, ask: PendingAsk, choice: string): void {
   store.socket?.submitChoice(ask.taskId, ask.requestId, choice)
   store.answeredAsks.add(ask.requestId)
-  store.pendingAsks.value = store.pendingAsks.value.filter((a) => a.requestId !== ask.requestId)
+  store.pendingAsks.value = store.pendingAsks.value.map((a) =>
+    a.requestId === ask.requestId ? { ...a, submitted: true } : a
+  )
 }
 
-/** 更新连接配置：持久化并重建事件流与轮询。 */
+/** 服务端确认应答结果：成功才移除弹窗，失败恢复可应答状态。 */
+export function settleAsk(store: TaskStore, requestId: string, ok: boolean, error?: string): void {
+  const ask = store.pendingAsks.value.find((a) => a.requestId === requestId)
+  if (!ask) {
+    return
+  }
+
+  if (ok) {
+    store.pendingAsks.value = store.pendingAsks.value.filter((a) => a.requestId !== requestId)
+    return
+  }
+
+  store.pendingAsks.value = store.pendingAsks.value.map((a) =>
+    a.requestId === requestId ? { ...a, submitted: false } : a
+  )
+  appendLog(store, `选项应答失败（${requestId}）：${error ?? '未知原因'}`, true)
+}
+
+/**
+ * 更新连接配置：持久化并重建事件流。
+ * 重建前对挂起提问按默认项应答，否则服务端的 AskBus 条目会挂满 AskTimeout。
+ */
 export function applyConfig(store: TaskStore, next: ServeConfig): void {
+  for (const ask of store.pendingAsks.value) {
+    if (!ask.submitted) {
+      store.socket?.submitChoice(ask.taskId, ask.requestId, ask.defaultOptionId ?? '')
+    }
+  }
+
   store.config.value = next
   saveServeConfig(next)
   startSocket(store)

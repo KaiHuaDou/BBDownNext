@@ -113,12 +113,8 @@ export const MUX_CHOICES: { value: MuxMode; label: string }[] = [
 /** API 通道（与 Core ApiType 枚举的小写形式相同）。 */
 export const API_CHOICES: ApiType[] = ['web', 'tv', 'app', 'intl']
 
-/** 把面板选项映射为 serve 提交体；cookie / accessToken 由外部凭据合并。 */
-export function toServeRequest(
-  options: TaskOptions,
-  url: string,
-  credential: { cookie: string; accessToken: string }
-): ServeRequestOptions {
+/** 把面板选项映射为 serve 提交体。cookie / accessToken 不在此列：凭据由服务端的 BBDown.data 提供。 */
+export function toServeRequest(options: TaskOptions, url: string): ServeRequestOptions {
   const orUndefined = (value: string): string | undefined =>
     value.length === 0 ? undefined : value
   return {
@@ -152,8 +148,6 @@ export function toServeRequest(
     liveQuality: options.liveQuality,
     pages: options.pages,
     lang: options.lang,
-    cookie: credential.cookie,
-    accessToken: credential.accessToken,
     uposHost: options.uposHost,
     delayPerPage: options.delayPerPage,
     area: options.area,

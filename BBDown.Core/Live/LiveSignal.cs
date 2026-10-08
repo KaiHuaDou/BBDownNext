@@ -10,20 +10,25 @@ namespace BBDown.Core.Live;
 /// <summary>
 /// SIGQUIT（Windows <c>Ctrl+Break</c> / Unix <c>Ctrl+\</c>）到「停止录制」的中枢
 /// 录制期间由 <see cref="LiveSignal.Register"/> 按会话标识挂载停止源，控制台 / GUI / serve 各自用同一标识停止对应录制
-/// 从而支持同一进程内并发录制多个直播间、互不影响
+/// 会话标识以直播间为键（<see cref="LiveTarget.SessionId"/>），同一房间同时只允许一路录制
 /// </summary>
 public static class LiveSignal
 {
-    // 按会话标识多注册表：key 由调用方保证唯一（如任务序号 / 房间号 / serve 任务 id）
+    // 直播间 → 停止源：键即房间，覆盖多个直播间并发录制互不影响
     private static readonly ConcurrentDictionary<string, CancellationTokenSource> active = new( );
 
     /// <summary>
-    /// 按会话标识挂载停止源，返回的 scope 释放后摘除该会话的挂载。同一标识再次注册会覆盖前者（调用方保证标识唯一，覆盖仅防异常残留）
+    /// 按会话标识挂载停止源，返回的 scope 释放后摘除该会话的挂载
+    /// 同一标识已在录制时抛 <see cref="InvalidOperationException"/>：覆盖会让先注册者的摘除比较失败，槽位留成第二次的悬空挂载
     /// </summary>
     public static IDisposable Register(string sessionId, CancellationTokenSource cts)
     {
         ArgumentNullException.ThrowIfNull(cts);
-        active[sessionId] = cts;
+        if (!active.TryAdd(sessionId, cts))
+        {
+            throw new InvalidOperationException($"{sessionId} 已在录制中，不接受同一房间的并发录制");
+        }
+
         return new LiveSignalScope(sessionId, cts);
     }
 

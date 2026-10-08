@@ -207,6 +207,13 @@ public static class ContentSelector
         return !content.HasAny(DownloadContent.Audio | DownloadContent.Video);
     }
 
+    // 无音视频、且独立封面也已产出：此时链路才可中止。
+    // 封面步骤在弹幕之后执行，若在弹幕处就中止，-get cd 会静默丢掉封面
+    internal static bool IsAssetOnlyAfterCover(this DownloadContent content)
+    {
+        return content.IsAssetOnly( ) && !content.Has(DownloadContent.Cover);
+    }
+
     private static DownloadContent Apply(DownloadContent flags, IEnumerable<string> segments, bool subtract, List<string> warnings)
     {
         foreach (var segment in segments)

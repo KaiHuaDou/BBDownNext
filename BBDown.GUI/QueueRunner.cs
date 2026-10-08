@@ -60,6 +60,9 @@ public sealed class TaskState : INotifyPropertyChanged
 
     public required int Index { get; init; }
 
+    /// <summary>直播录制会话号（LiveTarget.SessionId）；非直播任务为 null，停止录制按钮据此定位录制会话。</summary>
+    public string? LiveSessionId { get; set; }
+
     public TaskStatus Status
     {
         get;
@@ -292,7 +295,7 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
 
     private static TaskKind DetectKind(string url)
     {
-        // 直播单独成类：录制会话以任务序号注册（LiveSignal），停止按钮按序号精准停录
+        // 直播单独成类：录制会话以直播间注册（LiveSignal），停止按钮按房间精准停录
         // 其余（视频 / 专栏 / 文集 / 空间图文 / 音频 / 动态）在执行期统一经 InputResolver.TryDispatch 分流
         return LiveInputResolver.TryParse(url, out _) ? TaskKind.Live : TaskKind.Video;
     }

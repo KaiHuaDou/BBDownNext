@@ -80,8 +80,6 @@ export interface ServeRequestOptions {
   liveQuality: number
   pages: string
   lang: string
-  cookie: string
-  accessToken: string
   uposHost: string
   delayPerPage: string
   area: string

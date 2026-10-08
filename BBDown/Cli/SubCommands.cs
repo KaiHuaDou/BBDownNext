@@ -78,7 +78,7 @@ internal static class SubCommands
             },
             new Option<string>("--serve-token")
             {
-                Description = "serve 模式鉴权令牌；显式传入后才启用强制鉴权（所有访问均须带 X-BBDown-Token 头或 ?token= 查询参数），未传入则默认免令牌开放并仅警告"
+                Description = "serve 模式鉴权令牌；显式传入后才启用强制鉴权（HTTP 接口须带 X-BBDown-Token 头，\n仅 WebSocket 握手 /hubs/tasks 例外接受 ?token= 查询参数，因浏览器无法自定义握手头），未传入则默认免令牌开放并仅警告"
             },
             new Option<string>("--work-dir")
             {

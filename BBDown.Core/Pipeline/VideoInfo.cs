@@ -86,12 +86,13 @@ public static class VideoInfo
     }
 
     // nav 探测（wbi 密钥）进程内仅执行一次；后续调用复用同一 Task，避免批量下载时每个 URL 重复打 nav 接口
-    // 探测失败（wbi 为空）由调用方清空 accountProbeTask 触发重试
+    // 共享任务不捕获调用方令牌：抢到锁者的 ct 一旦取消或超时，其余并发任务会一直 await 一个已死任务，
+    // 故取消只在 await 处生效；探测失败（wbi 为空）由调用方清空 accountProbeTask 触发重试
     private static Task<(AccountInfo Info, string Wbi)> EnsureAccountProbedAsync(AppConfig cfg, CancellationToken ct)
     {
         lock (probeGate)
         {
-            return accountProbeTask ??= Account.ProbeAccountAsync(cfg, ct);
+            return (accountProbeTask ??= Account.ProbeAccountAsync(cfg, CancellationToken.None)).WaitAsync(ct);
         }
     }
 

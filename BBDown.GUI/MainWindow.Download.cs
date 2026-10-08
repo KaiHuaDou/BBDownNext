@@ -39,12 +39,12 @@ public partial class MainWindow
                     req = req with { Url = url };
                 }
 
-                // 直播单独链路：录制会话以任务序号注册（LiveSignal），停止按钮按序号精准停录
+                // 直播单独链路：录制会话以直播间注册（LiveSignal），停止按钮按房间精准停录
                 // 直播形式以展开后的 url 重判，入队时的 Kind 不可作为路由依据
                 if (LiveInputResolver.TryParse(url, out var live))
                 {
-                    MarkLive(state);
-                    await LiveDownload.RunAsync(req, live, state.Index.ToString( ), MakeSink(state), ct: token);
+                    MarkLive(state, live);
+                    await LiveDownload.RunAsync(req, live, MakeSink(state), ct: token);
                 }
                 else if (InputResolver.TryDispatch(url, out var id))
                 {
@@ -70,15 +70,19 @@ public partial class MainWindow
         }
     }
 
-    // b23 短链展开后才暴露直播形式：回投 UI 线程补记 Kind，停止按钮 / 不确定进度条按整项绑定的转换器随之联动
-    private static void MarkLive(TaskState state)
+    // b23 短链展开后才暴露直播形式：回投 UI 线程补记 Kind 与房间会话号，停止按钮 / 不确定进度条按整项绑定的转换器随之联动
+    private static void MarkLive(TaskState state, LiveTarget target)
     {
-        if (state.Kind == TaskKind.Live)
+        if (state.Kind == TaskKind.Live && state.LiveSessionId == target.SessionId)
         {
             return;
         }
 
-        Dispatcher.UIThread.Post(( ) => state.Kind = TaskKind.Live);
+        Dispatcher.UIThread.Post(( ) =>
+        {
+            state.LiveSessionId = target.SessionId;
+            state.Kind = TaskKind.Live;
+        });
     }
 
     private PipelineSink MakeSink(TaskState state)

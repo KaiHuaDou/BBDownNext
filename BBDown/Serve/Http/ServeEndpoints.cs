@@ -43,6 +43,12 @@ internal static class ServeEndpoints
                 return Results.BadRequest("输入有误");
             }
 
+            // Url 为 null 时下游 InputResolver 会空引用并被记成 500，先在此判空返回 400
+            if (string.IsNullOrWhiteSpace(bindingResult.Result!.Url))
+            {
+                return Results.BadRequest("url 不能为空");
+            }
+
             // mode=enqueue 仅入暂停表（待 start）；未指定 mode 或 mode=execute 时受理即执行
             var mode = http.Request.Query["mode"].ToString( ) == "enqueue" ? SubmitMode.Enqueue : SubmitMode.Execute;
             try

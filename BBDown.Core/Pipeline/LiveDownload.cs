@@ -20,8 +20,12 @@ namespace BBDown.Core.Pipeline;
 /// </summary>
 public static class LiveDownload
 {
-    public static async Task RunAsync(DownloadRequest myOption, LiveTarget target, string sessionId, PipelineSink sink = default, CancellationToken ct = default)
+    public static async Task RunAsync(DownloadRequest myOption, LiveTarget target, PipelineSink sink = default, CancellationToken ct = default)
     {
+        // 先占住房间：同一房间的第二次录制在此就被拒，不进后面的网络请求与文件准备
+        using var stopCts = new CancellationTokenSource( );
+        using var signalScope = LiveSignal.Register(target.SessionId, stopCts);
+
         // 录了几小时才发现没有 ffmpeg 是不可接受的，开录前就要探测
         var tools = WorkSetup.ResolveToolPaths(myOption);
         var workDir = WorkSetup.ResolveWorkDir(myOption);
@@ -71,8 +75,6 @@ public static class LiveDownload
         Log($"输出文件：{outPath}");
         LogColor("开始录制。按 Ctrl+Break 停止录制并合并；按 Ctrl+C 直接中断（保留分段，不合并）");
 
-        using var stopCts = new CancellationTokenSource( );
-        using var signalScope = LiveSignal.Register(sessionId, stopCts);
         using var recordCts = CancellationTokenSource.CreateLinkedTokenSource(ct, stopCts.Token);
 
         // 直播无总量：Ratio 恒 0，detail 记录时长 / 分段 / 清晰度，体积与速度取自样本字段

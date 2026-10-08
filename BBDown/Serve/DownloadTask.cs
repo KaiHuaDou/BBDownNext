@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json.Serialization;
 using System.Threading;
 
@@ -120,6 +121,7 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
     }
 
     // SavePaths 由工作线程在保存文件时写入，HTTP 线程在序列化时读取，须加锁并快照，避免枚举被并发修改
+    // 只存文件名：任务帧经 WebSocket 与回调外发，绝对路径会泄露本机目录布局
     private readonly Lock savePathsGate = new( );
     private readonly List<string> savePaths = [];
     public IReadOnlyList<string> SavePaths
@@ -137,7 +139,7 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
     {
         lock (savePathsGate)
         {
-            savePaths.Add(path);
+            savePaths.Add(Path.GetFileName(path));
         }
     }
 }

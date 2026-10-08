@@ -81,6 +81,25 @@ public class ChapterMetaTests
         Assert.Equal(20, info.Points[1].End);
     }
 
+    // 章节字段非数字或缺失时整段抛出，上层会吞成 Empty；Empty 的 is_upower_exclusive=false
+// 会让充电试看片段被当成完整视频并写入归档，故此处锁定「跳过坏章节、其余保留」
+[Fact]
+    public void ParsePlayerV2_SkipsMalformedPoints_KeepsRest( )
+    {
+        const string Json = """
+        {"code":0,"data":{"is_upower_exclusive":true,"view_points":[{"content":"Intro","from":0,"to":10},{"content":"坏章节","from":"x","to":20},{"content":"缺 to"},{"content":"正片","from":30,"to":40}]}}
+        """;
+
+        var info = ChapterMeta.ParsePlayerV2(Json);
+
+        Assert.Equal(2, info.Points.Count);
+        Assert.Equal("Intro", info.Points[0].Title);
+        Assert.Equal("正片", info.Points[1].Title);
+        Assert.Equal(30, info.Points[1].Start);
+        Assert.Equal(40, info.Points[1].End);
+        Assert.True(info.UpowerExclusive);
+    }
+
     [Fact]
     public void ParsePlayerV2_ReadsUpowerExclusiveAndTitle( )
     {

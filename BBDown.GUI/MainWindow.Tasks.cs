@@ -81,13 +81,13 @@ public partial class MainWindow
 
     private void StopRecordButtonClicked(object? o, RoutedEventArgs e)
     {
-        if (o is not Button { Tag: TaskState state } || state.Kind != TaskKind.Live)
+        if (o is not Button { Tag: TaskState state } || state.LiveSessionId is not { } sessionId)
         {
             return;
         }
 
-        // LiveSignal 按任务序号（sessionId）精准停止对应直播，并发录制互不干扰
-        AppendLog(LiveSignal.TryRequestStop(state.Index.ToString( ))
+        // LiveSignal 按直播间定位录制会话，并发录制不同房间互不干扰
+        AppendLog(LiveSignal.TryRequestStop(sessionId)
             ? $"任务{state.Index} 已请求停止录制并合并"
             : $"任务{state.Index} 当前未在录制或已停止");
     }

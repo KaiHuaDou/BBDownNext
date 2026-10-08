@@ -52,13 +52,20 @@ onUnmounted(() => {
           :key="option.id"
           class="rounded-[var(--radius-sm)] border border-[var(--hairline)] bg-[var(--glass-2)] px-3 py-2 text-left text-sm text-[var(--text-dim)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--text)]"
           type="button"
+          :disabled="ask.submitted"
           @click="emit('answer', option.id)">
           {{ option.label }}
         </button>
       </div>
       <div class="flex justify-center">
-        <button class="btn-ghost" type="button" @click="emit('dismiss')">取消</button>
+        <button class="btn-ghost" type="button" :disabled="ask.submitted" @click="emit('dismiss')">
+          取消
+        </button>
       </div>
+      <!-- 应答帧发出后等服务端 choiceResult 确认，确认前不消失，否则丢帧会让下载挂到超时 -->
+      <p v-if="ask.submitted" class="text-center text-xs text-[var(--text-faint)]">
+        已应答，等待服务端确认…
+      </p>
       <p v-if="ask.defaultOptionId" class="text-center text-xs text-[var(--text-faint)]">
         未选择将回落默认选项
       </p>

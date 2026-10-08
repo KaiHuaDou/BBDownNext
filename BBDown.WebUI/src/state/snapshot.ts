@@ -3,13 +3,17 @@ import type { TaskSnapshot, WorkflowEvent } from '../lib/types'
 import type { TaskStore } from './store'
 import { toView } from './taskView'
 
+/** 保留的日志行数（超出部分从头丢弃）。 */
 const MAX_LOG_LINES = 5000
+/** 超限时的裁剪批量：逐行裁剪会每行搬移整个数组 */
+const TRIM_BATCH = 200
 
-/** 追加日志行并在超限时从头截断。 */
+/** 追加日志行并在超限时批量截断。 */
 export function appendLog(store: TaskStore, text: string, isError = false): void {
   store.logLines.value.push({ text, isError })
-  if (store.logLines.value.length > MAX_LOG_LINES) {
-    store.logLines.value.splice(0, store.logLines.value.length - MAX_LOG_LINES)
+  const lines = store.logLines.value
+  if (lines.length > MAX_LOG_LINES + TRIM_BATCH) {
+    lines.splice(0, lines.length - MAX_LOG_LINES)
   }
 }
 
@@ -80,6 +84,18 @@ export function syncSubscriptions(store: TaskStore, running: string[]): void {
       store.socket.unsubscribe(id)
     }
   }
+}
+
+/**
+ * 重连后重建订阅：服务端按 socket 保存订阅表，新连接上没有任何订阅，
+ * 故本地 subscribed 必须整体丢弃后按当前运行中任务重发，否则事件流永久静默。
+ */
+export function resubscribe(store: TaskStore): void {
+  store.subscribed.clear()
+  syncSubscriptions(
+    store,
+    store.tasks.value.filter((t) => t.status === 'Running').map((t) => t.id)
+  )
 }
 
 /**

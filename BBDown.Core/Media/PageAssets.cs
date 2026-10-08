@@ -28,19 +28,24 @@ public static class PageAssets
             return null;
         }
 
-        var danmakuOnly = false;
         try
         {
-            danmakuOnly = await RetryAsync(
+            await RetryAsync(
                 async ( ) => await DownloadDanmakuAsync(session, savePath, ct),
                 session.Options.MaxRetry, "弹幕", ct, ex => PageDownload.ShouldRetry(ex, ct));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             LogWarn($"弹幕下载失败，已跳过：{ex.Message}");
         }
 
-        return danmakuOnly ? PageOutcome.Abort(selection) : null;
+        // 仅在无音视频、且封面交由后续封面步骤处理时在此中止：
+        // 封面步骤在本方法之后执行，无条件中止会静默丢掉封面（-get cd）
+        return session.Options.Content.IsAssetOnlyAfterCover( ) ? PageOutcome.Abort(selection) : null;
     }
 
     // DASH 与 FLV 共用的独立封面（c）产出收口：独立重试，耗尽仅告警跳过（不影响音视频）
@@ -65,6 +70,10 @@ public static class PageAssets
             {
                 sink.Saved?.Invoke(coverPath);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

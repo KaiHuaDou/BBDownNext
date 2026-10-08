@@ -23,6 +23,11 @@ public static class Account
         {
             return await ProbeAsync(cfg, ct);
         }
+        catch (OperationCanceledException)
+        {
+            // 用户取消须上抛，否则会被压成「未登录」并让下载继续
+            throw;
+        }
         catch (Exception ex)
         {
             LogDebug("获取账号信息失败: {0}", ex.Message);

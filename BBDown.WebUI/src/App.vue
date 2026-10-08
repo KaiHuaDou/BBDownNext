@@ -2,10 +2,8 @@
 import { computed, reactive, ref, watch } from 'vue'
 
 import type { ServeConfig } from './api/client'
-import { loadCredential, type Credential, type LoginChannel } from './api/login'
 import AskDialog from './components/AskDialog.vue'
 import ConnectionBar from './components/ConnectionBar.vue'
-import LoginDialog from './components/LoginDialog.vue'
 import LogPanel from './components/LogPanel.vue'
 import OptionsPanel from './components/OptionsPanel.vue'
 import ServeSettingsDialog from './components/ServeSettingsDialog.vue'
@@ -13,37 +11,41 @@ import TaskList from './components/TaskList.vue'
 import { CONTENT_ORDER, checkedFromContent, contentFromChecked } from './lib/content'
 import { DEFAULT_OPTIONS, loadOptions, saveOptions, type TaskOptions } from './lib/options'
 import { describeTarget } from './lib/urlDetector'
-import { useTasks, type PendingAsk } from './state/useTasks'
-
-const {
-  config,
-  connected,
-  connectionError,
-  eventStream,
-  tasks,
-  logLines,
-  pendingAsks,
-  submit,
-  stop,
+import { errorMessage } from './lib/errors'
+import {
+  answerAsk,
+  applyConfig,
+  clearAll,
+  clearFailed,
+  exportLog,
   remove,
   retry,
   start,
-  clearAll,
-  clearFailed,
-  answerAsk,
-  setConfig,
-  exportLog,
-  appendLog
-} = useTasks()
+  stop,
+  submitTaskAction
+} from './state/actions'
+import { appendLog } from './state/snapshot'
+import { useTasks, type PendingAsk } from './state/useTasks'
+
+const store = useTasks()
+const { config, connected, connectionError, eventStream, tasks, logLines, pendingAsks } = store
 
 const target = ref('')
 let options = reactive<TaskOptions>(loadOptions())
-const loginVisible = ref(false)
 const serveSettingsVisible = ref(false)
-const credential = ref<Credential>(loadCredential())
 const submitting = ref(false)
-// 选项变化即持久化，刷新后保留（凭据 / serve 配置各有独立存储，不经此键）
-watch(options, () => saveOptions(options), { deep: true })
+// 选项变化即持久化，刷新后保留；节流后写入，避免逐键同步写 localStorage
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+watch(options, () => {
+  if (saveTimer !== null) {
+    clearTimeout(saveTimer)
+  }
+
+  saveTimer = setTimeout(() => {
+    saveOptions(options)
+    saveTimer = null
+  }, 400)
+})
 
 const targetHint = computed(() => describeTarget(target.value))
 const contentChecked = computed<Set<string>>({
@@ -73,24 +75,6 @@ const statusCounts = computed(() => ({
   cancelled: tasks.value.filter((t) => t.status === 'Cancelled').length
 }))
 
-const loginStatusText = computed(() => {
-  const hasCookie = credential.value.cookie.length > 0
-  const hasToken = credential.value.accessToken.length > 0
-  if (hasCookie && hasToken) {
-    return '已配置 Cookie 与 access_token'
-  }
-
-  if (hasCookie) {
-    return '已配置 WEB Cookie'
-  }
-
-  if (hasToken) {
-    return '已配置 access_token'
-  }
-
-  return '未配置凭据'
-})
-
 const enqueue = async (mode: 'execute' | 'enqueue'): Promise<void> => {
   if (submitting.value) {
     return
@@ -98,18 +82,23 @@ const enqueue = async (mode: 'execute' | 'enqueue'): Promise<void> => {
 
   const url = target.value.trim()
   if (url.length === 0) {
-    appendLog('未填写下载目标')
+    appendLog(store, '未填写下载目标')
     return
   }
 
   if (describeTarget(url) === null) {
-    appendLog('下载目标无法识别，未加入队列')
+    appendLog(store, '下载目标无法识别，未加入队列')
     return
   }
 
   submitting.value = true
   try {
-    await submit(options, url, mode)
+    const { duplicate } = await submitTaskAction(store, options, url, mode)
+    if (duplicate) {
+      appendLog(store, '该资源已在队列中，未重复受理')
+    }
+  } catch (e) {
+    appendLog(store, `任务提交失败：${errorMessage(e)}`, true)
   } finally {
     submitting.value = false
   }
@@ -117,36 +106,21 @@ const enqueue = async (mode: 'execute' | 'enqueue'): Promise<void> => {
 
 const reset = (): void => {
   Object.assign(options, DEFAULT_OPTIONS)
-  appendLog('选项已重置')
+  appendLog(store, '选项已重置')
 }
 
 const currentAsk = computed<PendingAsk | undefined>(() => pendingAsks.value[0])
 
 const dismissAsk = (): void => {
-  if (!currentAsk.value) {
+  if (!currentAsk.value || currentAsk.value.submitted) {
     return
   }
 
-  void answerAsk(
-    currentAsk.value,
-    currentAsk.value.defaultOptionId ?? currentAsk.value.options[0]?.id ?? ''
-  )
-}
-
-const onSavedCredential = (next: Credential, channel?: LoginChannel): void => {
-  credential.value = next
-  loginVisible.value = false
-  if (channel) {
-    // 与 GUI 登录成功后自动切换 ApiBox 的行为相同：扫码通道即 API 通道
-    options.api = channel
-    appendLog(`已按登录通道切换 API 通道：${channel}`)
-  }
-
-  appendLog('登录凭据已保存')
+  answerAsk(store, currentAsk.value, currentAsk.value.defaultOptionId ?? currentAsk.value.options[0]?.id ?? '')
 }
 
 const onSaveServeSettings = (next: ServeConfig): void => {
-  setConfig(next)
+  applyConfig(store, next)
   serveSettingsVisible.value = false
 }
 </script>
@@ -224,12 +198,8 @@ const onSaveServeSettings = (next: ServeConfig): void => {
           </div>
         </div>
 
-        <!-- 登录 + 选项（整体滚动） -->
+        <!-- 选项（整体滚动） -->
         <div class="card card-pad flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div class="mb-1.5 flex shrink-0 items-center gap-2.5">
-            <button class="btn-ghost" type="button" @click="loginVisible = true">登录</button>
-            <span class="text-sm text-[var(--text-dim)]">{{ loginStatusText }}</span>
-          </div>
           <OptionsPanel
             v-model="options"
             :class="{ 'pointer-events-none opacity-50': options.infoOnly }" />
@@ -260,15 +230,15 @@ const onSaveServeSettings = (next: ServeConfig): void => {
           <div class="min-h-0 flex-1 overflow-y-auto px-2.5 py-2.5">
             <TaskList
               :tasks="tasks"
-              @stop="(view) => void stop(view)"
-              @cancel="(view) => void stop(view)"
-              @retry="(view) => void retry(view, options)"
-              @start="(view) => void start(view)"
-              @remove="(view) => void remove(view)" />
+              @stop="(view) => void stop(store, view)"
+              @cancel="(view) => void stop(store, view)"
+              @retry="(view) => void retry(store, view, options)"
+              @start="(view) => void start(store, view)"
+              @remove="(view) => void remove(store, view)" />
           </div>
           <div class="flex items-center gap-2 px-2.5 py-2">
-            <button class="btn-ghost" type="button" @click="clearAll">清空已完成</button>
-            <button class="btn-ghost" type="button" @click="clearFailed">清空失败</button>
+            <button class="btn-ghost" type="button" @click="clearAll(store)">清空已完成</button>
+            <button class="btn-ghost" type="button" @click="clearFailed(store)">清空失败</button>
           </div>
         </div>
 
@@ -279,7 +249,7 @@ const onSaveServeSettings = (next: ServeConfig): void => {
             <button
               class="btn-ghost px-2.5 py-1 text-xs"
               type="button"
-              @click.stop.prevent="exportLog">
+              @click.stop.prevent="exportLog(store)">
               导出日志
             </button>
           </summary>
@@ -291,16 +261,10 @@ const onSaveServeSettings = (next: ServeConfig): void => {
     </main>
 
     <!-- 弹窗 -->
-    <LoginDialog
-      v-if="loginVisible"
-      :config="config"
-      :credential="credential"
-      @close="loginVisible = false"
-      @saved="onSavedCredential" />
     <AskDialog
       v-if="currentAsk"
       :ask="currentAsk"
-      @answer="(choice) => currentAsk && void answerAsk(currentAsk, choice)"
+      @answer="(choice) => currentAsk && answerAsk(store, currentAsk, choice)"
       @dismiss="dismissAsk" />
     <ServeSettingsDialog
       v-if="serveSettingsVisible"

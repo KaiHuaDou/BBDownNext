@@ -28,6 +28,8 @@ export interface SocketHandlers {
   onChoiceResult: (requestId: string, ok: boolean, error?: string) => void
   /** 连接生命周期通知：null 表示已连接，非 null 为连接错误 / 断开信息。 */
   onStatus: (error: string | null) => void
+  /** 连接建立（含重连）时回调：服务端侧的订阅表随旧连接一同丢弃，调用方须在此重发订阅。 */
+  onOpen: () => void
   /** 订阅失败（任务不存在 / 事件流未启用），与连接生命周期无关。 */
   onSubscribeError: (error: string) => void
 }
@@ -81,6 +83,8 @@ function send(state: SocketState, frame: ClientFrame): void {
 function onOpen(state: SocketState): void {
   state.retryDelay = 1000
   state.handlers.onStatus(null)
+  // 重连得到的是新 socket，服务端订阅表随旧连接一同丢弃，故此处通知调用方重发订阅
+  state.handlers.onOpen()
   // 保活：服务端无事件推送时连接可能被中间层空闲回收，定期 ping
   stopPing(state)
   state.pingTimer = setInterval(() => send(state, { kind: 'ping' }), PingIntervalMs)

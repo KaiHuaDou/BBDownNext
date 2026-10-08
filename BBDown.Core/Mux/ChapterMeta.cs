@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -61,12 +62,24 @@ public static partial class ChapterMeta
         {
             foreach (var point in vPoint.EnumerateArray( ))
             {
-                points.Add(new ViewPoint( )
+                // from/to 逐字段取值：任一字段异常就整段抛出，会被上层吞成 Empty，
+                // Empty 的 is_upower_exclusive=false 会让充电试看片段被当成完整视频并写入归档。
+                // 数字与数字串都接受（接口两种形态都出现过），其余一律跳过该章节
+                if (point.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.String
+                    && TryReadSeconds(point, "from", out var start)
+                    && TryReadSeconds(point, "to", out var end))
                 {
-                    Title = point.GetProperty("content").GetString( )!,
-                    Start = int.Parse(point.GetProperty("from").ToString( )),
-                    End = int.Parse(point.GetProperty("to").ToString( ))
-                });
+                    points.Add(new ViewPoint( )
+                    {
+                        Title = content.GetString( )!,
+                        Start = start,
+                        End = end
+                    });
+                }
+                else
+                {
+                    LogDebug("章节字段缺失或类型异常，跳过该章节");
+                }
             }
         }
 
@@ -84,6 +97,24 @@ public static partial class ChapterMeta
     /// <summary>
     /// 生成 metadata 文件，用于 FFmpeg 混流章节信息
     /// </summary>
+    // from/to 取整秒：接口可能下发 JSON 数字或数字串（两者都出现过），两者都接受；
+    // 其余一律判失败，由调用方跳过该章节而不是抛异常
+    private static bool TryReadSeconds(JsonElement point, string name, out int seconds)
+    {
+        seconds = 0;
+        if (!point.TryGetProperty(name, out var value))
+        {
+            return false;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number => value.TryGetInt32(out seconds),
+            JsonValueKind.String => int.TryParse(value.GetString( ), NumberStyles.Integer, CultureInfo.InvariantCulture, out seconds),
+            _ => false,
+        };
+    }
+
     public static string GetFFmpegMetaString(List<ViewPoint> points)
     {
         StringBuilder sb = new( );

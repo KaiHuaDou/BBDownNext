@@ -5,7 +5,11 @@ namespace BBDown.Core.Live;
 /// <summary>
 /// 直播间定位符。<see cref="RoomId"/> 可能是短号，需经 room_init 换取真实房间号
 /// </summary>
-public readonly record struct LiveTarget(string RoomId);
+public readonly record struct LiveTarget(string RoomId)
+{
+    /// <summary>录制会话标识：与 <see cref="ResourceIdJsonConverter"/> 对 LiveRoom 的规范串同形，供 <see cref="LiveSignal"/> 按房间定位录制。</summary>
+    public string SessionId => $"{IdPrefix.Live}{RoomId}";
+}
 
 public static class LiveInputResolver
 {

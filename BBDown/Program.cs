@@ -20,7 +20,7 @@ internal sealed class Program
     // 录制中的直播会话标识，供 Ctrl+Break handler 精准停止对应录制（并发场景互不干扰）
     // volatile：主线程写、CancelKeyPress handler 线程读，需内存屏障保证 handler 读到最新值
     // 已知窗口：RunAsync 返回到 finally 置 null 之间到达的 Ctrl+Break 会命中已结束的会话（TryRequestStop 返回 false，无害）
-    // 同房间立即重启录制会复用同一规范串 id，极端时序下存在误停新会话的理论窗口，根治在 LiveSignal 的会话代次
+    // 值与 LiveTarget.SessionId 同形，两处必须一致
     private static volatile string? liveSessionId;
 
     private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)

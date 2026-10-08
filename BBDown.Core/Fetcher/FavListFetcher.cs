@@ -90,7 +90,8 @@ public static class FavListFetcher
             ? count.GetInt32( )
             : 0;
         // 元素要在 doc 释放后继续使用，Clone 后收集
-        var allMedias = new List<JsonElement>(Math.Max(mediaCount, medias.Count));
+        // media_count 来自响应体且无上限（--host 可由用户指定），直接当容量会在读第一个元素前申请超大数组
+        var allMedias = new List<JsonElement>(Math.Clamp(mediaCount, medias.Count, MaxPages * PageSize));
         allMedias.AddRange(medias);
 
         // 终止条件只看实际返回量，不看 media_count：该计数偏大时按页数翻会把空页一路请求到底

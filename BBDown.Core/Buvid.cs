@@ -25,6 +25,8 @@ public static class Buvid
     /// <summary>
     /// 缓存初始化任务，保证只发起一次成功拉取；拉取失败则标记，下次调用可重试
     /// </summary>
+    // 进程内共享的初始化任务不捕获调用方令牌：抢到锁者的 ct 一旦取消或超时，
+    // 其余并发任务会一直 await 一个已死任务，故取消只在 await 处生效
     public static Task InitAsync(CancellationToken ct = default)
     {
         lock (gate)
@@ -32,17 +34,16 @@ public static class Buvid
             if (initTask is null || initFailed)
             {
                 initFailed = false;
-                initTask = InitCoreAsync(ct);
+                initTask = InitCoreAsync( );
             }
 
-            return initTask;
+            return initTask.WaitAsync(ct);
         }
     }
 
-    private static async Task InitCoreAsync(CancellationToken ct)
+    private static async Task InitCoreAsync( )
     {
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         try
         {
             var json = await GetWebSourceAsync(BiliApi.FingerSpi, AppConfig.Empty, null, cts.Token);

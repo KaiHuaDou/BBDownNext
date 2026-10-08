@@ -6,7 +6,6 @@ using System.Text.Json.Serialization.Metadata;
 using System.Threading.Channels;
 using System.Threading.RateLimiting;
 
-using BBDown.Serve.Auth;
 using BBDown.Serve.Http;
 using BBDown.Serve.Tasks;
 
@@ -128,7 +127,6 @@ public class BBDownServer
         builder.Services.AddSingleton(sp => new TaskWorker(taskChannel.Reader, sp.GetRequiredService<TaskStore>( ), config.MaxConcurrent));
         builder.Services.AddHostedService(sp => sp.GetRequiredService<TaskWorker>( ));
         builder.Services.AddSingleton(sp => new TaskSocketHub(sp.GetRequiredService<TaskStore>( )));
-        builder.Services.AddSingleton<QrLoginStore>( );
 
         app = builder.Build( );
 
@@ -163,17 +161,7 @@ public class BBDownServer
                         Window = TimeSpan.FromMinutes(1),
                         AutoReplenishment = true,
                     }));
-            // 登录二维码起点限流：扫码系低频操作但生成动作昂贵（双请求 + 本地 PNG），独立策略防批量触发
-            options.AddPolicy("loginSubmit", context =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    context.Connection.RemoteIpAddress?.ToString( ) ?? "unknown",
-                    _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 10,
-                        Window = TimeSpan.FromMinutes(1),
-                        AutoReplenishment = true,
-                    }));
-        });
+            });
     }
 
     /// <summary>
@@ -247,7 +235,6 @@ public class BBDownServer
         // SlimBuilder 不注册 WebSocket 中间件，须显式启用（IsWebSocketRequest 依赖其 feature）
         app.UseWebSockets( );
         app.MapServeEndpoints( );
-        app.MapLoginEndpoints( );
 
         // 内嵌 WebUI：扫描 webui.* 资源并建立查表映射；未嵌入却启用 --webui 时仅警告，不阻断服务
         var webUiResources = WebUiEndpoints.BuildResourceMap(typeof(BBDownServer).Assembly);

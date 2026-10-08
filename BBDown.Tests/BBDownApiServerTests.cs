@@ -61,6 +61,17 @@ public class BBDownApiServerTests
         Assert.Equal("https://www.bilibili.com/video/BV1xx411c7XD", opts.Url);
     }
 
+    // Url 为 null 时下游 InputResolver 会空引用：端点须先判空返回 400，不能记成 500
+    [Fact]
+    public void ServeRequestOptions_NullUrl_IsDetectableByEndpointGuard( )
+    {
+        var req = System.Text.Json.JsonSerializer.Deserialize<ServeRequestOptions>("{}",
+            ServeRequestOptionsJsonContext.Default.ServeRequestOptions);
+
+        Assert.NotNull(req);
+        Assert.True(string.IsNullOrWhiteSpace(req!.Url));
+    }
+
     [Fact]
     public void ServeRequestOptions_ToDownloadRequest_PreservesClientFields( )
     {
@@ -280,12 +291,13 @@ public class BBDownApiServerTests
 
         sink.Meta!(new VInfo { Title = "标题", Desc = "", Pic = "https://i0.hdslb.com/x.jpg", PubTime = 1700000000, PagesInfo = [] });
         sink.Saved!("D:/out/a.mp4");
-        sink.Saved!("D:/out/b.mp4");
+        sink.Saved!("D:/out/sub/b.mp4");
 
         Assert.Equal("标题", task.Title);
         Assert.Equal("https://i0.hdslb.com/x.jpg", task.Pic);
         Assert.Equal(1700000000, task.VideoPubTime);
-        Assert.Equal(["D:/out/a.mp4", "D:/out/b.mp4"], task.SavePaths);
+        // 只留文件名，绝对路径不外发
+        Assert.Equal(["a.mp4", "b.mp4"], task.SavePaths);
     }
 
     // CLI 走 default(PipelineSink)：全部回调为 null，下层的 ?.Invoke 必须能安全跳过

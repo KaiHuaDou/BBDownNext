@@ -4,7 +4,7 @@ using System.Threading;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// <see cref="LiveSignal"/> 按会话标识持有进程级注册表。各用例使用互不相同的标识
+/// <see cref="LiveSignal"/> 按直播间持有进程级注册表。各用例使用互不相同的标识
 /// 残留注册影响不到其它用例，因此无需串行集合
 /// </summary>
 public class LiveSignalTests
@@ -90,21 +90,35 @@ public class LiveSignalTests
         Assert.True(second.IsCancellationRequested);
     }
 
-    // 同标识被覆盖注册后，旧 scope 的释放不得动新注册：原子比较移除的行为锚定
-    // 本用例锁定「只有槽位仍是自己时才摘除」的对外约定
+    // 同房间并发录制必须被拒：覆盖注册会让先注册者的摘除比较失败，槽位留成第二次的悬空挂载
     [Fact]
-    public void DisposingStaleScope_KeepsOverwritingRegistration( )
+    public void Register_DuplicateSession_Throws( )
     {
-        using var stale = new CancellationTokenSource( );
-        using var current = new CancellationTokenSource( );
-        var staleScope = LiveSignal.Register("overwrite", stale);
-        using var currentScope = LiveSignal.Register("overwrite", current);
+        using var first = new CancellationTokenSource( );
+        using var second = new CancellationTokenSource( );
+        using var scope = LiveSignal.Register("same-room", first);
 
-        staleScope.Dispose( );
+        Assert.Throws<InvalidOperationException>(( ) => LiveSignal.Register("same-room", second));
 
-        Assert.False(stale.IsCancellationRequested);
-        Assert.True(LiveSignal.TryRequestStop("overwrite"));
-        Assert.True(current.IsCancellationRequested);
+        // 被拒的第二次不占槽位，先注册者仍能正常停录
+        Assert.True(LiveSignal.TryRequestStop("same-room"));
+        Assert.True(first.IsCancellationRequested);
+        Assert.False(second.IsCancellationRequested);
+    }
+
+    // 拒绝路径不写入槽位：第二次注册失败后，原会话释放即可让同房间重新可录
+    [Fact]
+    public void Register_DuplicateThenRelease_AllowsReregistration( )
+    {
+        using var first = new CancellationTokenSource( );
+        using var second = new CancellationTokenSource( );
+        var scope = LiveSignal.Register("recycled-room", first);
+        Assert.Throws<InvalidOperationException>(( ) => LiveSignal.Register("recycled-room", second));
+        scope.Dispose( );
+
+        using var nextScope = LiveSignal.Register("recycled-room", second);
+        Assert.True(LiveSignal.TryRequestStop("recycled-room"));
+        Assert.True(second.IsCancellationRequested);
     }
 
     [Fact]

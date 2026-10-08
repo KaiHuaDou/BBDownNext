@@ -326,6 +326,20 @@ public class ContentSelectorTests
         Assert.Equal(expected, ContentSelector.FromNormalizedString(content).IsAssetOnly( ));
     }
 
+    // 弹幕步骤在封面步骤之前执行：选了封面就不能在弹幕处中止，否则 -get cd 静默丢封面。
+    // 只有既无音视频、又无封面待产出时才可在此中止（-get d）
+    [Theory]
+    [InlineData("d", true)]
+    [InlineData("do", true)]
+    [InlineData("c", false)]
+    [InlineData("dc", false)]
+    [InlineData("ad", false)]
+    [InlineData("avd", false)]
+    public void IsAssetOnlyAfterCover_CoverPending_KeepsRunning(string content, bool expected)
+    {
+        Assert.Equal(expected, ContentSelector.FromNormalizedString(content).IsAssetOnlyAfterCover( ));
+    }
+
     [Theory]
     [InlineData("av", true)]
     [InlineData("avc", true)]

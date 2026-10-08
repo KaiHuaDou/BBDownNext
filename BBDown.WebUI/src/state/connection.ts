@@ -1,7 +1,8 @@
 import { fetchHealth } from '../api/client'
 import { connectTaskSocket } from '../api/ws'
 import { errorMessage } from '../lib/errors'
-import { appendLog, applySnapshot, applySample, handleEvent } from './snapshot'
+import { settleAsk } from './actions'
+import { appendLog, applySnapshot, applySample, handleEvent, resubscribe } from './snapshot'
 import type { TaskStore } from './store'
 
 /**
@@ -29,11 +30,7 @@ export function startSocket(store: TaskStore): void {
     onSnapshot: (taskId, snapshot) => applySample(store, taskId, snapshot),
     // taskList 帧：serve 结构变更（增删 / 状态切换 / 完成 / 清空）时推送的全量列表，免轮询刷新
     onTaskList: (snapshot) => applySnapshot(store, snapshot),
-    onChoiceResult: (requestId, ok, error) => {
-      if (!ok) {
-        appendLog(store, `选项应答失败（${requestId}）：${error ?? '未知原因'}`, true)
-      }
-    },
+    onChoiceResult: (requestId, ok, error) => settleAsk(store, requestId, ok, error),
     // 连接生命周期即事件流状态：null = 已连接（active）；非 null = 断开 / 重连中
     // 注意：连接存活指示灯（connected）由保活轮询 probeHealth 负责，此处不改动，避免双写冲突
     onStatus: (error) => {
@@ -47,6 +44,8 @@ export function startSocket(store: TaskStore): void {
         store.eventStream.value = 'active'
       }
     },
+    // 新连接（含重连）上没有服务端订阅表，本地记录随之作废并按运行中任务重发
+    onOpen: () => resubscribe(store),
     // 订阅失败（任务不存在 / 已结束）：仅记录，不影响连接；任务状态仍由 taskList 帧推送
     onSubscribeError: (error) => {
       appendLog(store, `任务订阅失败：${error}`, true)
