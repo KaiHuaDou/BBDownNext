@@ -74,9 +74,9 @@ public partial class MainWindow
             item.IsEnabled = mode switch
             {
                 null => true,
-                ContentMode.Video => item.Key is not ('i' or 'M'),
+                ContentMode.Video => item.Key is not ('i' or 'A' or 'M'),
                 ContentMode.Mixed => true,
-                ContentMode.Opus => item.Key is 'i' or 'M' or 'o' or 'O',
+                ContentMode.Opus => item.Key is 'i' or 'A' or 'M' or 'o' or 'O',
                 ContentMode.Audio => item.Key is 'a',
                 _ => false,
             };

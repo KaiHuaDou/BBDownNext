@@ -10,7 +10,7 @@ describe('content', () => {
   })
 
   it('由内容字符串求勾选集合', () => {
-    expect(checkedFromContent('avmsCiM')).toEqual(new Set(['a', 'v', 'm', 's', 'C', 'i', 'M']))
+    expect(checkedFromContent('avmsCiAM')).toEqual(new Set(['a', 'v', 'm', 's', 'C', 'i', 'A', 'M']))
   })
 
   it('勾选集合与内容字符串往返一致', () => {

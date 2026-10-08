@@ -462,7 +462,7 @@ OpusDownload.RunAsync (BBDown.Core.Pipeline)  不走 WorkSetup.Build / 不构造
   │  ├─ OpusMarkdownRenderer      渲染标题/front matter/图片/列表/代码/公式等
   │  └─ OpusImageUtil             默认下载图片到 <标题>/images/；内容集不含 i（-W i）则保留远程链接
   ▼
-落盘 <标题>.md（UTF-8 无 BOM，保证 YAML Frontmatter 可被解析）
+内容集含 A 时落盘 <标题>.md（UTF-8 无 BOM，保证 YAML Frontmatter 可被解析；-W A 只导图片与评论）
 ```
 
 ### 11.2 与主干的关键差异

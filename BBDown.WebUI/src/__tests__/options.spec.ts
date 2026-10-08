@@ -10,7 +10,7 @@ describe('toServeRequest', () => {
     expect(request.url).toBe('av170001')
     expect(request.api).toBe('web')
     expect(request.mux).toBe('mpeg4')
-    expect(request.content).toBe('avmsCiM')
+    expect(request.content).toBe('avmsCiAM')
     expect(request.commentCount).toBe(0)
     expect(request.onlyShowInfo).toBe(false)
     expect(request.cookie).toBe('SESSDATA=abc')

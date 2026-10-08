@@ -28,7 +28,7 @@ internal sealed class ServeRequestOptions
     /// <summary>API 解析通道（web / tv / app / intl，忽略大小写），缺省回落 web。</summary>
     [JsonConverter(typeof(ApiTypeJsonConverter))]
     public ApiType Api { get; set; } = ApiType.Web;
-    /// <summary>下载内容字符集（如 "avmsCiM"），非法字符忽略，缺省回落默认内容集。</summary>
+    /// <summary>下载内容字符集（如 "avmsCiAM"），非法字符忽略，缺省回落默认内容集。</summary>
     [JsonConverter(typeof(DownloadContentJsonConverter))]
     public DownloadContent Content { get; set; } = ContentSelector.DefaultFlags;
     /// <summary>混流方式（none / mpeg4 / mp4box / mkv），缺省回落 mpeg4。</summary>

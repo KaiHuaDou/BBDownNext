@@ -84,7 +84,7 @@ public class BBDownApiServerTests
         var req = new ServeRequestOptions
         {
             Url = "https://www.bilibili.com/video/BV1xx411c7XD",
-            Content = ContentSelector.FromNormalizedString("avmsCiM"),
+            Content = ContentSelector.FromNormalizedString("avmsCiAM"),
             Api = ApiType.Intl
         };
         var opts = req.ToDownloadRequest( );

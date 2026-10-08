@@ -311,7 +311,7 @@ BBDown "live12345" -lq 400
 
 | 参数                 | 简写   | 说明                                                       |
 | -------------------- | ------ | ---------------------------------------------------------- |
-| `--get`              | `-g`   | 设置下载内容字符集，默认 `avmsCiM`（详见脚注 [^get]）      |
+| `--get`              | `-g`   | 设置下载内容字符集，默认 `avmsCiAM`（详见脚注 [^get]）     |
 | `--with`             | `-w`   | 在 `--get` 基础上追加内容字符                              |
 | `--without`          | `-W`   | 在 `--get` 与 `--with` 基础上移除内容字符                  |
 | `--danmaku-formats`  | `-ddf` | 指定需下载的弹幕格式（详见脚注 [^danmakuformats]）         |
@@ -331,8 +331,9 @@ BBDown "live12345" -lq 400
 | `v`  | 视频         | `O`  | 全部评论（含楼中楼全部回复） |
 | `c`  | 独立封面文件 | `C`  | 封面嵌入                     |
 | `d`  | 弹幕         | `m`  | 嵌入元数据（标题 / 描述等）  |
-| `s`  | 字幕         | `i`  | 专栏图片                     |
-| `S`  | AI 字幕      | `M`  | 专栏 YAML Frontmatter        |
+| `s`  | 字幕         | `A`  | 专栏 Markdown 文件           |
+| `S`  | AI 字幕      | `i`  | 专栏图片                     |
+|      |              | `M`  | 专栏 YAML Frontmatter        |
 
 #### 旧选项参考表
 
@@ -361,6 +362,7 @@ BBDown "live12345" -lq 400
 ### 专栏 / 图文导出
 
 - 纯图文动态（非专栏的文章类 opus）也按正文导出为 Markdown
+- Markdown 文件由内容字符 `A` 控制是否落盘（默认导出）：`-W A` 只下载图片与评论；`M` 只控制 YAML Frontmatter 是否嵌入
 - 默认会把正文中的图片下载到本地 `<标题>/images/` 子目录，并在 Markdown 中用相对路径引用
 - 专栏 / 图文动态的顶部相册图片随正文一并下载，并置于文档最前。
 - 内容包含 `o` / `O` 时同时导出评论区（前 `--comments-count` 条；`O` 抓全楼中楼），产物为 Markdown 同名的 `.comments.json` / `.comments.txt`；文集与空间图文批量导出时逐篇生效，批量配合 `O` 的请求量较大，建议控制 `--comments-count`。
@@ -642,7 +644,7 @@ B 站对播放信息请求做了人机验证，此时响应里只有一个验证
 - [protobuf](https://github.com/protocolbuffers/protobuf) 用于 APP 端 gRPC 消息序列化。
 - [QRCoder](https://github.com/codebude/QRCoder) 用于生成扫码登录二维码。
 - [System.CommandLine](https://github.com/dotnet/command-line-api) 用于命令行解析。
-- [VC-LTL](https://github.com/Chuyu-Team/VC-LTL) 用于 Win7 兼容构建时静态消除 api-ms-win-crt 依赖。
+- [VC-LTL5](https://github.com/Chuyu-Team/VC-LTL5) 用于 Win7 兼容构建时静态消除 api-ms-win-crt 依赖。
 - [xunit.v3](https://github.com/xunit/xunit) 用于单元测试。
 - [YY-Thunks](https://github.com/Chuyu-Team/YY-Thunks) 用于 Win7 兼容构建时在链接期补齐旧系统缺失的 API。
 

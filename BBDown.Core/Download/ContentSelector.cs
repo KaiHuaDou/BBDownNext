@@ -26,6 +26,7 @@ public enum DownloadContent
     MuxMetadata = 1 << 9,  // m
     OpusImage = 1 << 10,   // i：专栏图片
     FrontMatter = 1 << 11, // M：专栏 YAML Frontmatter
+    OpusMarkdown = 1 << 12, // A：专栏 Markdown 文件
 }
 
 /// <summary>内容字符的适用域：字符落在模式域之外时自然失效（debug 提示，不警告）。</summary>
@@ -43,7 +44,7 @@ public readonly record struct ContentItem(char Ch, DownloadContent Flag, string 
 
 public static class ContentSelector
 {
-    public const string Default = "avmsCiM";
+    public const string Default = "avmsCiAM";
 
     /// <summary>字符的唯一规范顺序，同时用于输出、互转、警告文案与 GUI 内容选项；顺序与 CLI 帮助、GUI 面板布局保持一致。</summary>
     public static IReadOnlyList<ContentItem> Order { get; } =
@@ -58,13 +59,14 @@ public static class ContentSelector
         new('O', DownloadContent.FullComments, "全部评论"),
         new('C', DownloadContent.MuxCover, "封面嵌入"),
         new('m', DownloadContent.MuxMetadata, "嵌入元数据"),
+        new('A', DownloadContent.OpusMarkdown, "专栏 Markdown"),
         new('i', DownloadContent.OpusImage, "专栏图片"),
         new('M', DownloadContent.FrontMatter, "专栏 YAML Frontmatter"),
     ];
 
     private static readonly string ValidChars = string.Concat(Order.Select(e => e.Ch));
 
-    /// <summary>默认内容集 a v m s C i M（opus 模式下仅 i / M / o / O 生效）。</summary>
+    /// <summary>默认内容集 a v m s C i A M（opus 模式下仅 i / A / M / o / O 生效）。</summary>
     public static DownloadContent DefaultFlags { get; } = Resolve([Default], [], [], false, false, false, false, out _);
 
     /// <summary>
@@ -98,6 +100,12 @@ public static class ContentSelector
             warnings.Add("未选择音频或视频，封面嵌入（C）与嵌入元数据（m）不生效");
         }
 
+        // Frontmatter 只能嵌在 Markdown 文件里，单独选择没有落点
+        if (!flags.Has(DownloadContent.OpusMarkdown) && flags.Has(DownloadContent.FrontMatter))
+        {
+            warnings.Add("未选择 Markdown（A），专栏 YAML Frontmatter（M）不生效");
+        }
+
         if ((commentCountExplicit || commentSortExplicit || commentFormatsExplicit)
             && !flags.HasAny(DownloadContent.Comments | DownloadContent.FullComments))
         {
@@ -117,13 +125,13 @@ public static class ContentSelector
     {
         var active = mode switch
         {
-            ContentMode.Opus => DownloadContent.OpusImage | DownloadContent.FrontMatter
+            ContentMode.Opus => DownloadContent.OpusImage | DownloadContent.OpusMarkdown | DownloadContent.FrontMatter
                               | DownloadContent.Comments | DownloadContent.FullComments,
             ContentMode.Live => DownloadContent.Audio | DownloadContent.Video,
             ContentMode.Audio => DownloadContent.Audio,
-            // 图文项用 i / M、视频项用其余字符，混合域内不存在自然失效的标志
+            // 图文项用 A / i / M、视频项用其余字符，混合域内不存在自然失效的标志
             ContentMode.Mixed => ~DownloadContent.None,
-            _ => ~(DownloadContent.OpusImage | DownloadContent.FrontMatter),
+            _ => ~(DownloadContent.OpusImage | DownloadContent.OpusMarkdown | DownloadContent.FrontMatter),
         };
         var list = new List<string>( );
         foreach (var (Ch, Flag, Name) in Order)

@@ -88,6 +88,7 @@ public static class OpusDownload
         }
 
         var mdPath = Path.Combine(workDir, baseName + ".md");
+        var writeMd = myOption.Content.Has(DownloadContent.OpusMarkdown);
 
         // 评论导出先于 md 存在性早退：md 已存在时重跑仍能补抓缺失的评论产物（与视频链路「评论先于视频」同语义）
         if (myOption.Content.HasAny(DownloadContent.Comments | DownloadContent.FullComments)
@@ -96,8 +97,8 @@ public static class OpusDownload
             await DownloadCommentsAsync(myOption, doc, mdPath, WorkSetup.ParseCommentFormats(myOption), config, sink, token);
         }
 
-        // 与 MuxFinish.TrySkipExisting 同样的跳过语义
-        if (File.Exists(mdPath) && new FileInfo(mdPath).Length > 0)
+        // 与 MuxFinish.TrySkipExisting 同样的跳过语义；不导出 Markdown 时图片按文件粒度自行跳过
+        if (writeMd && File.Exists(mdPath) && new FileInfo(mdPath).Length > 0)
         {
             Log($"{mdPath} 已存在，跳过下载...");
             return;
@@ -108,6 +109,11 @@ public static class OpusDownload
         {
             var imageDir = Path.Combine(workDir, baseName, "images");
             imageMap = await DownloadImagesAsync(doc, imageDir, $"{baseName}/images", config, token);
+        }
+
+        if (!writeMd)
+        {
+            return;
         }
 
         var markdown = OpusMarkdownRenderer.Render(doc, new OpusRenderOptions(

@@ -19,17 +19,25 @@ namespace BBDown.Core.Download;
 // 不一致（URL 指向的内容已变）自动删除重下
 public static class DownloaderAdapter
 {
-    // 分片并发上限：分片是网络 IO，32 条连接足够吃满带宽，再高只会挤压 CDN 连接；
+    // 分片并发上限：B 站 CDN 按客户端限制连接数，连接过多反使每条连接被压速（上游 README 同样建议 8/4 量级）；
     // FLV 多片段共享同一配额（见 FlvDownload），片段间与片段内合计不超过该值
-    internal const int MaxRangeConcurrency = 32;
+    internal const int MaxRangeConcurrency = 16;
 
-    // 单块读超时与失败重试：B 站 CDN 突发停顿常见，块级超时放宽到 30 秒避免误杀慢速连接
+    // 分片数按连接数的倍数切：库按「完成一片才开下一片」调度，片远多于连接时快连接轮换多片、
+    // 慢连接的剩余份额被切成小块，静态大分片的长尾（快连接空闲干等慢连接爬完 128MB）随之消失
+    internal const int ChunksPerConnection = 4;
+
+    // 每次网络读取的块大小：库默认 1024（1KB），读取粒度过小使每秒数十万次分配与系统调用挤压网络吞吐
+    private const int BufferBlockSizeBytes = 64 * 1024;
+
+    // 单块读超时与失败重试：B 站 CDN 突发停顿常见，块级超时放宽到 30 秒避免误杀慢速连接；
+    // CDN 断流频繁，重试次数须多于默认，5 次耗尽即取消全部兄弟分片
     private const int BlockTimeoutMs = 30_000;
-    private const int MaxTryAgainOnFailure = 5;
+    private const int MaxTryAgainOnFailure = 8;
     // 下载数据先入内存缓冲再落盘，128MB 上限封顶缓冲占用
     private const long MaxMemoryBufferBytes = 128 * 1024 * 1024;
-    // 单块下限：小文件（封面/弹幕等）自动降低分块数，避免按满配 32 块硬切
-    private const long MinimumChunkSize = 1024 * 1024;
+    // 分片大小下限：文件过小时自动降分片数，避免单片只剩几 KB 徒增请求开销
+    private const long MinimumChunkSize = 8 * 1024 * 1024;
 
     // 可替换：测试经 InternalsVisibleTo 注入带 stub handler 的实例
     internal static Func<string, HttpClient> HttpClientFactory { get; set; } = BuildHttpClient;
@@ -42,9 +50,10 @@ public static class DownloaderAdapter
         var client = HttpClientFactory(config.Cookie);
         var options = new DownloadConfiguration
         {
-            ChunkCount = singleThread ? 1 : config.ParallelCount,
+            ChunkCount = singleThread ? 1 : config.ParallelCount * ChunksPerConnection,
             ParallelCount = singleThread ? 1 : config.ParallelCount,
             ParallelDownload = !singleThread,
+            BufferBlockSize = BufferBlockSizeBytes,
             BlockTimeout = BlockTimeoutMs,
             MaxTryAgainOnFailure = MaxTryAgainOnFailure,
             MaximumMemoryBufferBytes = MaxMemoryBufferBytes,

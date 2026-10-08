@@ -207,12 +207,12 @@ WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录
 
 **服务端 → 客户端：**
 
-| `kind`         | 字段                        | 说明                                                                                                                                                                                                                                                                               |
-| -------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `event`        | `taskId`、`event`           | 可靠事件（`WorkflowEvent`，`type` 字段区分 `message` / `progressStart` / `progressSample` / `progressEnd` / `optionRequest`）。进度是阶段性的：`progressStart`（阶段开始，含 `stageName`）与 `progressEnd`（阶段结束）为低频事件，宿主据此显隐进度；阶段内高频样本不进本通道       |
-| `snapshot`     | `taskId`、`snapshot`        | 阶段内最新进度样本（`ratio` 0-1 / `totalBytes` / `speed` / `detail`），订阅时推一次，此后约每 200 ms 推变化帧；阶段结束后样本清空                                                                                                                                                  |
-| `choiceResult` | `requestId`、`ok`、`error?` | 选项应答结果；`ok=false` 表示任务不存在、选项非法或已应答                                                                                                                                                                                                                          |
-| `error`        | `error`                     | 订阅失败（任务不存在、已结束或未启用交互）                                                                                                                                                                                                                                         |
+| `kind`         | 字段                        | 说明                                                                                                                                                                                                                                                                         |
+| -------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `event`        | `taskId`、`event`           | 可靠事件（`WorkflowEvent`，`type` 字段区分 `message` / `progressStart` / `progressSample` / `progressEnd` / `optionRequest`）。进度是阶段性的：`progressStart`（阶段开始，含 `stageName`）与 `progressEnd`（阶段结束）为低频事件，宿主据此显隐进度；阶段内高频样本不进本通道 |
+| `snapshot`     | `taskId`、`snapshot`        | 阶段内最新进度样本（`ratio` 0-1 / `totalBytes` / `speed` / `detail`），订阅时推一次，此后约每 200 ms 推变化帧；阶段结束后样本清空                                                                                                                                            |
+| `choiceResult` | `requestId`、`ok`、`error?` | 选项应答结果；`ok=false` 表示任务不存在、选项非法或已应答                                                                                                                                                                                                                    |
+| `error`        | `error`                     | 订阅失败（任务不存在、已结束或未启用交互）                                                                                                                                                                                                                                   |
 
 ### 选项交互流程
 
@@ -309,7 +309,7 @@ WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录
 - **`--max-retry`：** 每个下载项在首次尝试之外的额外重试次数，默认 3；非必要项（字幕 / 封面 / 弹幕 / 配音 / 评论）耗尽仅跳过该项，必要项（音视频 / 混流）耗尽则该分 P 失败。serve 请求体字段为 `MaxRetry`（对应 `ServeRequestOptions`）。
 - **`AllowPreview`：** 请求体可携带该布尔字段（对应命令行 `--allow-preview`）。充电专属稿件在无充电权限时接口照常返回成功但只下发试看片段，默认会被识别并跳过，任务表现为 `IsSuccessful == false`；传 `true` 则保留试看片段，输出文件名带 `[试看]` 前缀。
 - **CORS：** 服务器**默认仅对回环来源开放**（`127.0.0.1` / `localhost` 页面的跨源请求放行，与本机页面直连 serve 的场景一致）；其余来源需显式 `--cors-origin <url>` 放行。非回环 `Origin` 的浏览器请求依旧拿不到 `Access-Control-Allow-Origin` 头、被浏览器拦截（CSRF 面不因此扩大），仅建议在本地 / 可信网络下使用。
-- **专栏导出：** `POST /api/v1/tasks` 接受专栏（opus / cv）地址，与音视频链路共用同一受理队列与并发闸门，经 `OpusArticle` 路由到专栏导出链路。专栏模式生效的内容标志为 `i`（专栏图片）、`M`（YAML Frontmatter）、`o`（评论）与 `O`（全部评论含楼中楼），其余标志（a / v / m / s / C / d / S）自然失效，任务日志会给出调试提示。默认内容集 `avmsCiM` 已包含 `i` / `M`，即默认导出图片与 front matter。
+- **专栏导出：** `POST /api/v1/tasks` 接受专栏（opus / cv）地址，与音视频链路共用同一受理队列与并发闸门，经 `OpusArticle` 路由到专栏导出链路。专栏模式生效的内容标志为 `A`（Markdown 文件）、`i`（专栏图片）、`M`（YAML Frontmatter）、`o`（评论）与 `O`（全部评论含楼中楼），其余标志（a / v / m / s / C / d / S）自然失效，任务日志会给出调试提示。默认内容集 `avmsCiAM` 已包含 `i` / `A` / `M`，即默认导出图片、Markdown 与 front matter；`A` 不选时只导出图片与评论，不落盘 Markdown。
 - **评论下载：** 请求体可携带 `CommentCount` / `CommentSort` / `CommentFormats` / `FullComment` 四个字段（对应命令行 `--comments-count` / `--comments-sort` / `--comments-formats` 与内容标志 `O`，默认 `CommentCount=0` 即不下载）。视频任务中评论区按 `aid` 去重抓取（多 P 同稿只抓一次）；专栏 / 图文任务（含文集、空间图文、空间动态图文项）内容含 `o` / `O` 时同样导出评论区，产物齐备则重跑跳过。产物为与主文件同目录的 `<标题>.comments.json` / `<标题>.comments.txt`。注意：加 `FullComment`（额外翻页抓全楼中楼）会随评论条数线性放大请求量，显著拉长单个任务的耗时，请按需使用。
 
 ---
@@ -342,11 +342,19 @@ curl -X POST -H 'Content-Type: application/json' \
   http://localhost:23333/api/v1/tasks
 ```
 
-仅导出专栏图片、不要 YAML Frontmatter：
+仅导出专栏图片，不落盘 Markdown：
 
 ```shell
 curl -X POST -H 'Content-Type: application/json' \
   -d '{ "url": "cv123", "content": "i" }' \
+  http://localhost:23333/api/v1/tasks
+```
+
+导出图片与 Markdown，但不要 YAML Frontmatter：
+
+```shell
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{ "url": "cv123", "content": "avmsCiA" }' \
   http://localhost:23333/api/v1/tasks
 ```
 

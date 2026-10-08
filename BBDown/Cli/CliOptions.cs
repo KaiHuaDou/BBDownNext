@@ -104,6 +104,7 @@ internal static class CliOptions
           O：全部评论（含楼中楼全部回复）
           C：封面嵌入
           m：嵌入元数据
+          A：专栏 - Markdown 文件
           i：专栏 - 图片
           M：专栏 - YAML Frontmatter
         用 --with 追加、--without 移除

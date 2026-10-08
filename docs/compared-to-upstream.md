@@ -100,7 +100,7 @@
     - `OpusHtmlToMarkdown`：将专栏正文 HTML 转为 Markdown（标签模式用 `[GeneratedRegex]` 集中在 `OpusRegexes`）；旧版专栏（`data.type == 0`）HTML 降级转换采用**白名单策略**——链接/加粗/斜体/代码/引用/标题/列表/分割线等可靠标签转 Markdown，其余标签（img、span 样式、figure、table 等）原样保留（CommonMark 支持内嵌 HTML），仅解码正文文本段；产物标记 `IsRawMarkdown`，渲染时跳过行内转义（`OpusFetcher.Parse.cs`）。
     - `OpusMarkdownRenderer`：渲染为带 YAML front matter（标题/作者/段落数等，可用 `-W M` 关闭）的 Markdown，图片按 `OpusImageUtil` 下载到 `<标题>/images/` 并以相对路径内联。
     - `OpusImageUtil`：`NormalizeProtocol` 统一协议补全（`//` 补 https、http 升 https），`OpusHtmlToMarkdown` 与 `OpusMarkdownRenderer` 复用；按 SHA256 前 8 位命名去重、失败时保留远程链接。
-- **产物**：`<标题>.md` + `<标题>/images/` 目录；已存在非空 `.md` 时跳过（与 `MuxFinish.TrySkipExisting` 行为一致）。内容集沿用默认 `avmsCiM`（专栏下生效的是 `i` / `M` / `o` / `O`）：`-W i` 保留远程图片链接，`-W M` 不加 front matter。
+- **产物**：`<标题>.md` + `<标题>/images/` 目录；已存在非空 `.md` 时跳过（与 `MuxFinish.TrySkipExisting` 行为一致）。内容集沿用默认 `avmsCiAM`（专栏下生效的是 `A` / `i` / `M` / `o` / `O`）：`-W i` 保留远程图片链接，`-W A` 只导图片与评论，`-W M` 不加 front matter。
 - **评论区导出**（`OpusDownload.DownloadCommentsAsync`，复用视频链路的 `CommentFetcher` / `CommentWriter`）：内容含 `o` / `O` 且 `--comments-count > 0` 时，在 Markdown 落盘前导出评论区；定位随文档携带——专栏文章 `type=12 / oid=cvid`，图文动态取 opus/detail 下发的 `basic.comment_type / comment_id_str`（相簿区）。WBI 密钥在本链路内经 `Account.ProbeAccountAsync` 补齐（旁路了视频信息获取的探测点）。产物 `.comments.json` / `.comments.txt` 与 Markdown 同名；重跑时产物齐备则跳过抓取，部分缺失则全量重抓；抓取失败仅告警，不影响 Markdown 导出。
 
 ### 2.6 UP 主空间投稿列表

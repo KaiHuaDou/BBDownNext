@@ -16,12 +16,13 @@ export const CONTENT_ORDER: ContentItem[] = [
   { ch: 'O', name: '全部评论' },
   { ch: 'C', name: '封面嵌入' },
   { ch: 'm', name: '嵌入元数据' },
+  { ch: 'A', name: '专栏 Markdown' },
   { ch: 'i', name: '专栏图片' },
   { ch: 'M', name: '专栏 YAML Frontmatter' }
 ]
 
-/** 默认内容集，与 Core ContentSelector.Default（avmsCiM）一致。 */
-export const DEFAULT_CONTENT = 'avmsCiM'
+/** 默认内容集，与 Core ContentSelector.Default（avmsCiAM）一致。 */
+export const DEFAULT_CONTENT = 'avmsCiAM'
 
 /** 由勾选集合构造内容字符串（按规范顺序）。 */
 export function contentFromChecked(checked: Set<string>): string {

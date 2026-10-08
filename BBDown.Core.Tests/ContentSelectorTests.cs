@@ -37,8 +37,8 @@ public class ContentSelectorTests
     [Fact]
     public void Resolve_DefaultFlags_MatchesDefaultString( )
     {
-        // 规范顺序 a v c d s S o O C m i M 下，默认集 a v m s C i M 的规范化输出
-        Assert.Equal("avsCmiM", ContentSelector.ToNormalizedString(ContentSelector.DefaultFlags));
+        // 规范顺序 a v c d s S o O C m A i M 下，默认集 a v m s C i A M 的规范化输出
+        Assert.Equal("avsCmAiM", ContentSelector.ToNormalizedString(ContentSelector.DefaultFlags));
     }
 
     // ---- 集合运算 ----
@@ -137,13 +137,36 @@ public class ContentSelectorTests
         Assert.False(flags.Has(DownloadContent.Comments));
     }
 
+    [Fact]
+    public void Resolve_FrontMatterWithoutMarkdown_Warns( )
+    {
+        Resolve(out var warnings, get: ["iM"]);
+        Assert.Contains(warnings, w => w.Contains("Markdown（A）", System.StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Resolve_FrontMatterWithMarkdown_NoWarning( )
+    {
+        Resolve(out var warnings, get: ["iAM"]);
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public void Resolve_ImagesOnly_NoWarning( )
+    {
+        var flags = Resolve(out var warnings, get: ["i"]);
+        Assert.Empty(warnings);
+        Assert.Equal(DownloadContent.OpusImage, flags);
+    }
+
     // ---- 模式生效集 ----
 
     [Fact]
     public void DescribeInactive_OpusMode_CommentsAreActive( )
     {
         var inactive = ContentSelector.DescribeInactive(
-            DownloadContent.OpusImage | DownloadContent.FrontMatter | DownloadContent.Comments | DownloadContent.FullComments,
+            DownloadContent.OpusImage | DownloadContent.OpusMarkdown | DownloadContent.FrontMatter
+            | DownloadContent.Comments | DownloadContent.FullComments,
             ContentMode.Opus);
 
         Assert.Empty(inactive);
@@ -195,7 +218,7 @@ public class ContentSelectorTests
 
     [Theory]
     [InlineData("avmsCi")]
-    [InlineData("avmsCiM")]
+    [InlineData("avmsCiAM")]
     [InlineData("aCimsv")]
     [InlineData("")]
     [InlineData("Od")]
@@ -226,25 +249,29 @@ public class ContentSelectorTests
     {
         var list = ContentSelector.DescribeInactive(ContentSelector.DefaultFlags, ContentMode.Opus);
         Assert.True(list.All(d => !d.Contains("专栏图片", System.StringComparison.Ordinal)));
+        Assert.True(list.All(d => !d.Contains("专栏 Markdown", System.StringComparison.Ordinal)));
         Assert.Contains(list, d => d.Contains("音频", System.StringComparison.Ordinal));
         Assert.Contains(list, d => d.Contains("视频", System.StringComparison.Ordinal));
         Assert.Contains(list, d => d.Contains("字幕", System.StringComparison.Ordinal));
     }
 
     [Fact]
-    public void DescribeInactive_Opus_ImageAndFrontMatterActive( )
+    public void DescribeInactive_Opus_OpusFlagsActive( )
     {
         var list = ContentSelector.DescribeInactive(
-            DownloadContent.OpusImage | DownloadContent.FrontMatter, ContentMode.Opus);
+            DownloadContent.OpusImage | DownloadContent.OpusMarkdown | DownloadContent.FrontMatter, ContentMode.Opus);
         Assert.Empty(list);
     }
 
     [Fact]
     public void DescribeInactive_Video_OpusFlagsInactive( )
     {
-        var list = ContentSelector.DescribeInactive(DownloadContent.OpusImage, ContentMode.Video);
-        var item = Assert.Single(list);
-        Assert.Contains("专栏图片", item);
+        var list = ContentSelector.DescribeInactive(
+            DownloadContent.OpusImage | DownloadContent.OpusMarkdown | DownloadContent.FrontMatter, ContentMode.Video);
+        Assert.Equal(3, list.Count);
+        Assert.Contains(list, d => d.Contains("专栏图片", System.StringComparison.Ordinal));
+        Assert.Contains(list, d => d.Contains("专栏 Markdown", System.StringComparison.Ordinal));
+        Assert.Contains(list, d => d.Contains("专栏 YAML Frontmatter", System.StringComparison.Ordinal));
     }
 
     [Fact]

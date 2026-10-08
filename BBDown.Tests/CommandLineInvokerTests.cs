@@ -24,7 +24,7 @@ public class CommandLineInvokerTests
     // ---- 内容集（--get / --with / --without）----
 
     [Fact]
-    public async Task Get_DefaultsToAvmsCiM( )
+    public async Task Get_NoExplicitContent_UsesDefaultFlags( )
     {
         var opt = await ParseAsync(SampleUrl);
         Assert.Equal(ContentSelector.DefaultFlags, opt.Content);

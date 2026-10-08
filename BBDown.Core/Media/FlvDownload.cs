@@ -176,8 +176,8 @@ public static class FlvDownload
     }
 
     // 分片并行下载上限：片段间并行度。片段内 downloader 并行连接与片段间并行合计不超过
-    // DownloaderAdapter.MaxRangeConcurrency，避免 4 片段 x 32 连接打出 128 条连接
-    private const int MaxClipParallelism = 4;
+    // DownloaderAdapter.MaxRangeConcurrency，避免片段间 x 片段内连接数超出 CDN 对单客户端的连接限制
+    private const int MaxClipParallelism = 2;
 
     private static async Task<List<string>> DownloadClipsAsync(List<string> clips, PageContext pageCtx, DownloadConfig downloadConfig, CancellationToken ct = default)
     {

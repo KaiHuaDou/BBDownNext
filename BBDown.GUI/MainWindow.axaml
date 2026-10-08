@@ -39,8 +39,8 @@
                 <ItemsControl x:Name="ContentItems" Margin="5">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                             <WrapPanel Orientation="Vertical" ItemHeight="36" Height="128"
-                                        ItemSpacing="10" LineSpacing="48" />
+                             <WrapPanel Orientation="Vertical" ItemHeight="24" Height="128"
+                                        ItemSpacing="10" LineSpacing="24" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -617,13 +617,13 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <StackPanel Margin="0,6,0,0" Orientation="Horizontal">
+                    <StackPanel Margin="0,5,0,0" Orientation="Horizontal">
                         <Button x:Name="ExportLogButton"
-                                Padding="15,3"
-                                Click="ExportLogButtonClicked" Content="导出日志" />
+                                Padding="15,5"
+                                Click="ExportLogButtonClicked" Content="导出" />
                         <Button x:Name="ClearLogButton"
-                                Margin="10,0,0,0" Padding="15,3"
-                                Click="ClearLogButtonClicked" Content="清空日志" />
+                                Margin="10,0,0,0" Padding="15,5"
+                                Click="ClearLogButtonClicked" Content="清空" />
                     </StackPanel>
                 </StackPanel>
             </Expander>
