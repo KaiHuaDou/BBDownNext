@@ -5,9 +5,9 @@ using System.Text.Json.Serialization;
 namespace BBDown.Core;
 
 /// <summary>
-/// <see cref="ResourceId"/> ↔ 规范字符串的 JSON 转换：serve API 中任务 id 以字符串形态出现
-/// 与 <see cref="ResourceId.TryParse"/> 的路径参数编码严格对称，
-/// 客户端拿到即可直接回显到 /get-tasks/{id} 等路径。
+/// <see cref="ResourceId"/> ↔ 规范字符串的 JSON 转换：serve API 中任务 id 以字符串形式出现
+/// 与 <see cref="ResourceId.TryParse"/> 的路径参数编码严格对称
+/// 客户端拿到即可直接回显到 /get-tasks/{id} 等路径
 /// </summary>
 public sealed class ResourceIdJsonConverter : JsonConverter<ResourceId>
 {

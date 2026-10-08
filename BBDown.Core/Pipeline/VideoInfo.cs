@@ -18,8 +18,8 @@ public static class VideoInfo
     // Web Cookie 主动续期只跑一次，避免批量下载时每个视频都打 /cookie/info
     private static int cookieRefreshed;
 
-    // nav 探测（wbi 密钥）缓存：进程内只探测一次。
-    // 读写都用 lock 保护：并发探测只保留一个 task；失败清空时校验引用，
+    // nav 探测（wbi 密钥）缓存：进程内只探测一次
+    // 读写都用 lock 保护：并发探测只保留一个 task；失败清空时校验引用
     // 防止并发期间他人新建的探测被误清
     private static readonly Lock probeGate = new( );
     private static Task<(AccountInfo Info, string Wbi)>? accountProbeTask;
@@ -38,7 +38,7 @@ public static class VideoInfo
             }
         }
 
-        // nav 无需登录即可返回 wbi 密钥；TV/国际版模式同样会命中 wbi 接口（view、player/wbi/v2），
+        // nav 无需登录即可返回 wbi 密钥；TV/国际版模式同样会命中 wbi 接口（view、player/wbi/v2）
         // 跳过取密钥会让签名为空而被服务端拒绝。nav 探测与 buvid 拉取互不依赖，并行执行
         Log("检测账号登录...");
         var navTask = EnsureAccountProbedAsync(cfg, ct);
@@ -85,8 +85,8 @@ public static class VideoInfo
         return (myOption, new FetchResult(vInfo, cfg, id, fetchApi));
     }
 
-    // nav 探测（wbi 密钥）进程内仅执行一次；后续调用复用同一 Task，避免批量下载时每个 URL 重复打 nav 接口。
-    // 探测失败（wbi 为空）由调用方清空 accountProbeTask 触发重试。
+    // nav 探测（wbi 密钥）进程内仅执行一次；后续调用复用同一 Task，避免批量下载时每个 URL 重复打 nav 接口
+    // 探测失败（wbi 为空）由调用方清空 accountProbeTask 触发重试
     private static Task<(AccountInfo Info, string Wbi)> EnsureAccountProbedAsync(AppConfig cfg, CancellationToken ct)
     {
         lock (probeGate)
@@ -95,7 +95,7 @@ public static class VideoInfo
         }
     }
 
-    // 仅当缓存中仍是本次探测任务时才清空：并发下他人可能已新建探测，无条件清空会误删其成果
+    // 仅当缓存中仍是当前探测任务时才清空：并发下他人可能已新建探测，无条件清空会误删其成果
     private static void InvalidateProbe(Task<(AccountInfo Info, string Wbi)> task)
     {
         lock (probeGate)
@@ -121,8 +121,8 @@ public static class VideoInfo
     }
 
     /// <summary>
-    /// 视频信息解析完成后，依据视频属性消解选项冲突。
-    /// 与 HandleConflictingOptions 分工：后者只处理不依赖视频信息的冲突，
+    /// 视频信息解析完成后，依据视频属性消解选项冲突
+    /// 与 HandleConflictingOptions 分工：后者只处理不依赖视频信息的冲突
     /// 此处处理需要 vInfo 才能判断的冲突
     /// </summary>
     private static DownloadRequest NormalizeOptionsAfterFetch(DownloadRequest myOption, VInfo vInfo)
@@ -165,8 +165,8 @@ public static class VideoInfo
             Log($"视频 URL：{BiliApi.VideoPage}/{bvid}/");
         }
 
-        // 列表型输入（稍后再看 / 收藏夹等）可能混合多个 UP，此时展示首个 ownerMid 会误导；
-        // 仅当全部视频归属同一 UP 时才显示 UP 主页。
+        // 列表型输入（稍后再看 / 收藏夹等）可能混合多个 UP，此时展示首个 ownerMid 会误导
+        // 仅当全部视频归属同一 UP 时才显示 UP 主页
         var ownerMids = vInfo.PagesInfo
             .Where(p => !string.IsNullOrEmpty(p.OwnerMid))
             .Select(p => p.OwnerMid)

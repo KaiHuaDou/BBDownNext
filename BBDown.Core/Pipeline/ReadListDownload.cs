@@ -15,9 +15,9 @@ using static BBDown.Core.Util.JsonUtil;
 namespace BBDown.Core.Pipeline;
 
 /// <summary>
-/// 文集（readlist）导出编排：拉取文集内全部文章 id，逐篇复用 <see cref="OpusDownload"/> 导出 Markdown。
-/// 与音视频链路独立：不构造 WorkContext、不探测 ffmpeg，产物落在 workDir/{文集名}/ 下；
-/// 逐篇失败继续（失败聚合在末尾统一抛出），与 PageQueue 的分 P 失败语义一致。
+/// 文集（readlist）导出编排：拉取文集内全部文章 id，逐篇复用 <see cref="OpusDownload"/> 导出 Markdown
+/// 与音视频链路独立：不构造 WorkContext、不探测 ffmpeg，产物落在 workDir/{文集名}/ 下
+/// 逐篇失败继续（失败聚合在末尾统一抛出），与 PageQueue 的分 P 失败处理相同
 /// </summary>
 public static class ReadListDownload
 {

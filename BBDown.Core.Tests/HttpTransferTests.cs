@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// 响应体读取上限与重定向逐跳跟随的测试。真实网络请求一律不测（见 AGENTS.md「测试范围约定」）。
+/// 响应体读取上限与重定向逐跳跟随的测试。真实网络请求一律不测（见 AGENTS.md「测试范围约定」）
 /// </summary>
 public class HttpTransferTests
 {

@@ -5,7 +5,7 @@ import { appendLog, applySnapshot, applySample, handleEvent } from './snapshot'
 import type { TaskStore } from './store'
 
 /**
- * 任务状态完全由 WebSocket 事件流订阅驱动，不再有任何任务列表轮询：
+ * 任务状态完全由 WebSocket 事件流订阅驱动，无任务列表轮询：
  * - taskList 帧（serve 结构变更时推送）提供全量任务列表，免轮询刷新；
  * - snapshot / event 帧提供运行期进度与日志；
  * serve 事件流始终启用（已移除 --no-interactive），故无 disabled 降级态。
@@ -34,8 +34,8 @@ export function startSocket(store: TaskStore): void {
         appendLog(store, `选项应答失败（${requestId}）：${error ?? '未知原因'}`, true)
       }
     },
-    // 连接生命周期即事件流状态：null = 已连接（active）；非 null = 断开 / 重连中。
-    // 注意：连接存活指示灯（connected）由保活轮询 probeHealth 负责，此处不改动，避免双写冲突。
+    // 连接生命周期即事件流状态：null = 已连接（active）；非 null = 断开 / 重连中
+    // 注意：连接存活指示灯（connected）由保活轮询 probeHealth 负责，此处不改动，避免双写冲突
     onStatus: (error) => {
       if (error) {
         if (store.eventStream.value !== 'reconnecting') {

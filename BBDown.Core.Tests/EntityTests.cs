@@ -54,7 +54,7 @@ public class EntityTests
         Assert.Equal(src.Cover, copy.Cover);
         Assert.Equal(src.OwnerName, copy.OwnerName);
         Assert.Equal(src.OwnerMid, copy.OwnerMid);
-        // 沿用原拷贝构造语义：desc 与 points 不复制
+        // 沿用原拷贝构造行为：desc 与 points 不复制
         Assert.Null(copy.Desc);
         Assert.Empty(copy.Points);
     }

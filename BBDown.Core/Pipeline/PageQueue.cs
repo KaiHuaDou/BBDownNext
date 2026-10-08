@@ -87,14 +87,14 @@ internal static class PageQueue
         Log("任务完成");
     }
 
-    // 单个分 P 的完整执行：评论 → 分 P 间隔 → 归档检查 → 下载 → 归档写回。
+    // 单个分 P 的完整执行：评论 → 分 P 间隔 → 归档检查 → 下载 → 归档写回
     // isFirstPage 由调用方显式传入：首个分 P 与评论下载都不参与 --delay-per-page 等待
     private static async Task RunSinglePageAsync(Page p, DownloadRequest myOption, WorkContext ctx, List<Page> pagesInfo, PipelineSink sink, HashSet<string> commentedAids, bool isFirstPage, CancellationToken token)
     {
-        // 评论区关闭也能立刻反馈，视频下载失败也不丢评论；放在视频下载之前。--info-only 仅解析不产出评论。
+        // 评论区关闭也能立刻反馈，视频下载失败也不丢评论；放在视频下载之前。--info-only 仅解析不产出评论
         // o/O 只是开关，评论数量走 --comments-count：两者都满足才真正抓取
-        // 评论抓取失败只告警，绝不连带中断本分 P 的视频下载（CommentFetcher 对站点侧错误已内部降级，
-        // 能抛到这里的只有网络层异常；兜底隔离以免「评论抖动 → 视频没下」）
+        // 评论抓取失败只告警，绝不连带中断本分 P 的视频下载（CommentFetcher 对站点侧错误已内部降级
+        // 能抛到这里的只有网络层异常；隔离以免「评论抖动 → 视频没下」）
         if (ctx.Run.Content.HasAny(DownloadContent.Comments | DownloadContent.FullComments)
             && ctx.Run.CommentCount > 0 && !myOption.OnlyShowInfo && commentedAids.Add(p.Aid))
         {
@@ -153,9 +153,9 @@ internal static class PageQueue
     }
 
     /// <summary>
-    /// 逐个跑分 P 并收集失败：默认（stopOnError=false）遇到异常继续下一个，末尾一并返回；
-    /// stopOnError=true 时第一个异常即停。Ctrl+C 的 OperationCanceledException 不被吞，直接上抛。
-    /// 具体的延迟、归档校验、下载逻辑都在传入的委托里，本函数只负责"跑 + 聚合失败"。
+    /// 逐个跑分 P 并收集失败：默认（stopOnError=false）遇到异常继续下一个，末尾一并返回
+    /// stopOnError=true 时第一个异常即停。Ctrl+C 的 OperationCanceledException 不被吞，直接上抛
+    /// 具体的延迟、归档校验、下载逻辑都在传入的委托里，本函数只负责"跑 + 聚合失败"
     /// </summary>
     internal static async Task<List<(Page Page, Exception Error)>> RunPagesAsync(
         IReadOnlyList<Page> pages, bool stopOnError,

@@ -16,9 +16,9 @@ using static BBDown.Core.Logger;
 namespace BBDown.Core.Pipeline;
 
 /// <summary>
-/// 音频投稿（AU）下载编排。与专栏导出同为独立链路：不构造 WorkContext、不探测 ffmpeg，
-/// 产物为音频文件（m4a / mp3 / flac）与可选歌词 .lrc，不经 SavePath.Format（其硬编码 .mp4）。
-/// 分流点在 WorkerDispatcher，早于 DownloadPipeline。
+/// 音频投稿（AU）下载编排。与专栏导出同为独立链路：不构造 WorkContext、不探测 ffmpeg
+/// 产物为音频文件（m4a / mp3 / flac）与可选歌词 .lrc，不经 SavePath.Format（其硬编码 .mp4）
+/// 分流点在 WorkerDispatcher，早于 DownloadPipeline
 /// </summary>
 public static class AudioDownload
 {
@@ -31,7 +31,7 @@ public static class AudioDownload
         var info = await AudioFetcher.FetchInfoAsync(auId, cfg, ct);
         Log($"标题：{info.Title}");
         Log($"作者：{info.Author}");
-        // serve 等宿主的任务契约回填（标题 / 封面 / 发布时间），CLI 传 default 无回调
+        // serve 等宿主的任务约定回填（标题 / 封面 / 发布时间），CLI 传 default 无回调
         sink.Meta?.Invoke(new VInfo
         {
             Title = info.Title,
@@ -60,14 +60,14 @@ public static class AudioDownload
 
         var filePath = Path.Combine(workDir, baseName + ResolveExt(playUrl.Url));
 
-        // 与 OpusDownload / MuxFinish.TrySkipExisting 同样的跳过语义
+        // 与 OpusDownload / MuxFinish.TrySkipExisting 同样的跳过规则
         if (File.Exists(filePath) && new FileInfo(filePath).Length > 0)
         {
             Log($"{filePath} 已存在，跳过下载...");
             return;
         }
 
-        // 与专栏图片同款直连配置：音频 CDN 用 https 即可，NoForceHttp 避免被强制降成 http；
+        // 与专栏图片同款直连配置：音频 CDN 用 https 即可，NoForceHttp 避免被强制降成 http
         // downloader 自动向 ProgressBus 上报进度（ProgressBar / serve 任务行共用）
         var config = new DownloadConfig { Cookie = cfg.Cookie, NoForceHttp = true };
         using var stage = ProgressBus.BeginStage("下载音频");
@@ -97,7 +97,7 @@ public static class AudioDownload
         }
     }
 
-    // 从流 URL 取扩展名；取不到或非音频扩展时兜底 .m4a（B 站音频流当前恒为 m4a 容器）
+    // 从流 URL 取扩展名；取不到或非音频扩展名时用 .m4a（B 站音频流目前是 m4a 容器）
     internal static string ResolveExt(string url)
     {
         var clean = url.Split('?')[0];

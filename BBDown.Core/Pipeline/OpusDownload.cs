@@ -24,8 +24,8 @@ namespace BBDown.Core.Pipeline;
 
 /// <summary>
 /// 专栏（opus / cv）导出编排。与音视频下载链路完全独立：不构造 WorkContext、不探测 ffmpeg、不经过
-/// SavePath.Format（后者在 SavePath.cs 硬编码 .mp4 后缀）。分流点在 Program.RunApp，
-/// 早于 WorkSetup.Build（Build 会因缺 ffmpeg 抛异常）。
+/// SavePath.Format（后者在 SavePath.cs 硬编码 .mp4 后缀）。分流点在 Program.RunApp
+/// 早于 WorkSetup.Build（Build 会因缺 ffmpeg 抛异常）
 /// </summary>
 public static class OpusDownload
 {
@@ -54,7 +54,7 @@ public static class OpusDownload
 
         var config = WorkSetup.ResolveConfig(myOption, ApiType.Web);
 
-        // opus/detail 要求 Cookie 中带非空 buvid3；平时这一步在 VideoInfo.FetchAsync 完成，旁路后必须自己补
+        // opus/detail 要求 Cookie 中带非空 buvid3；平时这一步在 VideoInfo.FetchAsync 完成，独立分支后必须自己补
         await Buvid.InitAsync(token);
 
         Log("获取专栏信息...");
@@ -62,7 +62,7 @@ public static class OpusDownload
         Log($"标题：{doc.Title}");
         Log($"作者：{doc.AuthorName}");
         Log($"段落数：{doc.Paragraphs.Count}，图片数：{CountImages(doc)}");
-        // serve 等宿主的任务契约回填（标题 / 保存路径），CLI 传 default 无回调
+        // serve 等宿主的任务约定回填（标题 / 保存路径），CLI 传 default 无回调
         sink.Meta?.Invoke(new VInfo
         {
             Title = doc.Title,
@@ -90,14 +90,14 @@ public static class OpusDownload
         var mdPath = Path.Combine(workDir, baseName + ".md");
         var writeMd = myOption.Content.Has(DownloadContent.OpusMarkdown);
 
-        // 评论导出先于 md 存在性早退：md 已存在时重跑仍能补抓缺失的评论产物（与视频链路「评论先于视频」同语义）
+        // 评论导出先于 md 存在性早退：md 已存在时重跑仍能补抓缺失的评论产物（与视频链路「评论先于视频」相同）
         if (myOption.Content.HasAny(DownloadContent.Comments | DownloadContent.FullComments)
             && myOption.CommentCount > 0 && !myOption.OnlyShowInfo)
         {
             await DownloadCommentsAsync(myOption, doc, mdPath, WorkSetup.ParseCommentFormats(myOption), config, sink, token);
         }
 
-        // 与 MuxFinish.TrySkipExisting 同样的跳过语义；不导出 Markdown 时图片按文件粒度自行跳过
+        // 与 MuxFinish.TrySkipExisting 同样的跳过规则；不导出 Markdown 时图片按逐文件自行跳过
         if (writeMd && File.Exists(mdPath) && new FileInfo(mdPath).Length > 0)
         {
             Log($"{mdPath} 已存在，跳过下载...");
@@ -128,7 +128,7 @@ public static class OpusDownload
 
     /// <summary>
     /// 专栏 / 图文的评论区导出：type 与 oid 由 <see cref="OpusDocument"/> 携带（专栏 12/cvid，图文动态取
-    /// opus/detail 下发的 basic.comment_type / comment_id_str）。失败只告警，不影响 Markdown 导出。
+    /// opus/detail 下发的 basic.comment_type / comment_id_str）。失败只告警，不影响 Markdown 导出
     /// </summary>
     private static async Task DownloadCommentsAsync(DownloadRequest myOption, OpusDocument doc, string mdPath, CommentFormat[] formats, AppConfig config, PipelineSink sink, CancellationToken token)
     {
@@ -138,7 +138,7 @@ public static class OpusDownload
             return;
         }
 
-        // 目标格式产物齐备（存在且非空）则不再抓取，与 md 的跳过语义一致
+        // 目标格式产物齐全（存在且非空）则不抓取，与 md 的跳过规则一致
         if (formats.All(f => CommentPath(mdPath, f) is { } path && File.Exists(path) && new FileInfo(path).Length > 0))
         {
             Log("评论文件已存在，跳过下载...");

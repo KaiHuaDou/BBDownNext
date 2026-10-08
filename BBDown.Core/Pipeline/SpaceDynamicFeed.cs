@@ -16,15 +16,15 @@ using static BBDown.Core.Util.JsonUtil;
 namespace BBDown.Core.Pipeline;
 
 /// <summary>
-/// 空间动态流（feed/space）共用拉取器：WBI 签名 + offset 游标翻页，返回克隆后的动态 entry。
-/// 空间图文（<see cref="SpaceOpusDownload"/>，仅图文）与空间动态（<see cref="SpaceDynamicDownload"/>，全类型分发）共用。
+/// 空间动态流（feed/space）共用拉取器：WBI 签名 + offset 游标翻页，返回克隆后的动态 entry
+/// 空间图文（<see cref="SpaceOpusDownload"/>，仅图文）与空间动态（<see cref="SpaceDynamicDownload"/>，全类型分发）共用
 /// </summary>
 internal static class SpaceDynamicFeed
 {
     private const int PageSize = 20;
     private const int MaxItems = 1000;
 
-    // Web 端动态页固定携带的 features 清单，与 bilibili-API-collect docs/dynamic/space.md 默认值一致；
+    // Web 端动态页固定携带的 features 清单，与 bilibili-API-collect docs/dynamic/space.md 默认值一致
     // 缺 features / web_location / platform 时 feed/space 的风控层会直接 HTTP 412 拒绝
     private const string WebFeatures =
         "itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,forwardListHidden,decorationCard,commentsNewVersion,onlyfansAssetsV2,ugcDelete,onlyfansQaCard";
@@ -38,7 +38,7 @@ internal static class SpaceDynamicFeed
         return cfg with { Wbi = wbi };
     }
 
-    /// <summary>按 offset 游标翻页拉取全部动态 entry（Clone 脱离 JsonDocument 生命周期）；上限兜底防 has_more 异常导致死循环。</summary>
+    /// <summary>按 offset 游标翻页拉取全部动态 entry（Clone 脱离 JsonDocument 生命周期）；上限防止 has_more 异常导致死循环。</summary>
     public static async Task<List<JsonElement>> CollectEntriesAsync(long mid, AppConfig cfg, CancellationToken ct)
     {
         List<JsonElement> entries = [];

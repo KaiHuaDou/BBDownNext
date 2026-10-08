@@ -16,17 +16,17 @@ using static BBDown.Core.Util.JsonUtil;
 namespace BBDown.Core.Fetcher;
 
 /// <summary>
-/// UP 主空间全部投稿解析。
-/// 输入经 InputResolver 统一转为 <see cref="BBDown.Core.Space"/> 后传入 mid，支持三种入口：
-/// 空间 URL（https://space.bilibili.com/{mid} 及 /upload/video、/video?tid=0 等子路径）、裸 mid、space{mid}。
-/// 接口 x/space/wbi/arc/search 只返回 aid，不含 cid 与分 P，故对每条稿件并发回填一次 wbi/view 取 cid 并展开多 P，
-/// 摊平为 VInfo.PagesInfo；下游下载链路（PageQueue / PageSelect / SavePath / ArchiveLog）自动按「列表」处理。
+/// UP 主空间全部投稿解析
+/// 输入经 InputResolver 统一转为 <see cref="BBDown.Core.Space"/> 后传入 mid，支持三种入口
+/// 空间 URL（https://space.bilibili.com/{mid} 及 /upload/video、/video?tid=0 等子路径）、裸 mid、space{mid}
+/// 接口 x/space/wbi/arc/search 只返回 aid，不含 cid 与分 P，故对每条稿件并发回填一次 wbi/view 取 cid 并展开多 P
+/// 摊平为 VInfo.PagesInfo；下游下载链路（PageQueue / PageSelect / SavePath / ArchiveLog）自动按「列表」处理
 /// </summary>
 public static class SpaceListFetcher
 {
     private const int PageSize = 30;
     private const int BackfillConcurrency = 8;   // 与 FavListFetcher 一致；大 UP 触发 -412 风控时改这一处即可
-    private const int MaxPages = 1000;           // 兜底，防止接口 count 异常导致死循环
+    private const int MaxPages = 1000;           // 上限，防止接口 count 异常导致死循环
 
     // 只从 vlist 抽取需要的标量，避免长期持有整棵 JsonDocument
     private readonly record struct SpaceItem(
@@ -114,7 +114,7 @@ public static class SpaceListFetcher
         };
     }
 
-    // 分页拉取 vlist，内置风控守卫与越界页兜底
+    // 分页拉取 vlist，内置风控守卫与越界页判断
     private static async Task<List<SpaceItem>> CollectItemsAsync(string mid, AppConfig cfg, CancellationToken ct)
     {
         List<SpaceItem> items = [];
@@ -149,7 +149,7 @@ public static class SpaceListFetcher
 
             if (got == 0)
             {
-                break;   // 空页兜底：count 虚高 / 越界页
+                break;   // 空页退出：count 虚高 / 越界页
             }
 
             pn++;

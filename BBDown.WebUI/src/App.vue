@@ -137,7 +137,7 @@ const onSavedCredential = (next: Credential, channel?: LoginChannel): void => {
   credential.value = next
   loginVisible.value = false
   if (channel) {
-    // 与 GUI 登录成功后自动切换 ApiBox 对齐：扫码通道即 API 通道
+    // 与 GUI 登录成功后自动切换 ApiBox 的行为相同：扫码通道即 API 通道
     options.api = channel
     appendLog(`已按登录通道切换 API 通道：${channel}`)
   }

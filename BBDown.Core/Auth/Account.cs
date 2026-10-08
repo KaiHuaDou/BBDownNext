@@ -13,7 +13,7 @@ using static BBDown.Core.Util.HTTPUtil;
 namespace BBDown.Core.Auth;
 
 /// <summary>
-/// 账号探测与 WBI 密钥派生：nav 接口解析账号信息 + 由 img/sub url 派生 WBI mixin key。
+/// 账号探测与 WBI 密钥派生：nav 接口解析账号信息 + 由 img/sub url 派生 WBI mixin key
 /// </summary>
 public static class Account
 {
@@ -32,7 +32,7 @@ public static class Account
 
     /// <summary>
     /// nav 探测本体，异常上抛。调用方需自行区分「服务端否认」与「探测未完成」——
-    /// <see cref="ProbeAccountAsync"/> 把两者一并压成未登录，只适用于不关心该差异的链路。
+    /// <see cref="ProbeAccountAsync"/> 把两者一并压成未登录，只适用于不关心该差异的链路
     /// </summary>
     internal static async Task<(AccountInfo Info, string Wbi)> ProbeAsync(Core.AppConfig cfg, CancellationToken ct)
     {
@@ -49,7 +49,7 @@ public static class Account
     /// <summary>
     /// 用 access_token 探测 APP / TV 通道账号信息。请求只带 User-Agent：令牌在 query 且目标是
     /// 写死的 B 站官方主机，不存在外发用户 Cookie 的路径，故不经凭据门
-    /// （<see cref="BiliHeaders.TrustedCookieHosts"/> 的语义是「允许接收 Cookie」，加入该主机等于放开 SESSDATA 的可达范围）。
+    /// （<see cref="BiliHeaders.TrustedCookieHosts"/> 的含义是「允许接收 Cookie」，加入该主机等于放开 SESSDATA 的可达范围）
     /// </summary>
     internal static async Task<AccountInfo> ProbeTokenAsync(string appKey, string appSecret, string accessToken, CancellationToken ct)
     {
@@ -68,16 +68,16 @@ public static class Account
         return code switch
         {
             0 => ParseMyInfo(root.GetProperty("data")),
-            // -101：格式合法但令牌无效 / 已过期；-400：令牌长度或字符集不合规（实测非 32 位 hex 即此码）。
-            // 两者都是「服务端不接受该凭据」，与探测未完成是不同语义
+            // -101：格式合法但令牌无效 / 已过期；-400：令牌长度或字符集不合规（实测非 32 位 hex 即此码）
+            // 两者都是「服务端不接受该凭据」，与探测未完成是两种情况
             -101 or -400 => new AccountInfo(false, "", 0, false, ""),
             _ => throw new InvalidOperationException($"账号信息查询失败：{code} {(root.TryGetProperty("message", out var m) ? m.GetString( ) : "")}")
         };
     }
 
     /// <summary>
-    /// 从 nav 接口的 data 节点解析账号信息（昵称/等级/大会员等）。
-    /// 各字段均做了缺失保护，避免接口结构变动导致整体解析失败。
+    /// 从 nav 接口的 data 节点解析账号信息（昵称/等级/大会员等）
+    /// 各字段均做了缺失保护，避免接口结构变动导致整体解析失败
     /// </summary>
     internal static AccountInfo ParseNav(JsonElement data)
     {
@@ -99,12 +99,12 @@ public static class Account
     }
 
     /// <summary>
-    /// 从 account/myinfo 的 data 节点解析账号信息。字段名与 nav 不同（name / level / vip.status），
-    /// 但语义一一对应，缺失保护与 <see cref="ParseNav"/> 同规格。
+    /// 从 account/myinfo 的 data 节点解析账号信息。字段名与 nav 不同（name / level / vip.status）
+    /// 但字段一一对应，缺失保护与 <see cref="ParseNav"/> 同规格
     /// </summary>
     internal static AccountInfo ParseMyInfo(JsonElement data)
     {
-        // 服务端改字段类型时 GetString / TryGetInt32 会抛，状态查询是尽力而为的旁路，不得因单字段异常丢掉整行输出
+        // 服务端改字段类型时 GetString / TryGetInt32 会抛，状态查询是尽力而为的独立分支，不得因单字段异常丢掉整行输出
         var uname = data.TryGetProperty("name", out var u) && u.ValueKind == JsonValueKind.String ? (u.GetString( ) ?? "") : "";
         var level = data.TryGetProperty("level", out var l) && l.ValueKind == JsonValueKind.Number && l.TryGetInt32(out var lv) ? lv : 0;
         var isVip = false;

@@ -71,7 +71,7 @@ public static partial class NormalInfoFetcher
             var playerSoXml = new XmlDocument( );
             try
             {
-                // 风控页/网络异常会返回 HTML 而非 XML，LoadXml 抛 XmlException；
+                // 风控页/网络异常会返回 HTML 而非 XML，LoadXml 抛 XmlException
                 // 这里包一层，给出与下方分支一致的可读错误，而非裸 XmlException 冒泡
                 playerSoXml.LoadXml($"<root>{playerSoText}</root>");
             }

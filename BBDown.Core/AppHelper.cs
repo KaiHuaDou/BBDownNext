@@ -44,7 +44,7 @@ internal static class AppHelper
         {
             "AVC" => PlayViewReq.Types.CodeType.Code264,
             "AV1" => PlayViewReq.Types.CodeType.Codeav1,
-            // HEVC 与未知编码统一兜底
+            // HEVC 与未知编码统一按 HEVC 处理
             _ => PlayViewReq.Types.CodeType.Code265
         };
     }
@@ -53,10 +53,10 @@ internal static class AppHelper
     {
         var api = bangumi ? BiliApi.GrpcPgcPlayView : BiliApi.GrpcPlayView;
         var headers = GetHeader(cfg, api);
-        // header 含 authorization(identify_v1 <token>) 等凭据，落盘前打码，避免明文 token 进调试日志
+        // header 含 authorization(identify_v1 <token>) 等凭据，写入前打码，避免明文 token 进调试日志
         LogDebug("App-Req-Headers: {0}", Redactor.Headers(headers));
         byte[] data;
-        // 只有pgc接口才有配音和片头尾信息
+        // 只有 pgc 接口才有配音和片头尾信息
         if (bangumi)
         {
             if (!string.IsNullOrEmpty(encoding) && encoding != "HEVC")
@@ -97,7 +97,7 @@ internal static class AppHelper
         return GrpcUtil.PackMessage(obj.ToByteArray( ));
     }
 
-    // 入参是完整端点地址而非主机名：Host 头必须与 TLS 的 SNI 一致，
+    // 入参是完整端点地址而非主机名：Host 头必须与 TLS 的 SNI 一致
     // 交给调用方传主机名就会出现「Host 写死、目标已迁移」的不一致
     internal static Dictionary<string, string> GetHeader(AppConfig cfg, string api)
     {

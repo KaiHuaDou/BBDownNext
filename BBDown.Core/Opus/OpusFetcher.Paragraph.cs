@@ -91,7 +91,7 @@ public static partial class OpusFetcher
         return para.TryGetProperty("para_type", out var pt) && pt.ValueKind == JsonValueKind.Number && pt.GetInt32( ) == expected;
     }
 
-    // para_type 3 有两种形态：line.line_type 为分割线，line.pic 为图片（article/view 的 figure 图片落在这里）
+    // para_type 3 有两种形式：line.line_type 为分割线，line.pic 为图片（article/view 的 figure 图片落在这里）
     private static OpusParagraph ParseLineParagraph(JsonElement para)
     {
         if (para.TryGetProperty("line", out var line) && line.ValueKind == JsonValueKind.Object

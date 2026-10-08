@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 namespace BBDown.Core.Tests;
 
-// md / ss 解析为番剧季号（整季入口）：md 经 pgc/review/user 映射 media_id→season_id；
-// ss 经 pgc/view/web/season 直接取 season_id。两者都产出内部 id Season(season_id)，
-// 与 BangumiInfoFetcher 的整季形态一致。因触网需替换进程级静态 AppHttpClient，挂串行集合。
+// md / ss 解析为番剧季号（整季入口）：md 经 pgc/review/user 映射 media_id→season_id
+// ss 经 pgc/view/web/season 直接取 season_id。两者都产出内部 id Season(season_id)
+// 与 BangumiInfoFetcher 的整季形式一致。因触网需替换进程级静态 AppHttpClient，挂串行集合
 [Collection<HttpStubCollectionDefinition>]
 public class BangumiMdTests
 {
@@ -25,7 +25,7 @@ public class BangumiMdTests
     }
     """;
 
-    // ss 季号解析经 pgc/view/web/season 取 season_id；入口是 season_id 而非 media_id。
+    // ss 季号解析经 pgc/view/web/season 取 season_id；入口是 season_id 而非 media_id
     private const string SeasonJson = """
     {
       "code": 0,
@@ -66,8 +66,8 @@ public class BangumiMdTests
     [InlineData("ss2539")]                                            // 简写
     public async Task ResolveIdAsync_BangumiSs_ResolvesToEpSs(string input)
     {
-        // ss 与 md 必须产出完全一致的内部 id：整季形态 Season(season_id)，
-        // 从而两者走同一条 Fetcher 整季路径，无特判。
+        // ss 与 md 必须产出完全一致的内部 id：整季形式 Season(season_id)
+        // 从而两者走同一条 Fetcher 整季路径，无特判
         var seasonCalls = 0;
         var reviewUserCalls = 0;
         var result = await HttpStub.WithResponder(request =>

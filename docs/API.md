@@ -89,14 +89,14 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 - **Endpoint：** `/api/v1/tasks`
 - **Method：** POST
 - **Description：** 向任务列表新增一个下载任务。
-- **Request Body：** JSON 格式的任务信息，需符合 `ServeRequestOptions`（由 `DownloadRequest` 裁剪出的受控子集）。不要求包含所有字段，**只需有 `Url` 字段**即可；`Url` 支持与命令行相同的 `av|bv|BV|ep|ss` 等编号写法。提交模式由查询参数 `?mode` 控制：缺省或 `execute` 受理即执行，任务初始 `Status` 为 `Queued`；`enqueue` 仅入暂停表不执行，任务初始 `Status` 为 `Pending`，待 `POST /api/v1/tasks/{id}/start` 触发。
+- **Request Body：** JSON 格式的任务信息，需符合 `ServeRequestOptions`（由 `DownloadRequest` 裁剪出的客户端可提交的子集）。不要求包含所有字段，**只需有 `Url` 字段**即可；`Url` 支持与命令行相同的 `av|bv|BV|ep|ss` 等编号写法。提交模式由查询参数 `?mode` 控制：未指定或 `execute` 受理即执行，任务初始 `Status` 为 `Queued`；`enqueue` 仅入暂停表不执行，任务初始 `Status` 为 `Pending`，待 `POST /api/v1/tasks/{id}/start` 触发。
 - **Response：**
     - 新任务受理成功（`execute`）：`202 Accepted`，响应体为 `DownloadTask` JSON，`Location` 头指向 `/api/v1/tasks/{id}`；任务初始 `Status` 为 `Queued`（已受理、等待执行）。`enqueue` 模式受理成功同样返回 `202`，但任务初始 `Status` 为 `Pending`（等待 `start`）。
     - 重复提交同一资源：`200 OK`，响应体为**已有**的运行中任务（不会重复下载）。
     - 请求体无法解析：`400 Bad Request`，错误消息为 `"输入有误"`。
     - 受理队列已满：`429 Too Many Requests`。
 
-> **安全限制：** 出于安全考虑，请求体只接受受控子集字段，以下主机可控字段**不在** `ServeRequestOptions` 中（即便传入也会被忽略），一律以服务端启动时的配置为准：
+> **安全限制：** 出于安全考虑，请求体只接受客户端可提交的子集字段，以下服务端指定字段**不在** `ServeRequestOptions` 中（即便传入也会被忽略），一律以服务端启动时的配置为准：
 > `FFmpegPath`、`Mp4boxPath`、`Aria2cPath`、`Aria2cArgs`、`WorkDir`、`FilePattern`、`MultiFilePattern`、`Debug`、`UserAgent`、`ConfigFile`。
 > 下载输出目录请在启动服务时用 `serve --work-dir` 指定；FFmpeg / MP4Box / aria2c 请放在 BBDown 同目录或系统 `PATH` 中。
 >
@@ -294,7 +294,7 @@ WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录
 `DownloadRequest` 是贯穿解析与下载全流程的运行时配置，其字段与命令行参数几乎一一对应，取值使用命令行中会用的值即可。字段会随版本变化，请以对应版本的源码为准：
 
 - [`BBDown.Core/Download/DownloadRequest.cs`](./BBDown.Core/Download/DownloadRequest.cs)：所有运行时配置字段定义。
-- [`BBDown/Serve/ServeRequestOptions.cs`](./BBDown/Serve/ServeRequestOptions.cs)：serve 请求约定，是 `DownloadRequest` 的受控子集，并额外包含 `CallBackWebHook`。
+- [`BBDown/Serve/ServeRequestOptions.cs`](./BBDown/Serve/ServeRequestOptions.cs)：serve 请求约定，是 `DownloadRequest` 的客户端可提交的子集，并额外包含 `CallBackWebHook`。
 
 ---
 
@@ -303,14 +303,14 @@ WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录
 - **进度偏差：** 受 BBDown 下载进度回报频率所限，`TotalDownloadedBytes` 会比实际下载文件偏小，大约少等效于 1 秒下载速度的体积；文件本身极小时偏差比例会更明显。
 - **单任务取消：** `POST /api/v1/tasks/{id}/stop` 可取消单个运行中 / 排队中的任务（不影响其他任务），详见 [接口详情](#取消单个任务)。终止整个服务器（`Ctrl+C`）仍会经全局令牌取消所有运行中的任务。
 - **并发控制：** 默认**不限制**同时执行的下载任务数，短时间内频繁提交任务会同时拉起大量下载，可能耗尽带宽 / 系统资源。启动时加 `--max-concurrent N`（`N > 0`）即可限流：最多 `N` 个任务同时下载，多余任务按提交顺序排队（`Status` 为 `Queued`，排队期间即可查询到该任务）；每个任务内部的下载并行度（分片并发）由多线程下载器自行决定，不受此上限约束。注意：`POST /api/v1/tasks` 返回 `202` 只代表任务已受理，不代表已开始下载；受理队列有长度上限，写满时返回 `429`；同一资源重复提交仍会被去重（返回已有任务）；若请求中开启了 `UseAria2c`，实际连接由 aria2c 自行管理，不受此上限约束。
-- **断点续传：** 下载统一走 downloader 库，数据先写入 `<目标路径>.download` 临时文件。**重跑同一条命令即可从断点继续**——既能在单条流粒度续传，也能在合集 / 多 P 粒度续传：某分 P 的视频轨下完但音频轨失败，重跑时视频轨会被直接跳过、只补下音频轨。下载失败或被 `Ctrl+C` 中断时，临时文件会保留，重跑即可续上；服务端内容变化（如换画质）时自动删除临时文件重下。所有分片（连同边下边混流的临时文件）都成功后才清理这些临时文件。
+- **断点续传：** 下载统一走 downloader 库，数据先写入 `<目标路径>.download` 临时文件。**重跑同一条命令即可从断点继续**——既能在单条流范围续传，也能在合集 / 多 P 范围续传：某分 P 的视频轨下完但音频轨失败，重跑时视频轨会被直接跳过、只补下音频轨。下载失败或被 `Ctrl+C` 中断时，临时文件会保留，重跑即可续上；服务端内容变化（如换画质）时自动删除临时文件重下。所有分片（连同边下边混流的临时文件）都成功后才清理这些临时文件。
 - **`--save-records`：** 归档以 `(aid, cid)` 为键，同一 `aid` 的不同分 P 互不干扰；**只有整段（含混流）成功后才写入**；记录的文件被删除 / 移动后会重新下载。`aid|` 拼接格式不受支持，启动时遇到会被忽略并提示一次。
 - **`--stop-on-error`：** 默认关闭，即某个分 P 下载失败时会继续下载其余分 P，最后汇总失败清单并以非零状态码退出；开启后遇到第一个失败的分 P 立即停止。
 - **`--max-retry`：** 每个下载项在首次尝试之外的额外重试次数，默认 3；非必要项（字幕 / 封面 / 弹幕 / 配音 / 评论）耗尽仅跳过该项，必要项（音视频 / 混流）耗尽则该分 P 失败。serve 请求体字段为 `MaxRetry`（对应 `ServeRequestOptions`）。
 - **`AllowPreview`：** 请求体可携带该布尔字段（对应命令行 `--allow-preview`）。充电专属稿件在无充电权限时接口照常返回成功但只下发试看片段，默认会被识别并跳过，任务表现为 `IsSuccessful == false`；传 `true` 则保留试看片段，输出文件名带 `[试看]` 前缀。
 - **CORS：** 服务器**默认仅对回环来源开放**（`127.0.0.1` / `localhost` 页面的跨源请求放行，与本机页面直连 serve 的场景一致）；其余来源需显式 `--cors-origin <url>` 放行。非回环 `Origin` 的浏览器请求依旧拿不到 `Access-Control-Allow-Origin` 头、被浏览器拦截（CSRF 面不因此扩大），仅建议在本地 / 可信网络下使用。
-- **专栏导出：** `POST /api/v1/tasks` 接受专栏（opus / cv）地址，与音视频链路共用同一受理队列与并发闸门，经 `OpusArticle` 路由到专栏导出链路。专栏模式生效的内容标志为 `A`（Markdown 文件）、`i`（专栏图片）、`M`（YAML Frontmatter）、`o`（评论）与 `O`（全部评论含楼中楼），其余标志（a / v / m / s / C / d / S）自然失效，任务日志会给出调试提示。默认内容集 `avmsCiAM` 已包含 `i` / `A` / `M`，即默认导出图片、Markdown 与 front matter；`A` 不选时只导出图片与评论，不落盘 Markdown。
-- **评论下载：** 请求体可携带 `CommentCount` / `CommentSort` / `CommentFormats` / `FullComment` 四个字段（对应命令行 `--comments-count` / `--comments-sort` / `--comments-formats` 与内容标志 `O`，默认 `CommentCount=0` 即不下载）。视频任务中评论区按 `aid` 去重抓取（多 P 同稿只抓一次）；专栏 / 图文任务（含文集、空间图文、空间动态图文项）内容含 `o` / `O` 时同样导出评论区，产物齐备则重跑跳过。产物为与主文件同目录的 `<标题>.comments.json` / `<标题>.comments.txt`。注意：加 `FullComment`（额外翻页抓全楼中楼）会随评论条数线性放大请求量，显著拉长单个任务的耗时，请按需使用。
+- **专栏导出：** `POST /api/v1/tasks` 接受专栏（opus / cv）地址，与音视频链路共用同一受理队列与并发闸门，经 `OpusArticle` 路由到专栏导出链路。专栏模式生效的内容标志为 `A`（Markdown 文件）、`i`（专栏图片）、`M`（YAML Frontmatter）、`o`（评论）与 `O`（全部评论含楼中楼），其余标志（a / v / m / s / C / d / S）自然失效，任务日志会给出调试提示。默认内容集 `avmsCiAM` 已包含 `i` / `A` / `M`，即默认导出图片、Markdown 与 front matter；`A` 不选时只导出图片与评论，不写入 Markdown。
+- **评论下载：** 请求体可携带 `CommentCount` / `CommentSort` / `CommentFormats` / `FullComment` 四个字段（对应命令行 `--comments-count` / `--comments-sort` / `--comments-formats` 与内容标志 `O`，默认 `CommentCount=0` 即不下载）。视频任务中评论区按 `aid` 去重抓取（多 P 同稿只抓一次）；专栏 / 图文任务（含文集、空间图文、空间动态图文项）内容含 `o` / `O` 时同样导出评论区，产物齐全则重跑跳过。产物为与主文件同目录的 `<标题>.comments.json` / `<标题>.comments.txt`。注意：加 `FullComment`（额外翻页抓全楼中楼）会随评论条数线性放大请求量，显著拉长单个任务的耗时，请按需使用。
 
 ---
 
@@ -342,7 +342,7 @@ curl -X POST -H 'Content-Type: application/json' \
   http://localhost:23333/api/v1/tasks
 ```
 
-仅导出专栏图片，不落盘 Markdown：
+仅导出专栏图片，不写入 Markdown：
 
 ```shell
 curl -X POST -H 'Content-Type: application/json' \

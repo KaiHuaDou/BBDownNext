@@ -19,7 +19,7 @@ export interface ServeConfig {
 
 /** baseUrl 留空归一化为本机 serve 默认地址，直连不依赖任何 dev server 代理。 */
 export function resolveBaseUrl(baseUrl: string): string {
-  // 内嵌托管：服务端注入 window.__BBDOWN_SERVE_EMBEDDED__，前端按同源调用 API（任意 --listen 均生效）
+  // 内嵌托管：服务端注入 window.__BBDOWN_SERVE_EMBEDDED__，前端按 location.origin 调用 API（任意 --listen 均生效）
   if ((globalThis as { __BBDOWN_SERVE_EMBEDDED__?: boolean }).__BBDOWN_SERVE_EMBEDDED__) {
     return location.origin
   }
@@ -163,7 +163,7 @@ export function clearFailed(config: ServeConfig): Promise<void> {
   return request<void>(config, '/api/v1/tasks/finished/failed', { method: 'DELETE' })
 }
 
-/** 扫码登录状态（与 serve QrLoginState 对齐，camelCase 序列化）。 */
+/** 扫码登录状态（与 serve QrLoginState 相同，camelCase 序列化）。 */
 export type QrLoginState = 'waitingScan' | 'waitingConfirm' | 'expired' | 'success' | 'failed'
 
 export interface QrLoginStartRequest {

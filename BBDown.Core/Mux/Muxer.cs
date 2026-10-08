@@ -15,8 +15,8 @@ using static BBDown.Core.Util.Utils;
 namespace BBDown.Core.Mux;
 
 /// <summary>
-/// 一次混流的不可变入参集合，由 <see cref="MuxFinish"/> 组装后交给 <see cref="Muxer.MuxAV"/>。
-/// 调用方按名填字段，下游 <see cref="MuxArgs"/> 的 <c>Build*</c> 直接读 <c>req</c> 上的路径与元数据。
+/// 一次混流的不可变入参集合，由 <see cref="MuxFinish"/> 组装后交给 <see cref="Muxer.MuxAV"/>
+/// 调用方按名填字段，下游 <see cref="MuxArgs"/> 的 <c>Build*</c> 直接读 <c>req</c> 上的路径与元数据
 /// </summary>
 public sealed record MuxRequest(
     MuxMode Mux,
@@ -37,12 +37,12 @@ public sealed record MuxRequest(
     List<ViewPoint>? Points,
     long PubTime,
     bool IsHevc,
-    // 多P（总集数大于 1）时填当前分 P 序号与该视频总集数，写入 track / track_total 元数据
+    // 多 P（总集数大于 1）时填当前分 P 序号与该视频总集数，写入 track / track_total 元数据
     int TrackNumber,
     int TotalTracks);
 
 /// <summary>
-/// 混流的执行侧：组装入参、起外部进程、失败时清理临时产物。参数构造在 <see cref="MuxArgs"/>。
+/// 混流的执行侧：组装入参、起外部进程、失败时清理临时产物。参数构造在 <see cref="MuxArgs"/>
 /// </summary>
 public static class Muxer
 {
@@ -119,8 +119,8 @@ public static class Muxer
             return;
         }
 
-        // 每段先转封装为 mpegts 再按顺序拼接成轨文件（统一容器，消除「单段直接改名留下 FLV 内容配 mp4 后缀」的中间态）。
-        // 上游已拒绝 HEVC / AV1 进 FLV 链路，h264_mp4toannexb 仅服务 AVC。
+        // 每段先转封装为 mpegts 再按顺序拼接成轨文件（统一容器，消除「单段直接改名留下 FLV 内容配 mp4 后缀」的中间态）
+        // 上游已拒绝 HEVC / AV1 进 FLV 链路，h264_mp4toannexb 仅服务 AVC
         // 源分段只在最终拼接成功后删除：中途失败保留分段，调用方的重试才能从头重转
         List<string> tsFiles = [with(files.Length)];
         try

@@ -16,8 +16,8 @@ public static class JsonUtil
     }
 
     /// <summary>
-    /// 安全下钻：TryGetProperty 对非 Object 元素（如属性值为 null）抛 InvalidOperationException，只在属性缺失时返回 false；
-    /// 此包装先验父节点为 Object、目标属性为 Object，缺失或类型不符一律 false，供解析链下钻使用。
+    /// 安全下钻：TryGetProperty 对非 Object 元素（如属性值为 null）抛 InvalidOperationException，只在属性缺失时返回 false
+    /// 此包装先验父节点为 Object、目标属性为 Object，缺失或类型不符一律 false，供解析链下钻使用
     /// </summary>
     public static bool TryGetObject(JsonElement parent, string name, out JsonElement value)
     {
@@ -82,7 +82,7 @@ public static class JsonUtil
         return $"{width}x{height}";
     }
 
-    // 番剧(pgc season) 的 duration 以毫秒计, 而 UGC pages 与课程 pugv 的同名字段已是秒; 调用方统一按秒存放故在此换算。
+    // 番剧(pgc season) 的 duration 以毫秒计, 而 UGC pages 与课程 pugv 的同名字段已是秒; 调用方统一按秒存放故在此换算
     // TryGetInt64 遇到非 Number 的 ValueKind 会抛而不是返回 false, 需先判类型; 取不到时给 0 而不是抛
     public static int ReadDurationSeconds(JsonElement parent)
     {
@@ -139,7 +139,7 @@ public static class JsonUtil
         throw new InvalidOperationException($"获取{label}失败(code={code})：{message}");
     }
 
-    // 番剧接口用 episodes[].Id 标识分集。原实现把整棵子树 ToString 后找 "/ep{id}"，
+    // 番剧接口用 episodes[].Id 标识分集。原实现把整棵子树 ToString 后找 "/ep{id}"
     // ep123 会被 ep1234 的链接误命中
     public static bool ContainsEpisode(JsonElement episodes, string epId)
     {

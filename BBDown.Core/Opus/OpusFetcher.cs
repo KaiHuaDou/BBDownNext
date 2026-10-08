@@ -11,8 +11,8 @@ using static BBDown.Core.Util.JsonUtil;
 namespace BBDown.Core.Opus;
 
 /// <summary>
-/// opus / cv 的抓取与解析入口。按职责拆为三个 partial 文件：
-/// <see cref="OpusFetcher"/>（网络编排与判定）、OpusFetcher.Parse.cs（文档级解析）、OpusFetcher.Paragraph.cs（段落与节点解析）。
+/// opus / cv 的抓取与解析入口。按职责拆为三个 partial 文件
+/// <see cref="OpusFetcher"/>（网络编排与判定）、OpusFetcher.Parse.cs（文档级解析）、OpusFetcher.Paragraph.cs（段落与节点解析）
 /// </summary>
 public static partial class OpusFetcher
 {
@@ -56,9 +56,9 @@ public static partial class OpusFetcher
     }
 
     /// <summary>
-    /// 从 opus/detail 的返回里取出 cv id：优先 <c>data.fallback.Id</c>（type==2 为专栏）；
-    /// 其次仅当 <c>data.item.type</c> 为 1（专栏动态）时，<c>data.item.basic.rid_str</c> 才是 cv 号。
-    /// 纯动态（type==0）的 rid_str 不是 cv，返回 null 走图文动态导出。
+    /// 从 opus/detail 的返回里取出 cv id：优先 <c>data.fallback.Id</c>（type==2 为专栏）
+    /// 其次仅当 <c>data.item.type</c> 为 1（专栏动态）时，<c>data.item.basic.rid_str</c> 才是 cv 号
+    /// 纯动态（type==0）的 rid_str 不是 cv，返回 null 走图文动态导出
     /// </summary>
     internal static string? TryGetCvId(JsonElement data)
     {

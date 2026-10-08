@@ -10,9 +10,9 @@ using BBDown.Core.Logging;
 namespace BBDown.Core.Workflow;
 
 /// <summary>
-/// 交互总线：下载链路的提问（逐集确认 / 选轨）经总线发布，宿主订阅决定展示与应答。
-/// 与 MessageBus（消息）/ ProgressBus（进度）同构：Core 只产生提问，应答由宿主提供。
-/// Scope 复用 MessageBus 作用域；无订阅者时 Ask 立即回落 null（同无控制台进程的回落语义）。
+/// 交互总线：下载链路的提问（逐集确认 / 选轨）经总线发布，宿主订阅决定展示与应答
+/// 与 MessageBus（消息）/ ProgressBus（进度）同构：Core 只产生提问，应答由宿主提供
+/// Scope 复用 MessageBus 作用域；无订阅者时 Ask 立即回落 null（同无控制台进程的回落规则）
 /// </summary>
 public static class AskBus
 {
@@ -31,8 +31,8 @@ public static class AskBus
     }
 
     /// <summary>
-    /// 提问并挂起直到应答 / 超时 / 取消。返回 null 表示宿主不支持交互（无订阅者立即回落，同现状 ReadLine null）。
-    /// defaultOptionId 为宿主无法解析输入时的回落选项（CLI 回车 / 非法输入），须属于 options。
+    /// 提问并挂起直到应答 / 超时 / 取消。返回 null 表示宿主不支持交互（无订阅者立即回落，同现状 ReadLine null）
+    /// defaultOptionId 为宿主无法解析输入时的回落选项（CLI 回车 / 非法输入），须属于 options
     /// </summary>
     public static async Task<AskAnswer?> Ask(string prompt, IReadOnlyList<AskOption> options, string? defaultOptionId = null, CancellationToken token = default)
     {
@@ -63,7 +63,7 @@ public static class AskBus
     }
 
     /// <summary>
-    /// 应答选项请求：校验 OptionId 属于请求选项集合；返回 false 表示请求不存在 / 已应答 / 选项非法。
+    /// 应答选项请求：校验 OptionId 属于请求选项集合；返回 false 表示请求不存在 / 已应答 / 选项非法
     /// </summary>
     public static bool Answer(Guid requestId, AskAnswer answer)
     {

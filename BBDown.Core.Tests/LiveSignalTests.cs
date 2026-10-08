@@ -4,8 +4,8 @@ using System.Threading;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// <see cref="LiveSignal"/> 按会话标识持有进程级注册表。各用例使用互不相同的标识，
-/// 残留注册影响不到其它用例，因此无需串行集合。
+/// <see cref="LiveSignal"/> 按会话标识持有进程级注册表。各用例使用互不相同的标识
+/// 残留注册影响不到其它用例，因此无需串行集合
 /// </summary>
 public class LiveSignalTests
 {
@@ -90,8 +90,8 @@ public class LiveSignalTests
         Assert.True(second.IsCancellationRequested);
     }
 
-    // 同标识被覆盖注册后，旧 scope 的释放不得动新注册：原子比较移除的语义锚定。
-    // 本用例锁定「只有槽位仍是自己时才摘除」的对外契约
+    // 同标识被覆盖注册后，旧 scope 的释放不得动新注册：原子比较移除的行为锚定
+    // 本用例锁定「只有槽位仍是自己时才摘除」的对外约定
     [Fact]
     public void DisposingStaleScope_KeepsOverwritingRegistration( )
     {

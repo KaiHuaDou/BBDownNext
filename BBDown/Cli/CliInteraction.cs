@@ -10,8 +10,8 @@ using BBDown.Core.Workflow;
 namespace BBDown.Cli;
 
 /// <summary>
-/// 控制台交互消费端：订阅 AskBus，把选项请求渲染为提示并读取一行输入，输入经规范化映射后应答。
-/// 读输入前 / 后调用钩子（进度条暂停 / 恢复渲染），由 ProgressBar 注册。
+/// 控制台交互消费端：订阅 AskBus，把选项请求渲染为提示并读取一行输入，输入经规范化映射后应答
+/// 读输入前 / 后调用钩子（进度条暂停 / 恢复渲染），由 ProgressBar 注册
 /// </summary>
 public sealed class CliInteraction : IDisposable
 {
@@ -49,8 +49,8 @@ public sealed class CliInteraction : IDisposable
         AskBus.Answer(evt.RequestId, new AskAnswer(optionId, input));
     }
 
-    // 同步 Console.ReadLine 不响应取消令牌：Ctrl+C 后进程会一直挂起在等待输入上。
-    // 把读入放到线程池与取消句柄竞速，取消时按取消语义上抛（AskBus.Ask 的同步调用链原样传播）；
+    // 同步 Console.ReadLine 不响应取消令牌：Ctrl+C 后进程会一直挂起在等待输入上
+    // 把读入放到线程池与取消句柄竞速，取消时按取消处理上抛（AskBus.Ask 的同步调用链原样传播）
     // 被放弃的读入线程阻塞在控制台上，取消即退出进程，由进程回收，无需专门终止
     private static string? ReadLineOrCancel( )
     {

@@ -21,7 +21,7 @@ using Microsoft.Extensions.Hosting;
 namespace BBDown.Serve.Tasks;
 
 /// <summary>
-/// 后台任务消费者：从执行队列取已受理任务，经并发闸门后执行下载，收尾回写 TaskStore 并触发回调。
+/// 后台任务消费者：从执行队列取已受理任务，经并发闸门后执行下载，收尾回写 TaskStore 并触发回调
 /// </summary>
 internal sealed partial class TaskWorker : BackgroundService
 {
@@ -35,14 +35,14 @@ internal sealed partial class TaskWorker : BackgroundService
     {
         this.queueReader = queueReader;
         this.store = store;
-        // <=0 一律视为不限制：不建闸门；>0 时仅限制同时下载的任务数，多余任务排队，
+        // <=0 一律视为不限制：不建闸门；>0 时仅限制同时下载的任务数，多余任务排队
         // 单个任务内部的下载并行度交给多线程下载器自行决定
         if (maxConcurrent > 0)
         {
             gate = new SemaphoreSlim(maxConcurrent, maxConcurrent);
         }
 
-        // 进度样本统一经 ProgressBus：任务执行期间（BeginScope）的样本回写 DownloadTask（/get-tasks 契约）
+        // 进度样本统一经 ProgressBus：任务执行期间（BeginScope）的样本回写 DownloadTask（/get-tasks 约定）
         ProgressBus.Subscribe(OnProgress);
     }
 
@@ -68,9 +68,9 @@ internal sealed partial class TaskWorker : BackgroundService
     }
 
     // 消费循环不等待单个任务完成：每取一个任务即启动执行，并发由 RunGatedAsync 的闸门限制
-    // （不设闸门时全部并发，设 N 时最多 N 个同时在跑）；队列有界（100）已提供背压。
+    // （不设闸门时全部并发，设 N 时最多 N 个同时在跑）；队列有界（100）已提供背压
     // 列表仅做周期清理、不持有完成信号；队列关闭（关服）时等待全部在途任务收尾
-    // （单任务异常已在 RunTaskAsync 内兜底，Task.WhenAll 不会因任务失败而抛出）。
+    // （单任务异常已在 RunTaskAsync 内捕获，Task.WhenAll 不会因任务失败而抛出）
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var pending = new List<Task>( );
@@ -100,7 +100,7 @@ internal sealed partial class TaskWorker : BackgroundService
         base.Dispose( );
     }
 
-    // 任务级并发闸门：未限流时直接执行；限流时先排队取额度（期间 Status=Queued），
+    // 任务级并发闸门：未限流时直接执行；限流时先排队取额度（期间 Status=Queued）
     // 取到后转 Running，无论成败都在 finally 归还额度（不占线程、不持锁）
     internal async Task RunGatedAsync(DownloadTask task, Func<Task> download, CancellationToken token)
     {
@@ -128,8 +128,8 @@ internal sealed partial class TaskWorker : BackgroundService
     private async Task RunTaskAsync(TaskEnvelope envelope)
     {
         var task = envelope.Task;
-        // 消息作用域：下载期间 Logger 的业务消息经 MessageBus 携带本任务 id（ResourceId 规范串，
-        // 与 /get-tasks 返回的 id 形态一致，桥接器 / 进度回写据此字符串匹配），收尾后退出作用域
+        // 消息作用域：下载期间 Logger 的业务消息经 MessageBus 携带本任务 id（ResourceId 规范串
+        // 与 /get-tasks 返回的 id 相同，桥接器 / 进度回写据此字符串匹配），收尾后退出作用域
         var scope = task.Scope;
         byScope[scope] = task;
         using (MessageBus.BeginScope(scope))
@@ -141,7 +141,7 @@ internal sealed partial class TaskWorker : BackgroundService
             }
             catch (OperationCanceledException) when (task.Cts.IsCancellationRequested)
             {
-                // 关服（Ctrl+C）或单独停止任务都会取消 task.Cts：前者走进程级令牌，后者走停止端点。
+                // 关服（Ctrl+C）或单独停止任务都会取消 task.Cts：前者走进程级令牌，后者走停止端点
                 // 排队中的任务会在闸门处被取消，属正常退出路径，不该刷成"下载失败"
                 // ErrorMessage 供客户端区分「已取消」与真实失败；IsCancelled 为结构化标记，避免前端解析文案
                 task.ErrorMessage = "任务已取消";
@@ -157,20 +157,20 @@ internal sealed partial class TaskWorker : BackgroundService
             }
             catch (Exception e)
             {
-                // 走 Logger 才有全局锁，serve 模式并发任务直接写 Console 会互相插字；
-                // 错误消息经路径脱敏后写入任务契约，客户端经 /get-tasks 或事件流可读
+                // 走 Logger 才有全局锁，serve 模式并发任务直接写 Console 会互相插字
+                // 错误消息经路径脱敏后写入任务约定，客户端经 /get-tasks 或事件流可读
                 var msg = RedactPaths(Config.DebugLog ? e.ToString( ) : Utils.FormatErrorMessage(e));
                 task.ErrorMessage = msg;
                 Logger.LogError($"{task.Id} 下载失败：{msg}");
             }
         }
 
-        // 收尾段整体兜底：任何异常上抛都会击穿 ExecuteAsync 的 Task.WhenAll 聚合、拖垮 BackgroundService
+        // 收尾段整体捕获：任何异常上抛都会击穿 ExecuteAsync 的 Task.WhenAll 聚合、拖垮 BackgroundService
         try
         {
             byScope.TryRemove(scope, out _);
 
-            // 成败标志在此前已落位（成功 true / 异常保持 false），收尾一次原子写入状态与成败
+            // 成败标志已就位（成功 true / 异常保持 false），收尾一次原子写入状态与成败
             var succeeded = task.IsSuccessful;
             task.SetFinished(succeeded);
             task.TaskFinishTime = DateTimeOffset.Now.ToUnixTimeMilliseconds( );
@@ -216,7 +216,7 @@ internal sealed partial class TaskWorker : BackgroundService
     }
 
     // 执行统一经 WorkerDispatcher（与 CLI 同一分发点）：直播 / 专栏 / 集合走独立链路（不经
-    // DownloadPipeline），消息 / 进度仍经总线 + scope（task.Scope 规范串）路由进事件流；
+    // DownloadPipeline），消息 / 进度仍经总线 + scope（task.Scope 规范串）路由进事件流
     // LiveTarget 由受理时解析出的房间号直接构造，不重解析 URL（原始 URL 可能是 b23 短链）
     private async Task RunDownloadAsync(DownloadTask task, TaskEnvelope envelope)
     {
@@ -231,7 +231,7 @@ internal sealed partial class TaskWorker : BackgroundService
             }
         }
 
-        // 事件流上下文由视频管道消费：纯视频域（mode == Video）与空间动态（Mixed，视频项复用管道）需要，
+        // 事件流上下文由视频管道消费：纯视频域（mode == Video）与空间动态（Mixed，视频项复用管道）需要
         // 其余独立链路不构造 WorkContext，传 null
         var ctx = mode is ContentMode.Video or ContentMode.Mixed ? store.GetContext(task.Scope) : null;
         await WorkerDispatcher.RunAsync(task.Id, envelope.Request, SinkFor(task), ctx, token);
@@ -251,7 +251,7 @@ internal sealed partial class TaskWorker : BackgroundService
         }
 
         var jsonContent = JsonSerializer.Serialize(task, AppJsonSerializerContext.Default.DownloadTask);
-        // 有界重试：瞬态网络失败退避重试，通知语义下最后一次失败仅记日志不抛
+        // 有界重试：瞬态网络失败退避重试，通知场景下最后一次失败仅记日志不抛
         try
         {
             for (var attempt = 1; ; attempt++)
@@ -277,7 +277,7 @@ internal sealed partial class TaskWorker : BackgroundService
         }
         catch (OperationCanceledException)
         {
-            // 关服中断重试等待：通知为尽力语义，静默放弃
+            // 关服中断重试等待：通知为尽力而为的场景，静默放弃
         }
     }
 

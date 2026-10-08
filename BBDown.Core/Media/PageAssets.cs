@@ -19,8 +19,8 @@ namespace BBDown.Core.Media;
 
 public static class PageAssets
 {
-    // DASH 与 FLV 共用的弹幕产出收口：独立重试，耗尽仅告警跳过（不影响音视频）。
-    // 返回非 null 表示纯弹幕任务已落盘完成（无音视频可下，Abort），null 表示继续走音视频流程
+    // DASH 与 FLV 共用的弹幕产出收口：独立重试，耗尽仅告警跳过（不影响音视频）
+    // 返回非 null 表示纯弹幕任务已写入完成（无音视频可下，Abort），null 表示继续走音视频流程
     internal static async Task<PageOutcome?> TryDownloadDanmakuAsync(DownloadSession session, string savePath, TrackSelection selection, CancellationToken ct)
     {
         if (!session.Options.Content.Has(DownloadContent.Danmaku))
@@ -43,8 +43,8 @@ public static class PageAssets
         return danmakuOnly ? PageOutcome.Abort(selection) : null;
     }
 
-    // DASH 与 FLV 共用的独立封面（c）产出收口：独立重试，耗尽仅告警跳过（不影响音视频）。
-    // 返回非 null 表示纯封面任务已落盘完成（无音视频可下，Abort），null 表示继续走音视频流程
+    // DASH 与 FLV 共用的独立封面（c）产出收口：独立重试，耗尽仅告警跳过（不影响音视频）
+    // 返回非 null 表示纯封面任务已写入完成（无音视频可下，Abort），null 表示继续走音视频流程
     internal static async Task<PageOutcome?> TryDownloadCoverAsync(DownloadSession session, string savePath, TrackSelection selection, CancellationToken ct)
     {
         if (!session.Options.Content.Has(DownloadContent.Cover))
@@ -80,7 +80,7 @@ public static class PageAssets
         var p = pageCtx.Page;
         Directory.CreateDirectory(pageCtx.TempDir);
 
-        // 混流封面（C）需要临时封面文件；独立封面（c）不走临时目录，由 DashDownload 直接落到输出路径。
+        // 混流封面（C）需要临时封面文件；独立封面（c）不走临时目录，由 DashDownload 直接落到输出路径
         // 封面非必要项，独立重试，耗尽仅跳过（不影响音视频）
         if (myOption.Content.Has(DownloadContent.MuxCover) && !File.Exists(pageCtx.CoverPath))
         {
@@ -145,7 +145,7 @@ public static class PageAssets
             }
         });
 
-        // 仅把成功落盘的字幕交回上层，供混流内嵌与收尾逻辑使用
+        // 仅把成功写入的字幕交回上层，供混流内嵌与收尾逻辑使用
         return [.. subtitleInfo.Where(s => !string.IsNullOrEmpty(s.Path))];
     }
 
@@ -161,7 +161,7 @@ public static class PageAssets
             Directory.CreateDirectory(outDir);
         }
 
-        // 扩展名沿用源文件：INTL 非 json 接口下发的是 ASS 成品，统一改成 .srt 会让播放器无法渲染。
+        // 扩展名沿用源文件：INTL 非 json 接口下发的是 ASS 成品，统一替换为 .srt 会让播放器无法渲染
         // 语言段已在 SubUtil 产生时净化，此处无需重复处理
         outSubPath = Path.ChangeExtension(outSubPath, $".{s.Lan}{Path.GetExtension(s.Path)}");
         File.Move(s.Path, outSubPath, true);
@@ -177,9 +177,9 @@ public static class PageAssets
         var danmakuAssPath = Path.ChangeExtension(savePath, ".ass");
 
         // comment.bilibili.com 的 XML 端点无论是否携带 Accept-Encoding 都强制返回 deflate 压缩内容
-        //（bilibili-API-collect/docs/danmaku/danmaku_xml.md），必须经带自动解压的 AppHttpClient 获取：
-        // 通用下载器为媒体流关闭了自动解压，aria2c 亦无解压能力，二者落盘的都是压缩原始字节。
-        // 空响应即该视频没有弹幕，不落盘
+        //（bilibili-API-collect/docs/danmaku/danmaku_xml.md），必须经带自动解压的 AppHttpClient 获取
+        // 通用下载器为媒体流关闭了自动解压，aria2c 亦无解压能力，二者写入的都是压缩原始字节
+        // 空响应即该视频没有弹幕，不写入
         if (!File.Exists(danmakuXmlPath))
         {
             Log("正在下载 XML 弹幕文件...");
@@ -225,7 +225,7 @@ public static class PageAssets
             File.Delete(danmakuXmlPath);
         }
 
-        // 仅有弹幕（d）而无音视频时，弹幕落盘即中止；有音视频则继续走下载流程
+        // 仅有弹幕（d）而无音视频时，弹幕写入即中止；有音视频则继续走下载流程
         if (myOption.Content.HasAny(DownloadContent.Audio | DownloadContent.Video))
         {
             return false;

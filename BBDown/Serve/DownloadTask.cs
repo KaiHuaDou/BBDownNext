@@ -46,7 +46,7 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
         set => Interlocked.Exchange(ref field, value);
     }
 
-    // 状态与成败同存于一个原子整数：单次读即可拿到一致的 (Status, IsSuccessful) 对，
+    // 状态与成败同存于一个原子整数：单次读即可拿到一致的 (Status, IsSuccessful) 对
     // 收尾经 SetFinished 一次落位两者，查询端不会读到「已结束但成败标志未落位」的中间态
     private int state;
 
@@ -82,12 +82,12 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
     [JsonIgnore]
     public string Scope { get; } = ResourceIdJsonConverter.Format(Id);
 
-    // 单任务取消源：与进程级 AppEnv.CancellationToken（关停）Link，故关停会取消全部、单独 Cancel 只影响本任务。
-    // 不入 JSON（Cancel 单任务用不到序列化后的对象，且 CancellationTokenSource 无法序列化）。
+    // 单任务取消源：与进程级 AppEnv.CancellationToken（关停）Link，故关停会取消全部、单独 Cancel 只影响本任务
+    // 不入 JSON（Cancel 单任务用不到序列化后的对象，且 CancellationTokenSource 无法序列化）
     [JsonIgnore]
     public CancellationTokenSource Cts { get; } = CancellationTokenSource.CreateLinkedTokenSource(AppEnv.CancellationToken);
 
-    // 取消与释放的竞态防护：HTTP 停止端点（Cancel）与执行线程收尾（Dispose）并发触达 Cts，
+    // 取消与释放的竞态防护：HTTP 停止端点（Cancel）与执行线程收尾（Dispose）并发触达 Cts
     // 先 Dispose 后 Cancel 会抛 ObjectDisposedException，统一经同一把锁串行化
     private readonly Lock ctsGate = new( );
     private bool ctsDisposed;

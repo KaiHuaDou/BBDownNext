@@ -15,7 +15,7 @@ namespace BBDown.Core.Fetcher;
 
 public static class BangumiInfoFetcher
 {
-    // ep 形态按 ep_id 拉单集并定位「当前选择第几集」；season 形态（md/ss/整季输入）按 season_id 拉整季正片
+    // ep 形式按 ep_id 拉单集并定位「当前选择第几集」；season 形式（md/ss/整季输入）按 season_id 拉整季正片
     public static Task<VInfo> FetchAsync(Ep ep, AppConfig cfg, CancellationToken ct = default)
     {
         return FetchCoreAsync($"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?ep_id={ep.EpId}", ep.EpId.ToString( ), locate: true, cfg, ct);
@@ -26,8 +26,8 @@ public static class BangumiInfoFetcher
         return FetchCoreAsync($"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?season_id={season.SeasonId}", "", locate: false, cfg, ct);
     }
 
-    // locate=true 为单集形态：目标 ep 可能不在主 episodes 而在 section（番外/花絮），需扫描定位；
-    // 单集形态缺 result 抛 BangumiNotFoundException 以触发课程回退；整季形态不回退，避免误命中 id 空间稠密、毫不相关的课程。
+    // locate=true 为单集形式：目标 ep 可能不在主 episodes 而在 section（番外/花絮），需扫描定位
+    // 单集形式缺 result 抛 BangumiNotFoundException 以触发课程回退；整季形式不回退，避免误命中 id 空间稠密、毫不相关的课程
     private static async Task<VInfo> FetchCoreAsync(string api, string locateEpId, bool locate, AppConfig cfg, CancellationToken ct)
     {
         var json = await GetWebSourceAsync(api, cfg, null, ct);
@@ -53,7 +53,7 @@ public static class BangumiInfoFetcher
         var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture).ToUnixTimeSeconds( );
         TryGetArray(result, "episodes", out var pages);
 
-        // 整季形态无需定位，跳过 section 扫描
+        // 整季形式无需定位，跳过 section 扫描
         if (locate && !ContainsEpisode(pages, locateEpId) && TryGetArray(result, "section", out var sections))
         {
             foreach (var section in sections.EnumerateArray( ))
@@ -91,7 +91,7 @@ public static class BangumiInfoFetcher
         return info;
     }
 
-    // 国内番剧与 INTL 番剧的 episodes 结构一致，共用同一段分集构造；
+    // 国内番剧与 INTL 番剧的 episodes 结构一致，共用同一段分集构造
     // 据此假定 bstar 的 duration 亦为毫秒（该接口在国内不可达，未实测）
     internal static List<Page> BuildEpisodePages(JsonElement episodes)
     {

@@ -120,7 +120,7 @@ public partial class MainWindow : Window
             ConfigData config = new( )
             {
                 Options = ReadOptions( ),
-                // 保存前夹取到合法区间：与失焦校验同一标准，非法值不落盘，避免配置往返后无法自愈
+                // 保存前夹取到合法区间：与失焦校验同一标准，非法值不写入，避免配置往返后无法自愈
                 Concurrency = int.TryParse(ConcurrencyBox.Text, out var value) ? Math.Clamp(value, MinConcurrency, MaxConcurrency) : DefaultConcurrency,
                 WindowLeft = lastLeft,
                 WindowTop = lastTop,
@@ -145,8 +145,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 把未完成的任务落盘，下次启动恢复。exitCode 排除执行器已返回但 UI 回投被关窗打断的任务，
-    /// 避免已完成的下载下次启动被当作未完成重新执行。
+    /// 把未完成的任务写入，下次启动恢复。exitCode 排除执行器已返回但 UI 回投被关窗打断的任务
+    /// 避免已完成的下载下次启动被当作未完成重新执行
     /// </summary>
     private void SaveQueue( )
     {

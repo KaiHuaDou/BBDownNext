@@ -3,7 +3,7 @@ using System;
 namespace BBDown.Core.Live;
 
 /// <summary>
-/// 直播间定位符。<see cref="RoomId"/> 可能是短号，需经 room_init 换取真实房间号。
+/// 直播间定位符。<see cref="RoomId"/> 可能是短号，需经 room_init 换取真实房间号
 /// </summary>
 public readonly record struct LiveTarget(string RoomId);
 
@@ -13,13 +13,13 @@ public static class LiveInputResolver
     private const string MobileLiveHost = "m.live.bilibili.com";
 
     /// <summary>
-    /// 把用户输入归一化为直播间定位符。仅识别直播间地址，形如：
+    /// 把用户输入归一化为直播间定位符。仅识别直播间地址，形如
     /// <list type="bullet">
     ///   <item>https://live.bilibili.com/123456（支持 // 协议相对、m. 前缀、带 query/fragment）</item>
     ///   <item>https://live.bilibili.com/h5/123456、/blanc/123456、/blackboard/123456</item>
     ///   <item>live123456</item>
     /// </list>
-    /// 不接受裸数字：根命令下裸数字属于 <see cref="IdPrefix.EpColon"/> 链路。
+    /// 不接受裸数字：根命令下裸数字属于 <see cref="IdPrefix.EpColon"/> 链路
     /// </summary>
     public static bool TryParse(string input, out LiveTarget target)
     {
@@ -45,7 +45,7 @@ public static class LiveInputResolver
         else if (!s.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
                  && !s.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            // 允许省略协议的裸域名形态：live.bilibili.com/123456
+            // 允许省略协议的裸域名形式：live.bilibili.com/123456
             if (!s.StartsWith(LiveHost + "/", StringComparison.OrdinalIgnoreCase)
                 && !s.StartsWith(MobileLiveHost + "/", StringComparison.OrdinalIgnoreCase))
             {

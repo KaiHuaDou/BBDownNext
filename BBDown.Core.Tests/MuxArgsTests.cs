@@ -8,8 +8,8 @@ namespace BBDown.Core.Tests;
 
 public class MuxArgsTests
 {
-    // 普通的 BV 号（与生产中 p.Bvid 一致）。Build* 会把它拼成完整视频页 URL 写入 comment 元数据，
-    // 故断言也按拼装后的形态校验，而不是传入的完整 URL 原样回声。
+    // 普通的 BV 号（与生产中 p.Bvid 一致）。Build* 会把它拼成完整视频页 URL 写入 comment 元数据
+    // 故断言也按拼装后的形式校验，而不是传入的完整 URL 原样回声
     private const string Bvid = "BV1hY411J7cA";
 
     // mp4box 的标签走临时文件，BuildMp4boxArgs 只把它原样传给 -itags
@@ -20,8 +20,8 @@ public class MuxArgsTests
         return new( ) { Lan = lan, Url = "", Path = path };
     }
 
-    // 用窄 MuxRequest 组装混流入参；
-    // Build* 仅读取 req 上的路径/元数据，Tools/Points/IsHevc 等字段不影响本测试断言，给安全默认值。
+    // 用窄 MuxRequest 组装混流入参
+    // Build* 仅读取 req 上的路径/元数据，Tools/Points/IsHevc 等字段不影响本测试断言，给安全默认值
     private static MuxRequest Req(
         string bvid, string videoPath, string audioPath,
         List<AudioMaterial>? audioMaterial = null, string outPath = "", string desc = "", string title = "",
@@ -360,8 +360,8 @@ public class MuxArgsTests
         Assert.DoesNotContain("tracknum=", MuxArgs.BuildMp4boxTagFile(req));
     }
 
-    // 命令行形态的 -itags 里，值中的 ':' 会被当成字段分隔符：URL 与 Windows 封面路径必然含它。
-    // 文件形态按行取值，原样保留
+    // 命令行形式的 -itags 里，值中的 ':' 会被当成字段分隔符：URL 与 Windows 封面路径必然含它
+    // 文件形式按行取值，原样保留
     [Fact]
     public void BuildMp4boxTagFile_KeepsColonAndBackslashVerbatim( )
     {

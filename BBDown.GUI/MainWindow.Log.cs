@@ -67,7 +67,7 @@ public partial class MainWindow
             return;
         }
 
-        // 仅当视图已贴近底部时跟随滚动：用户上翻阅读时新日志不再把视图拽回底部
+        // 仅当视图已贴近底部时跟随滚动：用户上翻阅读时新日志不把视图拽回底部
         var scroll = LogList.Scroll;
         var stick = scroll is null ||
                     scroll.Offset.Y + scroll.Viewport.Height >= scroll.Extent.Height - 8;

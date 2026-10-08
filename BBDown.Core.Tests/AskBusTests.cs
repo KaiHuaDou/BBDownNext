@@ -7,7 +7,7 @@ using BBDown.Core.Workflow;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// 交互总线测试：无订阅者回落、结构化应答校验、二次应答、作用域取消。
+/// 交互总线测试：无订阅者回落、结构化应答校验、二次应答、作用域取消
 /// </summary>
 public class AskBusTests
 {

@@ -1,7 +1,7 @@
 # BBDown.Sample
 
 BBDown 外部后处理协议（[PROTOCOL.md](../../PROTOCOL.md)）的示例插件与**模板**：主仓库内置，
-作为新插件的起点。读取主程序落盘的请求 JSON 并打印字段，以 0 退出且不写产物（演示「无需处理」语义）。
+作为新插件的起点。读取主程序写入的请求 JSON 并打印字段，以 0 退出且不写产物（演示「无需处理」含义）。
 
 ## 目录结构
 
@@ -13,7 +13,7 @@ Plugins/BBDown.Sample/
 │   └── Program.cs                  # 协议实现
 ├── BBDown.Sample.Tests/
 │   ├── BBDown.Sample.Tests.csproj
-│   └── ProtocolTests.cs            # 协议契约测试（字段严格对齐）
+│   └── ProtocolTests.cs            # 协议约定测试（字段严格相同）
 ├── Directory.Build.props           # 自带构建配置，阻断继承主仓库
 ├── Directory.Packages.props        # 自带中央包管理
 ├── global.json                     # 固定 SDK 版本
@@ -24,7 +24,7 @@ Plugins/BBDown.Sample/
 
 ## 独立性
 
-除 `BBDown.Core`（复用协议类型与源生成器上下文 `PostProcessJsonContext`，保证字段严格对齐）外，
+除 `BBDown.Core`（复用协议类型与源生成器上下文 `PostProcessJsonContext`，保证字段严格相同）外，
 本模板不依赖主仓库任何构建配置：自带 `Directory.Build.props` / `Directory.Packages.props` /
 `global.json`，MSBuild 向上查找时先命中本目录，主仓库配置不生效。复制为独立插件时可原样保留。
 

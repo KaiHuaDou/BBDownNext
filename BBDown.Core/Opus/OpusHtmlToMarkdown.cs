@@ -5,10 +5,10 @@ using System.Text.RegularExpressions;
 namespace BBDown.Core.Opus;
 
 /// <summary>
-/// 旧版专栏（<c>data.type == 0</c>，<c>data.content</c> 为 HTML）的降级转换。仓库未引入 HTML 解析库，
-/// 策略：白名单标签可靠转换（链接/加粗/斜体/代码/引用/标题/列表/分割线/段落换行），
-/// 其余标签（img、span 样式、figure、table 等）原样保留——CommonMark 支持内嵌 HTML，保真优于剥壳。
-/// 属于尽力而为；调用方应 <see cref="Logger.LogWarn"/> 提示用户。
+/// 旧版专栏（<c>data.type == 0</c>，<c>data.content</c> 为 HTML）的降级转换。仓库未引入 HTML 解析库
+/// 策略：白名单标签可靠转换（链接/加粗/斜体/代码/引用/标题/列表/分割线/段落换行）
+/// 其余标签（img、span 样式、figure、table 等）原样保留——CommonMark 支持内嵌 HTML，保真优于剥壳
+/// 属于尽力而为；调用方应 <see cref="Logger.LogWarn"/> 提示用户
 /// </summary>
 public static class OpusHtmlToMarkdown
 {

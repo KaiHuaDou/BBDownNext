@@ -11,8 +11,8 @@ using static BBDown.Core.Util.SignUtil;
 namespace BBDown.Core.PlayUrl;
 
 /// <summary>
-/// playurl 请求：URL 构造与发送（WEB / TV / INTL / 网页源码兜底）。
-/// 不含任何解析逻辑——拿到的是原始 JSON 字符串，由 <see cref="PlayUrlResponse"/> 与各个 TrackReader 负责导航。
+/// playurl 请求：URL 构造与发送（WEB / TV / INTL / 网页源码解析）
+/// 不含任何解析逻辑——拿到的是原始 JSON 字符串，由 <see cref="PlayUrlResponse"/> 与各个 TrackReader 负责导航
 /// </summary>
 internal static partial class PlayUrlClient
 {
@@ -36,7 +36,7 @@ internal static partial class PlayUrlClient
             return webJson;
         }
 
-        // 大会员专享限制时才从网页源码抠 window.__playinfo__；该兜底只适用于番剧/课程（播放页按 ep 构造），
+        // 大会员专享限制时才从网页源码抠 window.__playinfo__；该路径只适用于番剧/课程（播放页按 ep 构造）
         // UGC 没有 ep_id，拼出 /bangumi/play/ep 只会 404，直接给可读错误而非请求不存在的页面
         if (!req.IsBangumi)
         {
@@ -47,20 +47,20 @@ internal static partial class PlayUrlClient
         return await FetchFromWebPageAsync(req, ct);
     }
 
-    // 播放页地址：主机随 --ep-host 走。镜像站用户命中大会员限制时，
-    // 若回退到硬编码的官方域名会被重定向回可能不可达的官方站，该兜底等于失效
+    // 播放页地址：主机随 --ep-host 走。镜像站用户命中大会员限制时
+    // 若回退到硬编码的官方域名会被重定向回可能不可达的官方站，该路径等于失效
     internal static string BuildWebPageUrl(bool cheese, string epId, string epHost)
     {
         var host = epHost == BiliApi.MainHost ? BiliApi.Site : $"https://{epHost}";
         return $"{host}{(cheese ? BiliApi.CheesePlayPath : BiliApi.BangumiPlayPath)}/ep{epId}";
     }
 
-    // 大会员专享限制时, 改从网页源码抠 window.__playinfo__。
-    // 与正常 API 路径解耦为独立方法, 并按 cheese / 番剧构造正确的播放页地址,
-    // 匹配失败时抛明确异常(而非返回空串导致后续 JSON 解析报莫名其妙的错)。
+    // 大会员专享限制时, 改从网页源码抠 window.__playinfo__
+    // 与正常 API 路径解耦为独立方法, 并按 cheese / 番剧构造正确的播放页地址
+    // 匹配失败时抛明确异常(而非返回空串导致后续 JSON 解析报莫名其妙的错)
     internal static async Task<string> FetchFromWebPageAsync(PlayUrlRequest req, CancellationToken ct = default)
     {
-        // 调用方 FetchAsync 已保证仅番剧/课程走此兜底（UGC 无 ep_id 会提前抛可读错误），
+        // 调用方 FetchAsync 已保证仅番剧/课程走此路径（UGC 无 ep_id 会提前抛可读错误）
         // 此处只负责按 ep 构造播放页地址并抠取 window.__playinfo__
         var pageUrl = BuildWebPageUrl(req.IsCheese, req.EpId, req.Cfg.EpHost);
         var webSource = await GetWebSourceAsync(pageUrl, req.Cfg, null, ct);
@@ -82,8 +82,8 @@ internal static partial class PlayUrlClient
             (false, true) => host + BiliApi.PlayUrlPgcPath,
             (false, false) => host + BiliApi.PlayUrlWebPath
         };
-        // 课程（cheese）与番剧共用同一套 playurl 网关，仅域名路径中的 /pgc/ 需替换为 /pugv/。
-        // 因此直接复用 PGC 的 v2 路径（含 DASH 支持），再整体换域名——并非文档里写的非 v2 端点，属有意设计。
+        // 课程（cheese）与番剧共用同一套 playurl 网关，仅域名路径中的 /pgc/ 需替换为 /pugv/
+        // 因此直接复用 PGC 的 v2 路径（含 DASH 支持），再整体换域名——并非文档里写的非 v2 端点，属有意设计
         if (cheese)
         {
             prefix = prefix.Replace("/pgc/", "/pugv/");
@@ -125,7 +125,7 @@ internal static partial class PlayUrlClient
         query.Append($"&otype=json&qn={qn}");
         if (req.IsBangumi)
         {
-            // 课程（cheese）复用番剧 playurl 参数（module=bangumi&ep_id&session）；pugv 端点会忽略 module，ep_id 为必需。
+            // 课程（cheese）复用番剧 playurl 参数（module=bangumi&ep_id&session）；pugv 端点会忽略 module，ep_id 为必需
             query.Append($"&module=bangumi&ep_id={req.EpId}&session=");
         }
 
@@ -168,7 +168,7 @@ internal static partial class PlayUrlClient
         return await GetWebSourceAsync(api + (isBiliPlus ? $"{param}&sign={AppSign(param, BiliApi.BiliPlusAppSecret)}" : param), cfg, null, ct);
     }
 
-    // 网页源码兜底时抠取 window.__playinfo__ 里的 JSON；宿主类为 partial 以承载源生成正则
+    // 网页源码解析时抠取 window.__playinfo__ 里的 JSON；宿主类为 partial 以放置源生成正则
     [GeneratedRegex("window.__playinfo__=([\\s\\S]*?)<\\/script>")]
     private static partial Regex PlayerJsonRegex( );
 }

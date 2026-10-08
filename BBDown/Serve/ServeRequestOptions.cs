@@ -10,14 +10,14 @@ using BBDown.Serve.Tasks;
 namespace BBDown.Serve;
 
 /// <summary>
-/// serve 模式的任务请求契约（<c>POST /api/v1/tasks</c> 的 JSON 请求体）。
-/// 它是 <see cref="DownloadRequest"/> 的「受控子集」：只包含客户端允许提交的字段，
-/// 主动排除主机可控字段（FFmpegPath / Mp4boxPath / Aria2cPath / Aria2cArgs / WorkDir / FilePattern / MultiFilePattern / Host / EpHost / TvHost）、
+/// serve 模式的任务请求约定（<c>POST /api/v1/tasks</c> 的 JSON 请求体）
+/// 它是 <see cref="DownloadRequest"/> 的「客户端可提交的子集」：只包含客户端允许提交的字段
+/// 主动排除服务端指定字段（FFmpegPath / Mp4boxPath / Aria2cPath / Aria2cArgs / WorkDir / FilePattern / MultiFilePattern / Host / EpHost / TvHost）
 /// 进程级全局字段（Debug / UserAgent）与本地配置文件（ConfigFile）——
-/// 这样新增一个下载选项时不会自动变成 serve 的可注入点，也不必再维护一份「清零列表」。
-/// 交互式选项（InteractivePages / InteractiveQuality）经 WebSocket 事件流送达客户端应答，随任务提交。
-/// 其中 Host/EpHost/TvHost 因「请求不带 cookie 时回落本机 SESSDATA、host 又由请求体控制」会形成凭据外泄链，
-/// 不在请求契约中：由 serve 启动参数（--host/--ep-host/--tv-host）固定，详见 <see cref="TaskStore.ApplyServeHost"/>。
+/// 这样新增一个下载选项时不会自动变成 serve 的可注入点，也不必再维护一份「清零列表」
+/// 交互式选项（InteractivePages / InteractiveQuality）经 WebSocket 事件流送达客户端应答，随任务提交
+/// 其中 Host/EpHost/TvHost 因「请求不带 cookie 时回落本机 SESSDATA、host 又由请求体控制」会形成凭据外泄链
+/// 不在请求约定中：由 serve 启动参数（--host/--ep-host/--tv-host）固定，详见 <see cref="TaskStore.ApplyServeHost"/>
 /// </summary>
 internal sealed class ServeRequestOptions
 {
@@ -25,13 +25,13 @@ internal sealed class ServeRequestOptions
     private static readonly HashSet<string> AllowedAreas = [with(StringComparer.OrdinalIgnoreCase), "hk", "tw", "th"];
 
     public string Url { get; set; } = default!;
-    /// <summary>API 解析通道（web / tv / app / intl，忽略大小写），缺省回落 web。</summary>
+    /// <summary>API 解析通道（web / tv / app / intl，忽略大小写），未指定时用 web。</summary>
     [JsonConverter(typeof(ApiTypeJsonConverter))]
     public ApiType Api { get; set; } = ApiType.Web;
-    /// <summary>下载内容字符集（如 "avmsCiAM"），非法字符忽略，缺省回落默认内容集。</summary>
+    /// <summary>下载内容字符集（如 "avmsCiAM"），非法字符忽略，未指定时用默认内容集。</summary>
     [JsonConverter(typeof(DownloadContentJsonConverter))]
     public DownloadContent Content { get; set; } = ContentSelector.DefaultFlags;
-    /// <summary>混流方式（none / mpeg4 / mp4box / mkv），缺省回落 mpeg4。</summary>
+    /// <summary>混流方式（none / mpeg4 / mp4box / mkv），未指定时用 mpeg4。</summary>
     [JsonConverter(typeof(MuxModeJsonConverter))]
     public MuxMode Mux { get; set; } = MuxMode.Mpeg4;
     public string? EncodingPriority { get; set; }
@@ -59,7 +59,7 @@ internal sealed class ServeRequestOptions
     public bool InteractivePages { get; set; }
     /// <summary>交互式选择清晰度（--interactive-quality）。同上，依赖事件流（始终开启）。</summary>
     public bool InteractiveQuality { get; set; }
-    /// <summary>直播录制清晰度（qn），缺省回落原画。其它选项受控于服务端固定 host，本项随任务变化无注入风险。</summary>
+    /// <summary>直播录制清晰度（qn），未指定时用原画。其它选项由服务端固定 host 决定，本项随任务变化无注入风险。</summary>
     public int LiveQuality { get; set; } = BBDown.Core.Download.LiveQuality.Original;
     public string Pages { get; set; } = "";
     public string Lang { get; set; } = "";
@@ -67,7 +67,7 @@ internal sealed class ServeRequestOptions
     public string AccessToken { get; set; } = "";
     public string UposHost { get; set; } = "";
     public string DelayPerPage { get; set; } = "0";
-    /// <summary>每个下载项的额外重试次数，缺省回落 3。</summary>
+    /// <summary>每个下载项的额外重试次数，未指定时为 3。</summary>
     public int MaxRetry { get; set; } = 3;
     public string Area { get; set; } = "";
 
@@ -75,10 +75,10 @@ internal sealed class ServeRequestOptions
     public string? CallBackWebHook { get; set; }
 
     /// <summary>
-    /// 将受控请求转换为完整下载配置。主机可控字段不在本 DTO 中，转换时显式回落为
-    /// <see cref="DownloadRequest"/> 的安全默认值（空路径、官方 host）——它们本就不在请求体里，
-    /// 但 record 经 STJ 反序列化时字段初始化器被跳过（改用生成构造器，字符串参数默认 null），
-    /// 故在此用 <c>with</c> 兜底，结构上杜绝远程注入。
+    /// 把请求 DTO 转换为完整下载配置。服务端指定字段不在本 DTO 中，转换时显式回落为
+    /// <see cref="DownloadRequest"/> 的安全默认值（空路径、官方 host）——它们本就不在请求体里
+    /// 但 record 经 STJ 反序列化时字段初始化器被跳过（改用生成构造器，字符串参数默认 null）
+    /// 故在此用 <c>with</c> 填默认值，结构上杜绝远程注入
     /// </summary>
     internal DownloadRequest ToDownloadRequest( )
     {
@@ -87,7 +87,7 @@ internal sealed class ServeRequestOptions
                 ServeRequestOptionsJsonContext.Default.DownloadRequest)!;
         return r with
         {
-            // 主机可控字段不在请求契约中，回落为安全默认值（空路径 / 官方 host）
+            // 服务端指定字段不在请求约定中，回落为安全默认值（空路径 / 官方 host）
             FFmpegPath = "",
             Mp4boxPath = "",
             Aria2cPath = "",
@@ -104,8 +104,8 @@ internal sealed class ServeRequestOptions
         };
     }
 
-    // Area 是唯一会被拼进官方 API query 的请求体字段：只接受 hk / tw / th（大小写不敏感，与 CLI 的 --area 取值域一致），
-    // 其余（含空值与 JSON null）回落空串，避免任意文本注入 query 参数或改变 playurl 的参数语义
+    // Area 是唯一会被拼进官方 API query 的请求体字段：只接受 hk / tw / th（大小写不敏感，与 CLI 的 --area 取值域一致）
+    // 其余（含空值与 JSON null）回落空串，避免任意文本注入 query 参数或改变 playurl 的参数含义
     private static string NormalizeArea(string? area)
     {
         var value = area?.Trim( ) ?? "";

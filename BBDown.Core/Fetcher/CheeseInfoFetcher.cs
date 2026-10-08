@@ -25,7 +25,7 @@ public static class CheeseInfoFetcher
         return FetchCoreAsync($"{BiliApi.SeasonPugv}?season_id={season.SeasonId}", "", locate: false, cfg, ct);
     }
 
-    // ep 形态返回整季分集并按 ep_id 定位「当前选择第几集」；season 形态（cheese/ss 输入）按 season_id 拉整季，无需定位
+    // ep 形式返回整季分集并按 ep_id 定位「当前选择第几集」；season 形式（cheese/ss 输入）按 season_id 拉整季，无需定位
     private static async Task<VInfo> FetchCoreAsync(string api, string locateEpId, bool locate, AppConfig cfg, CancellationToken ct)
     {
         var json = await GetWebSourceAsync(api, cfg, null, ct);
@@ -34,8 +34,8 @@ public static class CheeseInfoFetcher
         var cover = data.GetProperty("cover").ToString( );
         var title = data.GetProperty("title").ToString( );
         var desc = data.GetProperty("subtitle").ToString( );
-        // up_info 偶发缺失（接口异常），缺失时退化为空 UP 主信息而非抛 KeyNotFoundException。
-        // 缺失时 TryGetProperty 会把 out 置为默认 JsonElement，必须先用 ValueKind 短路，否则后续调用会抛异常。
+        // up_info 偶发缺失（接口异常），缺失时退化为空 UP 主信息而非抛 KeyNotFoundException
+        // 缺失时 TryGetProperty 会把 out 置为默认 JsonElement，必须先用 ValueKind 短路，否则后续调用会抛异常
         data.TryGetProperty("up_info", out var upInfo);
         var ownerName = upInfo.ValueKind == JsonValueKind.Object && upInfo.TryGetProperty("uname", out var uname)
             ? uname.GetString( ) ?? ""
@@ -67,8 +67,8 @@ public static class CheeseInfoFetcher
         return info;
     }
 
-    // 课程分集 → Page。episodes[].status：1 可观看 / 2 不可观看（未购买或锁定），跳过不可观看分集。
-    // 抽为纯函数便于单测（状态过滤 + 字段映射）。
+    // 课程分集 → Page。episodes[].status：1 可观看 / 2 不可观看（未购买或锁定），跳过不可观看分集
+    // 抽为纯函数便于单测（状态过滤 + 字段映射）
     internal static List<Page> BuildPages(JsonElement episodes, string ownerName, string ownerMid)
     {
         List<Page> pagesInfo = [];

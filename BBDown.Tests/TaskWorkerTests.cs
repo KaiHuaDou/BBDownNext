@@ -9,7 +9,7 @@ using BBDown.Serve.Tasks;
 namespace BBDown.Tests;
 
 /// <summary>
-/// 任务执行器测试：并发闸门语义（限流排队 / 不限流全并发 / 排队中取消）。
+/// 任务执行器测试：并发闸门行为（限流排队 / 不限流全并发 / 排队中取消）
 /// </summary>
 public class TaskWorkerTests
 {

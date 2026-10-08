@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace BBDown.Core.Util;
 
 /// <summary>
-/// 传输层：响应体读取与重定向跟随。两者都是「对端可操纵输入」的边界，故统一收口在此。
+/// 传输层：响应体读取与重定向跟随。两者都是「对端可操纵输入」的边界，故统一收口在此
 /// </summary>
 public static class HttpTransfer
 {
@@ -24,9 +24,9 @@ public static class HttpTransfer
     }
 
     /// <summary>
-    /// 响应体读取的唯一入口。开启自动解压后 Content-Length 会被移除，声明长度不可信，
-    /// 只能逐块读取并累计设总量上限。全库不应再直接调用 HttpContent 的 ReadAs*Async；
-    /// 插件（Plugins/* 独立仓库）经此引用同样受 64 MB 上限约束。
+    /// 响应体读取的唯一入口。开启自动解压后 Content-Length 会被移除，声明长度不可信
+    /// 只能逐块读取并累计设总量上限。全库不应再直接调用 HttpContent 的 ReadAs*Async
+    /// 插件（Plugins/* 独立仓库）经此引用同样受 64 MB 上限约束
     /// </summary>
     public static async Task<byte[]> ReadBodyBytesAsync(HttpContent content, CancellationToken ct = default)
     {
@@ -76,12 +76,12 @@ public static class HttpTransfer
     }
 
     /// <summary>
-    /// 携带凭据的请求的唯一发送入口：手动逐跳跟随重定向，每跳都过 <see cref="BiliHeaders.IsTrustedCookieHost"/>。
-    /// HttpClient 的自动重定向在库内部完成，凭据门只覆盖首跳，重定向目标会绕过它。
+    /// 携带凭据的请求的唯一发送入口：手动逐跳跟随重定向，每跳都过 <see cref="BiliHeaders.IsTrustedCookieHost"/>
+    /// HttpClient 的自动重定向在库内部完成，凭据门只覆盖首跳，重定向目标会绕过它
     /// </summary>
     /// <remarks>
-    /// 取消令牌由本方法持有并逐跳传给 <paramref name="sendAsync"/>，委托不得自行捕获外部的令牌：
-    /// 否则令牌同时存在于委托闭包与形参两条通道，形参改不动闭包里的那一份，形同虚设。
+    /// 取消令牌由本方法持有并逐跳传给 <paramref name="sendAsync"/>，委托不得自行捕获外部的令牌
+    /// 否则令牌同时存在于委托闭包与形参两条通道，形参改不动闭包里的那一份，形同虚设
     /// </remarks>
     internal static async Task<HttpResponseMessage> SendTrustGatedAsync(
         string url,

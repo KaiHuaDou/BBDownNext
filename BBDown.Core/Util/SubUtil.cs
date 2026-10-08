@@ -19,7 +19,7 @@ namespace BBDown.Core.Util;
 
 public static partial class SubUtil
 {
-    // 表内 region/script 子标签大小写并不统一（en-US 全大写、zh-Hans 首字母大写），
+    // 表内 region/script 子标签大小写并不统一（en-US 全大写、zh-Hans 首字母大写）
     // 与其在查表前做大小写归一，不如直接用大小写不敏感的字典
     public static (string Code, string Name) GetSubtitleCode(string key)
     {
@@ -43,7 +43,7 @@ public static partial class SubUtil
         }
     }
 
-    // view 接口的 AI 字幕只有 lan 没有下载地址（subtitle_url 恒为空），属正常数据而非接口故障，
+    // view 接口的 AI 字幕只有 lan 没有下载地址（subtitle_url 固定为空），属正常数据而非接口故障
     // 逐条过滤即可；全部无效才整表回退
     internal static List<Subtitle>? FilterUsable(List<Subtitle> subtitles)
     {
@@ -55,7 +55,7 @@ public static partial class SubUtil
     {
         return [.. array.EnumerateArray( ).Select(sub =>
         {
-            // lan 来自响应体（镜像站 / --insecure 下由对端控制），且会被拼进落盘路径，
+            // lan 来自响应体（镜像站 / --insecure 下由对端控制），且会被拼进写入路径
             // 故在产生处一次净化：下游的混流内嵌与产物命名一律使用净化后的值
             var lan = FileNameUtil.GetValidFileName(sub.GetProperty(lanKey).ToString( ));
             var url = sub.GetProperty(urlKey).ToString( ).Replace("\\\\/", "/");
@@ -195,7 +195,7 @@ public static partial class SubUtil
         return TimeSpan.FromSeconds(sec).ToString(@"hh\:mm\:ss\,fff");
     }
 
-    // SRT 无原生转义；正文内的换行会破坏条目边界（宽松解析器按空行分段），
+    // SRT 无原生转义；正文内的换行会破坏条目边界（宽松解析器按空行分段）
     // 恰为 "-->" 又会被误判为时间轴分隔符，故换行替换为空格、箭头替换为视觉等价的长横
     private static string EscapeSrtText(string text)
     {

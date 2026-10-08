@@ -9,8 +9,8 @@ using static BBDown.Core.Util.HTTPUtil;
 namespace BBDown.Core;
 
 /// <summary>
-/// buvid3/buvid4/b_nut 设备标识的懒加载缓存。B 站风控（code -352）会核查这些 Cookie，缺失时下载更易被限流。
-/// 值由首次 <see cref="InitAsync"/> 从 /x/frontend/finger/spi 拉取；失败则留空，行为与改造前一致（不附加设备标识）。
+/// buvid3/buvid4/b_nut 设备标识的懒加载缓存。B 站风控（code -352）会核查这些 Cookie，缺失时下载更易被限流
+/// 值由首次 <see cref="InitAsync"/> 从 /x/frontend/finger/spi 拉取；失败则留空，行为与改造前一致（不附加设备标识）
 /// </summary>
 public static class Buvid
 {
@@ -23,7 +23,7 @@ public static class Buvid
     private static readonly Lock gate = new( );
 
     /// <summary>
-    /// 缓存初始化任务，保证只发起一次成功拉取；拉取失败则标记，下次调用可重试。
+    /// 缓存初始化任务，保证只发起一次成功拉取；拉取失败则标记，下次调用可重试
     /// </summary>
     public static Task InitAsync(CancellationToken ct = default)
     {

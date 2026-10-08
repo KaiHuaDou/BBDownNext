@@ -26,7 +26,7 @@ public class SubUtilTests
         Assert.Equal("114/114.514.zh-CN.srt", sub.Path);
     }
 
-    // 非国际版一律按 srt 落盘，即使 url 看着像 ass
+    // 非国际版一律按 srt 写入，即使 url 看着像 ass
     [Fact]
     public void ReadSubtitles_NonIntlAlwaysUsesSrtExtension( )
     {
@@ -57,7 +57,7 @@ public class SubUtilTests
         Assert.Empty(Read("[]", "lan", "subtitle_url", "1/1.2", false));
     }
 
-    // lan 由响应体给出（镜像站 / --insecure 下由对端控制），且会拼进落盘路径，
+    // lan 由响应体给出（镜像站 / --insecure 下由对端控制），且会拼进写入路径
     // 必须在产生处净化，否则可借 '..' 与分隔符把字幕写出工作目录
     [Theory]
     [InlineData("../../evil")]
@@ -80,7 +80,7 @@ public class SubUtilTests
         return [.. urls.Select((url, i) => new Subtitle { Lan = $"l{i}", Url = url, Path = $"p{i}" })];
     }
 
-    // view 接口的 AI 字幕 url 恒为空，应被过滤而不影响有效条目
+    // view 接口的 AI 字幕 url 固定为空，应被过滤而不影响有效条目
     [Fact]
     public void FilterUsable_DropsEmptyUrlsKeepsValidOnes( )
     {

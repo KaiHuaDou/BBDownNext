@@ -4,9 +4,9 @@ using System.Text.Json;
 
 using BBDown.Core.Download;
 
-// 外部后处理协议的最小实现（PROTOCOL.md）：读取主程序落盘的请求 JSON 并打印字段。
-// 反序列化复用主程序同款源生成器上下文 PostProcessJsonContext，保证字段名与主程序输出严格对齐。
-// 本示例不做实际处理：以 0 退出且不写 DestPath，主程序据此判定「轨道无需处理」，原文件照常混流。
+// 外部后处理协议的最小实现（PROTOCOL.md）：读取主程序写入的请求 JSON 并打印字段
+// 反序列化复用主程序同款源生成器上下文 PostProcessJsonContext，保证字段名与主程序输出严格相符
+// 本示例不做实际处理：以 0 退出且不写 DestPath，主程序据此判定「轨道无需处理」，原文件照常混流
 if (args.Length != 1)
 {
     Console.WriteLine("用法：BBDown.Sample <请求JSON路径>");

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace BBDown.Core.Live;
 
 /// <summary>
-/// 直播间基础信息。<see cref="RoomId"/> 恒为真实房间号（短号已换算）。
+/// 直播间基础信息。<see cref="RoomId"/> 固定为真实房间号（短号已换算）
 /// </summary>
 public sealed record LiveRoomInfo(
     string RoomId,
@@ -21,7 +21,7 @@ public sealed record LiveRoomInfo(
 }
 
 /// <summary>
-/// 一条可直接请求的直播流地址。同一清晰度会有多个 CDN <see cref="Host"/>，用于 failover。
+/// 一条可直接请求的直播流地址。同一清晰度会有多个 CDN <see cref="Host"/>，用于 failover
 /// </summary>
 public sealed record LiveStreamCandidate(
     string Url,
@@ -32,7 +32,7 @@ public sealed record LiveStreamCandidate(
     int CurrentQn);
 
 /// <summary>
-/// 一次 getRoomPlayInfo 的解析结果。<see cref="Candidates"/> 已按「编码优先级 → CDN 顺序」排好。
+/// 一次 getRoomPlayInfo 的解析结果。<see cref="Candidates"/> 已按「编码优先级 → CDN 顺序」排好
 /// </summary>
 public sealed record LivePlayInfo(
     int RequestedQn,
@@ -41,8 +41,8 @@ public sealed record LivePlayInfo(
     IReadOnlyList<LiveStreamCandidate> Candidates)
 {
     /// <summary>
-    /// 实际清晰度低于请求值。未登录时 B 站恒返回 250 且 accept_qn 仍列出 10000，
-    /// 故降级判定只能比对 current_qn，不能信 accept_qn。
+    /// 实际清晰度低于请求值。未登录时 B 站恒返回 250 且 accept_qn 仍列出 10000
+    /// 故降级判定只能比对 current_qn，不能信 accept_qn
     /// </summary>
     public bool Degraded => ActualQn != RequestedQn;
 }

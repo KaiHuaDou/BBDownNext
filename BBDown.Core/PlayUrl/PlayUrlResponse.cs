@@ -6,8 +6,8 @@ using static BBDown.Core.Util.JsonUtil;
 namespace BBDown.Core.PlayUrl;
 
 /// <summary>
-/// playurl 响应形状导航：定位有效载荷节点（data / result / video_info）、大会员限制判定。
-/// 纯导航、无 IO，输入是已解析好的 <see cref="JsonElement"/>。
+/// playurl 响应形状导航：定位有效载荷节点（data / result / video_info）、大会员限制判定
+/// 纯导航、无 IO，输入是已解析好的 <see cref="JsonElement"/>
 /// </summary>
 internal static class PlayUrlResponse
 {
@@ -42,7 +42,7 @@ internal static class PlayUrlResponse
 
     private static readonly string[] VipRestrictionMessageKeys = ["message", "msg"];
 
-    // 风控人机验证的凭据：HTTP 200、code=0，数据根下只有 v_voucher，既无 dash 也无 durl。
+    // 风控人机验证的凭据：HTTP 200、code=0，数据根下只有 v_voucher，既无 dash 也无 durl
     // 抛出可读错误，使其与 code=-352 同等待遇：按重试设置退避重来，而不是静默产出空轨道
     internal static void ThrowIfRiskControlled(JsonElement root)
     {

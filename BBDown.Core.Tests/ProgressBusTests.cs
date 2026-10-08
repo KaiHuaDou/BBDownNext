@@ -10,7 +10,7 @@ using BBDown.Core.Workflow;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// 进度总线测试：阶段边界事件、阶段内样本快照、阶段外忽略、重入语义、作用域路由、事件序列化。
+/// 进度总线测试：阶段边界事件、阶段内样本快照、阶段外忽略、重入行为、作用域路由、事件序列化
 /// </summary>
 public class ProgressBusTests
 {
@@ -86,7 +86,7 @@ public class ProgressBusTests
                 var state = ProgressBus.Latest(scopeId);
                 Assert.Equal("下载", state!.StageName);
                 Assert.Equal(0.6, state.Sample!.Ratio);
-                // 增量语义：第二次上报后 TotalBytes 为两次增量之和（阶段内累计，多采样器并发互不覆盖）
+                // 增量行为：第二次上报后 TotalBytes 为两次增量之和（阶段内累计，多采样器并发互不覆盖）
                 Assert.Equal(1536, state.Sample.TotalBytes);
                 Assert.Equal(6.0, state.Sample.Speed);
             }

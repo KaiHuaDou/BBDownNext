@@ -20,10 +20,10 @@ public static class PageSelect
     private const int MaxPageTokens = 4096;
 
     /// <summary>
-    /// 获取选中的分 P 列表。返回 null 表示不筛选（全量下载）；空列表表示用户显式指定但无任何合法分 P（一个都不下）。
+    /// 获取选中的分 P 列表。返回 null 表示不筛选（全量下载）；空列表表示用户显式指定但无任何合法分 P（一个都不下）
     /// 语法：--pages all｜1｜1,2,5｜3-5（闭区间，含两端）｜16-（开区间，到末集）｜-22（开区间，从首集）｜
-    /// 1,2,3-3,4-5,6-10,15-latest（混合）｜latest/new=最后一集｜last/LAST=倒数第二集。
-    /// 关键字大小写不敏感；表达式首尾、项内空白与尾逗号均忽略；越界数字夹紧到有效边界并提醒；倒序区间自动交换。
+    /// 1,2,3-3,4-5,6-10,15-latest（混合）｜latest/new=最后一集｜last/LAST=倒数第二集
+    /// 关键字大小写不敏感；表达式首尾、项内空白与尾逗号均忽略；越界数字夹紧到有效边界并提醒；倒序区间自动交换
     /// </summary>
     internal static List<string>? Resolve(DownloadRequest myOption, VInfo vInfo, string input)
     {
@@ -40,7 +40,7 @@ public static class PageSelect
             if (!string.IsNullOrEmpty(urlPage))
             {
                 Log("程序已自动选择你输入的集数，如果要下载其他集数请自行指定分 P（如可使用 -p ALL 代表全部）。");
-                // 与下游 Index.ToString() 的匹配按规范化整数进行，保留前导零会匹配不上
+                // 与下游 Index.ToString() 的匹配按规范化整数进行，保留前导零则匹配不上
                 return [int.TryParse(urlPage, out var urlPageIndex) ? urlPageIndex.ToString() : urlPage];
             }
 
@@ -66,7 +66,7 @@ public static class PageSelect
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var anyValid = false;
 
-        // 先按长度截断再切分，并限制累计 token 数（区间展开天然被页界夹紧，唯一可变放大面是 token 数量）
+        // 先按长度截断再切分，并限制累计 token 数（区间展开天然被页界夹紧，唯一可放大的量是 token 数量）
         var tokens = (myOption.Pages.Length > MaxPagesSpecLength ? myOption.Pages[..MaxPagesSpecLength] : myOption.Pages).Split(',');
         if (tokens.Length > MaxPageTokens)
         {
@@ -129,8 +129,8 @@ public static class PageSelect
     }
 
     /// <summary>
-    /// 交互式逐集选择：对每个分 P 询问是否下载，[y] 要，[n] 不要，[a] 剩余全部要，[q] 剩余全部不要，回车=不要。
-    /// 返回空列表表示一集都没选（一个都不下）。无宿主应答（不交互）时同样返回空列表。
+    /// 交互式逐集选择：对每个分 P 询问是否下载，[y] 要，[n] 不要，[a] 剩余全部要，[q] 剩余全部不要，回车=不要
+    /// 返回空列表表示一集都没选（一个都不下）。无宿主应答（不交互）时同样返回空列表
     /// </summary>
     internal static async Task<List<string>> ResolveInteractiveAsync(VInfo vInfo, CancellationToken token)
     {
@@ -165,8 +165,8 @@ public static class PageSelect
         return selected.Count == 0 ? [] : [.. selected.OrderBy(int.Parse)];
     }
 
-    // 解析单个分 P 片段：latest/new → 最后一集；last/LAST → 倒数第二集；数字越界则夹紧到有效边界并提醒。
-    // 无法解析（非数字非关键字）返回 (0, false)。
+    // 解析单个分 P 片段：latest/new → 最后一集；last/LAST → 倒数第二集；数字越界则夹紧到有效边界并提醒
+    // 无法解析（非数字非关键字）返回 (0, false)
     private static int ResolveIndex(string part, int firstIndex, int lastIndex, int secondLastIndex, out bool valid)
     {
         valid = true;

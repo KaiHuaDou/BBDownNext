@@ -6,9 +6,9 @@ using System.Text;
 namespace BBDown.Core.Download;
 
 /// <summary>
-/// 下载内容标记，与 --get / --with / --without 的内容字符一一对应。
-/// 命令行按「get ∪ with − without」解析为规范化标志集后存入 <see cref="DownloadRequest.Content"/>，
-/// 消费点用 <see cref="Has"/> / <see cref="HasAny"/> 查询。
+/// 下载内容标记，与 --get / --with / --without 的内容字符一一对应
+/// 命令行按「get ∪ with − without」解析为规范化标志集后存入 <see cref="DownloadRequest.Content"/>
+/// 消费点用 <see cref="Has"/> / <see cref="HasAny"/> 查询
 /// </summary>
 [Flags]
 public enum DownloadContent
@@ -70,8 +70,8 @@ public static class ContentSelector
     public static DownloadContent DefaultFlags { get; } = Resolve([Default], [], [], false, false, false, false, out _);
 
     /// <summary>
-    /// get ∪ with − without。仅「用户显式写错」产出警告；
-    /// 依赖自然失效（C/m 无 a/v、配套选项无对应字符）同样警告，模式失效由 <see cref="DescribeInactive"/> 走 debug。
+    /// get ∪ with − without。仅「用户显式写错」产出警告
+    /// 依赖自然失效（C/m 无 a/v、配套选项无对应字符）同样警告，模式失效由 <see cref="DescribeInactive"/> 走 debug
     /// </summary>
     public static DownloadContent Resolve(
         IEnumerable<string> get,
@@ -100,7 +100,7 @@ public static class ContentSelector
             warnings.Add("未选择音频或视频，封面嵌入（C）与嵌入元数据（m）不生效");
         }
 
-        // Frontmatter 只能嵌在 Markdown 文件里，单独选择没有落点
+        // Frontmatter 只能嵌在 Markdown 文件里，单独选择无处写入
         if (!flags.Has(DownloadContent.OpusMarkdown) && flags.Has(DownloadContent.FrontMatter))
         {
             warnings.Add("未选择 Markdown（A），专栏 YAML Frontmatter（M）不生效");
@@ -145,7 +145,7 @@ public static class ContentSelector
         return list;
     }
 
-    /// <summary>按规范顺序输出内容集，serve 契约用字符串形式。</summary>
+    /// <summary>按规范顺序输出内容集，serve 约定用字符串形式。</summary>
     internal static string ToNormalizedString(DownloadContent content)
     {
         var builder = new StringBuilder( );
@@ -194,14 +194,14 @@ public static class ContentSelector
         return (content & flags) != 0;
     }
 
-    // 分 P 下载链路内仍待产出的内容：音视频、弹幕、独立封面（字幕 / 混流封面 / 评论在分派前已处理）。
+    // 分 P 下载链路内仍待产出的内容：音视频、弹幕、独立封面（字幕 / 混流封面 / 评论在分派前已处理）
     // DASH 与 FLV 链路的「无事可做」早退判定共用，防止两链路各写一遍产生漂移
     internal static bool HasChainWork(this DownloadContent content)
     {
         return content.HasAny(DownloadContent.Audio | DownloadContent.Video | DownloadContent.Danmaku | DownloadContent.Cover);
     }
 
-    // 无音视频可下（纯弹幕 / 封面 / 字幕 / 评论任务）：附属产物落盘后链路即中止，两条下载链路共用
+    // 无音视频可下（纯弹幕 / 封面 / 字幕 / 评论任务）：附属产物写入后链路即中止，两条下载链路共用
     internal static bool IsAssetOnly(this DownloadContent content)
     {
         return !content.HasAny(DownloadContent.Audio | DownloadContent.Video);
@@ -237,8 +237,8 @@ public static class ContentSelector
     }
 
     /// <summary>
-    /// 由资源类型推导内容适用域：CLI 与 serve 共用的唯一判定点，
-    /// 各执行域（视频管道 / 专栏 / 直播 / 音频）据此提示不生效的内容标志。
+    /// 由资源类型推导内容适用域：CLI 与 serve 共用的唯一判定点
+    /// 各执行域（视频管道 / 专栏 / 直播 / 音频）据此提示不生效的内容标志
     /// </summary>
     public static ContentMode ModeOf(ResourceId id)
     {

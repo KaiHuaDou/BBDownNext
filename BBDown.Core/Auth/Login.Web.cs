@@ -18,7 +18,7 @@ public static partial class Login
     private static readonly string[] WebCookieNames = ["DedeUserID", "DedeUserID__ckMd5", "SESSDATA", "bili_jct"];
 
     /// <summary>
-    /// crossDomain 回调 url 的 query 里混有 gourl / first_domain / Expires 等非 cookie 字段，只取真正的登录 cookie。
+    /// crossDomain 回调 url 的 query 里混有 gourl / first_domain / Expires 等非 cookie 字段，只取真正的登录 cookie
     /// </summary>
     public static string BuildWebCookie(string url)
     {
@@ -51,8 +51,8 @@ public static partial class Login
     }
 
     /// <summary>
-    /// WEB 扫码登录：生成二维码后回调 showQr，轮询状态经 onState 回传，成功后返回 cookie 与 refresh_token（不落盘）。
-    /// 二维码过期返回 (null, null)；取消上抛 OperationCanceledException；其余异常上抛由调用方处置。
+    /// WEB 扫码登录：生成二维码后回调 showQr，轮询状态经 onState 回传，成功后返回 cookie 与 refresh_token（不写入）
+    /// 二维码过期返回 (null, null)；取消上抛 OperationCanceledException；其余异常上抛由调用方处置
     /// </summary>
     public static async Task<(string? Cookie, string? RefreshToken)> WebCredentialAsync(
         Func<string, Task>? showQr = null, Action<QrState>? onState = null, CancellationToken token = default)
@@ -153,15 +153,15 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 从多个来源合并出登录 cookie：优先 data.Url 的 query（旧通道 / 兜底），其次 poll 响应自身的
-    /// Set-Cookie 头，再次 crossDomain 端点 GET 后的 CookieContainer（B 站当前正规通道）。任一来源补齐即采用，
-    /// 全部缺失才抛错。英文逗号会被部分下游当作 cookie 分隔符，需转义。
+    /// 从多个来源合并出登录 cookie：优先 data.Url 的 query（旧通道 / 补充），其次 poll 响应自身的
+    /// Set-Cookie 头，再次 crossDomain 端点 GET 后的 CookieContainer（B 站当前正规通道）。任一来源补齐即采用
+    /// 全部缺失才抛错。英文逗号会被部分下游当作 cookie 分隔符，需转义
     /// </summary>
     private static async Task<string> BuildWebCookieResilient(string url, IReadOnlyList<string> setCookies)
     {
         var values = new Dictionary<string, string>( );
 
-        // 1) data.Url query（旧通道 / 兜底）
+        // 1) data.Url query（旧通道 / 补充）
         if (!string.IsNullOrEmpty(url) && url.Contains('?'))
         {
             foreach (var pair in url[(url.IndexOf('?') + 1)..].Split('&', StringSplitOptions.RemoveEmptyEntries))

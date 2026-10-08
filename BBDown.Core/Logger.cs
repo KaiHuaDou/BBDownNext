@@ -3,14 +3,14 @@ using BBDown.Core.Logging;
 namespace BBDown.Core;
 
 /// <summary>
-/// 业务消息发射门面：只产生消息（转 MessageBus.Publish），不渲染。
-/// 展示由宿主决定——CLI 控制台渲染器 / GUI 窗口日志区 / serve 事件流桥接。
+/// 业务消息发射门面：只产生消息（转 MessageBus.Publish），不渲染
+/// 展示由宿主决定——CLI 控制台渲染器 / GUI 窗口日志区 / serve 事件流桥接
 /// </summary>
 public static class Logger
 {
-    // 服务器可控文本（标题 / 接口 message 等）经日志输出，含 CRLF 可伪造日志行：业务日志统一单行化。
+    // 服务器可控文本（标题 / 接口 message 等）经日志输出，含 CRLF 可伪造日志行：业务日志统一单行化
     // LogDebug 保持原样：调试转储本就是多行服务器原始内容，且须显式开启 --debug 才会产出
-    // time：定宽表格类输出（多行状态行）关掉时间戳前缀，否则行首对齐被破坏
+    // time：定宽表格类输出（多行状态行）关掉时间戳前缀，否则行首排布被破坏
     public static void Log(object text, bool enter = true, bool time = true)
     {
         MessageBus.Publish(LogLevel.Info, SingleLine(text), enter: enter, showTime: time);

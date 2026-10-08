@@ -11,7 +11,7 @@ public class Page
 {
     public required int Index { get; set; }
 
-    // aid/cid 逐字来自 API 响应（对端可控），是工作区目录与文件名模板的组成段：
+    // aid/cid 逐字来自 API 响应（对端可控），是工作区目录与文件名模板的组成段
     // setter 经 GetValidFileName 单一收口净化（合法数字恒等；含分隔符 / .. 的值被转义，无法穿越工作目录）
     public required string Aid
     {
@@ -34,13 +34,13 @@ public class Page
     public string? Desc { get; set; }
     public string? OwnerName { get; set; }
     public string? OwnerMid { get; set; }
-    // 番剧/课程等场景 aid 可能为空或非数字, 此时没有对应 BV 号, 不应连累文件名模板与元数据写入;
+    // 番剧/课程等场景 aid 可能为空或非数字, 此时没有对应 BV 号, 不应连累文件名模板与元数据写入
     // 超出 BV 编码区间的值（对端可控）同样按「没有 BV 号」处理，而不是让 Encode 抛异常
     public string Bvid => long.TryParse(Aid, out var avid) && BilibiliBvConverter.CanEncode(avid) ? BilibiliBvConverter.Encode(avid) : "";
     // CA1002: 保持 List<T>，调用方（BBDown 主项目）会对该集合执行 Add/整体替换
     public List<ViewPoint> Points { get; set; } = [];
 
-    // 沿用原拷贝构造语义：Desc/Points 不随源 Page 复制
+    // 沿用原拷贝构造行为：Desc/Points 不随源 Page 复制
     public Page CopyWith(int index)
     {
         return new( )
@@ -59,7 +59,7 @@ public class Page
         };
     }
 
-    // 等值仅看 Aid/Cid/EpId（跨列表去重用），勿改为 record 全成员等值
+    // 等值仅看 Aid/Cid/EpId（跨列表去重用），勿用 record 全成员等值
     public override bool Equals(object? obj)
     {
         return obj is Page page &&

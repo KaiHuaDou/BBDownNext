@@ -25,8 +25,8 @@ public enum LiveStopReason
 public sealed record LiveRecordResult(IReadOnlyList<string> Segments, string CodecName, LiveStopReason Reason);
 
 /// <summary>
-/// 录制状态机：解析流地址 → 写一个分段 → 断了就退避重连写下一段，直到停录 / 下播 / 失败超限。
-/// 流的解析与写入经委托注入，状态机只做编排与决策，不碰网络与文件 IO。
+/// 录制状态机：解析流地址 → 写一个分段 → 断了就退避重连写下一段，直到停录 / 下播 / 失败超限
+/// 流的解析与写入经委托注入，状态机只做编排与决策，不碰网络与文件 IO
 /// </summary>
 internal sealed class LiveRecorder(
     LiveRecorder.ResolveStream resolve,
@@ -36,7 +36,7 @@ internal sealed class LiveRecorder(
     /// <summary>返回 null 表示已下播。</summary>
     internal delegate Task<LivePlayInfo?> ResolveStream(int qn, CancellationToken ct);
 
-    /// <summary>契约同 <see cref="LiveSegmentWriter.WriteAsync"/>：取消时返回已写字节数而非抛出。</summary>
+    /// <summary>约定同 <see cref="LiveSegmentWriter.WriteAsync"/>：取消时返回已写字节数而非抛出。</summary>
     internal delegate Task<long> WriteSegment(LiveStreamCandidate candidate, string partPath, CancellationToken ct);
 
     private const int MaxConsecutiveFailures = 10;
@@ -49,16 +49,16 @@ internal sealed class LiveRecorder(
     private readonly Action<int>? onSegmentStart = onSegmentStart;
 
     /// <summary>
-    /// <paramref name="recordToken"/> 是 SIGINT 与 SIGQUIT 的联合取消源，<paramref name="globalToken"/> 仅 SIGINT。
+    /// <paramref name="recordToken"/> 是 SIGINT 与 SIGQUIT 的联合取消源，<paramref name="globalToken"/> 仅 SIGINT
     /// 二者用于区分「停录进混流」与「整个进程中断」——后者必须把 <see cref="OperationCanceledException"/>
-    /// 抛出去，让调用方返回 130 且不混流。
+    /// 抛出去，让调用方返回 130 且不混流
     /// </summary>
     public async Task<LiveRecordResult> RunAsync(string destPathWithoutExtension, int qn, CancellationToken recordToken, CancellationToken globalToken)
     {
         List<string> segments = [];
         var codecName = "";
-        // 首段成功后锁定编码：同一场直播的 avc/hevc 候选并存时，失败轮换会挑到另一种编码，
-        // 而合并阶段只对全部分段套同一 bsf，编码不一的段会被 ffmpeg 静默丢弃（数据丢失）。锁死后全程同编码。
+        // 首段成功后锁定编码：同一场直播的 avc/hevc 候选并存时，失败轮换会挑到另一种编码
+        // 而合并阶段只对全部分段套同一 bsf，编码不一的段会被 ffmpeg 静默丢弃（数据丢失）。锁死后全程同编码
         var pinnedCodec = "";
         var failures = 0;
         var reason = LiveStopReason.UserStopped;
@@ -92,15 +92,15 @@ internal sealed class LiveRecorder(
                 break;
             }
 
-            // 同一清晰度的多个 CDN 按失败次数轮换，避免死磕一个坏节点。
-            // 锁定编码后只在该编码的候选里轮换；该编码候选全部消失时停止录制，否则会继续混入异编码分段，
-            // 而合并阶段只对全部分段套同一 bsf，编码不一的段会被 ffmpeg 静默丢弃（数据丢失）。
+            // 同一清晰度的多个 CDN 按失败次数轮换，避免死磕一个坏节点
+            // 锁定编码后只在该编码的候选里轮换；该编码候选全部消失时停止录制，否则会继续混入异编码分段
+            // 而合并阶段只对全部分段套同一 bsf，编码不一的段会被 ffmpeg 静默丢弃（数据丢失）
             var pool = pinnedCodec.Length == 0
                 ? info.Candidates
                 : [.. info.Candidates.Where(c => c.CodecName == pinnedCodec)];
             if (pinnedCodec.Length != 0 && pool.Count == 0)
             {
-                // 锁定的编码已从候选中消失：回退到全集候选以避免无候选卡死，但显式记录，避免静默混入异编码分段
+                // 锁定的编码不在候选中：回退到全集候选以避免无候选卡死，但显式记录，避免静默混入异编码分段
                 LogWarn($"锁定的编码 {pinnedCodec} 已不可用，回退到全部候选（后续分段可能混入不同编码）");
             }
 
@@ -129,7 +129,7 @@ internal sealed class LiveRecorder(
             }
             catch (Exception e)
             {
-                // 大量数据写入后抛出的非 IO 异常（如进度回调故障），已写内容多半完整，与磁盘错误路径同样保留；
+                // 大量数据写入后抛出的非 IO 异常（如进度回调故障），已写内容多半完整，与磁盘错误路径同样保留
                 // 保留的分段带入其编码，重试轮换只在同编码候选中进行
                 Keep(segments, partPath, candidate, ref codecName);
                 pinnedCodec = codecName;
@@ -214,7 +214,7 @@ internal sealed class LiveRecorder(
     }
 
     /// <summary>
-    /// 返回非 null 表示应停止录制（达最大失败次数，或等待期间被取消），值即停止原因。
+    /// 返回非 null 表示应停止录制（达最大失败次数，或等待期间被取消），值即停止原因
     /// </summary>
     private static async Task<LiveStopReason?> GiveUpAsync(string message, int failures, CancellationToken recordToken)
     {

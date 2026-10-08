@@ -68,7 +68,7 @@ public class AccountInfoTests
         Assert.Equal("", info.VipLabel);
     }
 
-    // 服务端改字段类型时不得整体抛出：状态查询是尽力而为的旁路，不该因单字段异常丢掉整行输出
+    // 服务端改字段类型时不得整体抛出：状态查询是尽力而为的独立分支，不该因单字段异常丢掉整行输出
     [Fact]
     public void ParseMyInfo_ToleratesUnexpectedFieldTypes( )
     {

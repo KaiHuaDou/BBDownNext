@@ -6,8 +6,8 @@ using BBDown.Core.Logging;
 namespace BBDown.Cli;
 
 /// <summary>
-/// 控制台消息渲染器：订阅 MessageBus 把业务消息输出到控制台（颜色 / 时间戳 / 写前擦状态行）。
-/// CLI 专属展示；serve 进程可额外装配本渲染器作为运维可见输出。
+/// 控制台消息渲染器：订阅 MessageBus 把业务消息输出到控制台（颜色 / 时间戳 / 写前擦状态行）
+/// CLI 专属展示；serve 进程可额外装配本渲染器作为运维可见输出
 /// </summary>
 public sealed class ConsoleMessageRenderer : IDisposable
 {
@@ -63,8 +63,8 @@ public sealed class ConsoleMessageRenderer : IDisposable
     // 无时间戳分支的空格前缀必须与时间戳前缀同宽，否则两类消息左缘差一列
     private const int PrefixWidth = 13;
 
-    // 时间戳直接取消息产生时刻（LogMessage.Time），不重取渲染时刻：消息是同步发射的，两者无差，
-    // 但 Time 语义是「产生时刻」，消费方应以此为唯一时间源
+    // 时间戳直接取消息产生时刻（LogMessage.Time），不重取渲染时刻：消息是同步发射的，两者无差
+    // 但 Time 是「产生时刻」，消费方应以此为唯一时间源
     private static string Timestamp(DateTimeOffset time)
     {
         return time.ToString("[HH:mm:ss]") + " - ";

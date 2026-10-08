@@ -4,6 +4,6 @@ namespace BBDown.Core.Workflow;
 public sealed record AskOption(string Id, string Label);
 
 /// <summary>
-/// 应答结果：OptionId 必须属于请求选项集合；RawInput 为宿主收到的原始输入（CLI 别名映射用，serve / GUI 为 null）。
+/// 应答结果：OptionId 必须属于请求选项集合；RawInput 为宿主收到的原始输入（CLI 别名映射用，serve / GUI 为 null）
 /// </summary>
 public sealed record AskAnswer(string OptionId, string? RawInput = null);

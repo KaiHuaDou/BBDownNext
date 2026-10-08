@@ -10,8 +10,8 @@ using Microsoft.AspNetCore.Http;
 namespace BBDown.Serve.Http;
 
 /// <summary>
-/// 内嵌 WebUI 的静态托管：仅在 --webui 启用且已嵌入 dist 资源时注册。
-/// 资源名形如 webui.assets/index-xxx.js、webui.index.html，运行时统一以 '/' 规范化后查表，规避跨平台分隔符差异。
+/// 内嵌 WebUI 的静态托管：仅在 --webui 启用且已嵌入 dist 资源时注册
+/// 资源名形如 webui.assets/index-xxx.js、webui.index.html，运行时统一以 '/' 规范化后查表，规避跨平台分隔符差异
 /// </summary>
 internal static class WebUiEndpoints
 {
@@ -85,7 +85,7 @@ internal static class WebUiEndpoints
             return Results.File(stream, GetContentType(file));
         }).AllowAnonymous( );
 
-        // SPA 回退：仅 GET 且非 /api、/hubs 的路径返回 index.html；其余保留 404 语义（不遮蔽 API）
+        // SPA 回退：仅 GET 且非 /api、/hubs 的路径返回 index.html；其余保留 404 状态（不遮蔽 API）
         app.MapFallback(async (HttpContext context) =>
         {
             if (context.Request.Method != HttpMethods.Get
@@ -106,7 +106,7 @@ internal static class WebUiEndpoints
                 return Results.NotFound( );
             }
 
-            // 注入同源标记：前端据此以 location.origin 调用 API，任意 --listen 均生效。
+            // 注入 origin 标记：前端据此以 location.origin 调用 API，任意 --listen 均生效
             // 入口文档禁缓存：资源由带哈希的 /assets 引用，index 滞留旧版会指向已 404 的旧资源
             using var reader = new StreamReader(stream, Encoding.UTF8);
             var html = (await reader.ReadToEndAsync( )).Replace("</head>", "<script>window.__BBDOWN_SERVE_EMBEDDED__=true</script></head>");

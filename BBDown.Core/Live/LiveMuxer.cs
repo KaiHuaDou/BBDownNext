@@ -15,21 +15,21 @@ using static BBDown.Core.Util.Utils;
 namespace BBDown.Core.Live;
 
 /// <summary>
-/// 把录制产出的分段 FLV 合成单个 mp4。
-/// 不复用 <see cref="Muxer.MergeFLV"/>：后者单段时直接改名（会产出 FLV 内容配 .mp4 后缀的坏文件），
-/// 且在转换成功前就删源文件，直播场景下一旦失败等于丢录像。
+/// 把录制产出的分段 FLV 合成单个 mp4
+/// 不复用 <see cref="Muxer.MergeFLV"/>：后者单段时直接改名（会产出 FLV 内容配 .mp4 后缀的坏文件）
+/// 且在转换成功前就删源文件，直播场景下一旦失败等于丢录像
 /// </summary>
 public static class LiveMuxer
 {
     // 超大文件的 faststart 需要整体二次写盘，几十 GB 的录像上代价远大于收益
     private const long FaststartMaxBytes = 4L * 1024 * 1024 * 1024;
 
-    // copy 模式容器开销（FLV 标签 / TS 188 字节对齐 / MP4 moov）通常 < 2%，
+    // copy 模式容器开销（FLV 标签 / TS 188 字节一致 / MP4 moov）通常 < 2%
     // 留出余量以容忍长录像的容器差异；明显偏小说明有分段被静默丢弃
     private const double MinMergeRatio = 0.9;
 
     /// <summary>
-    /// 合并成功返回 true，并删除源分段；失败时保留全部分段供手工抢救。
+    /// 合并成功返回 true，并删除源分段；失败时保留全部分段供手工抢救
     /// </summary>
     public static async Task<bool> MergeSegmentsAsync(IReadOnlyList<string> segments, string outPath, string codecName, ToolPaths tools, CancellationToken ct = default)
     {
@@ -140,9 +140,9 @@ public static class LiveMuxer
 
     internal static List<string> BuildLiveToTsArgs(string input, string output, string codecName, bool debugLog)
     {
-        // +discardcorrupt 丢弃被标记为损坏的包（停录时分会段尾常截在半个 FLV tag 上），
-        // -err_detect ignore_err 让 ffmpeg 遇到解析错误继续而非中止，避免合并因尾包损坏整段失败。
-        // 二者配合可消除 h264 "Invalid NAL unit size" / "corrupt input packet" 这类吓人的报错。
+        // +discardcorrupt 丢弃被标记为损坏的包（停录时分会段尾常截在半个 FLV tag 上）
+        // -err_detect ignore_err 让 ffmpeg 遇到解析错误继续而非中止，避免合并因尾包损坏整段失败
+        // 二者配合可消除 h264 "Invalid NAL unit size" / "corrupt input packet" 这类吓人的报错
         List<string> args = ["-loglevel", debugLog ? "verbose" : "error", "-y",
             "-fflags", "+genpts+discardcorrupt", "-err_detect", "ignore_err",
             "-i", input, "-map", "0", "-c", "copy", "-f", "mpegts"];
@@ -156,8 +156,8 @@ public static class LiveMuxer
         return args;
     }
 
-    // 直播流时间戳常跳变/回绕, 不重建 PTS 会导致时长错误甚至无法 seek；
-    // +discardcorrupt / -err_detect ignore_err 同 BuildLiveToTsArgs 注释，压制停录截断导致的噪声与损坏。
+    // 直播流时间戳常跳变/回绕, 不重建 PTS 会导致时长错误甚至无法 seek
+    // +discardcorrupt / -err_detect ignore_err 同 BuildLiveToTsArgs 注释，压制停录截断导致的噪声与损坏
     internal static List<string> BuildLiveRemuxArgs(string input, string output, bool faststart, bool debugLog)
     {
         List<string> args = ["-loglevel", debugLog ? "verbose" : "error", "-y",
@@ -173,7 +173,7 @@ public static class LiveMuxer
     }
 
     /// <summary>
-    /// mpegts 要求 Annex B, 而 FLV 里是 AVCC/HVCC。用错 bsf 会让 ffmpeg 直接报错，故按编码分派。
+    /// mpegts 要求 Annex B, 而 FLV 里是 AVCC/HVCC。用错 bsf 会让 ffmpeg 直接报错，故按编码分派
     /// </summary>
     internal static string? SelectBitstreamFilter(string codecName)
     {

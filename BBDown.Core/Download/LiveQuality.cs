@@ -4,7 +4,7 @@ using System.Globalization;
 namespace BBDown.Core.Download;
 
 /// <summary>
-/// 直播清晰度档位。作为下载请求的配置项归入下载模型，避免 DownloadRequest 反向依赖直播域。
+/// 直播清晰度档位。作为下载请求的配置项归入下载模型，避免 DownloadRequest 反向依赖直播域
 /// </summary>
 public static class LiveQuality
 {

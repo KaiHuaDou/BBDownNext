@@ -1,6 +1,6 @@
 namespace BBDown.Core.Download;
 
-// Aborted 为 true 表示该分 P 应立即结束（不产出 SavePath）；
+// Aborted 为 true 表示该分 P 应立即结束（不产出 SavePath）
 // Preview 为 true 表示产出的是充电试看片段，不应写入归档记录
 public readonly record struct PageOutcome(
     bool Aborted,
@@ -21,7 +21,7 @@ public readonly record struct PageOutcome(
     }
 }
 
-// 交互选轨状态：Selected 表示已手动选过，VIndex/AIndex 为所选序号。
+// 交互选轨状态：Selected 表示已手动选过，VIndex/AIndex 为所选序号
 // 下载失败重试时随 PageOutcome 回传恢复，否则重进 RunAsync 会静默落回第 0 条轨道
 public readonly record struct TrackSelection(bool Selected, int VIndex, int AIndex)
 {

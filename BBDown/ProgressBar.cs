@@ -9,7 +9,7 @@ using BBDown.Core.Workflow;
 
 namespace BBDown;
 
-// 控制台进度条渲染器：订阅 ProgressBus 的进度事件（阶段开始/样本/结束），按 1/8 秒刷新一帧。
+// 控制台进度条渲染器：订阅 ProgressBus 的进度事件（阶段开始/样本/结束），按 1/8 秒刷新一帧
 public sealed class ProgressBar : IDisposable
 {
     private const int BarWidth = 40;
@@ -51,8 +51,8 @@ public sealed class ProgressBar : IDisposable
         {
             renderTimer = new Timer(_ => Render( ));
             renderTimer.Change(RenderInterval, Timeout.InfiniteTimeSpan);
-            // 退格重绘假定光标停在本行末尾，日志若直接跟在进度条后面会把光标推走，下一帧就把 spinner 打到日志行首。
-            // 注册日志前置钩子：写日志前先擦掉进度条行，让日志从行首开始（与 LiveProgress 同一机制）。
+            // 退格重绘假定光标停在本行末尾，日志若直接跟在进度条后面会把光标推走，下一帧就把 spinner 打到日志行首
+            // 注册日志前置钩子：写日志前先擦掉进度条行，让日志从行首开始（与 LiveProgress 同一机制）
             clearLineHook = ClearLine;
             suspendHook = Suspend;
             resumeHook = Resume;
@@ -123,7 +123,7 @@ public sealed class ProgressBar : IDisposable
         }
     }
 
-    // 擦掉进度条行，让紧随其后的日志从行首开始。日志打完由下一帧自动重画。
+    // 擦掉进度条行，让紧随其后的日志从行首开始。日志打完由下一帧自动重画
     // 作为 ConsoleHost.BeforeWrite 在 WriteGate 内被调用：单向锁序禁止在此取 gate
     public void ClearLine( )
     {
@@ -136,7 +136,7 @@ public sealed class ProgressBar : IDisposable
         Blit(string.Empty);
     }
 
-    // 主媒体下载窗口：true 进入下载（恢复渲染），false 下载结束（清行停止渲染）。
+    // 主媒体下载窗口：true 进入下载（恢复渲染），false 下载结束（清行停止渲染）
     // 解析 / 混流 / 封面弹幕等附属下载都不开窗，进度条只在明确下载音视频文件时出现
     private void SetDownloading(bool value)
     {
@@ -202,7 +202,7 @@ public sealed class ProgressBar : IDisposable
 
             etaText = Utils.FormatEta(sample.Ratio, now - etaStart) is { } eta ? $" ETA {eta}" : string.Empty;
 
-            // 有采样即视为下载进行中：若此前因空闲停过渲染，恢复定时器
+            // 有采样即视为下载进行中：若因空闲停过渲染，恢复定时器
             if (!rendering)
             {
                 rendering = true;
@@ -221,8 +221,8 @@ public sealed class ProgressBar : IDisposable
                 return;
             }
 
-            // 窗口外或下载结束（进入混流等阶段）后采样停止：擦掉残留的进度条并停掉渲染。
-            // 采样停止的空闲判定是兜底，正常路径由 SetDownloading(false) 即时清行
+            // 窗口外或下载结束（进入混流等阶段）后采样停止：擦掉残留的进度条并停掉渲染
+            // 采样停止的空闲判定只是补充，正常路径由 SetDownloading(false) 即时清行
             if (!downloading || Environment.TickCount64 - lastSampleTick > IdleTimeout.TotalMilliseconds)
             {
                 rendering = false;
@@ -275,7 +275,7 @@ public sealed class ProgressBar : IDisposable
 
         lock (ConsoleHost.WriteGate)
         {
-            // 终检 disposed：本帧与 Dispose 的终态擦行经 WriteGate 串行，后到者胜，
+            // 终检 disposed：本帧与 Dispose 的终态擦行经 WriteGate 串行，后到者胜
             // 已释放实例的帧不允许落在擦行之后
             if (disposed)
             {
@@ -289,7 +289,7 @@ public sealed class ProgressBar : IDisposable
 
     public void Dispose( )
     {
-        // 摘钩在前：Dispose 之后不再有日志触发本实例的擦行回调
+        // 摘钩在前：Dispose 之后没有日志触发本实例的擦行回调
         ProgressBus.Unsubscribe(OnProgress);
         // 比较置空只清自己注册的委托：两实例共存时不误删后注册者的钩子
         if (ReferenceEquals(ConsoleHost.BeforeWrite, clearLineHook))
@@ -316,8 +316,8 @@ public sealed class ProgressBar : IDisposable
         EraseFinal( );
     }
 
-    // 终态擦行：disposed 已置位故不走 Blit；与在途 Render 的 Blit 经 WriteGate 串行，
-    // 在途帧要么先行（被本次擦掉）要么因 Blit 的 disposed 终检跳过
+    // 终态擦行：disposed 已置位故不走 Blit；与在途 Render 的 Blit 经 WriteGate 串行
+    // 在途帧要么先行（被该帧擦掉）要么因 Blit 的 disposed 终检跳过
     private void EraseFinal( )
     {
         if (!drawToConsole)

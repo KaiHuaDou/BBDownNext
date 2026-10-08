@@ -179,7 +179,7 @@ const toggleFmt = (formats: string, value: string, on: boolean): string => {
               class="field"
               type="number"
               min="0"
-              title="每个下载项失败后的额外重试次数，0 表示不重试，缺省 3" />
+              title="每个下载项失败后的额外重试次数，0 表示不重试，未指定时为 3" />
           </div>
           <div class="row">
             <label class="row-label" for="lang">混流音频语言</label>

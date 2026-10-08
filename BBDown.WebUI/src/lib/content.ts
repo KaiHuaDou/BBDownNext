@@ -1,4 +1,4 @@
-/** 内容选项表：与 Core ContentSelector.Order 单一来源对齐（顺序、字符、名称完全一致）。 */
+/** 内容选项表：与 Core ContentSelector.Order 以单一来源为准（顺序、字符、名称完全一致）。 */
 
 export interface ContentItem {
   ch: string

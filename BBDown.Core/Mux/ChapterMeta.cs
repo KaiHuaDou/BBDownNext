@@ -18,7 +18,7 @@ using static BBDown.Core.Util.Utils;
 namespace BBDown.Core.Mux;
 
 /// <summary>
-/// x/player/wbi/v2 的解析结果：章节点，以及充电专属稿件标记。
+/// x/player/wbi/v2 的解析结果：章节点，以及充电专属稿件标记
 /// </summary>
 public readonly record struct PlayerV2Info(List<ViewPoint> Points, bool UpowerExclusive, string UpowerTitle)
 {
@@ -26,8 +26,8 @@ public readonly record struct PlayerV2Info(List<ViewPoint> Points, bool UpowerEx
 }
 
 /// <summary>
-/// 视频章节信息：抓取分 P 章节点，并生成 FFmpeg / MP4Box 混流用的 metadata 文本；
-/// 另含 FFmpeg 杜比视界支持探测。
+/// 视频章节信息：抓取分 P 章节点，并生成 FFmpeg / MP4Box 混流用的 metadata 文本
+/// 另含 FFmpeg 杜比视界支持探测
 /// </summary>
 public static partial class ChapterMeta
 {
@@ -138,7 +138,7 @@ public static partial class ChapterMeta
             process.Start( );
 
             // 先挂异步读再等退出：同步 ReadToEnd 先于 WaitForExit 会让超时守卫形同虚设
-            // （进程挂起时 ReadToEnd 永久阻塞，永远走不到超时分支）。
+            // （进程挂起时 ReadToEnd 永久阻塞，永远走不到超时分支）
             // 读缓冲用 None：进程已退出后读取剩余输出是即时操作，不应被取消打断
             var stdoutTask = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
             var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);

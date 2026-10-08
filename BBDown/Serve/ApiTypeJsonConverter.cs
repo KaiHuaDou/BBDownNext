@@ -8,8 +8,8 @@ using BBDown.Core.Download;
 namespace BBDown.Serve;
 
 /// <summary>
-/// serve 请求体用字符串表达 API 通道（如 "tv"，忽略大小写），与 CLI 输入一致；
-/// 序列化时输出数字，保证 <see cref="DownloadRequest"/> 的枚举字段经 STJ 往返能正常还原。
+/// serve 请求体用字符串表达 API 通道（如 "tv"，忽略大小写），与 CLI 输入一致
+/// 序列化时输出数字，保证 <see cref="DownloadRequest"/> 的枚举字段经 STJ 往返能正常还原
 /// </summary>
 internal sealed class ApiTypeJsonConverter : JsonConverter<ApiType>
 {
@@ -25,8 +25,8 @@ internal sealed class ApiTypeJsonConverter : JsonConverter<ApiType>
 }
 
 /// <summary>
-/// serve 请求体用规范化字符串表达内容集（如 "avmsCi"，非法字符忽略），与 CLI 输入一致；
-/// 序列化时输出数字，保证 <see cref="DownloadRequest"/> 的枚举字段经 STJ 往返能正常还原。
+/// serve 请求体用规范化字符串表达内容集（如 "avmsCi"，非法字符忽略），与 CLI 输入一致
+/// 序列化时输出数字，保证 <see cref="DownloadRequest"/> 的枚举字段经 STJ 往返能正常还原
 /// </summary>
 internal sealed class DownloadContentJsonConverter : JsonConverter<DownloadContent>
 {
@@ -42,8 +42,8 @@ internal sealed class DownloadContentJsonConverter : JsonConverter<DownloadConte
 }
 
 /// <summary>
-/// serve 请求体用字符串表达混流方式（如 "mp4box"，忽略大小写），与 CLI 输入一致；
-/// 序列化时输出数字，保证 <see cref="DownloadRequest"/> 的枚举字段经 STJ 往返能正常还原。
+/// serve 请求体用字符串表达混流方式（如 "mp4box"，忽略大小写），与 CLI 输入一致
+/// 序列化时输出数字，保证 <see cref="DownloadRequest"/> 的枚举字段经 STJ 往返能正常还原
 /// </summary>
 internal sealed class MuxModeJsonConverter : JsonConverter<MuxMode>
 {

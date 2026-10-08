@@ -51,8 +51,8 @@ public static partial class Redactor
         return string.Join("; ", parts);
     }
 
-    // 自由文本（URL / 响应体）里的凭据键值对打码。access_key 是 TV / APP 通道的 query 凭据参数名，
-    // 与 access_token 是两个不同的键，漏掉任何一个都会让令牌随 debug 日志落盘
+    // 自由文本（URL / 响应体）里的凭据键值对打码。access_key 是 TV / APP 通道的 query 凭据参数名
+    // 与 access_token 是两个不同的键，漏掉任何一个都会让令牌随 debug 日志写入
     [GeneratedRegex(@"(SESSDATA|bili_jct|access_key|access_token|refresh_token|csrf)(""?:|"":\s*""?|=)([^&\s""'<>,]+)")]
     private static partial Regex SecretTextRegex( );
 

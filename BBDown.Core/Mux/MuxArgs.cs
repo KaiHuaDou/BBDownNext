@@ -11,8 +11,8 @@ using static BBDown.Core.Util.SubUtil;
 namespace BBDown.Core.Mux;
 
 /// <summary>
-/// 混流参数构造（纯函数）。所有 Build* 都只读 <see cref="MuxRequest"/> 上的字段，
-/// 不触碰文件系统也不启动进程，便于单测；执行侧在 <see cref="Muxer"/>。
+/// 混流参数构造（纯函数）。所有 Build* 都只读 <see cref="MuxRequest"/> 上的字段
+/// 不触碰文件系统也不启动进程，便于单测；执行侧在 <see cref="Muxer"/>
 /// </summary>
 public static class MuxArgs
 {
@@ -76,7 +76,7 @@ public static class MuxArgs
             trackId++;
             args.AddRange(["-add", $"{audio.Path}:lang=und"]);
             var name = string.IsNullOrWhiteSpace(audio.Title) ? audio.PersonName : audio.Title;
-            // -udta 的 value 位于 '=' 之后的末段，冒号不再承载结构，无需转义
+            // -udta 的 value 位于 '=' 之后的末段，冒号无结构含义，无需转义
             if (!string.IsNullOrWhiteSpace(name))
             {
                 args.AddRange(["-udta", $"{trackId}:type=name:str={name}"]);
@@ -212,7 +212,7 @@ public static class MuxArgs
 
             if (req.PubTime != 0)
             {
-                // 该串由 ffmpeg 的 av_parse_time 按 ISO-8601 解析，':' 必须是字面字符，
+                // 该串由 ffmpeg 的 av_parse_time 按 ISO-8601 解析，':' 必须是字面字符
                 // 而插值格式化里的 ':' 在部分区域设置下会被替换成当地时间分隔符
                 var creationTime = DateTimeOffset.FromUnixTimeSeconds(req.PubTime).ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ", CultureInfo.InvariantCulture);
                 args.AddRange(["-metadata", $"creation_time={creationTime}"]);

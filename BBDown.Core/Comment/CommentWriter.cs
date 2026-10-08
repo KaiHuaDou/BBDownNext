@@ -15,9 +15,9 @@ using static BBDown.Core.Logger;
 namespace BBDown.Core.Comment;
 
 /// <summary>
-/// 把抓取好的评论区按格式写盘：{basePath} 经 ChangeExtension 换成 .comments.json / .comments.txt。
-/// 单个格式写盘失败（如追加后缀后路径越限）只跳过该格式，不阻断其余格式。
-/// 不做存在性判断：幂等跳过由调用方在抓取前决定，写盘一律覆盖。
+/// 把抓取好的评论区按格式写盘：{basePath} 经 ChangeExtension 换成 .comments.json / .comments.txt
+/// 单个格式写盘失败（如追加后缀后路径越限）只跳过该格式，不阻断其余格式
+/// 不做存在性判断：是否因文件已存在而跳过由调用方在抓取前决定，写盘一律覆盖
 /// </summary>
 public static class CommentWriter
 {

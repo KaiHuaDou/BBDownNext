@@ -26,7 +26,7 @@ function statusOf(task: DownloadTask): { status: TaskViewStatus; statusText: str
   return { status: 'Failed', statusText: '失败' }
 }
 
-/** 由规范 id 前缀推导资源类型中文（与 Core ResourceId 的规范形态及 TypePrefixes 对齐）。 */
+/** 由规范 id 前缀推导资源类型中文（与 Core ResourceId 的规范形式及 TypePrefixes 相同）。 */
 export function kindOfId(id: string): string {
   const lowered = id.toLowerCase()
   const starts = (p: string): boolean => lowered.startsWith(p)

@@ -10,8 +10,8 @@ using Microsoft.AspNetCore.Http;
 namespace BBDown.Serve.Http;
 
 /// <summary>
-/// 扫码登录端点：POST /api/v1/login/qr 起点（返回二维码 PNG 与轮询键），GET /api/v1/login/qr/{qrcodeKey} 轮询状态。
-/// 登录编排在 Core（Login / CredentialStore），本类仅转发会话数据。
+/// 扫码登录端点：POST /api/v1/login/qr 起点（返回二维码 PNG 与轮询键），GET /api/v1/login/qr/{qrcodeKey} 轮询状态
+/// 登录编排在 Core（Login / CredentialStore），本类仅转发会话数据
 /// </summary>
 internal static class LoginEndpoints
 {

@@ -1,8 +1,8 @@
 namespace BBDown.Serve;
 
 /// <summary>
-/// serve 启动参数聚合（取代 <c>StartServer</c> 的 8 个散参）。
-/// 这些值由服务器启动时固定，请求体无法覆盖，避免客户端把落盘位置 / API host 指向外部。
+/// serve 启动参数聚合（取代 <c>StartServer</c> 的 8 个散参）
+/// 这些值由服务器启动时固定，请求体无法覆盖，避免客户端把写入位置 / API host 指向外部
 /// </summary>
 internal sealed record ServeConfig(
     string? ListenUrl = null,
@@ -13,5 +13,5 @@ internal sealed record ServeConfig(
     string? TvHost = null,
     string? CorsOrigin = null,
     int MaxConcurrent = 0,
-    // 内嵌 WebUI 同源托管开关：启用后 BBDown.Serve 在同一端口托管前端（详见 WebUiEndpoints）
+    // 内嵌 WebUI 与 API 同端口托管开关：启用后 BBDown.Serve 在同一端口托管前端（详见 WebUiEndpoints）
     bool EnableWebUi = false);

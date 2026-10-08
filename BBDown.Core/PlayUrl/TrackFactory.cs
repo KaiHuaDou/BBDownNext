@@ -10,13 +10,13 @@ using static BBDown.Core.Util.Utils;
 namespace BBDown.Core.PlayUrl;
 
 /// <summary>
-/// playurl 响应节点到轨道实体的装配：备用地址收集、PCDN 规避、编码名归一。
-/// DASH / FLV / INTL 三条 JSON 路径共用，APP 的 protobuf 路径复用其中的地址与编码工具。
+/// playurl 响应节点到轨道实体的装配：备用地址收集、PCDN 规避、编码名归一
+/// DASH / FLV / INTL 三条 JSON 路径共用，APP 的 protobuf 路径复用其中的地址与编码工具
 /// </summary>
 internal static partial class TrackFactory
 {
     /// <summary>
-    /// id 为空时取节点自身的 <c>id</c> 字段；intl 接口的清晰度落在兄弟节点 stream_info.quality 上，需显式传入。
+    /// id 为空时取节点自身的 <c>id</c> 字段；intl 接口的清晰度落在兄弟节点 stream_info.quality 上，需显式传入
     /// </summary>
     internal static Video BuildVideo(JsonElement node, int dur, string? id = null)
     {

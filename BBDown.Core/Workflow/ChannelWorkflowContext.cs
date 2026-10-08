@@ -6,8 +6,8 @@ using System.Threading.Channels;
 namespace BBDown.Core.Workflow;
 
 /// <summary>
-/// 工作流事件队列：消息 / 进度阶段边界 / 选项请求经有界队列承载，serve 事件转发读取。
-/// 高频进度样本不占队列（走 ProgressBus 快照），低频事件不丢失。
+/// 工作流事件队列：消息 / 进度阶段边界 / 选项请求经有界队列传递，serve 事件转发读取
+/// 高频进度样本不占队列（走 ProgressBus 快照），低频事件不丢失
 /// </summary>
 public sealed class ChannelWorkflowContext
 {
@@ -20,7 +20,7 @@ public sealed class ChannelWorkflowContext
     });
 
     /// <summary>
-    /// 读取可靠事件序列（消息 / 阶段边界 / 选项请求）；进度状态请读 <see cref="ProgressBus.Latest"/>。
+    /// 读取可靠事件序列（消息 / 阶段边界 / 选项请求）；进度状态请读 <see cref="ProgressBus.Latest"/>
     /// </summary>
     public IAsyncEnumerable<WorkflowEvent> ReadAllAsync(CancellationToken token)
     {
@@ -28,8 +28,8 @@ public sealed class ChannelWorkflowContext
     }
 
     /// <summary>
-    /// 把一条消息送进本任务的事件流。写满即降级丢弃：消息属低频事件，通道写满只发生在消费端停滞时，
-    /// 不阻塞下载链路。
+    /// 把一条消息送进本任务的事件流。写满即降级丢弃：消息属低频事件，通道写满只发生在消费端停滞时
+    /// 不阻塞下载链路
     /// </summary>
     public void EnqueueMessage(string text, DateTimeOffset time)
     {
@@ -40,7 +40,7 @@ public sealed class ChannelWorkflowContext
     }
 
     /// <summary>
-    /// 把任意工作流事件（进度阶段边界 / 选项请求）送进本任务的事件队列；写满降级丢弃，不阻塞下载链路。
+    /// 把任意工作流事件（进度阶段边界 / 选项请求）送进本任务的事件队列；写满降级丢弃，不阻塞下载链路
     /// </summary>
     public void EnqueueEvent(WorkflowEvent evt)
     {

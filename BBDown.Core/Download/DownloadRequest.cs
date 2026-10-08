@@ -3,12 +3,12 @@ using System.Text.Json.Serialization;
 namespace BBDown.Core.Download;
 
 /// <summary>
-/// 下载任务的不可变请求：由 CLI 参数解析或 serve 请求构造，
-/// 贯穿解析与下载全流程（<see cref="BBDown.Core.Pipeline.DownloadPipeline.RunAsync"/> → <see cref="BBDown.Core.Pipeline.WorkSetup.Build"/> / <see cref="BBDown.Core.Pipeline.VideoInfo.FetchAsync"/> / <see cref="BBDown.Core.Pipeline.PageQueue.RunAsync"/>）。
-/// 全部属性为 <c>init</c>：构造后不可变，任何「修正」（冲突消解、serve 覆盖路径/host）都返回新的 <see cref="DownloadRequest"/> 副本（<c>with</c>），
-/// 调用方可以信赖「传入后不会被改」。
-/// 注意：它不是 serve 的请求契约——serve 端使用的是经过裁剪的请求 DTO，
-/// 主机可控字段（路径、外部程序路径、UserAgent、Debug）不会出现在该 DTO 中，从结构上杜绝远程注入。
+/// 下载任务的不可变请求：由 CLI 参数解析或 serve 请求构造
+/// 贯穿解析与下载全流程（<see cref="BBDown.Core.Pipeline.DownloadPipeline.RunAsync"/> → <see cref="BBDown.Core.Pipeline.WorkSetup.Build"/> / <see cref="BBDown.Core.Pipeline.VideoInfo.FetchAsync"/> / <see cref="BBDown.Core.Pipeline.PageQueue.RunAsync"/>）
+/// 全部属性为 <c>init</c>：构造后不可变，任何「修正」（冲突消解、serve 覆盖路径/host）都返回新的 <see cref="DownloadRequest"/> 副本（<c>with</c>）
+/// 调用方可以信赖「传入后不会被改」
+/// 注意：它不是 serve 的请求约定——serve 端使用的是经过裁剪的请求 DTO
+/// 服务端指定字段（路径、外部程序路径、UserAgent、Debug）不会出现在该 DTO 中，从结构上杜绝远程注入
 /// </summary>
 public sealed record DownloadRequest
 {
@@ -22,7 +22,7 @@ public sealed record DownloadRequest
     public string? EncodingPriority { get; init; }
     public string? DfnPriority { get; init; }
     public string? AudioQuality { get; init; }
-    /// <summary>命令行上 --encoding-priority 写在 --dfn-priority 之前时为 true；serve 模式无书写顺序，恒为 false。</summary>
+    /// <summary>命令行上 --encoding-priority 写在 --dfn-priority 之前时为 true；serve 模式无书写顺序，固定为 false。</summary>
     public bool EncodingFirst { get; init; }
     public bool OnlyShowInfo { get; init; }
     public bool ShowAll { get; init; }
@@ -75,8 +75,8 @@ public sealed record DownloadRequest
     public string? ConfigFile { get; init; }
 
     /// <summary>
-    /// 返回遮蔽了 Cookie / AccessToken 的副本，用于调试日志，避免凭据明文泄露。
-    /// 类型为扁平值对象，<c>with</c> 即浅克隆，等价于原 JSON 深拷贝但无序列化开销。
+    /// 返回遮蔽了 Cookie / AccessToken 的副本，用于调试日志，避免凭据明文泄露
+    /// 类型为扁平值对象，<c>with</c> 即浅克隆，等价于原 JSON 深拷贝但无序列化开销
     /// </summary>
     internal DownloadRequest WithSecretsRedacted( )
     {

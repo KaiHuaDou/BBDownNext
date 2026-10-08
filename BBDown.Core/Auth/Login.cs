@@ -32,8 +32,8 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 接口失败时响应里没有 data，直接 GetProperty 只会抛出无消息的 KeyNotFoundException，
-    /// AOT 下 UseSystemResourceKeys 会把它显示成 Arg_KeyNotFound，掩盖真正的错误码。
+    /// 接口失败时响应里没有 data，直接 GetProperty 只会抛出无消息的 KeyNotFoundException
+    /// AOT 下 UseSystemResourceKeys 会把它显示成 Arg_KeyNotFound，掩盖真正的错误码
     /// </summary>
     private static JsonElement ReadData(JsonElement root, string what)
     {
@@ -44,8 +44,8 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 扫码登录的通用编排参数：生成二维码、轮询状态、解释状态。
-    /// Web 与 TV 仅这些环节不同，轮询循环本身完全一致；成功后凭据数据由调用方处置。
+    /// 扫码登录的通用编排参数：生成二维码、轮询状态、解释状态
+    /// Web 与 TV 仅这些环节不同，轮询循环本身完全一致；成功后凭据数据由调用方处置
     /// </summary>
     private record QrLoginPlan(
         Func<CancellationToken, Task<(string Url, string Key)>> Generate,
@@ -109,7 +109,7 @@ public static partial class Login
 
     private static readonly string TempQrPath = Path.Combine(Path.GetTempPath( ), "BBDown_qrcode.png");
 
-    /// <summary>生成二维码 PNG 字节，GUI 显示与 CLI 落盘共用。</summary>
+    /// <summary>生成二维码 PNG 字节，GUI 显示与 CLI 写入共用。</summary>
     public static byte[] GenerateQrPng(string url)
     {
         using QRCodeGenerator qrGenerator = new( );

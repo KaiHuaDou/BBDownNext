@@ -5,7 +5,7 @@ using System.Text;
 namespace BBDown.Core.Comment;
 
 /// <summary>
-/// 把 <see cref="CommentDocument"/> 渲染成便于阅读的纯文本。纯函数，不触碰 IO。
+/// 把 <see cref="CommentDocument"/> 渲染成便于阅读的纯文本。纯函数，不触碰 IO
 /// </summary>
 public static class CommentRenderer
 {

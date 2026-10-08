@@ -10,11 +10,11 @@ namespace BBDown.Core.PlayUrl;
 
 /// <summary>
 /// DASH 响应（JSON）到轨道实体的解析。纯函数：输入已解析好的 <see cref="JsonElement"/>，不发任何网络请求——
-/// 轨道收集基于编排层单次 MaxQn 请求的响应，见 <see cref="Parser.ExtractTracksAsync"/>。
+/// 轨道收集基于编排层单次 MaxQn 请求的响应，见 <see cref="Parser.ExtractTracksAsync"/>
 /// </summary>
 internal static class DashTrackReader
 {
-    // 单份 MaxQn 响应已含全部可用档位：视频轨按 Id 去重收集，音轨（含 dolby/flac）一并收集。
+    // 单份 MaxQn 响应已含全部可用档位：视频轨按 Id 去重收集，音轨（含 dolby/flac）一并收集
     internal static void Collect(ParsedResult result, JsonElement root, bool tvApi)
     {
         var pDur = ReadDuration(root);
@@ -44,7 +44,7 @@ internal static class DashTrackReader
         return 0;
     }
 
-    // support_formats 声明了某档位、dash 里却没有对应轨道 => 账号权限不够（need_vip / need_login）。
+    // support_formats 声明了某档位、dash 里却没有对应轨道 => 账号权限不够（need_vip / need_login）
     // 纯判定，不做任何 IO；打印交给编排层（Parser）
     internal static bool DeclaredButMissing(JsonElement root, ParsedResult result, string qn)
     {
@@ -83,7 +83,7 @@ internal static class DashTrackReader
 
     private static void CollectAudioTracks(ParsedResult result, JsonElement root, int pDur, bool tvApi)
     {
-        // 即使 dash.Audio 为 null（杜比/Hi-Res-only 片源），也要从 root 收集 dolby/flac 音轨：
+        // 即使 dash.Audio 为 null（杜比/Hi-Res-only 片源），也要从 root 收集 dolby/flac 音轨
         // 此处提前 return 会连带丢掉杜比/FLAC
         var audio = ArrayAtPath(root, "dash", "audio") ?? [];
         foreach (var node in audio)
@@ -108,7 +108,7 @@ internal static class DashTrackReader
             return;
         }
 
-        // 处理杜比音频：type 区分普通杜比音效(1)与全景杜比音效(2)，id 恒为 30250
+        // 处理杜比音频：type 区分普通杜比音效(1)与全景杜比音效(2)，id 固定为 30250
         if (dash.TryGetProperty("dolby", out var dolby) && dolby.ValueKind == JsonValueKind.Object
             && dolby.TryGetProperty("audio", out var dolbyAudio) && dolbyAudio.ValueKind == JsonValueKind.Array)
         {

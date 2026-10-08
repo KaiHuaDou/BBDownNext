@@ -5,7 +5,7 @@ using System.Net.Http;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// 请求头构造与 Cookie 可信主机判定的纯函数测试。
+/// 请求头构造与 Cookie 可信主机判定的纯函数测试
 /// </summary>
 public class BiliHeadersTests
 {
@@ -45,7 +45,7 @@ public class BiliHeadersTests
         Assert.Equal(expected, BiliHeaders.IsAndroidPlatformUrl(url));
     }
 
-    // 番剧播放页 Cookie 必须带 CURRENT_FNVAL=12240，网页源码兜底的 __playinfo__ 才吐出智能修复源
+    // 番剧播放页 Cookie 必须带 CURRENT_FNVAL=12240，网页源码解析出的 __playinfo__ 才吐出智能修复源
     [Fact]
     public void ApplyStandardGetHeaders_BangumiPlayPageCarriesFnvalPgc( )
     {
@@ -106,7 +106,7 @@ public class BiliHeadersTests
         Assert.Throws<InvalidOperationException>(( ) => BiliHeaders.ApplyStandardGetHeaders(request, "https://evil.example.com/page", AppConfig.Empty));
     }
 
-    // Accept-Encoding 不在头构造层出现：AppHttpClient 关闭了自动重定向但保留自动解压，
+    // Accept-Encoding 不在头构造层出现：AppHttpClient 关闭了自动重定向但保留自动解压
     // 协商头由 handler 按启用算法自动添加，此处手动指定会抑制 handler 并悄悄关闭 br 协商
     [Fact]
     public void ApplyStandardGetHeaders_DoesNotSetAcceptEncoding( )
@@ -117,7 +117,7 @@ public class BiliHeadersTests
         Assert.Empty(request.Headers.AcceptEncoding);
     }
 
-    // 直播 CDN 部分节点无视协商强推 gzip，identity 显式拒绝压缩；
+    // 直播 CDN 部分节点无视协商强推 gzip，identity 显式拒绝压缩
     // 压缩字节会过不了 LiveSegmentWriter 的 FLV 签名校验，录制直接失败
     [Fact]
     public void AddLiveStreamHeaders_ForcesIdentityEncoding( )

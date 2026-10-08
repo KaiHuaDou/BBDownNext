@@ -36,13 +36,13 @@ public sealed class TaskState : INotifyPropertyChanged
     /// <summary>上一次采样进度（0..1），用于检测分 P 切换导致的进度回退。</summary>
     internal double lastRatio;
 
-    /// <summary>执行器返回码，后台线程在 UI 回投前写入；-1 表示未收尾，关窗落盘时据此排除已完成的任务。</summary>
+    /// <summary>执行器返回码，后台线程在 UI 回投前写入；-1 表示未收尾，关窗写入时据此排除已完成的任务。</summary>
     internal volatile int exitCode = -1;
 
     public required TaskParams Params { get; init; }
     public required string Url { get; init; }
 
-    /// <summary>直播 / 视频形态；b23 短链展开后才暴露直播形态时由执行器补记。空串通知用于重估按整项绑定的转换器。</summary>
+    /// <summary>直播 / 视频形式；b23 短链展开后才暴露直播形式时由执行器补记。空串通知用于重估按整项绑定的转换器。</summary>
     public required TaskKind Kind
     {
         get;
@@ -292,7 +292,7 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
 
     private static TaskKind DetectKind(string url)
     {
-        // 直播单独成类：录制会话以任务序号注册（LiveSignal），停止按钮按序号精准停录；
+        // 直播单独成类：录制会话以任务序号注册（LiveSignal），停止按钮按序号精准停录
         // 其余（视频 / 专栏 / 文集 / 空间图文 / 音频 / 动态）在执行期统一经 InputResolver.TryDispatch 分流
         return LiveInputResolver.TryParse(url, out _) ? TaskKind.Live : TaskKind.Video;
     }

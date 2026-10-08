@@ -15,8 +15,8 @@ using static BBDown.Core.Util.Utils;
 namespace BBDown.Core.Pipeline;
 
 /// <summary>
-/// 把用户输入（URL / av / BV / ep / ss / 合集 / 系列 / 收藏 / 空间等）解析为内部统一的 <see cref="ResourceId"/>。
-/// 形态分发（TryDispatch，见 InputResolver.Dispatch.cs）与 URL / 简写解析拆为两个 partial 文件。
+/// 把用户输入（URL / av / BV / ep / ss / 合集 / 系列 / 收藏 / 空间等）解析为内部统一的 <see cref="ResourceId"/>
+/// 形式分发（TryDispatch，见 InputResolver.Dispatch.cs）与 URL / 简写解析拆为两个 partial 文件
 /// </summary>
 public static partial class InputResolver
 {
@@ -28,9 +28,9 @@ public static partial class InputResolver
         return await FixAvidAsync(id, ct);
     }
 
-    // URL 解析瀑布按形态分组：视频稿件（av / bv / watchlater / cheese）→ 番剧快路径（ep / ss 正则）→
-    // 合集系列与个人空间 → 番剧其余形态（ep_id query / intl / md / 兜底抓取）。
-    // 各组内部判定顺序与拆分前完全一致，组间靠「不匹配返回 null 继续下一组」衔接，语义不变
+    // URL 解析瀑布按形式分组：视频稿件（av / bv / watchlater / cheese）→ 番剧快路径（ep / ss 正则）→
+    // 合集系列与个人空间 → 番剧其余形式（ep_id query / intl / md / 回落抓取）
+    // 各组内部判定顺序固定，组间靠「不匹配返回 null 继续下一组」衔接
     private static async Task<ResourceId> ResolveUrlAsync(string input, Core.AppConfig cfg, CancellationToken ct = default)
     {
         if (input.Contains("b23.tv"))
@@ -45,8 +45,8 @@ public static partial class InputResolver
             input = tmp;
         }
 
-        // 直播 / 专栏 / 集合（文集、空间图文 / 音频 / 动态）为独立链路（不经 ResourceId 的 fetcher 分发），
-        // 在此识别并打标；视频形态返回 false 继续走通用解析
+        // 直播 / 专栏 / 集合（文集、空间图文 / 音频 / 动态）为独立链路（不经 ResourceId 的 fetcher 分发）
+        // 在此识别并打标；视频形式返回 false 继续走通用解析
         if (TryDispatch(input, out var directId))
         {
             return directId;
@@ -58,7 +58,7 @@ public static partial class InputResolver
                ?? await ResolveBangumiUrlAsync(input, cfg, ct);
     }
 
-    // 视频稿件页形态。不匹配返回 null 交下一组
+    // 视频稿件页形式。不匹配返回 null 交下一组
     private static ResourceId? TryResolveVideoPageUrl(string input)
     {
         // 前缀检查防误匹配（sav123 之类含 av+ 数字的串），正则 Success 防 Match 失败后取空组抛 FormatException
@@ -72,8 +72,8 @@ public static partial class InputResolver
             return new Av(BilibiliBvConverter.Decode(bvMatch.Groups[1].Value));
         }
 
-        // 稍后再看页：/watchlater/、/watchlater/#/list、/list/watchlater、/?page=WatchLater 等形态。
-        // 分享链接携带 bvid/oid 参数指向单个视频时只下载该视频（bvid 优先，本地解码），否则按整个列表处理。
+        // 稍后再看页：/watchlater/、/watchlater/#/list、/list/watchlater、/?page=WatchLater 等形式
+        // 分享链接携带 bvid/oid 参数指向单个视频时只下载该视频（bvid 优先，本地解码），否则按整个列表处理
         if (input.Contains("/watchlater") || input.Contains("page=watchlater", StringComparison.OrdinalIgnoreCase))
         {
             var bvid = GetQueryString("bvid", input);
@@ -116,7 +116,7 @@ public static partial class InputResolver
         return null;
     }
 
-    // 合集 / 系列分享链接与个人空间形态。不匹配返回 null 交下一组
+    // 合集 / 系列分享链接与个人空间形式。不匹配返回 null 交下一组
     private static ResourceId? TryResolveCollectionOrSpaceUrl(string input)
     {
         if (input.Contains("/medialist/") && input.Contains("business_id=") && input.Contains("business=space_collection")) // 列表类型是合集
@@ -177,7 +177,7 @@ public static partial class InputResolver
         return null;
     }
 
-    // 番剧其余形态：ep_id query、intl ep、md（均可能触网），最后兜底从页面源码抓首集
+    // 番剧其余形式：ep_id query、intl ep、md（均可能触网），最后回落从页面源码抓首集
     private static async Task<ResourceId> ResolveBangumiUrlAsync(string input, Core.AppConfig cfg, CancellationToken ct)
     {
         if (long.TryParse(GetQueryString("ep_id", input), out var queryEpId))
@@ -205,7 +205,7 @@ public static partial class InputResolver
             return new WatchLater( );
         }
 
-        // BV 号固定以 BV1 开头（BV2 等不以 1 开头的都不算 BV 号）；切片按 IdPrefix.Bv（"BV1"，长度 3）去掉前缀取主体。
+        // BV 号固定以 BV1 开头（BV2 等不以 1 开头的都不算 BV 号）；切片按 IdPrefix.Bv（"BV1"，长度 3）去掉前缀取主体
         // 短输入（如裸 "bv"）直接切片会越界，先校验长度；不足 9 位由 Decode 抛可读的长度错误
         if (input.StartsWith("bv1", StringComparison.OrdinalIgnoreCase) && input.Length > IdPrefix.Bv.Length)
         {
@@ -244,8 +244,8 @@ public static partial class InputResolver
             return new Space(long.Parse(spaceRest));
         }
 
-        // 直播 / 专栏 / 集合简写（live123 / cv123 / opus123 / rl75249 / spaceOpus213741 等）：
-        // 与 URL 形态同一识别器，serve 受理与 CLI 分流语义一致
+        // 直播 / 专栏 / 集合简写（live123 / cv123 / opus123 / rl75249 / spaceOpus213741 等）
+        // 与 URL 形式同一识别器，serve 受理与 CLI 分流处理一致
         if (TryDispatch(input, out var directId))
         {
             return directId;
@@ -260,9 +260,9 @@ public static partial class InputResolver
         throw new ArgumentException("输入有误", nameof(input));
     }
 
-    // 课程（cheese）解析：纯字符串，不触网。
-    // ep 形式直接取 ep_id；ss 形式保留 season_id，交由 CheeseInfoFetcher 按 season_id 直接拉取整季，
-    // 避免先请求接口取首集 ep_id 再请求拉整季的冗余往返。
+    // 课程（cheese）解析：纯字符串，不触网
+    // ep 形式直接取 ep_id；ss 形式保留 season_id，交由 CheeseInfoFetcher 按 season_id 直接拉取整季
+    // 避免先请求接口取首集 ep_id 再请求拉整季的冗余往返
     private static ResourceId ResolveCheese(string input)
     {
         if (input.Contains("/ep"))
@@ -300,7 +300,7 @@ public static partial class InputResolver
         return long.Parse(m.Groups[1].Value);
     }
 
-    // 新版个人空间合集/系列链接：
+    // 新版个人空间合集/系列链接
     //   合集：https://space.bilibili.com/392959666/lists/1560264?type=season
     //   系列：https://space.bilibili.com/392959666/lists/1560264?type=series
     private static ResourceId ResolveSpaceList(string input)
@@ -335,7 +335,7 @@ public static partial class InputResolver
     private static async Task<long> ScrapeFirstEpIdAsync(string input, Core.AppConfig cfg, CancellationToken ct = default)
     {
         var web = await GetWebSourceAsync(input, cfg, ct: ct);
-        // 兜底路径：匹配不到 __INITIAL_STATE__ 或页面不含 epList 时给可读错误，而不是 JsonDocument/GetProperty 抛晦涩异常
+        // 解析失败时：匹配不到 __INITIAL_STATE__ 或页面不含 epList 时给可读错误，而不是 JsonDocument/GetProperty 抛晦涩异常
         if (InitialStateRegex( ).Match(web) is not { Success: true } stateMatch)
         {
             throw new InvalidOperationException("无法从页面源码解析出番剧播放信息（epList 缺失），请使用 ep/ss 链接直接下载");
@@ -370,7 +370,7 @@ public static partial class InputResolver
         return epMatch.Success && location.Contains("/ep") ? new Ep(long.Parse(epMatch.Groups[1].Value)) : id;
     }
 
-    // ss（番剧季号）直接解析为 season_id，与 md 路径完全对称：同样交由 BangumiInfoFetcher 按 season_id 拉取整季正片。
+    // ss（番剧季号）直接解析为 season_id，与 md 路径完全对称：同样交由 BangumiInfoFetcher 按 season_id 拉取整季正片
     private static async Task<long> GetSeasonIdBySSAsync(string ssId, Core.AppConfig cfg, CancellationToken ct = default)
     {
         var api = $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?season_id={ssId}";
@@ -380,14 +380,14 @@ public static partial class InputResolver
         // 字段缺失时给可读错误：接口变更 / 风控返回非预期结构，裸 GetProperty 只会抛晦涩 KeyNotFoundException
         if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty("season_id", out var seasonId) || seasonId.ValueKind != JsonValueKind.Number)
         {
-            throw new InvalidOperationException($"番剧接口返回缺少 season_id 字段（ss={ssId}），接口形态可能已变更或被风控拦截");
+            throw new InvalidOperationException($"番剧接口返回缺少 season_id 字段（ss={ssId}），接口返回结构可能已变更或被风控拦截");
         }
 
         return seasonId.GetInt64( );
     }
 
-    // md（番剧详情页 id）本质是 media_id，需经 pgc/review/user 映射出 season_id，
-    // 交由 BangumiInfoFetcher 按 season_id 拉取整季正片，用户可用 -p 选定具体集。
+    // md（番剧详情页 id）本质是 media_id，需经 pgc/review/user 映射出 season_id
+    // 交由 BangumiInfoFetcher 按 season_id 拉取整季正片，用户可用 -p 选定具体集
     private static async Task<long> GetSeasonIdByMDAsync(string mdId, Core.AppConfig cfg, CancellationToken ct = default)
     {
         var api = $"{BiliApi.ReviewUser}?media_id={mdId}";
@@ -396,12 +396,12 @@ public static partial class InputResolver
         var result = JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result");
         if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty("media", out var media) || media.ValueKind != JsonValueKind.Object)
         {
-            throw new InvalidOperationException($"番剧接口返回缺少 media 字段（md={mdId}），接口形态可能已变更或被风控拦截");
+            throw new InvalidOperationException($"番剧接口返回缺少 media 字段（md={mdId}），接口返回结构可能已变更或被风控拦截");
         }
 
         if (!media.TryGetProperty("season_id", out var seasonId) || seasonId.ValueKind != JsonValueKind.Number)
         {
-            throw new InvalidOperationException($"番剧接口返回缺少 season_id 字段（md={mdId}），接口形态可能已变更或被风控拦截");
+            throw new InvalidOperationException($"番剧接口返回缺少 season_id 字段（md={mdId}），接口返回结构可能已变更或被风控拦截");
         }
 
         return seasonId.GetInt64( );

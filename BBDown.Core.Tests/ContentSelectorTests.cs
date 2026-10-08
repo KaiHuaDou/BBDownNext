@@ -286,7 +286,7 @@ public class ContentSelectorTests
     [Fact]
     public void DescribeInactive_Audio_OnlyAudioActive( )
     {
-        // 音频下载恒产出音频文件：其余标志（含视频轨 v）在音频模式下均提示不生效。
+        // 音频下载恒产出音频文件：其余标志（含视频轨 v）在音频模式下均提示不生效
         // 用带字符标记的形式断言（模式名「音频下载」本身含「音频」，裸关键词会误判）
         var list = ContentSelector.DescribeInactive(
             DownloadContent.Audio | DownloadContent.Video | DownloadContent.Danmaku, ContentMode.Audio);

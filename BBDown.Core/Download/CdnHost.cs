@@ -14,11 +14,11 @@ public static partial class CdnHost
     private const string BACKUP_HOST = "upos-sz-mirrorcoso1.bilivideo.com";
 
     /// <summary>
-    /// 按优先级处理下载域名替换：
-    /// 1. --upos-host 显式指定，无条件替换并结束；
-    /// 2. PCDN 域名规避，除非 --allow-pcdn；
-    /// 3. 海外 akamaized 源规避（仅在指定 --area 时）；
-    /// 4. 默认强制替换为备用 host，除非 --no-force-host。
+    /// 按优先级处理下载域名替换
+    /// 1. --upos-host 显式指定，无条件替换并结束
+    /// 2. PCDN 域名规避，除非 --allow-pcdn
+    /// 3. 海外 akamaized 源规避（仅在指定 --area 时）
+    /// 4. 默认强制替换为备用 host，除非 --no-force-host
     /// </summary>
     internal static void Apply(DownloadRequest myOption, Video? selectedVideo, Audio? selectedAudio, AppConfig cfg)
     {
@@ -37,7 +37,7 @@ public static partial class CdnHost
     }
 
     /// <summary>
-    /// 按优先级替换下载域名。<paramref name="label"/> 为 null 时静默处理（批量分段只提示一次）。
+    /// 按优先级替换下载域名。<paramref name="label"/> 为 null 时静默处理（批量分段只提示一次）
     /// </summary>
     private static string ApplyCdnHostPolicy(string url, DownloadRequest myOption, AppConfig cfg, string? label)
     {
@@ -59,8 +59,8 @@ public static partial class CdnHost
             url = Replace(AkamRegex( ), BACKUP_HOST, "检测到海外源，替换");
         }
 
-        // 4. 默认强制替换为备用 host，除非 --no-force-host。
-        //    但若 --allow-pcdn 且当前 URL 仍是 PCDN 域名（带显式端口），则不强行覆盖，
+        // 4. 默认强制替换为备用 host，除非 --no-force-host
+        //    但若 --allow-pcdn 且当前 URL 仍是 PCDN 域名（带显式端口），则不强行覆盖
         //    否则 --allow-pcdn 必须与 --no-force-host 同时存在才生效，等于死选项
         if (!myOption.NoForceHost && !(myOption.AllowPcdn && PcdnRegex( ).IsMatch(url)))
         {

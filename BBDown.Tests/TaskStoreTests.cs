@@ -7,7 +7,7 @@ using BBDown.Serve.Tasks;
 namespace BBDown.Tests;
 
 /// <summary>
-/// 任务域状态容器测试：服务端配置注入（work-dir / host）、任务创建与状态迁移。
+/// 任务域状态容器测试：服务端配置注入（work-dir / host）、任务创建与状态迁移
 /// </summary>
 public class TaskStoreTests
 {
@@ -19,7 +19,7 @@ public class TaskStoreTests
     [Fact]
     public void ApplyServeWorkDir_FallsBackToServerConfig( )
     {
-        // 验证服务端配置的工作目录会被注入到每个任务（且请求体不含该字段，无法被客户端覆盖）。
+        // 验证服务端配置的工作目录会被注入到每个任务（且请求体不含该字段，无法被客户端覆盖）
         var tmp = Path.Combine(Path.GetTempPath( ), "bbdown-workdir-" + Guid.NewGuid( ).ToString("N"));
         var store = NewStore(new ServeConfig(WorkDir: tmp));
 
@@ -31,7 +31,7 @@ public class TaskStoreTests
     [Fact]
     public void ApplyServeHost_FallsBackToServerConfig( )
     {
-        // host 由 serve 启动参数决定，请求体不含该字段，无法被客户端覆盖。
+        // host 由 serve 启动参数决定，请求体不含该字段，无法被客户端覆盖
         var store = NewStore(new ServeConfig(Host: "https://biliplus.example.com", EpHost: "https://biliplus.example.com", TvHost: "api.snm0516.aisee.tv"));
 
         var opts = store.ApplyServeHost(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
@@ -57,7 +57,7 @@ public class TaskStoreTests
     [Fact]
     public void CreateTask_AlwaysQueued( )
     {
-        // 受理即 Queued（202 语义），执行权由 TaskWorker 闸门授予后转 Running
+        // 受理即 Queued（202 状态），执行权由 TaskWorker 闸门授予后转 Running
         _ = NewStore(new ServeConfig( ));
 
         var task = TaskStore.CreateTask(new ResourceId.Av(114514), "BV1xx411c7XD");

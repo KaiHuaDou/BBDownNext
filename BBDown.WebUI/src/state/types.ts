@@ -22,11 +22,11 @@ export interface PendingAsk {
 
 /**
  * 事件流（WebSocket）状态：connecting 连接中 / active 已连接并推送 / reconnecting 断开重连中。
- * serve 事件流始终启用（已移除 --no-interactive），不再有 disabled 降级态。
+ * serve 事件流始终启用（已移除 --no-interactive），无 disabled 降级态。
  */
 export type EventStreamState = 'connecting' | 'active' | 'reconnecting'
 
-/** useTasks 返回契约：状态引用 + 任务操作。 */
+/** useTasks 返回内容：状态引用 + 任务操作。 */
 export interface TasksState {
   config: Ref<ServeConfig>
   connected: Ref<boolean>

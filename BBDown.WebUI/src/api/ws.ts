@@ -158,7 +158,7 @@ function open(state: SocketState): void {
 }
 
 function toWsUrl(config: ServeConfig): string {
-  // 始终按 baseUrl（留空归一为本机 serve 默认地址）直连，不依赖 dev server 代理；
+  // 始终按 baseUrl（留空归一为本机 serve 默认地址）直连，不依赖 dev server 代理
   // 鉴权令牌经 query 传（浏览器无法自定义握手头），仅建议回环或 TLS 场景使用
   const url = new URL(resolveBaseUrl(config.baseUrl))
   const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'

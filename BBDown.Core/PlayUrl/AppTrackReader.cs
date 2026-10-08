@@ -116,7 +116,7 @@ internal static class AppTrackReader
             .SelectMany(role => role.AudioMaterialList ?? [])
             .Select(role => new AudioMaterialInfo( )
             {
-                // proto2 未设置的 optional string 读出的是 "" 而非 null, 不能用 ?? 兜底
+                // proto2 未设置的 optional string 读出的是 "" 而非 null，不能用 ??
                 Title = role.Title.Length != 0 ? role.Title : role.AudioId,
                 PersonName = role.PersonName.Length != 0 ? role.PersonName : role.Edition,
                 Path = $"{aid}/{aid}.{cid}.{role.AudioId}.m4a",

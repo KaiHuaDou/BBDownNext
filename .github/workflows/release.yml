@@ -1,7 +1,7 @@
 name: Release (reuse CI artifacts)
 
-# 发版不再重建：直接复用最近一次绿色 ci.yml / gui.yml 运行上传的产物，
-# 仅做下载 + 抽取 CHANGELOG 说明 + 建 Release。约 1–2 分钟，而非全量重跑。
+# 发版复用最近一次绿色 ci.yml / gui.yml 运行上传的产物，
+# 仅做下载 + 抽取 CHANGELOG 说明 + 建 Release。约 1–2 分钟，不做全量重跑。
 on:
   push:
     tags: ["v*"]

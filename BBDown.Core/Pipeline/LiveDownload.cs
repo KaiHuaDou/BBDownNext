@@ -15,8 +15,8 @@ using static BBDown.Core.Logger;
 namespace BBDown.Core.Pipeline;
 
 /// <summary>
-/// 直播录制编排。与音视频下载链路完全独立：直播没有分 P、没有可枚举的清晰度轨道、没有确定的总大小，
-/// 走 WorkContext 那套只会处处不适配。分流点在 <see cref="Program.RunApp"/>。
+/// 直播录制编排。与音视频下载链路完全独立：直播没有分 P、没有可枚举的清晰度轨道、没有确定的总大小
+/// 走 WorkContext 那套只会处处不适配。分流点在 <see cref="Program.RunApp"/>
 /// </summary>
 public static class LiveDownload
 {
@@ -33,7 +33,7 @@ public static class LiveDownload
         Log($"直播间：{room.RoomId}{(string.IsNullOrEmpty(room.ShortId) || room.ShortId == "0" ? "" : $"（短号 {room.ShortId}）")}");
         Log($"主播：{room.Uname}");
         Log($"标题：{room.Title}");
-        // serve 等宿主的任务契约回填（标题 / 保存路径），CLI 传 default 无回调
+        // serve 等宿主的任务约定回填（标题 / 保存路径），CLI 传 default 无回调
         sink.Meta?.Invoke(new VInfo
         {
             Title = room.Title,
@@ -75,7 +75,7 @@ public static class LiveDownload
         using var signalScope = LiveSignal.Register(sessionId, stopCts);
         using var recordCts = CancellationTokenSource.CreateLinkedTokenSource(ct, stopCts.Token);
 
-        // 直播无总量：Ratio 恒 0，detail 承载时长 / 分段 / 清晰度，体积与速度由样本字段携带
+        // 直播无总量：Ratio 恒 0，detail 记录时长 / 分段 / 清晰度，体积与速度取自样本字段
         var qualityText = $"{LiveQuality.Describe(probe.ActualQn)}({codec})";
         var totalBytes = 0L;
         var segmentIndex = 0;
@@ -96,7 +96,7 @@ public static class LiveDownload
         }
 
         Log($"录制结束（{Describe(result.Reason)}），共 {result.Segments.Count} 个分段，正在合并...");
-        // 合并只受 SIGINT 影响：SIGQUIT 的语义就是「停录并合并」，把 stopCts 传进来会让 ffmpeg 立刻被杀
+        // 合并只受 SIGINT 影响：SIGQUIT 的约定就是「停录并合并」，把 stopCts 传进来会让 ffmpeg 立刻被杀
         if (!await LiveMuxer.MergeSegmentsAsync(result.Segments, outPath, result.CodecName, tools, ct))
         {
             throw new InvalidOperationException("合并失败，分段文件已保留");

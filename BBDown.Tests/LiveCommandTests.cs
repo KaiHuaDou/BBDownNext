@@ -53,7 +53,7 @@ public class LiveCommandTests
         Assert.NotEmpty(root.Parse([LiveUrl, "--live-quality", "原画"]).Errors);
     }
 
-    // 根命令直接吃直播地址：解析出的 Url 必须能被旁路识别，否则会掉进普通视频流程
+    // 根命令直接吃直播地址：解析出的 Url 必须能被独立分支识别，否则会掉进普通视频流程
     [Fact]
     public async Task RootCommand_LiveUrl_IsRecognizedByResolver( )
     {
@@ -71,7 +71,7 @@ public class LiveCommandTests
         Assert.Equal("22632424", target.RoomId);
     }
 
-    // 普通视频地址不能被直播旁路截胡
+    // 普通视频地址不能被直播识别分支截胡
     [Fact]
     public async Task RootCommand_VideoUrl_IsNotRecognizedAsLive( )
     {

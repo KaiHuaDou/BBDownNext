@@ -13,7 +13,7 @@ namespace BBDown.Core.Util;
 
 /// <summary>
 /// 客户端实例与请求入口。头构造在 <see cref="BiliHeaders"/>，响应体读取与重定向跟随着
-/// <see cref="HttpTransfer"/>，本类只负责把三者接起来。
+/// <see cref="HttpTransfer"/>，本类只负责把三者接起来
 /// </summary>
 public static class HTTPUtil
 {
@@ -22,7 +22,7 @@ public static class HTTPUtil
     // 可替换：测试经 InternalsVisibleTo 注入带 stub handler 的实例，解锁 8 个 Fetcher 的离线单测
     public static HttpClient AppHttpClient { get; internal set; } = new(new HttpClientHandler
     {
-        // 关闭自动重定向：带凭据的请求由 HttpTransfer.SendTrustGatedAsync 手动逐跳跟随并逐跳过凭据门，
+        // 关闭自动重定向：带凭据的请求由 HttpTransfer.SendTrustGatedAsync 手动逐跳跟随并逐跳过凭据门
         // 自动跟随会把 Cookie 头原样带到重定向目标，使门禁只覆盖首跳
         AllowAutoRedirect = false,
         AutomaticDecompression = DecompressionMethods.All,
@@ -36,13 +36,13 @@ public static class HTTPUtil
     };
 
     /// <summary>
-    /// 长连接专用客户端。<see cref="HttpClient.Timeout"/> 覆盖「响应体读取全程」而不只是首字节，
-    /// 用 <see cref="AppHttpClient"/>（2 分钟）拉直播流会每 2 分钟被硬掐一次，故必须无限超时；
-    /// 断流靠调用方的静默检测判定，不靠超时。关掉自动解压避免把视频流当压缩内容处理。
+    /// 长连接专用客户端。<see cref="HttpClient.Timeout"/> 覆盖「响应体读取全程」而不只是首字节
+    /// 用 <see cref="AppHttpClient"/>（2 分钟）拉直播流会每 2 分钟被硬掐一次，故必须无限超时
+    /// 断流靠调用方的静默检测判定，不靠超时。关掉自动解压避免把视频流当压缩内容处理
     /// </summary>
     /// <remarks>
-    /// 唯一消费方 <see cref="Live.LiveSegmentWriter"/> 同时做网络与文件 IO，不在离线测试范围内，
-    /// 故不可替换：留一个无人使用的替换口会让人误以为这里有覆盖。
+    /// 唯一消费方 <see cref="Live.LiveSegmentWriter"/> 同时做网络与文件 IO，不在离线测试范围内
+    /// 故不可替换：留一个无人使用的替换口会让人误以为这里有覆盖
     /// </remarks>
     public static readonly HttpClient StreamHttpClient = new(new HttpClientHandler
     {
@@ -65,7 +65,7 @@ public static class HTTPUtil
         }
     }
 
-    // 全部出站 client 共用的 TLS 宽松判定：默认仅接受无错误的证书；
+    // 全部出站 client 共用的 TLS 宽松判定：默认仅接受无错误的证书
     // BBDOWN_INSECURE_TLS=1 时放行自签 / 中间人（抓包调试用），单一判定避免多处各写一份后行为分叉
     internal static bool IsTlsAcceptable(System.Net.Security.SslPolicyErrors sslPolicyErrors)
     {
@@ -92,14 +92,14 @@ public static class HTTPUtil
         return htmlCode;
     }
 
-    // 超长响应（playurl / 弹幕等）只打头部：全量数据已有 debug_*.json 落盘兜底，日志刷整段只会淹没有用信息
+    // 超长响应（playurl / 弹幕等）只打头部：全量数据已由 debug_*.json 写盘，日志刷整段只会淹没有用信息
     internal static string TruncateForLog(string text)
     {
         return text.Length <= 8192 ? text : $"{text[..8192]}…（已截断，共 {text.Length} 字符）";
     }
 
     /// <summary>
-    /// 登录专用：发 GET 并返回未释放的响应，便于调用方读取 <c>Set-Cookie</c> 响应头。调用方负责 Dispose。
+    /// 登录专用：发 GET 并返回未释放的响应，便于调用方读取 <c>Set-Cookie</c> 响应头。调用方负责 Dispose
     /// </summary>
     public static async Task<HttpResponseMessage> GetRawResponseAsync(string url, AppConfig cfg, CancellationToken ct = default)
     {
@@ -118,7 +118,7 @@ public static class HTTPUtil
     }
 
     /// <summary>
-    /// 登录专用：发 POST 表单并返回未释放的响应，便于读取 <c>Set-Cookie</c> 与响应体（cookie 主动续期用）。调用方负责 Dispose。
+    /// 登录专用：发 POST 表单并返回未释放的响应，便于读取 <c>Set-Cookie</c> 与响应体（cookie 主动续期用）。调用方负责 Dispose
     /// </summary>
     public static async Task<HttpResponseMessage> PostFormRawAsync(string url, Dictionary<string, string> form, AppConfig cfg, CancellationToken ct = default)
     {
@@ -139,7 +139,7 @@ public static class HTTPUtil
     /// <summary>
     /// 登录专用：GET 指定地址（通常是 poll 成功返回的 crossDomain 端点），通过独立 <see cref="CookieContainer"/>
     /// 接收其 <c>Set-Cookie</c> 并返回容器。这是 B 站下发登录 cookie 的正规通道——cookie 只能靠「导航到该 URL」
-    /// 的响应获得。重定向由 <see cref="HttpTransfer"/> 逐跳手动跟随，各跳的 Set-Cookie 都进容器。
+    /// 的响应获得。重定向由 <see cref="HttpTransfer"/> 逐跳手动跟随，各跳的 Set-Cookie 都进容器
     /// </summary>
     public static async Task<CookieContainer> GetCookieJarAsync(string url, AppConfig cfg, CancellationToken ct = default)
     {
@@ -166,9 +166,9 @@ public static class HTTPUtil
         return jar;
     }
 
-    // 重定向地址探测：请求不带任何凭据，手动跟随（AppHttpClient 已关闭自动跟随），
-    // 短链（b23.tv 等）目标不受信任主机列表限制——无凭据请求无门禁意义。
-    // 用 GET + 响应头即返回而非 HEAD：个别短链目标对 HEAD 回 405，Location 探测会整体失败；
+    // 重定向地址探测：请求不带任何凭据，手动跟随（AppHttpClient 已关闭自动跟随）
+    // 短链（b23.tv 等）目标不受信任主机列表限制——无凭据请求无门禁意义
+    // 用 GET + 响应头即返回而非 HEAD：个别短链目标对 HEAD 回 405，Location 探测会整体失败
     // 读到 Location 即释放响应，正文不会下载
     public static async Task<string> GetWebLocationAsync(string url, CancellationToken ct = default)
     {
@@ -207,8 +207,8 @@ public static class HTTPUtil
     public static async Task<byte[]> GetPostResponseAsync(string Url, byte[] postData, Dictionary<string, string>? headers = null, CancellationToken ct = default)
     {
         LogDebug("Post to: {0}, data: {1}", Redactor.Text(Url), Convert.ToBase64String(postData));
-        // 仅对已知幂等的 gRPC 只读查询做有界重试：PlayView / 弹幕视图均不修改服务端状态；
-        // Widevine 走独立 client 不经此方法。非幂等写操作切勿复用此方法
+        // 仅对已知无副作用的 gRPC 只读查询做有界重试：PlayView / 弹幕视图均不修改服务端状态
+        // Widevine 走独立 client 不经此方法。写操作切勿复用此方法
         const int maxAttempts = 3;
         var delay = TimeSpan.FromMilliseconds(500);
         for (var attempt = 1; ; attempt++)

@@ -31,7 +31,7 @@ public static class FlvDownload
             var clips = parsedResult.Clips;
             parsedResult.VideoTracks = TrackSelect.SortTracks(parsedResult.VideoTracks, ctx.Run.DfnPriority, ctx.Run.EncodingPriority, myOption.VideoAscending, ctx.Run.EncodingFirst);
 
-            // 交互选清晰度：首次由用户选并记录 dfn 序号；下载失败重试时凭回传序号恢复（selection.VIndex），
+            // 交互选清晰度：首次由用户选并记录 dfn 序号；下载失败重试时凭回传序号恢复（selection.VIndex）
             // 两者都走「按 dfn 重解析」，保证重试不把用户所选档位静默换成默认档
             if (await ResolveInteractiveDfnAsync(reParsed, parsedResult, session, selection, ct) is { } resolution)
             {
@@ -72,7 +72,7 @@ public static class FlvDownload
                 return coverAbort;
             }
 
-            // 纯弹幕 / 纯封面等无音视频内容：附属产物已在上方落盘，直接中止
+            // 纯弹幕 / 纯封面等无音视频内容：附属产物已在上方写入，直接中止
             if (myOption.Content.IsAssetOnly( ))
             {
                 return PageOutcome.Abort(selection);
@@ -80,7 +80,7 @@ public static class FlvDownload
 
             if (IsCodecUnsupported(selectedVideo))
             {
-                LogError($"分段 (FLV) 源无法承载 {selectedVideo!.Codecs} 编码，请改用 -e avc 重新下载");
+                LogError($"分段 (FLV) 源不含 {selectedVideo!.Codecs} 编码，请改用 -e avc 重新下载");
                 return PageOutcome.Abort(selection);
             }
 
@@ -132,8 +132,8 @@ public static class FlvDownload
         return video is { Codecs: "HEVC" or "AV1" };
     }
 
-    // 交互选清晰度：首次由用户选并记录 dfn 序号；下载失败重试时凭回传序号恢复（selection.VIndex），
-    // 两者都走「按 dfn 重解析」，保证重试不把用户所选档位静默换成默认档。
+    // 交互选清晰度：首次由用户选并记录 dfn 序号；下载失败重试时凭回传序号恢复（selection.VIndex）
+    // 两者都走「按 dfn 重解析」，保证重试不把用户所选档位静默换成默认档
     // 返回 null 表示无需 / 无法重解析（未启用交互、已重解析过或清晰度列表缺失），调用方继续用现有轨道
     private static async Task<(ParsedResult Result, TrackSelection Selection)?> ResolveInteractiveDfnAsync(
         bool alreadyResolved, ParsedResult parsedResult, DownloadSession session, TrackSelection selection, CancellationToken ct)
@@ -184,8 +184,8 @@ public static class FlvDownload
         var p = pageCtx.Page;
         var pad = string.Empty.PadRight(clips.Count.ToString( ).Length, '0');
         var clipPaths = new string[clips.Count];
-        // 片段间并行与片段内连接合计不超过 DownloaderAdapter.MaxRangeConcurrency：
-        // 并行度下调由 with 副本承载，不改写会话级共享实例（该实例在片段下载之后仍被引用）
+        // 片段间并行与片段内连接合计不超过 DownloaderAdapter.MaxRangeConcurrency
+        // 并行度下调由 with 副本保存，不改写会话级共享实例（该实例在片段下载之后仍被引用）
         var clipConfig = downloadConfig with { ParallelCount = DownloaderAdapter.MaxRangeConcurrency / MaxClipParallelism };
         var options = new ParallelOptions { MaxDegreeOfParallelism = MaxClipParallelism, CancellationToken = ct };
         await Parallel.ForEachAsync(Enumerable.Range(0, clips.Count), options, async (i, token) =>

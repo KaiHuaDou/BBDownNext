@@ -3,9 +3,9 @@ using System;
 namespace BBDown.Core.Opus;
 
 /// <summary>
-/// 图片 URL 归一化：BBDown.Core（渲染器）与 BBDown（下载器）都用它生成同一把字典键，
-/// 保证「下载后的本地相对路径」能正确回填进 Markdown。
-/// 规则：协议相对 // 补全 https；http 升 https；剥掉文件名段里的 @ 格式化后缀以拿到原图（加 @ 会得到重编码图）。
+/// 图片 URL 归一化：BBDown.Core（渲染器）与 BBDown（下载器）都用它生成同一把字典键
+/// 保证「下载后的本地相对路径」能正确回填进 Markdown
+/// 规则：协议相对 // 补全 https；http 升 https；剥掉文件名段里的 @ 格式化后缀以拿到原图（加 @ 会得到重编码图）
 /// </summary>
 public static class OpusImageUtil
 {

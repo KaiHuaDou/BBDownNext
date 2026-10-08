@@ -21,7 +21,7 @@ public partial class MainWindow
     private async Task HandleAskAsync(OptionRequestEvent request)
     {
         var fallback = new AskAnswer(request.DefaultOptionId ?? request.Options[0].Id);
-        // 已关窗或已过 Deadline：AskBus 侧不再接受应答，直接回落默认选项（与 CLI 回车回落语义一致）
+        // 已关窗或已过 Deadline：AskBus 侧不接受应答，直接回落默认选项（与 CLI 回车回落规则一致）
         if (closed || request.Deadline <= DateTimeOffset.Now)
         {
             AskBus.Answer(request.RequestId, fallback);

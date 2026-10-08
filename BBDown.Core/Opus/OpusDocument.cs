@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace BBDown.Core.Opus;
 
 /// <summary>
-/// 专栏/图文动态的段落类型。命名与 B 站 opus 接口的 <c>para_type</c> 对齐，但渲染时按结构探测填充，不依赖枚举值。
+/// 专栏/图文动态的段落类型。命名与 B 站 opus 接口的 <c>para_type</c> 一致，但渲染时按结构探测填充，不依赖枚举值
 /// </summary>
 public enum OpusParagraphKind
 {
@@ -27,7 +27,7 @@ public enum OpusListStyle
 }
 
 /// <summary>
-/// 行内文本节点（兼容 opus/detail 的 <c>type:"TEXT_NODE_TYPE_WORD"</c> 与 article/view 的 <c>node_type:1</c> 两种 schema）。
+/// 行内文本节点（兼容 opus/detail 的 <c>type:"TEXT_NODE_TYPE_WORD"</c> 与 article/view 的 <c>node_type:1</c> 两种 schema）
 /// </summary>
 public sealed class OpusTextNode
 {
@@ -72,7 +72,7 @@ public sealed class OpusParagraph
 }
 
 /// <summary>
-/// 专栏（cv）或图文动态（opus）的领域模型，与具体接口解耦。所有字符串字段默认空串，调用方无需判空。
+/// 专栏（cv）或图文动态（opus）的领域模型，与具体接口解耦。所有字符串字段默认空串，调用方无需判空
 /// </summary>
 public sealed class OpusDocument
 {

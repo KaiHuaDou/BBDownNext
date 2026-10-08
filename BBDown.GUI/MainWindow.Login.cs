@@ -69,7 +69,7 @@ public partial class MainWindow
         await RefreshLoginStatusAsync( );
     }
 
-    /// <summary>启动即续期 WEB Cookie（best-effort），凭据落盘变化才提示；完成后探测登录态，展示续期后的结果。</summary>
+    /// <summary>启动即续期 WEB Cookie（best-effort），凭据写入变化才提示；完成后探测登录态，展示续期后的结果。</summary>
     private async Task RenewWebCookieOnStartupAsync( )
     {
         try
@@ -90,8 +90,8 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// 探测三通道登录态并分别展示。三通道各自独立呈现，未登录的通道不再被已登录的通道遮蔽；
-    /// 已保存但服务端未认可（失效）与探测失败分列两态。
+    /// 探测三通道登录态并分别展示。三通道各自独立呈现，未登录的通道各自独立显示
+    /// 已保存但服务端未认可（失效）与探测失败分列两态
     /// </summary>
     private async Task RefreshLoginStatusAsync( )
     {

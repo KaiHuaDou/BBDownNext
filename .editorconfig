@@ -27,7 +27,7 @@ tab_width = 4
 # 规则抑制
 
 dotnet_diagnostic.CA1002.severity = none # 核心实体（Entity/ParsedResult/VInfo）需跨项目可变集合，保留 List<T>
-dotnet_diagnostic.CA1031.severity = none # 捕获全部异常兜底
+dotnet_diagnostic.CA1031.severity = none # 统一捕获全部异常
 dotnet_diagnostic.CA1034.severity = none # 用于 Record 代数类型
 dotnet_diagnostic.CA1054.severity = none # 不必强制使用 System.Uri
 dotnet_diagnostic.CA1056.severity = none # 不必强制使用 System.Uri

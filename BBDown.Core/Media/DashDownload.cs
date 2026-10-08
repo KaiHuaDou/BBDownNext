@@ -87,7 +87,7 @@ public static class DashDownload
             return danmakuAbort;
         }
 
-        // 独立封面（c）非必要项，独立重试，耗尽仅跳过（不影响音视频）；纯封面任务落盘后即中止
+        // 独立封面（c）非必要项，独立重试，耗尽仅跳过（不影响音视频）；纯封面任务写入后即中止
         if (await PageAssets.TryDownloadCoverAsync(session, savePath, selection, ct) is { } coverAbort)
         {
             return coverAbort;
@@ -221,7 +221,7 @@ public static class DashDownload
         }
 
         Log($"P{p.Index} 下载完成");
-        // 外部后处理（可选）：配置了 --post-process 时对每条轨调用已配置的处理进程，
+        // 外部后处理（可选）：配置了 --post-process 时对每条轨调用已配置的处理进程
         // 加密与否由处理方自行判断；成功产物覆盖原轨，未配置 / 失败 / 超时一律静默保留原文件
         if (hasVideo)
         {
@@ -246,7 +246,7 @@ public static class DashDownload
         return (audioMaterial, mux);
     }
 
-    // 单轨下载收口：必要轨（required）重试耗尽异常上抛（整 P 失败）；可选轨失败仅告警返回 false。
+    // 单轨下载收口：必要轨（required）重试耗尽异常上抛（整 P 失败）；可选轨失败仅告警返回 false
     // 半截文件未进入 audioMaterial、混流清理不会删，就地清理避免残留
     private static async Task<bool> TryDownloadTrackAsync(DownloadSession session, string url, string path, string label, bool required, CancellationToken ct)
     {

@@ -15,9 +15,9 @@ using static BBDown.Core.Util.JsonUtil;
 namespace BBDown.Core.Pipeline;
 
 /// <summary>
-/// UP 主空间音频投稿下载编排：翻页拉取 AU 列表，逐条复用 <see cref="AudioDownload"/> 下载，
-/// 产物落在 workDir/{UP 名}/ 下。与音视频链路独立，不构造 WorkContext、不探测 ffmpeg；
-/// 逐条失败继续（失败聚合在末尾统一抛出），与 PageQueue 的分 P 失败语义一致。
+/// UP 主空间音频投稿下载编排：翻页拉取 AU 列表，逐条复用 <see cref="AudioDownload"/> 下载
+/// 产物落在 workDir/{UP 名}/ 下。与音视频链路独立，不构造 WorkContext、不探测 ffmpeg
+/// 逐条失败继续（失败聚合在末尾统一抛出），与 PageQueue 的分 P 失败处理相同
 /// </summary>
 public static class SpaceAudioDownload
 {
@@ -75,7 +75,7 @@ public static class SpaceAudioDownload
         Log("音频下载完成");
     }
 
-    // 按 pn 翻页拉取 song/upper；上限兜底防 pageCount 异常导致死循环
+    // 按 pn 翻页拉取 song/upper；上限防止 pageCount 异常导致死循环
     private static async Task<List<SongItem>> CollectSongsAsync(long mid, AppConfig cfg, CancellationToken ct)
     {
         List<SongItem> items = [];
@@ -109,7 +109,7 @@ public static class SpaceAudioDownload
                 }
             }
 
-            // curPage / pageCount 缺失时按空页兜底退出
+            // curPage / pageCount 缺失时按空页退出退出
             var curPage = ReadLong(data, "curPage");
             var pageCount = ReadLong(data, "pageCount");
             if (got == 0 || (pageCount > 0 && curPage >= pageCount))

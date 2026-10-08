@@ -15,9 +15,9 @@ using static BBDown.Core.Logger;
 namespace BBDown.Core.Comment;
 
 /// <summary>
-/// 抓取评论区（<c>/x/v2/reply/wbi/main</c>，游标分页 + WBI 签名）。type 为评论区类型代码：
-/// 1 视频稿件 / 12 专栏 / 11 图文动态相簿区，oid 为对应对象 id。
-/// 抓取失败一律降级为「拿到多少算多少」，只有签名错误会抛出——那属于程序缺陷而非站点状态。
+/// 抓取评论区（<c>/x/v2/reply/wbi/main</c>，游标分页 + WBI 签名）。type 为评论区类型代码
+/// 1 视频稿件 / 12 专栏 / 11 图文动态相簿区，oid 为对应对象 id
+/// 抓取失败一律降级为「拿到多少算多少」，只有签名错误会抛出——那属于程序缺陷而非站点状态
 /// </summary>
 public static class CommentFetcher
 {
@@ -82,7 +82,7 @@ public static class CommentFetcher
             var data = Child(response.RootElement, "data");
             if (!JsonUtil.TryGetArray(data, "replies", out var replies))
             {
-                // code 为 0 但 replies 为 null：风控下发 v_voucher 时的形态，继续翻页只会空转
+                // code 为 0 但 replies 为 null：风控下发 v_voucher 时的形式，继续翻页只会空转
                 LogWarn($"评论接口未返回列表（可能触发风控），已抓取 {document.Comments.Count} 条");
                 return document;
             }
@@ -123,7 +123,7 @@ public static class CommentFetcher
                 nextOffset = BuildOffset(mode, ReadNumber(cursor, "next"));
             }
 
-            // is_end 在懒加载接口下的可靠性未经实测，故再叠三重兜底防止空转
+            // is_end 在懒加载接口下的可靠性未经实测，故再叠三重判断防止空转
             if (ReadBool(cursor, "is_end")
                 || document.Comments.Count == before
                 || nextOffset == offset)
@@ -161,7 +161,7 @@ public static class CommentFetcher
     }
 
     /// <summary>
-    /// 逐条把楼中楼抓全（<c>/x/v2/reply/reply</c>，无需签名）。请求量与评论条数成正比，故全程串行并限速。
+    /// 逐条把楼中楼抓全（<c>/x/v2/reply/reply</c>，无需签名）。请求量与评论条数成正比，故全程串行并限速
     /// </summary>
     private static async Task FetchSubRepliesAsync(int type, string oid, CommentDocument document, AppConfig config, CancellationToken token)
     {
@@ -210,8 +210,8 @@ public static class CommentFetcher
     }
 
     /// <summary>
-    /// 游标参数的外层包装：<c>offset</c> 的值本身是一段 JSON 文本，必须作为字符串值嵌套，
-    /// 手拼引号会在 next_offset 含转义字符时产出非法 JSON。
+    /// 游标参数的外层包装：<c>offset</c> 的值本身是一段 JSON 文本，必须作为字符串值嵌套
+    /// 手拼引号会在 next_offset 含转义字符时产出非法 JSON
     /// </summary>
     internal static string PaginationStr(string offset)
     {
@@ -227,10 +227,10 @@ public static class CommentFetcher
     }
 
     /// <summary>
-    /// 服务端未给 next_offset 时自行拼游标。
+    /// 服务端未给 next_offset 时自行拼游标
     /// </summary>
     /// <remarks>
-    /// mode=2 的内层键是大写的 <c>Data</c>，见 bilibili-API-collect/docs/comment/list.md（文档明确标注非笔误）。
+    /// mode=2 的内层键是大写的 <c>Data</c>，见 bilibili-API-collect/docs/comment/list.md（文档明确标注非笔误）
     /// </remarks>
     internal static string BuildOffset(int mode, long next)
     {
@@ -295,7 +295,7 @@ public static class CommentFetcher
         return item;
     }
 
-    // 大数 id 在 JSON 里同时有字符串与数字两种形态，字符串形态才是权威值（数字形态存在精度风险）
+    // 大数 id 在 JSON 里同时有字符串与数字两种形式，字符串才是权威值（数字有精度风险）
     private static string ReadId(JsonElement parent, string stringName, string numberName)
     {
         var text = ReadString(parent, stringName);

@@ -12,14 +12,14 @@ using Microsoft.AspNetCore.Http;
 namespace BBDown.Serve.Http;
 
 /// <summary>
-/// serve 端点注册：任务增删查（/api/v1/tasks 组）与 WebSocket 事件通道（/hubs/tasks）。
-/// 鉴权中间件在 SetUpServer 注册，本类不持有任何服务状态。
+/// serve 端点注册：任务增删查（/api/v1/tasks 组）与 WebSocket 事件通道（/hubs/tasks）
+/// 鉴权中间件在 SetUpServer 注册，本类不持有任何服务状态
 /// </summary>
 internal static class ServeEndpoints
 {
     public static void MapServeEndpoints(this WebApplication app)
     {
-        // 队列有界的退避提示：写满说明消费端积压，客户端按此重试（与限流 429 的 Retry-After 语义一致）
+        // 队列有界的退避提示：写满说明消费端积压，客户端按此重试（与限流 429 的 Retry-After 一致）
         const int QueueFullRetryAfter = 60;
 
         var tasks = app.MapGroup("/api/v1/tasks");
@@ -43,7 +43,7 @@ internal static class ServeEndpoints
                 return Results.BadRequest("输入有误");
             }
 
-            // mode=enqueue 仅入暂停表（待 start）；缺省或 execute 受理即执行
+            // mode=enqueue 仅入暂停表（待 start）；未指定 mode 或 mode=execute 时受理即执行
             var mode = http.Request.Query["mode"].ToString( ) == "enqueue" ? SubmitMode.Enqueue : SubmitMode.Execute;
             try
             {
@@ -95,7 +95,7 @@ internal static class ServeEndpoints
                 return Results.NotFound( );
             }
 
-            // 直播任务的「停止」＝停止录制并合并（与 GUI 停止录制按钮一致）：先请求录制端停录，
+            // 直播任务的「停止」＝停止录制并合并（与 GUI 停止录制按钮一致）：先请求录制端停录
             // 未在录制（排队中 / 尚未开录）时退化为整任务取消
             if (rid is ResourceId.LiveRoom && LiveSignal.TryRequestStop(ResourceIdJsonConverter.Format(rid)))
             {
@@ -116,7 +116,7 @@ internal static class ServeEndpoints
         });
         tasks.MapDelete("/{id}", (string id, TaskStore store) =>
         {
-            // 规范 id 解析失败视为不存在，仍返回 200；
+            // 规范 id 解析失败视为不存在，仍返回 200
             // RemoveTask 同时清理已完成与 enqueue 暂停态任务
             if (ResourceId.TryParse(id, out var rid))
             {
@@ -159,8 +159,8 @@ internal static class ServeEndpoints
             }
         });
 
-        // 健康检查：匿名放行（探活不要求令牌）；计数排除 enqueue 暂停态（Pending 尚未进入执行队列，不计入运行中）。
-        // 事件流（WebSocket /hubs/tasks）始终启用，无需开关字段；任务状态经 WS 推送感知，无轮询端点。
+        // 健康检查：匿名放行（探活不要求令牌）；计数排除 enqueue 暂停态（Pending 尚未进入执行队列，不计入运行中）
+        // 事件流（WebSocket /hubs/tasks）始终启用，无需开关字段；任务状态经 WS 推送感知，无轮询端点
         app.MapGet("/healthz", (TaskStore store) =>
                 Results.Ok(new HealthStatus("ok", store.RunningSnapshot( ).FindAll(t => t.Status != DownloadStatus.Pending).Count)))
             .AllowAnonymous( );

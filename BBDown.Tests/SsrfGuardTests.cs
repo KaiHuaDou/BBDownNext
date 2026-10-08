@@ -3,7 +3,7 @@ using System.Net;
 namespace BBDown.Tests;
 
 /// <summary>
-/// Host 白名单与私网段判定的纯函数测试。真实 rebinding 场景依赖 DNS 与浏览器，起服务器也属耗时操作，一律不测。
+/// Host 白名单与私网段判定的纯函数测试。真实 rebinding 场景依赖 DNS 与浏览器，起服务器也属耗时操作，一律不测
 /// </summary>
 public class SsrfGuardTests
 {

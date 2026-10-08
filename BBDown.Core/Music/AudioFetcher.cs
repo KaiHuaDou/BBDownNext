@@ -9,9 +9,9 @@ using static BBDown.Core.Util.JsonUtil;
 namespace BBDown.Core.Music;
 
 /// <summary>
-/// 音频投稿（AU）的抓取：song/info（元信息）、web/url（播放流，web 端恒 192K）、song/lyric（歌词文本）。
-/// 付费 / 大会员曲目未登录时 web/url 返回试听片段（type=-1），由调用方提示。
-/// 命名空间用 Music（对齐 music-service）而非 Audio：后者与 <see cref="Entity.Audio"/>（音轨实体）同名冲突。
+/// 音频投稿（AU）的抓取：song/info（元信息）、web/url（播放流，web 端恒 192K）、song/lyric（歌词文本）
+/// 付费 / 大会员曲目未登录时 web/url 返回试听片段（type=-1），由调用方提示
+/// 命名空间用 Music（一致 music-service）而非 Audio：后者与 <see cref="Entity.Audio"/>（音轨实体）同名冲突
 /// </summary>
 public static class AudioFetcher
 {
@@ -65,7 +65,7 @@ public static class AudioFetcher
             : "";
     }
 
-    // 外层 code 非零时按音频域错误码转可读信息（GetApiData 的通用文案不含音频语义）
+    // 外层 code 非零时按音频域错误码转可读信息（GetApiData 的通用文案不含音频域文案）
     private static JsonElement GetData(JsonElement root, string label, long auId)
     {
         if (TryGetObject(root, "data", out var data))

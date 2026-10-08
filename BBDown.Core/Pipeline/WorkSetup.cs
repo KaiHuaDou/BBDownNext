@@ -20,7 +20,7 @@ public static class WorkSetup
         // 解析外部工具路径（不可变快照，作为 ToolPaths 向下透传，不写进程级静态）
         var tools = ResolveToolPaths(myOption);
 
-        // 确定本次任务的工作目录（不修改进程全局 CurrentDirectory，serve 模式下多任务会互相踩踏）
+        // 确定当前任务的工作目录（不修改进程全局 CurrentDirectory，serve 模式下多任务会互相踩踏）
         var workDir = ResolveWorkDir(myOption);
 
         // 解析优先级
@@ -133,7 +133,7 @@ public static class WorkSetup
         return ParsePriorityList(myOption.DfnPriority);
     }
 
-    // 解析逗号分隔的优先级列表（画质 / 音频音质通用）：去空白、去空项、去重，按下标赋权（越小越优先）。
+    // 解析逗号分隔的优先级列表（画质 / 音频音质通用）：去空白、去空项、去重，按下标赋权（越小越优先）
     // 音质名与 id 都可作为输入（如 "杜比全景声" 或 "30250"），排序时按 Dfn 与 Id 各查一次
     internal static Dictionary<string, int> ParsePriorityList(string? value)
     {
@@ -143,7 +143,7 @@ public static class WorkSetup
             return dict;
         }
 
-        // 优先级的键按不变文化转大写，与轨道侧的 ToUpperInvariant 对齐，避免区域设置改变键的字面形态
+        // 优先级的键按不变文化转大写，与轨道侧的 ToUpperInvariant 一致，避免区域设置改变键的字面形式
         var tokens = value.Replace("，", ",").Split(',').Select(s => s.ToUpperInvariant( ).Trim( )).Where(s => !string.IsNullOrEmpty(s));
         var index = 0;
         foreach (var token in tokens)
@@ -158,8 +158,8 @@ public static class WorkSetup
     }
 
     /// <summary>
-    /// 从 DownloadRequest 构造本次运行的 AppConfig：加载凭据，host 三兄弟为空串/空白时回落官方默认
-    /// （避免拼出 https:///... 抛不可读的 UriFormatException）。CLI 三条链路（视频 / 专栏 / 直播）与 serve 共用。
+    /// 从 DownloadRequest 构造当前运行的 AppConfig：加载凭据，host 三兄弟为空串/空白时回落官方默认
+    /// （避免拼出 https:///... 抛不可读的 UriFormatException）。CLI 三条链路（视频 / 专栏 / 直播）与 serve 共用
     /// </summary>
     public static AppConfig ResolveConfig(DownloadRequest myOption, ApiType api)
     {
@@ -176,7 +176,7 @@ public static class WorkSetup
     }
 
     /// <summary>
-    /// 解析外部工具路径，返回不可变快照，由调用方作为 ToolPaths 参数向下透传，serve 并发任务互不踩踏。
+    /// 解析外部工具路径，返回不可变快照，由调用方作为 ToolPaths 参数向下透传，serve 并发任务互不踩踏
     /// </summary>
     internal static ToolPaths ResolveToolPaths(DownloadRequest myOption)
     {
@@ -211,8 +211,8 @@ public static class WorkSetup
     }
 
     /// <summary>
-    /// 处理有冲突的选项。不原地改写入参（DownloadRequest 不可变），返回修正后的副本。
-    /// 内容字符的冲突（AudioOnly / VideoOnly 互斥等）已由 <see cref="ContentSelector.Resolve"/> 在解析层消解。
+    /// 处理有冲突的选项。不原地改写入参（DownloadRequest 不可变），返回修正后的副本
+    /// 内容字符的冲突（AudioOnly / VideoOnly 互斥等）已由 <see cref="ContentSelector.Resolve"/> 在解析层消解
     /// </summary>
     internal static DownloadRequest HandleConflictingOptions(DownloadRequest myOption)
     {
@@ -224,7 +224,7 @@ public static class WorkSetup
     }
 
     /// <summary>
-    /// 解析用户输入的自定义下载输出目录，返回绝对路径。未指定时回落到进程当前目录。
+    /// 解析用户输入的自定义下载输出目录，返回绝对路径。未指定时回落到进程当前目录
     /// </summary>
     internal static string ResolveWorkDir(DownloadRequest myOption)
     {
@@ -239,12 +239,12 @@ public static class WorkSetup
     }
 
     /// <summary>
-    /// 校验并准备下载输出目录：规范化路径、必要时创建。失败抛 <see cref="WorkDirException"/>，
-    /// 文案只说明工作目录问题，不带「请升级」之类的误导语。
+    /// 校验并准备下载输出目录：规范化路径、必要时创建。失败抛 <see cref="WorkDirException"/>
+    /// 文案只说明工作目录问题，不带「请升级」之类的误导语
     /// </summary>
     public static string ValidateWorkDir(string raw)
     {
-        // NormalizeWorkDir 对空输入返回 null；此处回落进程当前目录，与 ResolveWorkDir 的空值语义对齐
+        // NormalizeWorkDir 对空输入返回 null；此处回落进程当前目录，与 ResolveWorkDir 的空值含义一致
         var dir = NormalizeWorkDir(raw) ?? Environment.CurrentDirectory;
         try
         {
@@ -262,9 +262,9 @@ public static class WorkSetup
     }
 
     /// <summary>
-    /// 把用户输入的工作目录规范化为绝对路径（纯函数，不含任何 IO，便于单测）。
-    /// 处理：去空白、展开 %VAR%（Windows）/ $VAR（Unix）环境变量、展开开头的 ~ 为用户主目录。
-    /// 空或纯空白返回 null，调用方据此回落进程当前目录。
+    /// 把用户输入的工作目录规范化为绝对路径（纯函数，不含任何 IO，便于单测）
+    /// 处理：去空白、展开 %VAR%（Windows）/ $VAR（Unix）环境变量、展开开头的 ~ 为用户主目录
+    /// 空或纯空白返回 null，调用方据此回落进程当前目录
     /// </summary>
     internal static string? NormalizeWorkDir(string? raw)
     {
@@ -290,9 +290,9 @@ public static class WorkSetup
         return Path.GetFullPath(expanded);
     }
 
-    // .NET 的 Environment.ExpandEnvironmentVariables 只展开 %VAR%（Windows / Unix 均适用），
+    // .NET 的 Environment.ExpandEnvironmentVariables 只展开 %VAR%（Windows / Unix 均适用）
     // 不处理 Unix 的 $VAR / ${VAR}。这里仅对 Unix 补一个最小替换：把 $NAME / ${NAME} 换成对应
-    // 环境变量的值（缺失则替换为空），不处理通配 / 命令 / 转义。Windows 端由上面的原生调用负责，不走这里。
+    // 环境变量的值（缺失则替换为空），不处理通配 / 命令 / 转义。Windows 端由上面的原生调用负责，不走这里
     private static string ExpandUnixEnvVars(string s)
     {
         var builder = new StringBuilder(s.Length);

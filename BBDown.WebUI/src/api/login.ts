@@ -29,7 +29,7 @@ export function saveCredential(credential: Credential): void {
   writeLocalStorage(TOKEN_KEY, credential.accessToken)
 }
 
-/** 登录通道选择（与 GUI LoginChannel 对齐）。 */
+/** 登录通道选择（与 GUI LoginChannel 相同）。 */
 export const LOGIN_CHANNELS: { value: LoginChannel; label: string }[] = [
   { value: 'web', label: 'WEB' },
   { value: 'tv', label: 'TV' },

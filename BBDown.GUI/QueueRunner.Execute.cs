@@ -52,7 +52,7 @@ public sealed partial class QueueRunner
         }
         finally
         {
-            // 复位与滞留重查收拢到 UI 线程：与 RunNow/Enqueue/StartSchedule 的入队同线程串行执行，
+            // 复位与滞留重查收拢到 UI 线程：与 RunNow/Enqueue/StartSchedule 的入队同线程串行执行
             // 消除后台裸读 waiting.Count 的可见性窗口（可能漏看 UI 线程刚入队的任务，导致永久滞留）
             try
             {
@@ -81,7 +81,7 @@ public sealed partial class QueueRunner
         }
         catch (Exception ex)
         {
-            // ExecuteAsync 已兜底任务异常（含取消）；此处仅防御窗口关闭时 dispatch 抛出的异常，记录后忽略避免拖垮调度循环
+            // ExecuteAsync 已捕获任务异常（含取消）；此处仅防御窗口关闭时 dispatch 抛出的异常，记录后忽略避免拖垮调度循环
             if (ex is not OperationCanceledException)
             {
                 Logger?.Invoke(state, $"调度回调异常（已忽略）：{ex.Message}");
@@ -104,7 +104,7 @@ public sealed partial class QueueRunner
 
             var token = state.TokenSource?.Token ?? CancellationToken.None;
             var exitCode = await Executor(state, token);
-            // 先于 UI 回投落位：关窗导致 dispatch 失败时，落盘逻辑仍能凭 exitCode 排除已收尾任务
+            // 先于 UI 回投落位：关窗导致 dispatch 失败时，写入逻辑仍能凭 exitCode 排除已收尾任务
             state.exitCode = exitCode;
             dispatch(( ) =>
             {

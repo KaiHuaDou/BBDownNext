@@ -53,8 +53,8 @@ public static partial class Utils
     }
 
     /// <summary>
-    /// 按 APP_DIR → PATH 的顺序查找可执行文件。刻意不搜索当前工作目录，
-    /// 否则在下载目录里放一个同名程序即可劫持 ffmpeg/aria2c 调用。
+    /// 按 APP_DIR → PATH 的顺序查找可执行文件。刻意不搜索当前工作目录
+    /// 否则在下载目录里放一个同名程序即可劫持 ffmpeg/aria2c 调用
     /// </summary>
     public static string? FindExecutable(params string[] names)
     {
@@ -106,7 +106,7 @@ public static partial class Utils
         return $"{FormatFileSize((long) (delta / seconds))}/s";
     }
 
-    // 汇总进异常 / 日志的条目列表可能达数万项（收藏夹、动态、投稿列表全失败），直接 Join 会形成 MB 级单条消息，
+    // 汇总进异常 / 日志的条目列表可能达数万项（收藏夹、动态、投稿列表全失败），直接 Join 会形成 MB 级单条消息
     // 只列前 maxShown 项并附总数
     public static string FormatBounded(IEnumerable<string> items, string separator, int maxShown)
     {
@@ -139,7 +139,7 @@ public static partial class Utils
         return totalHours == 0 ? $"{minutes:D2}m{seconds:D2}s" : $"{totalHours}h{minutes:D2}m{seconds:D2}s";
     }
 
-    // ETA：按已完成比例线性外推剩余时间。比例过低时剩余时间发散，返回 null 表示不显示。
+    // ETA：按已完成比例线性外推剩余时间。比例过低时剩余时间发散，返回 null 表示不显示
     public static string? FormatEta(double ratio, TimeSpan elapsed)
     {
         if (ratio <= 0.02)
@@ -187,8 +187,8 @@ public static partial class Utils
     }
 
     /// <summary>
-    /// 带重试的文件删除：Windows 上杀软/资源管理器可能短暂持锁导致 IOException，
-    /// 用短暂退避重试替代 Thread.Sleep 硬等。删除失败仅记录，不抛出（避免掩盖主流程异常）。
+    /// 带重试的文件删除：Windows 上杀软/资源管理器可能短暂持锁导致 IOException
+    /// 用短暂退避重试替代 Thread.Sleep 硬等。删除失败仅记录，不抛出（避免掩盖主流程异常）
     /// </summary>
     public static void SafeDelete(string path)
     {
@@ -217,7 +217,7 @@ public static partial class Utils
     {
         try
         {
-            // 格式串由用户书写，':' 等自定义格式符按 CurrentCulture 解析（如 fi-FI 的时间分隔符是 '.'），
+            // 格式串由用户书写，':' 等自定义格式符按 CurrentCulture 解析（如 fi-FI 的时间分隔符是 '.'）
             // 产出的文件名会随机器区域设置漂移，故一律按不变文化格式化
             return ts == 0 ? "null" : DateTimeOffset.FromUnixTimeSeconds(ts).ToLocalTime( ).ToString(format, CultureInfo.InvariantCulture);
         }
@@ -292,13 +292,13 @@ public static partial class Utils
     }
 
     /// <summary>
-    /// 提取番剧/播放页面源码中 window.__INITIAL_STATE__ 内嵌的 JSON。
+    /// 提取番剧/播放页面源码中 window.__INITIAL_STATE__ 内嵌的 JSON
     /// </summary>
     [GeneratedRegex("window.__INITIAL_STATE__=([\\s\\S].*?);\\(function\\(\\)")]
     public static partial Regex InitialStateRegex( );
 
     /// <summary>
-    /// 识别 authority 带显式端口（如 http://host:8080）的 PCDN 域名。
+    /// 识别 authority 带显式端口（如 http://host:8080）的 PCDN 域名
     /// </summary>
     [GeneratedRegex("://[^/]+:\\d+/")]
     public static partial Regex PcdnRegex( );

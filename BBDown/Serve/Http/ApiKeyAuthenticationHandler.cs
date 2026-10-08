@@ -12,7 +12,7 @@ namespace BBDown.Serve.Http;
 
 /// <summary>
 /// 令牌认证：X-BBDown-Token 头始终接受；WebSocket 握手（/hubs/tasks，浏览器无法自定义请求头）例外接受
-/// ?token= 查询参数。比较走恒定时间，避免时序侧信道。
+/// ?token= 查询参数。比较走恒定时间，避免时序侧信道
 /// </summary>
 internal sealed class ApiKeyAuthenticationHandler(
     IOptionsMonitor<ApiKeyAuthenticationOptions> options,
@@ -21,7 +21,7 @@ internal sealed class ApiKeyAuthenticationHandler(
 {
     protected override Task<AuthenticateResult> HandleAuthenticateAsync( )
     {
-        // 免令牌模式（未设置期望令牌，即未以 --serve-token 启用强制鉴权）：认证不适用，返回 NoResult 而非 Fail，
+        // 免令牌模式（未设置期望令牌，即未以 --serve-token 启用强制鉴权）：认证不适用，返回 NoResult 而非 Fail
         // 避免每个请求都产生「无效或缺失令牌」的失败日志噪音（无 FallbackPolicy，放行不受影响）
         if (Options.ExpectedToken is null)
         {

@@ -14,14 +14,14 @@ using static BBDown.Core.Util.JsonUtil;
 namespace BBDown.Core.Pipeline;
 
 /// <summary>
-/// UP 主空间图文 / 专栏投稿导出编排：翻页拉取动态流，仅提取图文动态（MAJOR_TYPE_OPUS），
-/// 逐条复用 <see cref="OpusDownload"/> 导出 Markdown，产物落在 workDir/{UP 名}/ 下。
-/// 视频 / 转发 / 直播 / 笔记等动态类型不在提取范围（空间动态页的全类型分发见 <see cref="SpaceDynamicDownload"/>）。
-/// 与音视频链路独立，不构造 WorkContext。
+/// UP 主空间图文 / 专栏投稿导出编排：翻页拉取动态流，仅提取图文动态（MAJOR_TYPE_OPUS）
+/// 逐条复用 <see cref="OpusDownload"/> 导出 Markdown，产物落在 workDir/{UP 名}/ 下
+/// 视频 / 转发 / 直播 / 笔记等动态类型不在提取范围（空间动态页的全类型分发见 <see cref="SpaceDynamicDownload"/>）
+/// 与音视频链路独立，不构造 WorkContext
 /// </summary>
 public static class SpaceOpusDownload
 {
-    // internal 供单测构造断言（TryGetOpus 的 out 形态）
+    // internal 供单测构造断言（TryGetOpus 的 out 形式）
     internal readonly record struct OpusItem(string OpusId, string Title, string Author);
 
     public static async Task RunAsync(long mid, DownloadRequest myOption, PipelineSink sink = default, CancellationToken ct = default)
@@ -88,7 +88,7 @@ public static class SpaceOpusDownload
         return items;
     }
 
-    // 仅提取图文动态（major.type == MAJOR_TYPE_OPUS）：id_str 即动态 id（与 basic.jump_url 的 /opus/{id} 一致）。
+    // 仅提取图文动态（major.type == MAJOR_TYPE_OPUS）：id_str 即动态 id（与 basic.jump_url 的 /opus/{id} 一致）
     // internal 供单测：JsonElement 为纯内存输入，与 TrackReader 系列纯函数同性质
     internal static bool TryGetOpus(JsonElement entry, out OpusItem item)
     {

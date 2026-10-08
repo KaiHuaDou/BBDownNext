@@ -3,9 +3,9 @@ using System.Threading.Tasks;
 
 namespace BBDown.Core.Tests;
 
-// watchlater 链接解析：带 bvid/oid 参数时只下载该单个视频（bvid 本地解码，oid 直接作 aid），
+// watchlater 链接解析：带 bvid/oid 参数时只下载该单个视频（bvid 本地解码，oid 直接作 aid）
 // 否则整个列表。纯字符串路径不触网；带参数路径结果仍是纯数字，会经 FixAvidAsync 的 HEAD
-// 检查（同 video/bv 分支），需替换进程级 AppHttpClient，故挂串行集合。
+// 检查（同 video/bv 分支），需替换进程级 AppHttpClient，故挂串行集合
 [Collection<HttpStubCollectionDefinition>]
 public class InputResolverWatchLaterTests
 {

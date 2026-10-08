@@ -14,9 +14,9 @@ using BBDown.Serve.Tasks;
 namespace BBDown.Serve.Http;
 
 /// <summary>
-/// 任务事件 WebSocket 通道（/hubs/tasks）：订阅任务后接收消息 / 进度快照 / 选项请求，
-/// 经 submitChoice 帧应答选项。帧协议见 API.md「WebSocket 事件流」。
-/// 转发与广播机制见 TasksSocket.Forward.cs。
+/// 任务事件 WebSocket 通道（/hubs/tasks）：订阅任务后接收消息 / 进度快照 / 选项请求
+/// 经 submitChoice 帧应答选项。帧协议见 API.md「WebSocket 事件流」
+/// 转发与广播机制见 TasksSocket.Forward.cs
 /// </summary>
 internal sealed partial class TaskSocketHub(TaskStore store)
 {
@@ -36,7 +36,7 @@ internal sealed partial class TaskSocketHub(TaskStore store)
     private int pumpStarted;
 
     /// <summary>
-    /// 每 IP 并发连接上限判定（升级前调用，超限返回 false 由端点回 429）。
+    /// 每 IP 并发连接上限判定（升级前调用，超限返回 false 由端点回 429）
     /// </summary>
     public bool TryEnter(string? ip)
     {
@@ -67,8 +67,8 @@ internal sealed partial class TaskSocketHub(TaskStore store)
     }
 
     /// <summary>
-    /// 连接主循环：读客户端帧（subscribe / unsubscribe / submitChoice / ping），
-    /// 连接关闭时清理其全部订阅并停止空闲转发。
+    /// 连接主循环：读客户端帧（subscribe / unsubscribe / submitChoice / ping）
+    /// 连接关闭时清理其全部订阅并停止空闲转发
     /// </summary>
     public async Task HandleAsync(WebSocket socket, CancellationToken token)
     {
@@ -161,7 +161,7 @@ internal sealed partial class TaskSocketHub(TaskStore store)
 
     private async Task SubscribeAsync(WebSocket socket, string? taskId, CancellationToken token)
     {
-        // taskId 统一先转 scope（规范 id 经 TryParse 还原后取 Format；record ToString 形式兜底直配），
+        // taskId 统一先转 scope（规范 id 经 TryParse 还原后取 Format；record ToString 形式直接匹配）
         // 再按字符串匹配任务
         var scope = ResolveScope(taskId);
         // 任务已结束（含收尾窗口内）不提供订阅：事件流只覆盖任务执行期间，结束后的残留事件无意义
@@ -182,8 +182,8 @@ internal sealed partial class TaskSocketHub(TaskStore store)
         }
     }
 
-    // 任务标识 → scope（ResourceId 规范串）：规范 id 经 TryParse 还原后取 Format，
-    // 与 /get-tasks 返回的 id 形态一致；record 形态原样兜底。opus 等多值 id 经 Format 归一，避免订阅失效
+    // 任务标识 → scope（ResourceId 规范串）：规范 id 经 TryParse 还原后取 Format
+    // 与 /get-tasks 返回的 id 相同；record 形式原样匹配。opus 等多值 id 经 Format 归一，避免订阅失效
     private static string? ResolveScope(string? taskId)
     {
         if (taskId is null)
@@ -196,7 +196,7 @@ internal sealed partial class TaskSocketHub(TaskStore store)
 
     private void Unsubscribe(WebSocket socket, string? taskId)
     {
-        // 与订阅同源解析：统一转 scope 后按字符串查任务
+        // 与订阅用同一套解析：统一转 scope 后按字符串查任务
         if (ResolveScope(taskId) is { } scope && store.GetByScope(scope) is { } task)
         {
             RemoveSubscription(socket, task.Id);
@@ -232,7 +232,7 @@ internal sealed partial class TaskSocketHub(TaskStore store)
     }
 
     /// <summary>
-    /// 握手 Origin 校验：无 Origin（非浏览器客户端）放行；等于 --cors-origin 放行；回环来源放行；其余拒绝（CSWSH）。
+    /// 握手 Origin 校验：无 Origin（非浏览器客户端）放行；等于 --cors-origin 放行；回环来源放行；其余拒绝（CSWSH）
     /// </summary>
     internal static bool IsAllowedOrigin(string? origin, ServeConfig config)
     {

@@ -27,7 +27,7 @@ flowchart LR
         Auth["Auth<br/>登录与凭据"]
         Fetcher["Fetcher<br/>信息获取"]
         PlayUrl["PlayUrl<br/>播放地址解析"]
-        Opus["Opus<br/>专栏导出（旁路）"]
+        Opus["Opus<br/>专栏导出（独立链路）"]
         Comment["Comment · Entity · Util<br/>评论与基础设施"]
     end
 
@@ -56,7 +56,7 @@ BBDown/
 │       ├── BBDownServer.cs             # 服务装配：SetUpServer / 令牌鉴权 / CORS / 并发限流
 │       ├── DownloadTask.cs             # serve 任务状态/快照 record（DownloadStatus / DownloadTask / DownloadTaskSnapshot，Cts [JsonIgnore]）
 │       ├── ServeConfig.cs              # serve 启动参数聚合 record（取代 StartServer 散参，服务端固定不可覆盖）
-│       ├── ServeRequestOptions.cs      # serve 请求受控子集 + CallBackWebHook（含 InteractivePages / InteractiveQuality / LiveQuality）
+│       ├── ServeRequestOptions.cs      # serve 请求可提交的子集 + CallBackWebHook（含 InteractivePages / InteractiveQuality / LiveQuality）
 │       ├── ServeBindingResult.cs       # 请求绑定结果（含非法字段的回落规则）
 │       ├── ApiTypeJsonConverter.cs     # serve 请求体 Api 字段字符串 ↔ ApiType 转换
 │       ├── ServeRequestOptionsJsonContext.cs # serve 请求 DTO 源生成器上下文
@@ -81,7 +81,7 @@ BBDown/
 │   │   ├── WorkContext.cs         # 工作上下文 record
 │   │   ├── DownloadSession.cs     # 分 P 生命周期恒定入参 record
 │   │   ├── PageContext.cs         # 分 P 上下文 record
-│   │   ├── PageOutcome.cs         # 分 P 落盘结果 record（Media/Mux 共用，解除循环依赖）
+│   │   ├── PageOutcome.cs         # 分 P 写入结果 record（Media/Mux 共用，解除循环依赖）
 │   │   ├── PipelineSink.cs        # 下载链路进度回吐回调（Meta / Saved / Sample，取代透传 serve 的 DownloadTask）
 │   │   ├── ToolPaths.cs           # 外部工具路径不可变快照（ffmpeg / mp4box / aria2c）
 │   │   ├── FetchResult.cs         # 信息获取结果 record
@@ -119,7 +119,7 @@ BBDown/
 │   │   ├── DashDownload.cs         # DASH 轨下载 (RunAsync；下载后调用外部后处理，见 TryPostProcessAsync)
 │   │   ├── FlvDownload.cs          # FLV 分段下载与合并 (RunAsync)
 │   │   ├── PageAssets.cs           # 封面/字幕准备、弹幕下载（`PrepareAsync` 现收窄接收 `DownloadSession`）
-│   │   ├── CommentDownload.cs      # 评论区导出（按 --comments-formats 落盘 json/txt，挂 PageQueue）
+│   │   ├── CommentDownload.cs      # 评论区导出（按 --comments-formats 写入 json/txt，挂 PageQueue）
 │   │   └── TrackSelect.cs          # 轨道排序、信息打印、交互选轨
 │   │
 │   ├── Mux/                # 命名空间 BBDown.Core.Mux — 混流与收尾
@@ -132,7 +132,7 @@ BBDown/
 │   │   ├── LiveFetcher.cs          # 拉流地址获取（http_stream + flv；带加密标记的流跳过）
 │   │   ├── LiveRoomInfo.cs         # 房间信息 + 清晰度档位 LiveQuality
 │   │   ├── LiveRecorder.cs         # 录制状态机（断流退避重连 / CDN failover / 编码锁定）
-│   │   ├── LiveSegmentWriter.cs    # 单段 FLV 落盘
+│   │   ├── LiveSegmentWriter.cs    # 单段 FLV 写入
 │   │   ├── LiveFileNaming.cs       # 分段/产物文件名（主播名-标题-时间戳）
 │   │   ├── LiveMuxer.cs            # 分段 FLV → mp4 合并（avc/hevc bitstream filter 分派、+genpts）
 │   │   └── LiveSignal.cs           # 按 sessionId 键控的直播停录注册表（Register / TryRequestStop / LiveSignalScope，并发录制互不干扰）
@@ -187,7 +187,7 @@ BBDown/
 │   │
 │   ├── Comment/            # 命名空间 BBDown.Core.Comment — 评论区
 │   │   ├── CommentFetcher.cs       # WBI 分页抓取（type/oid 参数化，覆盖视频 / 专栏 / 图文动态）
-│   │   ├── CommentWriter.cs        # 按格式写盘（.comments.json / .comments.txt，视频与专栏链路共用）
+│   │   ├── CommentWriter.cs        # 按格式写入（.comments.json / .comments.txt，视频与专栏链路共用）
 │   │   ├── CommentRenderer.cs      # JSON / TXT 渲染
 │   │   └── CommentDocument.cs      # 评论域模型（Oid + Type 定位评论区对象）
 │   │
@@ -261,7 +261,7 @@ BBDown/
 
 ## 3. 请求生命周期
 
-一次下载从输入到落盘的主干流程：
+一次下载从输入到写入的主干流程：
 
 ```
 用户输入
@@ -286,7 +286,7 @@ DownloadPipeline.RunAsync (BBDown.Core.Pipeline，三段下载主干，CLI 与 s
   │  ② VideoInfo.FetchAsync → WorkContext (标题/分 P /封面/弹幕入口)
   │  ③ PageQueue.RunAsync   → 逐分 P 编排（-iap 时先 PageSelect.ResolveInteractive 逐集交互确认；
   │                            --comments-count>0 时逐分 P 委托内先跑 CommentDownload，按 aid 去重；与视频下载互不干扰）
-  │     └─ CommentDownload.RunAsync (WBI 分页抓评论 → 按 --comments-formats 落盘 json/txt)
+  │     └─ CommentDownload.RunAsync (WBI 分页抓评论 → 按 --comments-formats 写入 json/txt)
   ▼
 PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分派 DASH/FLV)
   │  ├─ DashDownload.RunAsync   / FlvDownload.RunAsync
@@ -297,7 +297,7 @@ PageDownload.RunAsync / DispatchAsync   (单分 P：封面/字幕准备 → 分�
   │  ├─ SubUtil / DanmakuUtil (字幕/弹幕)
   │  └─ MuxFinish.RunAsync (FFmpeg/MP4Box 混流 + 嵌入元数据/章节/字幕) — 统一 DASH/FLV 收尾
   ▼
-落盘 (SavePath 经 FileNameUtil 截断) + 写入 BBDown.archives (--save-records)
+写入 (SavePath 经 FileNameUtil 截断) + 写入 BBDown.archives (--save-records)
 ```
 
 **独立链路分支**：输入命中 `InputResolver.TryDispatch`（纯字符串探测：直播 / 专栏 opus|cv / 文集 readlist / 空间图文 spaceOpus / 空间音频 spaceAudio / 空间动态 spaceDynamic）时，`RunApp` 早于 `WorkSetup.Build` 交 `WorkerDispatcher` 分发到对应独立链路。`WorkerDispatcher` 是 CLI 与 serve 共用的唯一分发点（serve 端 `TaskWorker.RunDownloadAsync` 亦经它执行），非视频链路不构造 `WorkContext`。集合运行器（文集 / 空间图文 / 空间音频）逐条复用单条链路（`OpusDownload` / `AudioDownload`）并聚合失败。
@@ -314,13 +314,13 @@ LiveInputResolver.TryParse    live: / live.bilibili.com/{房间号} → 真实�
 LiveFetcher.FetchAsync        取 http_stream + flv 流地址、房间信息与清晰度档位（带加密标记的流跳过）
   │
   ▼
-LiveRecorder.RunAsync         分段落盘（断流退避重连 / CDN failover / 首段成功后编码锁定）
+LiveRecorder.RunAsync         分段写入（断流退避重连 / CDN failover / 首段成功后编码锁定）
   │  ├─ LiveSegmentWriter      单段 FLV 写入 <dest>.<NNN>.bbdown.part
   │  └─ LiveProgress           进度回吐
   ▼
 LiveMuxer.MergeSegmentsAsync  Ctrl+Break 触发：分段 FLV → 单个 mp4（avc→h264_mp4toannexb / hevc→hevc_mp4toannexb，+genpts）；Ctrl+C 中断保留分段、不合并
   ▼
-落盘 <主播名>-<标题>-<yyyyMMdd_HHmmss>.mp4
+写入 <主播名>-<标题>-<yyyyMMdd_HHmmss>.mp4
 ```
 
 **取消令牌贯穿全链路**：全局 `CancellationTokenSource`，Ctrl+C 触发优雅取消，`OperationCanceledException` 被捕获后进程以 `130` 退出，已下载的 `.download` 临时文件保留，重跑同一条命令即可续传。直播录制同样接入该令牌：`LiveSignal` 区分 `Ctrl+Break`（停录并合并，退出码 `0`）与 `Ctrl+C`（中断保留分段，退出码 `130`）。直播停录信号 `LiveSignal` 是按 `sessionId` 键控的注册表：CLI 以房间号、GUI 以任务序号、serve 以任务 id 作为标识分别挂载停止源，`Ctrl+Break` 只停对应会话、并发录制互不干扰；录制结束（`LiveSignalScope` 释放）自动摘除挂载。
@@ -353,7 +353,7 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 `BBDown serve` 用 ASP.NET Minimal API 暴露任务增删查接口（完整接口见 [API.md](./API.md)）。主干为 `BBDownServer`，端点注册在 `Http/ServeEndpoints.cs`、WebSocket 在 `Http/TasksSocket.cs`、任务表与消费循环在 `Tasks/`（TaskStore / TaskWorker），SSRF 防护抽到独立静态类 `SsrfGuard`，启动参数聚合为 `ServeConfig` record。设计要点：
 
 - **令牌鉴权**：`SetUpServer` → `FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时启用强制鉴权；未传入则默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。强制鉴权时客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，否则返回 `401`。
-- **请求字段收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的受控子集，刻意剔除主机可控字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在请求字段中，Web 前端经 WebSocket 事件流远程应答选项请求。
+- **请求字段收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的客户端可提交的子集，刻意剔除服务端指定字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在请求字段中，Web 前端经 WebSocket 事件流远程应答选项请求。
 - **SSRF 防护**（`SsrfGuard`）：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点；专用 `WebHookClient` 关闭自动重定向并在连接前二次校验端点 IP。
 - **CORS**：默认放行**回环来源**（`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环判定），非回环 `Origin` 依旧无 `Access-Control-Allow-Origin` 头、被浏览器拦截，与写端点 / WebSocket 的 Origin 校验（防 DNS rebinding）保持一致；公网暴露仍需配合反向代理与 TLS。
 - **容量上限**：已完成任务保留上限 200，超出按策略淘汰。
@@ -374,7 +374,7 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 - 每条流先写入 `<目标路径>.download` 临时文件，续传元数据周期性内嵌在文件末尾；下载完成截断元数据并改名收尾。
 - 重跑时 downloader 先探测服务端文件大小，与元数据一致则从各块断点续下；不一致（URL 指向的内容已变，如换画质）自动删除临时文件重下。
 - 并行控制：`ParallelCount` 默认 32 条连接；`--single-thread` 或 CMCC 域名强制单块；FLV 片段间并行（上限 4）× 片段内连接合计不超过 32。
-- **重跑同一条命令即可从断点继续**，粒度覆盖：单条流（视频轨下完、音频轨失败 → 只补音频轨）与合集 / 多 P（某分 P 失败仅补该分 P）。所有分片（含边下边混流的临时文件）都成功后才清理临时文件。
+- **重跑同一条命令即可从断点继续**，范围覆盖：单条流（视频轨下完、音频轨失败 → 只补音频轨）与合集 / 多 P（某分 P 失败仅补该分 P）。所有分片（含边下边混流的临时文件）都成功后才清理临时文件。
 - CDN 策略：CMCC 等特殊 CDN 强制单线程；`ReplaceUrl` 默认把 https→http（mcdn 域跳过）。
 
 ---
@@ -406,7 +406,7 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 
 - **字幕 (`SubUtil`)**：已登录账号可走 WEB/TV；**未登录时只能走 APP gRPC** 获取字幕。AI 字幕默认不下载，需内容集含 `S`（`-w S`）显式开启。
 - **弹幕 (`DanmakuUtil`)**：支持 XML / ASS 两种格式（`--danmaku-formats`），ASS 参数全部硬编码不可配，无去重 / 过滤。
-- **评论 (`CommentFetcher` / `CommentRenderer` / `CommentWriter` / `CommentDownload`)**：走 `/x/v2/reply/wbi/main`（WBI 签名 + 游标分页），type / oid 参数化：视频稿件 `1/avid`、专栏文章 `12/cvid`、图文动态直接采用 opus/detail 下发的 `basic.comment_type / comment_id_str`（相簿区）。`--comments-count` / `-cn` 默认 `0`（不下载，且需内容集含 `o` / `O` 才真正抓取），`--comments-sort` / `-cs` 选 `hot`/`time`，`--comments-formats` / `-cf` 选 `json`/`txt`（`CommentFormat` 与弹幕格式**两个互不相干的特性，解析逻辑各自独立**）。评论区按 **oid** 绑定、与 cid / 分 P 无关：视频链路挂在 `PageQueue.RunAsync` 逐分 P 委托里用局部 `HashSet` 按 aid 去重，**DASH 与 FLV 两条路径都覆盖**，多 P 同 aid 只抓一次；专栏 / 图文链路由 `OpusDownload` 在 Markdown 落盘前导出，产物齐备则跳过抓取。写盘统一经 `CommentWriter`（`.comments.json` / `.comments.txt` 与 Markdown / 视频产物同名）。默认只保留一级评论内联的最多 3 条楼中楼预览，内容集含 `O`（`-g O`）才额外翻页抓全。抓取失败一律降级为「拿到多少算多少」（专栏链路整体重试耗尽后只告警，不影响 Markdown 导出），只有 WBI 签名错误（`-403`）才抛异常——评论下载与视频 / 专栏下载互不干扰。
+- **评论 (`CommentFetcher` / `CommentRenderer` / `CommentWriter` / `CommentDownload`)**：走 `/x/v2/reply/wbi/main`（WBI 签名 + 游标分页），type / oid 参数化：视频稿件 `1/avid`、专栏文章 `12/cvid`、图文动态直接采用 opus/detail 下发的 `basic.comment_type / comment_id_str`（相簿区）。`--comments-count` / `-cn` 默认 `0`（不下载，且需内容集含 `o` / `O` 才真正抓取），`--comments-sort` / `-cs` 选 `hot`/`time`，`--comments-formats` / `-cf` 选 `json`/`txt`（`CommentFormat` 与弹幕格式**两个互不相干的特性，解析逻辑各自独立**）。评论区按 **oid** 绑定、与 cid / 分 P 无关：视频链路挂在 `PageQueue.RunAsync` 逐分 P 委托里用局部 `HashSet` 按 aid 去重，**DASH 与 FLV 两条路径都覆盖**，多 P 同 aid 只抓一次；专栏 / 图文链路由 `OpusDownload` 在 Markdown 写入前导出，产物齐全则跳过抓取。写入统一经 `CommentWriter`（`.comments.json` / `.comments.txt` 与 Markdown / 视频产物同名）。默认只保留一级评论内联的最多 3 条楼中楼预览，内容集含 `O`（`-g O`）才额外翻页抓全。抓取失败一律降级为「拿到多少算多少」（专栏链路整体重试耗尽后只告警，不影响 Markdown 导出），只有 WBI 签名错误（`-403`）才抛异常——评论下载与视频 / 专栏下载互不干扰。
 - **文件名 (`FileNameUtil`)**：按 **UTF-8 字节数截断，上限 200 字节**（约 66 个汉字），避免过长路径；变量支持自定义日期格式 `<publishDate:yyyyMMdd>` / `<videoDate:格式>`。
 
 ---
@@ -434,9 +434,9 @@ playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）�
 
 ---
 
-## 11. 专栏导出旁路
+## 11. 专栏导出链路
 
-根命令识别到专栏地址（`https://www.bilibili.com/opus/...`、`cv{id}`、`opus{id}` 等）时，会把 B 站「专栏 / 图文」抓取并转换为 Markdown；纯图文动态（`item.type == 0`）同样按正文导出。它与音视频下载链路**完全独立**，是一条旁路，目的是避免让专栏逻辑被 `WorkSetup.Build` 的 ffmpeg 探测、混流、`SavePath.Format`（硬编码 `.mp4`）等音视频专属步骤拖累。
+根命令识别到专栏地址（`https://www.bilibili.com/opus/...`、`cv{id}`、`opus{id}` 等）时，会把 B 站「专栏 / 图文」抓取并转换为 Markdown；纯图文动态（`item.type == 0`）同样按正文导出。它与音视频下载链路\*\*完全独立\*\*，单独成链，避免专栏逻辑被 `WorkSetup.Build` 的 ffmpeg 探测、混流、`SavePath.Format`（硬编码 `.mp4`）等音视频专属步骤拖累。
 
 ### 11.1 分流点
 
@@ -456,23 +456,23 @@ OpusDownload.RunAsync (BBDown.Core.Pipeline)  不走 WorkSetup.Build / 不构造
   │  │                             专栏 → 回退 article/view(cv)；纯图文动态（无 cv）→ 直接按 MODULE_TYPE_CONTENT 导出
   │  ├─ DownloadCommentsAsync     内容含 o / O 时先导出评论区（先于 md 存在性早退，重跑可补抓）：
   │  │                             专栏 type=12/oid=cvid、图文取 opus/detail 下发值；WBI 密钥经 Account.ProbeAccountAsync 补齐；
-  │  │                             经 CommentWriter 落盘 .comments.json / .comments.txt，失败只告警
+  │  │                             经 CommentWriter 写入 .comments.json / .comments.txt，失败只告警
   │  ├─ OpusFetcher.ParseTopAlbum  顶部相册（MODULE_TYPE_TOP → module_top.display.album.pics）置于正文最前
   │  ├─ OpusHtmlToMarkdown        把 B 站专栏结构化的段落 JSON 转成 Markdown 模型（旧版 HTML 白名单降级，产物标记 IsRawMarkdown）
   │  ├─ OpusMarkdownRenderer      渲染标题/front matter/图片/列表/代码/公式等
   │  └─ OpusImageUtil             默认下载图片到 <标题>/images/；内容集不含 i（-W i）则保留远程链接
   ▼
-内容集含 A 时落盘 <标题>.md（UTF-8 无 BOM，保证 YAML Frontmatter 可被解析；-W A 只导图片与评论）
+内容集含 A 时写入 <标题>.md（UTF-8 无 BOM，保证 YAML Frontmatter 可被解析；-W A 只导图片与评论）
 ```
 
 ### 11.2 与主干的关键差异
 
 - **不经过 `WorkSetup.Build`**：专栏不需要 ffmpeg / 账号探测 / 分 P 编排，因此**没有 ffmpeg 也能跑**；也不会因缺 ffmpeg 而抛异常。
 - **不构造 `WorkContext`**：复用了 `HTTPUtil` / `Buvid` / `CredentialStore` 等底层能力，但绕开了 `WorkContext` 这一音视频上下文。
-- **不用 `SavePath.Format`**：输出文件名由 `FileNameUtil.GetValidFileName` 直接处理，按 `<标题>.md` 落盘，图片进 `<标题>/images/`，与音视频的 `.mp4` 命名体系解耦。
+- **不用 `SavePath.Format`**：输出文件名由 `FileNameUtil.GetValidFileName` 直接处理，按 `<标题>.md` 写入，图片进 `<标题>/images/`，与音视频的 `.mp4` 命名体系解耦。
 - **解析拆分**：`OpusFetcher` 为 partial class，拆为网络编排与判定（`OpusFetcher.cs`）/ 文档级解析（`OpusFetcher.Parse.cs`）/ 段落与节点解析（`OpusFetcher.Paragraph.cs`）三份，便于控制单文件行数。
 - **复用的 HTTP 桩点**：`OpusFetcher` 经替换 `HTTPUtil.AppHttpClient` 单测，与 `BBDown.Core.Tests` 中其他 HTTP 测试共用串行集合，避免 HttpClient 静态字段竞争。
-- **评论导出复用主干组件**：`DownloadCommentsAsync` 与视频链路共用 `CommentFetcher` / `CommentWriter` / `CommentDocument`，但 WBI 密钥不走 `VideoInfo.FetchAsync` 的探测点，而是在本链路内经 `Account.ProbeAccountAsync` 补齐（专栏旁路了视频信息获取，nav 探测需自行触发）。
+- **评论导出复用主干组件**：`DownloadCommentsAsync` 与视频链路共用 `CommentFetcher` / `CommentWriter` / `CommentDocument`，但 WBI 密钥不走 `VideoInfo.FetchAsync` 的探测点，而是在本链路内经 `Account.ProbeAccountAsync` 补齐（专栏链路没有视频信息获取步骤，nav 探测需自行触发）。
 - **AOT 约束一致**：`OpusFetcher` 解析接口 JSON 一律用 `JsonDocument` / `GetProperty`，不依赖运行时反射，与全项目 AOT 策略一致。
 
 ### 11.3 serve 模式说明

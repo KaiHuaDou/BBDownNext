@@ -3,8 +3,8 @@ using System.Collections.Generic;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// <c>--allow-pcdn</c> 单独使用必须能让 PCDN 域名保留，
-/// 不能因为默认强制替换 host 而被覆盖（那样就等同于死选项）。
+/// <c>--allow-pcdn</c> 单独使用必须能让 PCDN 域名保留
+/// 不能因为默认强制替换 host 而被覆盖（那样就等同于死选项）
 /// </summary>
 public class CdnHostTests
 {

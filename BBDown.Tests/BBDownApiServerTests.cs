@@ -8,18 +8,18 @@ using BBDown.Serve.Tasks;
 namespace BBDown.Tests;
 
 /// <summary>
-/// <see cref="BBDownServer"/> 回归测试。
-/// 重点是 serve 请求契约 <see cref="ServeRequestOptions"/>（受控子集，结构上无法注入主机可控字段）
-/// 与 <see cref="SsrfGuard.IsSafeWebHook"/>（SSRF 防护），以及变更类端点必须是 POST。
+/// <see cref="BBDownServer"/> 回归测试
+/// 重点是 serve 请求约定 <see cref="ServeRequestOptions"/>（客户端可提交的子集，结构上无法注入服务端指定字段）
+/// 与 <see cref="SsrfGuard.IsSafeWebHook"/>（SSRF 防护），以及变更类端点必须是 POST
 /// </summary>
 public class BBDownApiServerTests
 {
-    #region ServeRequestOptions 受控子集
+    #region ServeRequestOptions 客户端可提交的子集
 
     [Fact]
     public void ServeRequestOptions_ToDownloadRequest_IgnoresHostControlledInjection( )
     {
-        // 模拟攻击者试图在请求体中注入主机可控字段；这些字段不在 ServeRequestOptions 中，
+        // 模拟攻击者试图在请求体中注入服务端指定字段；这些字段不在 ServeRequestOptions 中
         // 反序列化时被忽略，转换后的 DownloadRequest 回落为安全默认值，结构上杜绝 RCE / 路径逃逸
         const string maliciousJson = """
         {
@@ -42,7 +42,7 @@ public class BBDownApiServerTests
         var req = JsonSerializer.Deserialize<ServeRequestOptions>(maliciousJson, ServeRequestOptionsJsonContext.Default.ServeRequestOptions)!;
         var opts = req.ToDownloadRequest( );
 
-        // 这些字段直接决定被拉起的进程、参数与落盘位置，必须以服务端为准，绝不允许请求注入
+        // 这些字段直接决定被拉起的进程、参数与写入位置，必须以服务端为准，绝不允许请求注入
         Assert.Equal("", opts.FFmpegPath);
         Assert.Equal("", opts.Mp4boxPath);
         Assert.Equal("", opts.Aria2cPath);
@@ -96,7 +96,7 @@ public class BBDownApiServerTests
     [Fact]
     public void ServeRequestOptions_JsonRoundTrip_ParsesContentAndApiStrings( )
     {
-        // 请求体用字符串表达内容集与 API 通道，与 CLI 输入一致；转换后落入枚举字段（契约 camelCase）
+        // 请求体用字符串表达内容集与 API 通道，与 CLI 输入一致；转换后落入枚举字段（约定 camelCase）
         const string json = """{"url":"https://www.bilibili.com/video/BV1xx411c7XD","content":"av","api":"tv"}""";
         var req = JsonSerializer.Deserialize<ServeRequestOptions>(json, ServeRequestOptionsJsonContext.Default.ServeRequestOptions)!;
         var opts = req.ToDownloadRequest( );
@@ -105,7 +105,7 @@ public class BBDownApiServerTests
         Assert.Equal(ApiType.Tv, opts.Api);
     }
 
-    // Area 会被逐字拼进官方 API 的 query（playurl 的 area= 参数），是契约里唯一未枚举化的拼串字段：
+    // Area 会被逐字拼进官方 API 的 query（playurl 的 area= 参数），是约定里唯一未枚举化的拼串字段
     // 只接受 hk / tw / th，其余文本（含 query 注入）一律回落空值
     [Theory]
     [InlineData("hk", "hk")]
@@ -158,7 +158,7 @@ public class BBDownApiServerTests
 
     #endregion
 
-    #region ResourceId 规范 id 与 JSON 契约（ResourceId 重构后 serve 契约）
+    #region ResourceId 规范 id 与 JSON 约定（ResourceId 重构后 serve 约定）
 
     [Theory]
     [InlineData("av114514", typeof(ResourceId.Av), 114514L)]
@@ -202,11 +202,11 @@ public class BBDownApiServerTests
     [InlineData("114514")]              // 裸数字，缺前缀
     [InlineData("av")]                  // 缺值
     [InlineData("avabc")]               // 非数字
-    [InlineData("av:1:2")]              // 冒号形态非规范 id
+    [InlineData("av:1:2")]              // 冒号形式非规范 id
     [InlineData("BV1xx411c7XD")]        // 输入简写，非规范 id
-    [InlineData("ep:ss2539")]           // 打标形态非规范 id
+    [InlineData("ep:ss2539")]           // 打标形式非规范 id
     [InlineData("fav100")]              // fav 缺 mid
-    [InlineData("watchLater:")]         // watchLater 无值形态不带冒号
+    [InlineData("watchLater:")]         // watchLater 无值形式不带冒号
     public void ResourceId_TryParse_RejectsNonCanonical(string input)
     {
         Assert.False(ResourceId.TryParse(input, out _));
@@ -218,7 +218,7 @@ public class BBDownApiServerTests
         var task = new DownloadTask(new ResourceId.Season(2539), "ss2539", 0);
         var json = JsonSerializer.Serialize(task, AppJsonSerializerContext.Default.DownloadTask);
 
-        // id 经 ResourceIdJsonConverter 输出规范字符串，属性名随契约 camelCase
+        // id 经 ResourceIdJsonConverter 输出规范字符串，属性名随约定 camelCase
         Assert.Contains("\"id\":\"season2539\"", json);
     }
 

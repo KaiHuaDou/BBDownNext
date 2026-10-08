@@ -145,7 +145,7 @@ public partial class MainWindow
 
     private void ConcurrencyBoxTextChanged(object? o, TextChangedEventArgs e)
     {
-        // 输入即时反馈：非法值标红，合法值消除；回退与落盘仍统一发生在失焦 / 关窗
+        // 输入即时反馈：非法值标红，合法值消除；回退与写入仍统一发生在失焦 / 关窗
         var valid = int.TryParse(ConcurrencyBox.Text, out var value)
                     && value is >= MinConcurrency and <= MaxConcurrency;
         if (valid)

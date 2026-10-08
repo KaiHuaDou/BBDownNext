@@ -3,7 +3,7 @@ using BBDown.Serve.Http;
 
 namespace BBDown.Tests;
 /// <summary>
-/// 内嵌 WebUI 静态托管的纯函数测试：扩展名 → MIME 查表。BuildResourceMap / 端点涉及程序集资源与 HTTP 上下文，属耗时 / IO，不测。
+/// 内嵌 WebUI 静态托管的纯函数测试：扩展名 → MIME 查表。BuildResourceMap / 端点涉及程序集资源与 HTTP 上下文，属耗时 / IO，不测
 /// </summary>
 public class WebUiEndpointsTests
 {

@@ -1,4 +1,4 @@
-/** 直播清晰度档位：与 Core LiveQuality.Levels 对齐（高 → 低）。经 serve 请求契约 exposed，WebUI 可选择。 */
+/** 直播清晰度档位：与 Core LiveQuality.Levels 相同（高 → 低）。经 serve 请求体提交，WebUI 可选择。 */
 
 export const LIVE_QUALITY_LEVELS: { qn: number; name: string }[] = [
   { qn: 30000, name: '杜比' },

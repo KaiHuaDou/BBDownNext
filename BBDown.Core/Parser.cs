@@ -24,8 +24,8 @@ public static class Parser
             return await AppTrackReader.FetchAsync(req, ct);
         }
 
-        // 一律按最高档单次请求：一次响应已含全部可用档位，免二压档位只在 MaxQn 响应出现，无需两次请求再取并集。
-        // 显式 qn 刻意忽略——FLV 交互选清晰度不生效是既定设计（FLV 强制最高清晰度），见 AGENTS.md「其他内容」；
+        // 一律按最高档单次请求：一次响应已含全部可用档位，免二压档位只在 MaxQn 响应出现，无需两次请求再取并集
+        // 显式 qn 刻意忽略——FLV 交互选清晰度不生效是既定设计（FLV 强制最高清晰度），见 AGENTS.md「其他内容」
         // INTL 通道的 prefer_code_type 双请求按 qn 原样进行
         var effectiveQn = req.Api == ApiType.Intl ? qn : Config.MaxQn;
         ParsedResult result = new( )
@@ -33,11 +33,11 @@ public static class Parser
             RawResponse = await PlayUrlClient.FetchAsync(req, effectiveQn, ct)
         };
 
-        // playurl 响应可达数百 KB 且 INTL 通道的请求 query 携带凭据：只打头部并经脱敏，
-        // 全量数据由 --debug 的 debug_*.json 落盘兜底（与 HTTPUtil.TruncateForLog 同一约定）
+        // playurl 响应可达数百 KB 且 INTL 通道的请求 query 携带凭据：只打头部并经脱敏
+        // 全量数据由 --debug 的 debug_*.json 写盘（与 HTTPUtil.TruncateForLog 同一约定）
         LogDebug("PlayUrl 响应（截断）：{0}", HTTPUtil.TruncateForLog(result.RawResponse));
 
-        // INTL 双次请求（prefer_code_type 0/1 各一次）合并轨道；任一次缺 stream_list 即放弃 intl 通道，
+        // INTL 双次请求（prefer_code_type 0/1 各一次）合并轨道；任一次缺 stream_list 即放弃 intl 通道
         // 保留已收集轨道并交回通用 dash/durl 通道解析（等价点 B：勿当作 bug 顺手"修"掉）
         if (await TryCollectIntlAsync(result, req, qn, ct))
         {
@@ -45,7 +45,7 @@ public static class Parser
         }
 
         using var doc = JsonDocument.Parse(result.RawResponse);
-        // playurl 非 0 code（-400/-404/-352 等）意味着拉流失败：直接抛可读错误，
+        // playurl 非 0 code（-400/-404/-352 等）意味着拉流失败：直接抛可读错误
         // 否则会静默落到根节点解析出空轨道，下游只报一句晦涩的「解析此分 P 失败」
         var (code, message) = ReadApiError(doc.RootElement);
         if (code != 0)
@@ -55,9 +55,9 @@ public static class Parser
                 : $"获取播放信息失败（code={code}）：{message}");
         }
 
-        // 人机验证风控：code=0、数据合法，但只有 v_voucher 凭据而无 dash/durl。
-        // 抛出可读错误才能进入 PageDownload 的解析重试并按退避节奏重来，
-        // 否则一路静默解析出空轨道，用户只看到「未解析到任何音视频轨道」而无从判断原因。
+        // 人机验证风控：code=0、数据合法，但只有 v_voucher 凭据而无 dash/durl
+        // 抛出可读错误才能进入 PageDownload 的解析重试并按退避节奏重来
+        // 否则一路静默解析出空轨道，用户只看到「未解析到任何音视频轨道」而无从判断原因
         // 仅在尚未收到任何轨道时判：INTL 的 prefer_code_type=1 重发若被风控，首轮轨道仍可用
         if (result.VideoTracks.Count == 0 && result.AudioTracks.Count == 0)
         {
@@ -95,8 +95,8 @@ public static class Parser
         return result;
     }
 
-    // INTL 两次请求合并：首响应用 prefer_code_type=0，成功收集后再以 prefer_code_type=1 请求并合并。
-    // 任一次缺 stream_list 返回 false，把响应体交回通用 dash/durl 通道（等价点 B）。
+    // INTL 两次请求合并：首响应用 prefer_code_type=0，成功收集后再以 prefer_code_type=1 请求并合并
+    // 任一次缺 stream_list 返回 false，把响应体交回通用 dash/durl 通道（等价点 B）
     private static async Task<bool> TryCollectIntlAsync(ParsedResult result, PlayUrlRequest req, string qn, CancellationToken ct)
     {
         if (!TryCollectIntlTracks(result))

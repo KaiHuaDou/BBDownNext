@@ -7,8 +7,8 @@ namespace BBDown.Core.Tests;
 [Collection<HttpStubCollectionDefinition>]
 public class InputResolverSpaceTests
 {
-    // 空间投稿解析为纯字符串处理，不触网（mid 由 UidRegex 从 URL 抽取，space 简写直接构造），
-    // 故可在无网络环境下断言内部 id 形态。
+    // 空间投稿解析为纯字符串处理，不触网（mid 由 UidRegex 从 URL 抽取，space 简写直接构造）
+    // 故可在无网络环境下断言内部 id 形式
     public static TheoryData<string, ResourceId> SpaceCases => new( )
     {
         { "https://space.bilibili.com/402787936", new ResourceId.Space(402787936) },
@@ -34,7 +34,7 @@ public class InputResolverSpaceTests
         Assert.Equal(new ResourceId.Av(402787936), result);
     }
 
-    // 回归护栏：合集/系列/收藏夹的 space 子路径必须仍走各自分支，不被新的空间兜底吞掉
+    // 回归护栏：合集/系列/收藏夹的 space 子路径必须仍走各自分支，不被新的空间分支吞掉
     public static TheoryData<string, ResourceId> SpaceSubPageCases => new( )
     {
         { "https://space.bilibili.com/392959666/lists/1560264?type=season", new ResourceId.MediaList(1560264) },

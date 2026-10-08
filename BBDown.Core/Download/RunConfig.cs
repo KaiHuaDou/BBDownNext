@@ -3,10 +3,10 @@ using System.Collections.Generic;
 namespace BBDown.Core.Download;
 
 /// <summary>
-/// 一次下载任务在「启动即可确定」的运行参数快照（不可变）。由 <see cref="BBDown.Core.Pipeline.WorkSetup.Build"/> 算清一次，
+/// 一次下载任务在「启动即可确定」的运行参数快照（不可变）。由 <see cref="BBDown.Core.Pipeline.WorkSetup.Build"/> 算清一次
 /// 不含任何「跑中才得到」的值（视频信息、aid、api 类型、保存路径模板）——那些由
-/// <see cref="BBDown.Core.Pipeline.VideoInfo.FetchAsync"/> / <see cref="BBDown.Core.Pipeline.PageQueue.RunAsync"/> 作为返回值 / 局部变量回传，
-/// 最终在 <see cref="BBDown.Core.Pipeline.PageQueue.RunAsync"/> 里一次性组装进 <see cref="WorkContext"/>。
+/// <see cref="BBDown.Core.Pipeline.VideoInfo.FetchAsync"/> / <see cref="BBDown.Core.Pipeline.PageQueue.RunAsync"/> 作为返回值 / 局部变量回传
+/// 最终在 <see cref="BBDown.Core.Pipeline.PageQueue.RunAsync"/> 里一次性组装进 <see cref="WorkContext"/>
 /// </summary>
 public sealed record RunConfig(
     Dictionary<string, byte> EncodingPriority,

@@ -3,8 +3,8 @@ using System;
 namespace BBDown.Core.Opus;
 
 /// <summary>
-/// 专栏定位符。OpusId 与 CvId 是同一篇文章的两个 ID：opus id 是动态 ID（雪花 ID，约 18-19 位），
-/// cv id 是专栏 ID（目前通常 7-9 位）。二者至少有一个非空。
+/// 专栏定位符。OpusId 与 CvId 是同一篇文章的两个 ID：opus id 是动态 ID（雪花 ID，约 18-19 位）
+/// cv id 是专栏 ID（目前通常 7-9 位）。二者至少有一个非空
 /// </summary>
 public readonly record struct OpusTarget(string OpusId, string CvId)
 {
@@ -15,14 +15,14 @@ public readonly record struct OpusTarget(string OpusId, string CvId)
 public static class OpusInputResolver
 {
     /// <summary>
-    /// 把用户输入归一化为专栏地址。识别以下形态：
+    /// 把用户输入归一化为专栏地址。识别以下形式
     /// <list type="bullet">
     ///   <item>https://www.bilibili.com/opus/123... （支持 // 协议相对、m.、带 query）</item>
     ///   <item>https://www.bilibili.com/read/cv12345 或 /read/mobile/12345</item>
     ///   <item>cv12345 / CV12345</item>
     ///   <item>opus123... / opus:123...</item>
     /// </list>
-    /// 裸数字一律拒绝，留给视频链路（av 号简写）。
+    /// 裸数字一律拒绝，留给视频链路（av 号简写）
     /// </summary>
     public static bool TryParse(string input, out OpusTarget target)
     {
@@ -34,7 +34,7 @@ public static class OpusInputResolver
 
         var s = input.Trim( );
 
-        // URL 形态（含 // 协议相对与 http/https）
+        // URL 形式（含 // 协议相对与 http/https）
         if (s.StartsWith("//", StringComparison.Ordinal)
             || s.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
             || s.StartsWith("https://", StringComparison.OrdinalIgnoreCase))

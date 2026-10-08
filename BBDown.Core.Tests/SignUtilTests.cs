@@ -6,9 +6,9 @@ namespace BBDown.Core.Tests;
 
 public class SignUtilTests
 {
-    // WBI 签名是 Web 端鉴权命门（MD5 + mixinKey），错一位全线 -403。
-    // 下列向量取自 bilibili-API-collect/docs/misc/sign/wbi.md 的官方 Rust/Haskell 参考实现，
-    // 用同一个 mixinKey 复算，确保本实现与服务端算法逐字节一致。
+    // WBI 签名是 Web 端鉴权命门（MD5 + mixinKey），错一位全线 -403
+    // 下列向量取自 bilibili-API-collect/docs/misc/sign/wbi.md 的官方 Rust/Haskell 参考实现
+    // 用同一个 mixinKey 复算，确保本实现与服务端算法逐字节一致
     private static readonly AppConfig WbiTestConfig =
         new("", "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "ea1db124af3c7062474693fa704f4ff8", "");
 
@@ -69,8 +69,8 @@ public class SignUtilTests
     [Fact]
     public void WbiSignedQuery_EncodesJsonValueAndSignsEncodedForm( )
     {
-        // reply/wbi/main 的 pagination_str 是一段 JSON，是全站唯一含 { } " : 的 WBI 参数。
-        // 断言编码结果直接出现在 query 里：canonical 与线上 URL 必须是同一个字符串，否则服务端解出的值对不上签名。
+        // reply/wbi/main 的 pagination_str 是一段 JSON，是全站唯一含 { } " : 的 WBI 参数
+        // 断言编码结果直接出现在 query 里：canonical 与线上 URL 必须是同一个字符串，否则服务端解出的值对不上签名
         var signed = SignUtil.WbiSignedQuery(
             [
                 new("type", "1"),

@@ -16,7 +16,7 @@ namespace BBDown.GUI;
 /// <summary>单任务下载执行，控制 MainWindow.axaml.cs 行数。</summary>
 public partial class MainWindow
 {
-    /// <summary>调度循环在后台线程执行；日志经 MessageBus 转发，BeginScope 标注任务序号供日志区加 [任务 N] 前缀。
+    /// <summary>调度循环在后台线程执行；日志经 MessageBus 转发，BeginScope 标注任务序号供日志区加 [任务 N] 前缀
     /// 后处理路径已随 TaskParams 落入 DownloadRequest（PostProcessPath），按任务生效，无需进程级配置。</summary>
     private async Task<int> ExecuteTaskAsync(TaskState state, CancellationToken token)
     {
@@ -31,7 +31,7 @@ public partial class MainWindow
         {
             try
             {
-                // b23 短链先展开再识别形态（与 CLI RunApp 一致），否则直播 / 集合形态的短链会误入视频管道
+                // b23 短链先展开再识别形式（与 CLI RunApp 一致），否则直播 / 集合形式的短链会误入视频管道
                 var url = state.Url;
                 if (url.Contains("b23.tv", StringComparison.OrdinalIgnoreCase))
                 {
@@ -39,8 +39,8 @@ public partial class MainWindow
                     req = req with { Url = url };
                 }
 
-                // 直播单独链路：录制会话以任务序号注册（LiveSignal），停止按钮按序号精准停录；
-                // 直播形态以展开后的 url 重判，入队时的 Kind 不可作为路由依据
+                // 直播单独链路：录制会话以任务序号注册（LiveSignal），停止按钮按序号精准停录
+                // 直播形式以展开后的 url 重判，入队时的 Kind 不可作为路由依据
                 if (LiveInputResolver.TryParse(url, out var live))
                 {
                     MarkLive(state);
@@ -70,7 +70,7 @@ public partial class MainWindow
         }
     }
 
-    // b23 短链展开后才暴露直播形态：回投 UI 线程补记 Kind，停止按钮 / 不确定进度条按整项绑定的转换器随之联动
+    // b23 短链展开后才暴露直播形式：回投 UI 线程补记 Kind，停止按钮 / 不确定进度条按整项绑定的转换器随之联动
     private static void MarkLive(TaskState state)
     {
         if (state.Kind == TaskKind.Live)

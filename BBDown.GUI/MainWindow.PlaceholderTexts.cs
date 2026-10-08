@@ -9,7 +9,7 @@ namespace BBDown.GUI;
 /// <summary>「留空即有自动值」的文本框以 PlaceholderText 预展示自动值：探测 / 推导类动态生成，默认类为静态文案。</summary>
 public partial class MainWindow
 {
-    /// <summary>PlaceholderText 与 Text 相互独立，只反映本次进程的自动值，配置往返与重置选项无需重跑。</summary>
+    /// <summary>PlaceholderText 与 Text 相互独立，只反映当前进程的自动值，配置往返与重置选项无需重跑。</summary>
     private void ApplyPlaceholderTexts( )
     {
         var ffmpeg = Utils.FindExecutable("ffmpeg");

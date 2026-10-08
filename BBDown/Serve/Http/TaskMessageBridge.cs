@@ -6,8 +6,8 @@ namespace BBDown.Serve.Http;
 
 /// <summary>
 /// 消息 / 进度 / 交互桥接：订阅 MessageBus（日志消息）、ProgressBus（进度阶段边界）与
-/// AskBus（选项请求），把 Scope（任务 id）匹配的消息 / 事件送进对应任务的事件流（WebSocket）。
-/// 无 Scope（CLI 路径）或任务无事件上下文（未启用交互）时忽略。宿主生命周期与 serve 进程一致。
+/// AskBus（选项请求），把 Scope（任务 id）匹配的消息 / 事件送进对应任务的事件流（WebSocket）
+/// 无 Scope（CLI 路径）或任务无事件上下文（未启用交互）时忽略。宿主生命周期与 serve 进程一致
 /// </summary>
 internal sealed class TaskMessageBridge
 {
@@ -32,7 +32,7 @@ internal sealed class TaskMessageBridge
         store.GetContext(message.Scope)?.EnqueueMessage(message.Text, message.Time);
     }
 
-    // 阶段边界（低频）入事件队列；阶段内样本高频不进队列——快照由 ProgressBus.Latest 承载，
+    // 阶段边界（低频）入事件队列；阶段内样本高频不进队列——快照由 ProgressBus.Latest 保存
     // 由事件转发器周期读取推送 snapshot 帧
     private void OnProgress(WorkflowEvent evt)
     {

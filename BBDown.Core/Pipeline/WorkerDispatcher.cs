@@ -8,9 +8,9 @@ using BBDown.Core.Workflow;
 namespace BBDown.Core.Pipeline;
 
 /// <summary>
-/// 资源类型 → 执行器的唯一分发点：CLI（RunApp）、serve（TaskWorker）与 GUI 共用，
-/// 消除多套形态分流。直播 / 专栏 / 音频 / 集合为独立链路（不构造 WorkContext、
-/// 不探测 ffmpeg 的链路自行探测），其余（视频 / 列表）走视频下载管道。
+/// 资源类型 → 执行器的唯一分发点：CLI（RunApp）、serve（TaskWorker）与 GUI 共用
+/// 消除多套分流分支。直播 / 专栏 / 音频 / 集合为独立链路（不构造 WorkContext
+/// 不探测 ffmpeg 的链路自行探测），其余（视频 / 列表）走视频下载管道
 /// </summary>
 public static class WorkerDispatcher
 {

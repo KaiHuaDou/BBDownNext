@@ -1,4 +1,4 @@
-/** serve 契约类型：与 BBDown.Serve 的 DownloadTask / ServeRequestOptions / WorkflowEvent 序列化格式对齐。 */
+/** serve 数据类型：与 BBDown.Serve 的 DownloadTask / ServeRequestOptions / WorkflowEvent 的序列化格式相同。 */
 
 /** 任务状态（serve 侧枚举，JSON 为字符串）。 */
 export type DownloadStatus = 'Pending' | 'Queued' | 'Running' | 'Finished'
@@ -32,20 +32,20 @@ export interface TaskSnapshot {
   finished: DownloadTask[]
 }
 
-/** /healthz 响应（前端已不再轮询，保留类型供外部调用者使用）。 */
+/** /healthz 响应（前端不轮询，保留类型供外部调用者使用）。 */
 export interface HealthStatus {
   status: string
   running: number
 }
 
-/** 混流方式（与 Core MuxMode 枚举小写对齐）。 */
+/** 混流方式（与 Core MuxMode 枚举的小写形式相同）。 */
 export type MuxMode = 'none' | 'mpeg4' | 'mp4box' | 'mkv'
 
-/** API 通道（与 Core ApiType 枚举小写对齐）。 */
+/** API 通道（与 Core ApiType 枚举的小写形式相同）。 */
 export type ApiType = 'web' | 'tv' | 'app' | 'intl'
 
 /**
- * 任务提交契约（POST /api/v1/tasks 请求体）。
+ * 任务提交体（POST /api/v1/tasks 请求体）。
  * 为 ServeRequestOptions 的前端镜像：serve 明确排除的字段（主机可控路径、进程级开关）不在此列，
  * 交互式选项随请求提交，应答经 WebSocket 事件流完成，见 lib/options.ts。
  */
@@ -85,11 +85,11 @@ export interface ServeRequestOptions {
   uposHost: string
   delayPerPage: string
   area: string
-  /** 每个下载项的额外重试次数，缺省回落 3（与 serve ServeRequestOptions.MaxRetry 对齐）。 */
+  /** 每个下载项的额外重试次数，未指定时为 3（与 serve ServeRequestOptions.MaxRetry 相同）。 */
   maxRetry: number
 }
 
-/** 工作流事件（type 判别符与 Core WorkflowEvent 对齐）。 */
+/** 工作流事件（type 标记与 Core WorkflowEvent 相同）。 */
 export type WorkflowEvent =
   | { type: 'message'; text: string; time: string }
   | { type: 'progressStart'; scope: string; stageName: string }
@@ -133,7 +133,7 @@ export interface ClientFrame {
   choice?: string
 }
 
-/** 前端任务视图状态（对齐 GUI TaskState 的五态展示）。 */
+/** 前端任务视图状态（与 GUI TaskState 的五态展示相同）。 */
 export type TaskViewStatus = 'Pending' | 'Waiting' | 'Running' | 'Success' | 'Failed' | 'Cancelled'
 
 export interface TaskView {

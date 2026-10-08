@@ -121,7 +121,7 @@ public static class DanmakuUtil
         await File.WriteAllTextAsync(outputPath, sb.ToString( ), Encoding.UTF8, ct);
     }
 
-    // ASS 中 \ { } 是覆盖指令分隔符，弹幕正文若含这些字符会污染样式，必须转义；
+    // ASS 中 \ { } 是覆盖指令分隔符，弹幕正文若含这些字符会污染样式，必须转义
     // Dialogue 是单行记录，正文里的换行会拆出非法行，替换为空格
     private static string EscapeAssText(string text)
     {

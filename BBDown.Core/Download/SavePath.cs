@@ -13,7 +13,7 @@ using static BBDown.Core.Util.FileNameUtil;
 namespace BBDown.Core.Download;
 
 /// <summary>
-/// 文件命名变量：Token 为尖括号占位符本体，Description 供 GUI 变量表与 CLI help 共用。
+/// 文件命名变量：Token 为尖括号占位符本体，Description 供 GUI 变量表与 CLI help 共用
 /// </summary>
 public sealed record NamingVariable(string Token, string Description);
 
@@ -42,7 +42,7 @@ public static partial class SavePath
         new("<ownerName>", "UP 主名称"),
         new("<ownerMid>", "UP 主 mid"),
         new("<publishDate>", "收藏夹 / 番剧 / 合集发布时间，默认 yyyy-MM-dd_HH-mm-ss，可写 <publishDate:格式> 自定义"),
-        new("<videoDate>", "视频发布时间（分 P 视频发布时间与 <publishDate> 相同），自定义格式写法同上"),
+        new("<videoDate>", "视频发布时间（分 P 视频发布时间与 <publishDate> 相同），自定义格式同上"),
         new("<apiType>", "API 类型（WEB / TV / APP / INTL）"),
     ];
 
@@ -106,7 +106,7 @@ public static partial class SavePath
                 "cid" => p.Cid,
                 "ownerName" => p.OwnerName == null ? "" : GetValidFileName(p.OwnerName),
                 "ownerMid" => GetValidFileName(p.OwnerMid ?? ""),
-                // 清晰度 / 分辨率 / 帧率 / 编码逐字来自 playurl 响应（对端可控），是路径组成段：
+                // 清晰度 / 分辨率 / 帧率 / 编码逐字来自 playurl 响应（对端可控），是路径组成段
                 // 与标题同构过 GetValidFileName，镜像站下发含分隔符或 .. 的值无法穿越工作目录
                 "dfn" => videoTrack == null ? "" : GetValidFileName(videoTrack.Dfn),
                 "res" => videoTrack == null ? "" : GetValidFileName(videoTrack.Res ?? ""),

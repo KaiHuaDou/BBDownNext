@@ -8,12 +8,12 @@ using System.Threading.Tasks;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// 不声明 <c>Content-Length</c> 的分块响应体，逼被测实现走逐块累计而非声明长度。
+/// 不声明 <c>Content-Length</c> 的分块响应体，逼被测实现走逐块累计而非声明长度
 /// </summary>
 /// <param name="data">单块内容；为 <see langword="null"/> 时反复发送同一块，用于验证总量上限。</param>
 internal sealed class ChunkedContent(byte[]? data) : HttpContent
 {
-    // 无上限时封顶 100 MB：即便被测实现漏判上限也不会无限循环
+    // 无上限时上限 100 MB：即便被测实现漏判上限也不会无限循环
     private const int MaxChunks = 100;
 
     protected override bool TryComputeLength(out long length)

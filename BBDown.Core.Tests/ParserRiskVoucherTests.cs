@@ -6,13 +6,13 @@ using BBDown.Core.PlayUrl;
 
 namespace BBDown.Core.Tests;
 
-// 走 HttpStub 驱动 playurl 真实链路：只测纯函数无法证明 Parser 的调用点在位，
+// 走 HttpStub 驱动 playurl 真实链路：只测纯函数无法证明 Parser 的调用点存在
 // 摘掉 PlayUrlResponse.ThrowIfRiskControlled 调用后本文件用例会红
 [Collection<HttpStubCollectionDefinition>]
 public class ParserRiskVoucherTests
 {
-    // B 站风控窗口内的真实响应形状：HTTP 200、code=0、合法 JSON，但只有 v_voucher 凭据，
-    // 既无 dash 也无 durl。此前三处漏判（code 检查只拦非 0、解析出零轨道）会让用户
+    // B 站风控窗口内的真实响应形状：HTTP 200、code=0、合法 JSON，但只有 v_voucher 凭据
+    // 既无 dash 也无 durl。三处漏判（code 检查只拦非 0、解析出零轨道）会让用户
     // 只看到「未解析到任何音视频轨道」，且不参与 PageDownload 的解析重试
     private const string VoucherJson = """
     {

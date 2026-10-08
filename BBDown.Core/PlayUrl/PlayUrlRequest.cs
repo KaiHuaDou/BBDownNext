@@ -2,7 +2,7 @@
 using static BBDown.Core.ResourceId;
 
 namespace BBDown.Core.PlayUrl;
-// 收拢 playurl 请求参数，避免在解析各分支间逐层透传 9 个形参。
+// 收拢 playurl 请求参数，避免在解析各分支间逐层透传 9 个形参
 internal readonly record struct PlayUrlRequest(
     ResourceId AidOri,
     string Aid,

@@ -171,7 +171,7 @@ public class LiveFetcherParseTests
         Assert.Null(LiveFetcher.ParsePlayInfo(Parse(json), LiveQuality.Original));
     }
 
-    // hls / fmp4 的分片语义与 BBDown 的连续字节流录制模型不兼容，必须过滤掉
+    // hls / fmp4 的分片方式与 BBDown 的连续字节流录制模型不兼容，必须过滤掉
     [Fact]
     public void ParsePlayInfo_NonFlvStream_IsFiltered( )
     {

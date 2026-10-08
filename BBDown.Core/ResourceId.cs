@@ -249,7 +249,7 @@ public closed record ResourceId
         "ep", "cv", "au", "av", "rl"
     ];
 
-    // 仅接受纯数字（无符号/空白/千分位），保证规范形态与非法输入严格区分
+    // 仅接受纯数字（无符号/空白/千分位），保证规范形式与非法输入严格区分
     private static bool TryLong(string value, out long result)
     {
         return long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out result);

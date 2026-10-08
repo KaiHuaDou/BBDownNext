@@ -10,10 +10,10 @@ using static BBDown.Core.Logger;
 
 namespace BBDown.Core.Download;
 
-// 外部后处理进程的文件交换协议：请求 JSON 落盘 → 调起进程单次执行 → 产物文件即响应。
-// 未配置 --post-process 时整个路径不启用：默认静默，原文件照常混流输出。
-// 请求只携带轨道定位与本地路径，不携带任何加密特征与凭据——处理方自行获取所需信息。
-// 处理程序路径随 DownloadRequest.PostProcessPath 按任务透传，避免 GUI 并发任务互相覆盖配置。
+// 外部后处理进程的文件交换协议：请求 JSON 写入 → 调起进程单次执行 → 产物文件即响应
+// 未配置 --post-process 时整个路径不启用：默认静默，原文件照常混流输出
+// 请求只携带轨道定位与本地路径，不携带任何加密特征与凭据——处理方自行获取所需信息
+// 处理程序路径随 DownloadRequest.PostProcessPath 按任务透传，避免 GUI 并发任务互相覆盖配置
 public static class PostProcessClient
 {
     // 插件需完成 playurl 重抓（可能含 drm_tech_type=2 重试）、license 取钥与 ffmpeg 解密，20 秒在慢网络下不够
@@ -21,8 +21,8 @@ public static class PostProcessClient
 
     /// <summary>
     /// 通过请求文件调起外部进程处理已下载的轨道。任何失败（未配置 / 进程异常 / 超时 /
-    /// 无产物）都返回 false，调用方据此静默保留原文件；仅当进程退出码为 0 且产物存在才视为成功。
-    /// <paramref name="postProcessExe"/> 为空表示未配置后处理。
+    /// 无产物）都返回 false，调用方据此静默保留原文件；仅当进程退出码为 0 且产物存在才视为成功
+    /// <paramref name="postProcessExe"/> 为空表示未配置后处理
     /// </summary>
     public static async Task<bool> TryProcessAsync(string postProcessExe, string aid, string cid, string kind, string trackPath, string destPath, string ffmpeg, CancellationToken ct = default)
     {
@@ -74,8 +74,8 @@ public static class PostProcessClient
         }
         finally
         {
-            // 请求文件可能仍被外部进程 / 杀软短暂占用：删除失败仅留残件（临时目录清理兜底），
-            // 绝不能让 finally 异常替换正常返回值、击穿「全失败静默保留原文件」契约
+            // 请求文件可能仍被外部进程 / 杀软短暂占用：删除失败仅留残件（临时目录清理）
+            // 绝不能让 finally 内异常替换正常返回值、击穿「全失败静默保留原文件」约定
             try { File.Delete(requestPath); } catch { /* 残件无碍，不因清理失败掩盖处理结果 */ }
         }
     }

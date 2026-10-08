@@ -15,16 +15,16 @@ using static BBDown.Core.Util.JsonUtil;
 namespace BBDown.Core.Pipeline;
 
 /// <summary>
-/// UP 主空间动态流下载编排：翻页拉取动态流并按类型分发——图文动态（MAJOR_TYPE_OPUS）导出 Markdown、
-/// 视频动态（MAJOR_TYPE_ARCHIVE）复用视频管道下载、转发动态递归取原动态按其类型处理；
-/// 直播 / 剧集 / 充电等其余类型跳过。产物落在 workDir/{UP 名}/ 下，逐条失败继续（末尾汇总抛出）。
+/// UP 主空间动态流下载编排：翻页拉取动态流并按类型分发——图文动态（MAJOR_TYPE_OPUS）导出 Markdown
+/// 视频动态（MAJOR_TYPE_ARCHIVE）复用视频管道下载、转发动态递归取原动态按其类型处理
+/// 直播 / 剧集 / 充电等其余类型跳过。产物落在 workDir/{UP 名}/ 下，逐条失败继续（末尾汇总抛出）
 /// </summary>
 public static class SpaceDynamicDownload
 {
     // 转发递归深度上限：orig 指向根原动态，正常一层即达；上限仅防异常数据自嵌套
     private const int MaxForwardDepth = 3;
 
-    // internal 供单测构造断言（TryResolveItem 的 out 形态）；OpusId 与 BvId 恰有其一非空
+    // internal 供单测构造断言（TryResolveItem 的 out 形式）；OpusId 与 BvId 恰有其一非空
     internal readonly record struct DynamicItem(string OpusId, string BvId)
     {
         public bool HasOpus => OpusId.Length > 0;
@@ -111,8 +111,8 @@ public static class SpaceDynamicDownload
         Log("动态下载完成");
     }
 
-    // 动态条目 → 下载目标：图文（MAJOR_TYPE_OPUS）取动态 id，视频（MAJOR_TYPE_ARCHIVE）取 bvid，
-    // 转发（module_dynamic.orig）递归取原动态按其类型处理；其余类型返回 false 由调用方跳过。
+    // 动态条目 → 下载目标：图文（MAJOR_TYPE_OPUS）取动态 id，视频（MAJOR_TYPE_ARCHIVE）取 bvid
+    // 转发（module_dynamic.orig）递归取原动态按其类型处理；其余类型返回 false 由调用方跳过
     // internal 供单测：JsonElement 为纯内存输入，与 TrackReader 系列纯函数同性质
     internal static bool TryResolveItem(JsonElement entry, int depth, out DynamicItem item)
     {

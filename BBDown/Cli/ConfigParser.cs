@@ -14,12 +14,12 @@ namespace BBDown.Cli;
 internal static class ConfigParser
 {
     /// <summary>
-    /// 用配置文件补齐命令行未显式指定的选项，返回待解析的完整参数表。
-    /// 无配置文件或无可补项时原样返回 <paramref name="cliArgs"/>（引用相同，调用方据此跳过重新解析）。
+    /// 用配置文件补齐命令行未显式指定的选项，返回待解析的完整参数表
+    /// 无配置文件或无可补项时原样返回 <paramref name="cliArgs"/>（引用相同，调用方据此跳过重新解析）
     /// </summary>
     /// <remarks>
     /// 只能「补齐」而不能「拼接后让命令行覆盖」：System.CommandLine 对重复出现的单值选项
-    /// 会在取值时抛 InvalidOperationException，而非取最后一个。
+    /// 会在取值时抛 InvalidOperationException，而非取最后一个
     /// </remarks>
     public static string[] MergeWithConfig(string[] cliArgs, ParseResult cliResult, RootCommand rootCommand)
     {
@@ -78,7 +78,7 @@ internal static class ConfigParser
         }
     }
 
-    // 配置行 → argv token 的纯函数：跳过空行与 # 注释；带空格的 `-x y` 拆成两项并去引号；
+    // 配置行 → argv token 的纯函数：跳过空行与 # 注释；带空格的 `-x y` 拆成两项并去引号
     // 不带空格的 `-x` / 整行被引号包住的情况原样去引号返回
     internal static string[] TokenizeConfigLines(string configPath)
     {

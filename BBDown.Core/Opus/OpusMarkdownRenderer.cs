@@ -8,7 +8,7 @@ namespace BBDown.Core.Opus;
 
 /// <summary>
 /// 渲染选项。<see cref="EmbedFrontMatter"/> 控制是否输出 YAML 头部；<see cref="ImagePathMap"/> 把归一化后的
-/// 远程图片 URL 映射到 Markdown 中使用的相对路径（为 null 或查不到时直接写远程 URL，即 --no-images 与单图下载失败时的降级）。
+/// 远程图片 URL 映射到 Markdown 中使用的相对路径（为 null 或查不到时直接写远程 URL，即 --no-images 与单图下载失败时的降级）
 /// </summary>
 public sealed record OpusRenderOptions(
     bool EmbedFrontMatter = true,
@@ -265,7 +265,7 @@ public static class OpusMarkdownRenderer
         return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", " ").Replace("\r", " ");
     }
 
-    // 行内 Markdown 语法字符转义（只转义会破坏行内语义的字符，不碰中文标点与行首符号）
+    // 行内 Markdown 语法字符转义（只转义会破坏行内排版的字符，不碰中文标点与行首符号）
     private static string EscapeInline(string s)
     {
         if (string.IsNullOrEmpty(s))
@@ -288,7 +288,7 @@ public static class OpusMarkdownRenderer
 
     /// <summary>
     /// 远程 URL 与本地相对路径的转义规则相反：URL 里的 <c>? # %</c> 是有效语法，百分号转义会把链接改写成
-    /// 另一个（打不开的）地址；本地文件名则相反，空格与括号必须转义才不会截断链接。
+    /// 另一个（打不开的）地址；本地文件名则相反，空格与括号必须转义才不会截断链接
     /// </summary>
     private static string FormatLinkTarget(string target)
     {

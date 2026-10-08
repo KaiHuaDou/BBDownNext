@@ -120,7 +120,7 @@ public class SpaceListFetcherTests
         Assert.Equal("", info.Pic);                       // Pic 必须为空，逐分 P 才用各自 cover
         Assert.Equal(1690000000, info.PubTime);
 
-        // 1001(单P) + 1002(两P) = 3 个待下载分 P
+        // 1001(单 P) + 1002(两 P) = 3 个待下载分 P
         Assert.Equal(3, info.PagesInfo.Count);
 
         var first = info.PagesInfo[0];

@@ -17,7 +17,7 @@
         <Setter Property="BorderBrush" Value="#E53935" />
     </Style>
 
-    <!--表单行浏览按钮：纵向拉伸至行高与同行 TextBox 等高（Avalonia 12 Button 默认垂直居中不再拉伸）-->
+    <!--表单行浏览按钮：纵向拉伸至行高与同行 TextBox 等高（Avalonia 12 Button 默认垂直居中且不拉伸）-->
     <Style Selector="Button.FieldButton">
         <Setter Property="VerticalAlignment" Value="Stretch" />
         <Setter Property="Padding" Value="8,0" />

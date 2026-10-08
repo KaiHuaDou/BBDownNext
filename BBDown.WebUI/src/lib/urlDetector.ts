@@ -53,7 +53,7 @@ function matchKnownPrefix(text: string): string | null {
     return '稍后再看列表'
   }
 
-  // 裸 watchlater 简写与 URL 形态同义（与 Core InputResolver 的相等判定对齐）
+  // 裸 watchlater 简写与 URL 形式同义（与 Core InputResolver 的相等判定相同）
   if (text.toLowerCase() === 'watchlater') {
     return '稍后再看列表'
   }
@@ -127,7 +127,7 @@ function describeUrl(text: string): string {
     return `视频（${bv[0]}）`
   }
 
-  // av / ep / ss 的路径形态为 .../video/av123、.../bangumi/play/ep123 等，关键字与数字直接相连
+  // av / ep / ss 的路径形式为 .../video/av123、.../bangumi/play/ep123 等，关键字与数字直接相连
   if (/av[0-9]+/i.test(text)) {
     return '视频（av 号）'
   }
@@ -140,7 +140,7 @@ function describeUrl(text: string): string {
     return '番剧（ss 号）'
   }
 
-  // opus / cv 的路径形态为 .../opus/123...、.../cv/123...，关键字与数字间带斜杠（裸形态 opus123 同样成立）
+  // opus / cv 的路径形式为 .../opus/123...、.../cv/123...，关键字与数字间带斜杠（裸写形式 opus123 同样成立）
   if (/opus\/?[0-9]+/i.test(text)) {
     return '专栏（opus）'
   }

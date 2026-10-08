@@ -1,8 +1,8 @@
 namespace BBDown.Core;
 
 /// <summary>
-/// B 站各类 id 的统一前缀常量。集中管理以避免前缀字面量与切片长度（如 <c>id[7..]</c>）散落各处，
-/// 改前缀时只改此处，切片自动跟随 <see cref="string.Length"/>，避免手工同步数字导致的越界或截断。
+/// B 站各类 id 的统一前缀常量。集中管理以避免前缀字面量与切片长度（如 <c>id[7..]</c>）散落各处
+/// 改前缀时只改此处，切片自动跟随 <see cref="string.Length"/>，避免手工同步数字导致的越界或截断
 /// </summary>
 public static class IdPrefix
 {
@@ -30,7 +30,7 @@ public static class IdPrefix
     /// <summary>稍后再看列表前缀，切片长度 11</summary>
     public const string WatchLater = "watchLater:";
 
-    /// <summary>直播间前缀（直写形式 live12345，无冒号形态），切片长度 4</summary>
+    /// <summary>直播间前缀（直写形式 live12345，无冒号形式），切片长度 4</summary>
     public const string Live = "live";
 
     /// <summary>BV 号前缀，切片长度 3</summary>

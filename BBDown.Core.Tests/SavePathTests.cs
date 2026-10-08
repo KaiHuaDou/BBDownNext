@@ -3,7 +3,7 @@ using BBDown.Core.Entity;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// 文件名模板的日期占位符（纯函数部分）。落盘路径的拼装依赖 WorkContext，不在此测。
+/// 文件名模板的日期占位符（纯函数部分）。写入路径的拼装依赖 WorkContext，不在此测
 /// </summary>
 public class SavePathTests
 {
@@ -45,7 +45,7 @@ public class SavePathTests
         return SavePath.Format(pattern, "标题", video, null, Page( ), 1, ApiType.Web, 1600000000);
     }
 
-    // ':' 在 Windows 上不合法，含冒号的日期格式会让整条路径失效（或落到备用数据流）。
+    // ':' 在 Windows 上不合法，含冒号的日期格式会让整条路径失效（或落到备用数据流）
     // 时刻部分随时区变化，故只断言冒号被替换
     [Fact]
     public void Format_ReplacesColonInDateFormat( )
@@ -68,7 +68,7 @@ public class SavePathTests
         Assert.Equal("<nope>.mp4", Format("<nope>"));
     }
 
-    // 清晰度 / 分辨率 / 帧率 / 编码逐字来自 playurl 响应（--insecure 中间人或镜像站对端可控），
+    // 清晰度 / 分辨率 / 帧率 / 编码逐字来自 playurl 响应（--insecure 中间人或镜像站对端可控）
     // 展开时必须不含路径分隔符：任何 / 或 \ 都已替换，整串是单段文件名，`..` 无法构成穿越
     [Theory]
     [InlineData("..\\evil", "20000/1001", "4K 杜比", "avc1/../x")]

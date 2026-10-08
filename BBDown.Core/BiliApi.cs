@@ -1,8 +1,8 @@
 namespace BBDown.Core;
 
 /// <summary>
-/// B 站接口地址与签名密钥集中表。只放常量，不承载任何请求逻辑。
-/// 可被 --host / --ep-host / --tv-host 代理的接口在此只登记路径，主机由 <see cref="AppConfig"/> 提供。
+/// B 站接口地址与签名密钥集中表。只放常量，不携带任何请求逻辑
+/// 可被 --host / --ep-host / --tv-host 代理的接口在此只登记路径，主机由 <see cref="AppConfig"/> 提供
 /// </summary>
 public static class BiliApi
 {

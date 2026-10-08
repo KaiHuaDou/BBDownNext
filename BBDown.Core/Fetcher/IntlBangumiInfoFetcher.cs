@@ -21,7 +21,7 @@ public static partial class IntlBangumiInfoFetcher
         var host = cfg.Host == BiliApi.MainHost ? BiliApi.IntlAppHost : cfg.Host;
         var accessKey = cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "";
         var api = $"https://{host}{BiliApi.IntlSeasonAppPath}?ep_id={id}&platform=android&s_locale=zh_SG&mobi_app=bstar_a{accessKey}";
-        // 不做任何字符串预处理：'\/' 是合法 JSON 转义，Parse 会正确解码，
+        // 不做任何字符串预处理：'\/' 是合法 JSON 转义，Parse 会正确解码
         // 提前替换反而会把原文里 '\\' + '/' 的组合错误归并
         var json = await GetWebSourceAsync(api, cfg, null, ct);
         using var infoJson = JsonDocument.Parse(json);

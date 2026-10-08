@@ -17,8 +17,8 @@ public static class LiveFetcher
     private const string Flv = "flv";
 
     /// <summary>
-    /// 取直播间信息。<paramref name="target"/> 里的号码可能是短号，room_init 负责换算成真实房间号，
-    /// 之后所有接口都必须用真实房间号。
+    /// 取直播间信息。<paramref name="target"/> 里的号码可能是短号，room_init 负责换算成真实房间号
+    /// 之后所有接口都必须用真实房间号
     /// </summary>
     public static async Task<LiveRoomInfo> FetchRoomAsync(LiveTarget target, AppConfig cfg, CancellationToken ct = default)
     {
@@ -48,7 +48,7 @@ public static class LiveFetcher
     }
 
     /// <summary>
-    /// 取直播流地址。返回 <c>null</c> 表示当前拿不到流（未开播 / 已下播），调用方据此决定重试还是收尾。
+    /// 取直播流地址。返回 <c>null</c> 表示当前拿不到流（未开播 / 已下播），调用方据此决定重试还是收尾
     /// </summary>
     public static async Task<LivePlayInfo?> FetchPlayInfoAsync(string roomId, int qn, AppConfig cfg, CancellationToken ct = default)
     {
@@ -60,8 +60,8 @@ public static class LiveFetcher
     }
 
     /// <summary>
-    /// 解析 getRoomPlayInfo 的 data 节点。只取 http_stream + flv：BBDown 的混流链路按连续字节流设计，
-    /// hls/fmp4 的分片语义完全不同。
+    /// 解析 getRoomPlayInfo 的 data 节点。只取 http_stream + flv：BBDown 的混流链路按连续字节流设计
+    /// hls/fmp4 的分片方式完全不同
     /// </summary>
     internal static LivePlayInfo? ParsePlayInfo(JsonElement data, int requestedQn)
     {
@@ -157,8 +157,8 @@ public static class LiveFetcher
     }
 
     /// <summary>
-    /// 拼接播放地址。B 站的 <c>base_url</c> 自带尾部 <c>?</c>，直接三段相连即可；
-    /// 这里仍按实际结尾补分隔符，防止接口哪天改掉这个约定就静默拼出 404 地址。
+    /// 拼接播放地址。B 站的 <c>base_url</c> 自带尾部 <c>?</c>，直接三段相连即可
+    /// 这里仍按实际结尾补分隔符，防止接口哪天改掉这个约定就静默拼出 404 地址
     /// </summary>
     internal static string BuildStreamUrl(string host, string baseUrl, string extra)
     {

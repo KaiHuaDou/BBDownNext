@@ -20,7 +20,7 @@ public class RedactorTests
         Assert.DoesNotContain("secret-token", redacted);
     }
 
-    // TV / APP 通道以 access_key 查询参数携带令牌，与 access_token 是两个键，漏掉即随 debug 日志落盘
+    // TV / APP 通道以 access_key 查询参数携带令牌，与 access_token 是两个键，漏掉即随 debug 日志写入
     [Fact]
     public void Text_MasksAccessKeyInUrlQuery( )
     {
@@ -42,7 +42,7 @@ public class RedactorTests
         Assert.DoesNotContain("refresh-value", redacted);
     }
 
-    // JSON 形态（响应体 / 落盘调试转储）同样要打码
+    // JSON 形式（响应体 / 写入的调试转储）同样要打码
     [Fact]
     public void Text_MasksSecretKeysInJsonBody( )
     {

@@ -45,7 +45,7 @@ public static partial class TrackSelect
     {
         if (audioDfnPriority is { Count: > 0 })
         {
-            // 按音质名（或 id）优先级排序：先查 Dfn，再查 Id，均未命中则排末尾。
+            // 按音质名（或 id）优先级排序：先查 Dfn，再查 Id，均未命中则排末尾
             // 键与轨道名都按不变文化转大写，使 "Hi-Res 无损" 等含小写字母的音质名与 --audio-quality 输入
             // 大小写无关；文化敏感的重载会让 'i' 在 tr-TR 等区域下变成 'İ'，与字面量键对不上
             return [.. audioTracks
@@ -164,7 +164,7 @@ public static partial class TrackSelect
     }
 
     /// <summary>
-    /// 引导用户进行手动选择轨道；无应答（不交互）时回落默认序号 0。
+    /// 引导用户进行手动选择轨道；无应答（不交互）时回落默认序号 0
     /// </summary>
     internal static async Task<(int VIndex, int AIndex)> PickTracksAsync(ParsedResult parsedResult, int pageDur, CancellationToken token)
     {

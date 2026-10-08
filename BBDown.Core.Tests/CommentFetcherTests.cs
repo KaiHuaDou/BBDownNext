@@ -159,7 +159,7 @@ public class CommentFetcherTests
             return HttpStub.Json(SinglePageBody);
         }, ( ) => CommentFetcher.FetchAsync(12, "5806746", 100, sortHot: true, fullReplies: false, AppConfig.Empty, TestContext.Current.CancellationToken));
 
-        // WBI 签名会按 key 字典序重排 query，type 与 oid 不再相邻，分别断言
+        // WBI 签名会按 key 字典序重排 query，type 与 oid 不相邻，分别断言
         Assert.Contains("type=12", requested[0], StringComparison.Ordinal);
         Assert.Contains("oid=5806746", requested[0], StringComparison.Ordinal);
         Assert.Equal(12, doc.Type);
@@ -203,7 +203,7 @@ public class CommentFetcherTests
     [Fact]
     public async Task FetchAsync_RepliesNullTreatedAsRiskControl( )
     {
-        // code 为 0 但 data.replies 缺失：风控下发 v_voucher 的形态，降级为拿到多少算多少（这里 0 条）
+        // code 为 0 但 data.replies 缺失：风控下发 v_voucher 的形式，降级为拿到多少算多少（这里 0 条）
         var doc = await HttpStub.WithJsonResponse("""{"code":0,"data":{"cursor":{"all_count":0,"is_end":true,"next":0,"pagination_reply":{"next_offset":""}},"replies":null}}""",
             ( ) => CommentFetcher.FetchAsync(1, "170001", 10, sortHot: true, fullReplies: false, AppConfig.Empty, TestContext.Current.CancellationToken));
 

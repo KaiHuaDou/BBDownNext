@@ -1,7 +1,7 @@
 # BUS.md — 消息 / 进度 / 交互总线
 
 > 三大总线统一形式：静态门面 + 订阅 / 发布 + Scope 复用 + 联合类型事件。Core 只生成事件，展示与应答由宿主决定。
-> 当前实现状态，日期：2026-09-05。WebSocket 帧协议与 serve REST 接口约定见 `docs/API.md`，宿主结构见 `docs/ARCHITECTURE.md`。
+> WebSocket 帧协议与 serve REST 接口约定见 `docs/API.md`，宿主结构见 `docs/ARCHITECTURE.md`。
 
 ---
 

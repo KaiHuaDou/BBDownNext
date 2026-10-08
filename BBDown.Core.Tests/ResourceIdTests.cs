@@ -34,7 +34,7 @@ public class ResourceIdTests
     [InlineData("readlist75249")]
     public void TryParse_ReadListDualPrefix_Accepted(string input)
     {
-        // 前缀匹配为 Ordinal（大小写敏感），仅接受规范形态；用户输入简写的大小写宽容由 InputResolver 负责
+        // 前缀匹配为 Ordinal（大小写敏感），仅接受规范形式；用户输入简写的大小写宽容由 InputResolver 负责
         Assert.True(ResourceId.TryParse(input, out var parsed));
         Assert.Equal(new ResourceId.ReadList(75249), parsed);
     }
@@ -74,7 +74,7 @@ public class ResourceIdTests
     [InlineData("audio123")]
     public void TryParse_InvalidInput_Rejected(string input)
     {
-        // 仅接受纯数字（无符号 / 空白），规范形态与非法输入严格区分
+        // 仅接受纯数字（无符号 / 空白），规范形式与非法输入严格区分
         Assert.False(ResourceId.TryParse(input, out _));
     }
 }

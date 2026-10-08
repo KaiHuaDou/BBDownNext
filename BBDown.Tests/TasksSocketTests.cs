@@ -3,8 +3,8 @@ using BBDown.Serve.Http;
 namespace BBDown.Tests;
 
 /// <summary>
-/// WebSocket 事件通道的 Origin 校验（CSWSH）纯函数测试。
-/// 真实握手 / 帧协议 / 连接上限依赖起服务器，属耗时复杂操作，一律不测（见 AGENTS.md「dotnet 命令执行方式」）。
+/// WebSocket 事件通道的 Origin 校验（CSWSH）纯函数测试
+/// 真实握手 / 帧协议 / 连接上限依赖起服务器，属耗时复杂操作，一律不测（见 AGENTS.md「dotnet 命令执行方式」）
 /// </summary>
 public class TasksSocketTests
 {

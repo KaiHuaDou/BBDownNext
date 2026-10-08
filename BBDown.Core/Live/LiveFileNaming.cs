@@ -7,8 +7,8 @@ using BBDown.Core.Util;
 namespace BBDown.Core.Live;
 
 /// <summary>
-/// 直播录制的文件命名。直播不走 <see cref="Pipeline.SavePath"/>/<c>-F</c>：那套模板依赖分 P、清晰度、
-/// 编码等录制开始时还不存在的信息，且会硬加 .mp4 后缀。
+/// 直播录制的文件命名。直播不走 <see cref="Pipeline.SavePath"/>/<c>-F</c>：那套模板依赖分 P、清晰度
+/// 编码等录制开始时还不存在的信息，且会硬加 .mp4 后缀
 /// </summary>
 public static class LiveFileNaming
 {
@@ -17,7 +17,7 @@ public static class LiveFileNaming
 
     /// <summary>
     /// 生成不含扩展名的基名。主播名与标题先各自按字节截断再拼接——
-    /// 直接拼完再整串截断会把用于区分场次的时间戳切掉。
+    /// 直接拼完再整串截断会把用于区分场次的时间戳切掉
     /// </summary>
     public static string BuildBaseName(string uname, string title, DateTime startTime)
     {
@@ -37,7 +37,7 @@ public static class LiveFileNaming
     }
 
     /// <summary>
-    /// 分段文件路径。<c>.bbdown.part</c> 后缀已被 .gitignore 覆盖，且与既有下载分片语义一致。
+    /// 分段文件路径。<c>.bbdown.part</c> 后缀已被 .gitignore 覆盖，且与既有下载分片方式一致
     /// </summary>
     public static string BuildSegmentPath(string destPathWithoutExtension, int index)
     {
@@ -45,7 +45,7 @@ public static class LiveFileNaming
     }
 
     /// <summary>
-    /// 同一场直播重复录制时避免覆盖已有成品。
+    /// 同一场直播重复录制时避免覆盖已有成品
     /// </summary>
     public static string EnsureUnique(string path)
     {

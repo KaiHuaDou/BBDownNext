@@ -160,10 +160,10 @@ internal static class CommandLineInvoker
     }
 
     /// <summary>
-    /// 用户同时指定编码与清晰度优先级时，以命令行书写的先后为准。
+    /// 用户同时指定编码与清晰度优先级时，以命令行书写的先后为准
     /// </summary>
     /// <remarks>
-    /// 只能按 token 字面量匹配：<c>Token.Symbol</c> 在 System.CommandLine 中是 internal 的。
+    /// 只能按 token 字面量匹配：<c>Token.Symbol</c> 在 System.CommandLine 中是 internal 的
     /// </remarks>
     private static bool ResolveEncodingFirst(ParseResult parseResult)
     {

@@ -5,12 +5,12 @@ using BBDown.Core.Entity;
 namespace BBDown.Core.Util;
 
 /// <summary>
-/// 分段点（片头/片尾/章节）的合并与时间轴补齐。WEB 与 APP 两条解析路径共用。
+/// 分段点（片头/片尾/章节）的合并与时间轴补齐。WEB 与 APP 两条解析路径共用
 /// </summary>
 internal static class ViewPointUtil
 {
     /// <summary>
-    /// 追加分段点后按起点排序并补齐空隙。会替换 <see cref="ParsedResult.ExtraPoints"/> 的列表实例。
+    /// 追加分段点后按起点排序并补齐空隙。会替换 <see cref="ParsedResult.ExtraPoints"/> 的列表实例
     /// </summary>
     public static void Append(ParsedResult parsedResult, IEnumerable<ViewPoint> points)
     {

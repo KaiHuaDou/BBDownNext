@@ -29,9 +29,9 @@ public static class MuxFinish
     }
 
     /// <summary>
-    /// 目标文件已存在且非空时登记路径、清掉临时产物并返回中止结果；需要下载则返回 null。
-    /// 产物扩展名随混流方式修正（mkv 视频 .mkv / 纯音频 .mka，其余 .mp4 / .m4a），
-    /// 跳过检测须用同一扩展名，否则重跑会重复下载。
+    /// 目标文件已存在且非空时登记路径、清掉临时产物并返回中止结果；需要下载则返回 null
+    /// 产物扩展名随混流方式修正（mkv 视频 .mkv / 纯音频 .mka，其余 .mp4 / .m4a）
+    /// 跳过检测须用同一扩展名，否则重跑会重复下载
     /// </summary>
     internal static PageOutcome? TrySkipExisting(DownloadSession session, string savePath, TrackSelection selection)
     {
@@ -51,7 +51,7 @@ public static class MuxFinish
     }
 
     /// <summary>
-    /// 混流并清理临时文件，DASH 与 FLV 共用。--mux none 时直接中止，保留已下载的裸轨。
+    /// 混流并清理临时文件，DASH 与 FLV 共用。--mux none 时直接中止，保留已下载的裸轨
     /// </summary>
     internal static async Task<PageOutcome> RunAsync(DownloadSession session, MuxInputs inputs, TrackSelection selection, CancellationToken ct = default)
     {
@@ -63,7 +63,7 @@ public static class MuxFinish
 
         var p = pageCtx.Page;
         var savePath = ToOutputPath(inputs.SavePath, inputs.Mux, myOption.Content.Has(DownloadContent.Video));
-        // 产物先写 .muxing 临时名（保持原扩展名，mp4box 按扩展名选封装），校验通过后改名到位：
+        // 产物先写 .muxing 临时名（保持原扩展名，mp4box 按扩展名选封装），校验通过后改名到位
         // 直写最终路径时进程被杀会留下非空半成品，重跑被 ShouldSkip 的「非空即跳过」误判为成品
         var muxingPath = Path.ChangeExtension(savePath, $".muxing{Path.GetExtension(savePath)}");
         var streams = string.IsNullOrEmpty(inputs.AudioPath) ? "视频" : "音视频";
@@ -93,8 +93,8 @@ public static class MuxFinish
         if (code != 0 || !File.Exists(muxingPath) || new FileInfo(muxingPath).Length == 0)
         {
             LogError("混流失败");
-            // 只清临时名产物：savePath 在本次运行内不存在（存在则早已被 TrySkipExisting 跳过），
-            // 历史成功产物不因本次失败被误删
+            // 只清临时名产物：savePath 在当前运行内不存在（存在则早已被 TrySkipExisting 跳过）
+            // 历史成功产物不因当前失败被误删
             SafeDelete(muxingPath);
             return PageOutcome.Abort(selection);
         }
@@ -118,8 +118,8 @@ public static class MuxFinish
     }
 
     /// <summary>
-    /// 按混流方式修正产物扩展名：mkv 模式视频 .mkv / 纯音频 .mka，其余 .mp4 / .m4a。
-    /// SavePath.Format 恒产出 .mp4 基底，纯音频与 mkv 容器在此统一换后缀。
+    /// 按混流方式修正产物扩展名：mkv 模式视频 .mkv / 纯音频 .mka，其余 .mp4 / .m4a
+    /// SavePath.Format 恒产出 .mp4 基底，纯音频与 mkv 容器在此统一换后缀
     /// </summary>
     internal static string ToOutputPath(string savePath, MuxMode mux, bool hasVideo)
     {
@@ -140,7 +140,7 @@ public static class MuxFinish
         Log("清理临时文件...");
         SafeDelete(videoPath);
         SafeDelete(audioPath);
-        // 下载层临时文件随 track 一起清理：只在混流成功时走到这里，
+        // 下载层临时文件随 track 一起清理：只在混流成功时走到这里
         // 失败/Ctrl+C 时 DownloadAsync 保留 .download，重跑即可续上
         DownloadUtil.Discard(videoPath);
         DownloadUtil.Discard(audioPath);

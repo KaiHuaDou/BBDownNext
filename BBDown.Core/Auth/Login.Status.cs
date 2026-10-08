@@ -24,8 +24,8 @@ public static partial class Login
     private const int StateCells = 10;
 
     /// <summary>
-    /// 输出三通道登录状态。三通道探测并行发起（网络等待是唯一耗时），渲染按固定顺序，
-    /// 输出不随网络返回快慢抖动。返回进程退出码。
+    /// 输出三通道登录状态。三通道探测并行发起（网络等待是唯一耗时），渲染按固定顺序
+    /// 输出不随网络返回快慢抖动。返回进程退出码
     /// </summary>
     public static async Task<int> StatusAsync(CancellationToken token = default)
     {
@@ -39,9 +39,9 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 探测三通道登录态，按 WEB / TV / APP 顺序返回。CLI 的 <see cref="StatusAsync"/> 只在其上追加渲染与退出码，
-    /// GUI 按 <see cref="LoginStatus.Channel"/> 归位到各通道的状态行。探测异常按通道收敛为
-    /// <see cref="LoginStatus.Verified"/> 为 null，不外抛。
+    /// 探测三通道登录态，按 WEB / TV / APP 顺序返回。CLI 的 <see cref="StatusAsync"/> 只在其上追加渲染与退出码
+    /// GUI 按 <see cref="LoginStatus.Channel"/> 归位到各通道的状态行。探测异常按通道归为
+    /// <see cref="LoginStatus.Verified"/> 为 null，不外抛
     /// </summary>
     public static async Task<IReadOnlyList<LoginStatus>> QueryStatusAsync(CancellationToken token = default)
     {
@@ -103,8 +103,8 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 问 passport 是否要求刷新 Cookie，用于在状态行提示续期。失败不影响登录态本身的结论，
-    /// 故调用方在已判定登录后才走这一步。
+    /// 问 passport 是否要求刷新 Cookie，用于在状态行提示续期。失败不影响登录态本身的结论
+    /// 故调用方在已判定登录后才走这一步
     /// </summary>
     private static async Task<bool> NeedsCookieRefreshAsync(string cookie, CancellationToken token)
     {
@@ -125,7 +125,7 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 状态行渲染。通道名与状态词按 cell 宽度补齐（CJK 占 2 cell），输出中不含任何凭据明文。
+    /// 状态行渲染。通道名与状态词按 cell 宽度补齐（CJK 占 2 cell），输出中不含任何凭据明文
     /// </summary>
     internal static string Format(LoginStatus status)
     {
@@ -133,7 +133,7 @@ public static partial class Login
         return $"{Pad(status.Channel, ChannelCells)}{Pad(state, StateCells)}{detail}";
     }
 
-    // 状态词与详情分离渲染，便于单测分别断言；空详情不产生尾随空格
+    // 状态词与详情分离渲染，便于单测分别断言；空详情不追加空格
     /// <summary>状态词（未登录 / 探测失败 / 凭据无效 / 已登录）与详情，供 GUI 渲染到界面。</summary>
     public static (string State, string Detail) Describe(LoginStatus status)
     {
@@ -177,7 +177,7 @@ public static partial class Login
 
     /// <summary>
     /// 退出码：至少一个通道被服务端确认登录返回 0，否则返回 1。探测失败与未登录同归 1——
-    /// 脚本只需判断「能不能用」，原因由状态行文本承载。
+    /// 脚本只需判断「能不能用」，原因写在状态行文本里
     /// </summary>
     internal static int ExitCode(IReadOnlyList<LoginStatus> statuses)
     {

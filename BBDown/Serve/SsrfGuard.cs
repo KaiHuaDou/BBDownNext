@@ -8,8 +8,8 @@ namespace BBDown.Serve;
 // SSRF 防护：仅允许公网 http/https 出向回调，并在建立 TCP 连接前二次校验私网
 internal static class SsrfGuard
 {
-    // 回调专用 client：禁止自动重定向，杜绝 302 跳进内网/云元数据面；
-    // 并在真正建立 TCP 连接前对最终端点 IP 做二次校验，消除 DNS 重绑定窗口（TOCTOU-free）。
+    // 回调专用 client：禁止自动重定向，杜绝 302 跳进内网/云元数据面
+    // 并在真正建立 TCP 连接前对最终端点 IP 做二次校验，消除 DNS 重绑定窗口（TOCTOU-free）
     internal static readonly HttpClient WebHookClient = new(new SocketsHttpHandler
     {
         AllowAutoRedirect = false,
@@ -68,7 +68,7 @@ internal static class SsrfGuard
     // 内部可见：供单测覆盖各私网段判定
     internal static bool IsPrivateAddress(IPAddress ip)
     {
-        // IPv4-mapped IPv6（::ffff:a.b.c.d）须按其 IPv4 等价地址判定，
+        // IPv4-mapped IPv6（::ffff:a.b.c.d）须按其 IPv4 等价地址判定
         // 否则 ::ffff:169.254.169.254 这类云元数据地址会绕过私网过滤
         if (ip.IsIPv4MappedToIPv6)
         {
@@ -125,8 +125,8 @@ internal static class SsrfGuard
     }
 
     /// <summary>
-    /// Host 头是否为字面回环地址。刻意不做 DNS 解析：解析结果正是 DNS rebinding 能操纵的东西，
-    /// 把判定建立在它上面等于把边界交给攻击者。
+    /// Host 头是否为字面回环地址。刻意不做 DNS 解析：解析结果正是 DNS rebinding 能操纵的东西
+    /// 把判定建立在它上面等于把边界交给攻击者
     /// </summary>
     internal static bool IsLoopbackHost(string host)
     {

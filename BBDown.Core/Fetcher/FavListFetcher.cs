@@ -78,8 +78,8 @@ public static class FavListFetcher
         var title = data.GetProperty("info").GetProperty("title").GetString( )!;
         var intro = data.GetProperty("info").GetProperty("intro").GetString( )!;
         var pubTime = data.GetProperty("info").GetProperty("ctime").GetInt64( );
-        // 空收藏夹时 B 站返回 "medias": null，EnumerateArray 会抛不可读的 InvalidOperationException；
-        // 用 EnumerateArrayOrEmpty 兜底。media_count 预估容量，避免大收藏夹翻页时反复扩容拷贝
+        // 空收藏夹时 B 站返回 "medias": null，EnumerateArray 会抛不可读的 InvalidOperationException
+        // 用 EnumerateArrayOrEmpty 补空。media_count 预估容量，避免大收藏夹翻页时反复扩容拷贝
         var medias = EnumerateArrayOrEmpty(data.GetProperty("medias")).Select(m => m.Clone( )).ToList( );
         if (medias.Count == 0)
         {

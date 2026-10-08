@@ -15,7 +15,7 @@ const emit = defineEmits<{
 const remaining = ref(0)
 let timer: ReturnType<typeof setTimeout> | null = null
 
-// 服务端 AskBus 超时后提问已回落（选项不可再应答），本地按默认项作答避免弹窗滞留；
+// 服务端 AskBus 超时后提问已回落（选项不可再应答），本地按默认项作答避免弹窗滞留
 // 随 ask 切换重置计时，避免按上一任务的剩余时间误答当前提问
 function schedule(): void {
   if (timer) {

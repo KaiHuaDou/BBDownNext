@@ -13,8 +13,8 @@ public static class ArchiveLog
 
     private static Dictionary<(string Aid, string Cid), string>? archiveCache;
 
-    // 仅在该分 P 完整成功（含混流）后写入；键为 (aid, cid)，同 aid 不同分 P 互不干扰。
-    // 归档是去重用的副产物，任何读写失败都只告警：磁盘满 / 只读盘 / 受控文件夹访问不得让已产出的分 P 判为失败
+    // 仅在该分 P 完整成功（含混流）后写入；键为 (aid, cid)，同 aid 不同分 P 互不干扰
+    // 归档是去重用的副产物，任何读写失败都只告警：磁盘满 / 只读盘 / 受限文件夹访问不得让已产出的分 P 判为失败
     public static void SaveArchive(string aid, string cid, string savePath)
     {
         lock (archiveLock)
@@ -48,7 +48,7 @@ public static class ArchiveLog
         }
     }
 
-    // 进程内一次性载入；行格式为 aid\tcid\t路径（制表符分隔，每行一条记录），无法解析的行直接跳过
+    // 进程内一次性载入；行格式为 aid / cid / 路径（制表符分隔，每行一条记录），无法解析的行直接跳过
     private static Dictionary<(string Aid, string Cid), string> LoadArchives( )
     {
         var dict = new Dictionary<(string, string), string>( );

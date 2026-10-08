@@ -21,7 +21,7 @@ public partial class LoginWindow : Window
     private CancellationTokenSource? tokenSource;
     private volatile bool closed;
 
-    // 会话代际：每次重试自增；旧会话的迟到回投按代际整体丢弃，避免状态文本被上一次运行的回调覆盖
+    // 会话轮次：每次重试自增；旧会话的迟到回投按轮次整体丢弃，避免状态文本被上一次运行的回调覆盖
     private int session;
 
     public LoginResult? Result { get; private set; }
@@ -176,7 +176,7 @@ public partial class LoginWindow : Window
         });
     }
 
-    // 回投 UI 线程并校验会话代际：重试后旧会话的更新直接丢弃
+    // 回投 UI 线程并校验会话轮次：重试后旧会话的更新直接丢弃
     private void PostState(int current, Action action)
     {
         if (closed)

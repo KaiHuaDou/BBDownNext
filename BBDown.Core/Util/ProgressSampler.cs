@@ -3,8 +3,8 @@ using System.Threading;
 
 namespace BBDown.Core.Util;
 
-// 进度采样器：把下载线程高频的 Report 降频为每 125 毫秒一次的 onSample 回吐（总进度，本周期新增字节数），
-// 供 serve / GUI 等控制台之外的观察者获取进度。
+// 进度采样器：把下载线程高频的 Report 降频为每 125 毫秒一次的 onSample 回吐（总进度，本周期新增字节数）
+// 供 serve / GUI 等控制台之外的观察者获取进度
 public sealed class ProgressSampler : IDisposable
 {
     // 每秒 8 次，与 CLI 渲染帧率一致。速度类消费方按此周期把 delta 折算成每秒速率

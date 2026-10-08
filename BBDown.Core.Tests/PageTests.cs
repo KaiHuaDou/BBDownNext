@@ -3,8 +3,8 @@ using BBDown.Core.Entity;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// Page 的 aid / cid 净化（对应 Entity.cs）。这两个值逐字来自 API 响应（对端可控），
-/// 是工作区目录与文件名模板的组成段，setter 统一过 GetValidFileName。
+/// Page 的 aid / cid 净化（对应 Entity.cs）。这两个值逐字来自 API 响应（对端可控）
+/// 是工作区目录与文件名模板的组成段，setter 统一过 GetValidFileName
 /// </summary>
 public class PageTests
 {

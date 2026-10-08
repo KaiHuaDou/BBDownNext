@@ -60,10 +60,10 @@ public sealed partial class PriorityPicker : UserControl
         Sync( );
     }
 
-    /// <summary>当前优先序（逗号分隔）；空选返回空串，即 Core 的默认原序语义。</summary>
+    /// <summary>当前优先序（逗号分隔）；空选返回空串，即 Core 的默认原序处理。</summary>
     public string Priority => string.Join(",", priority.Select(o => o.Name));
 
-    // 统一重算：可用区 = 全集 − 已选（保持全集序），序号 1 起始，空态提示与清空按钮显隐
+    // 统一刷新：可用区 = 全集 − 已选（保持全集序），序号 1 起始，空态提示与清空按钮显隐
     private void Sync( )
     {
         var used = new HashSet<PriorityOption>(priority);

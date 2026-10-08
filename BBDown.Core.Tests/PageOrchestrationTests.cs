@@ -25,7 +25,7 @@ public class PageOrchestrationTests
         };
     }
 
-    // 默认（不停止）：中间分P 失败，后续分P 仍继续跑，失败以列表形式返回（由调用方汇总成 AggregateException）
+    // 默认（不停止）：中间分 P 失败，后续分 P 仍继续跑，失败以列表形式返回（由调用方汇总成 AggregateException）
     [Fact]
     public async Task Default_ContinuesAfterFailureAndCollectsErrors( )
     {
@@ -99,7 +99,7 @@ public class PageOrchestrationTests
         Assert.Equal([0], ran);
     }
 
-    // HttpClient 超时同样抛 OperationCanceledException，但此时 ct 并未取消，
+    // HttpClient 超时同样抛 OperationCanceledException，但此时 ct 并未取消
     // 应按普通失败收集并继续跑其余分 P，而不是误判成用户中止整个任务
     [Fact]
     public async Task OperationCanceled_TokenNotCanceled_IsCollectedAsFailure( )

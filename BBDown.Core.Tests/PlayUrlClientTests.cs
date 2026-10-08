@@ -3,8 +3,8 @@ using BBDown.Core.PlayUrl;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// 大会员网页兜底的播放页地址构造（纯函数部分）。
-/// 真实抓取与 window.__playinfo__ 抠取依赖网络，一律不测（见 AGENTS.md「测试范围约定」）。
+/// 大会员网页解析的播放页地址构造（纯函数部分）
+/// 真实抓取与 window.__playinfo__ 抠取依赖网络，一律不测（见 AGENTS.md「测试范围约定」）
 /// </summary>
 public class PlayUrlClientTests
 {

@@ -35,9 +35,9 @@ public static partial class Login
         """;
 
     /// <summary>
-    /// 显式续期（<c>login refresh</c>）。与 <see cref="TryRefreshWebCookieIfStaleAsync"/> 的差异：
-    /// 那条路径是下载前的 best-effort 兜底，失败静默沿用旧凭据；本方法面向用户主动操作，
-    /// 逐项汇报结果并以退出码表达成败。仅 WEB 通道有续期能力。
+    /// 显式续期（<c>login refresh</c>）。与 <see cref="TryRefreshWebCookieIfStaleAsync"/> 的差异
+    /// 那条路径是下载前的 best-effort 补充，失败静默沿用旧凭据；本方法面向用户主动操作
+    /// 逐项汇报结果并以退出码表达成败。仅 WEB 通道有续期能力
     /// </summary>
     public static async Task<int> RefreshAsync(CancellationToken token = default)
     {
@@ -56,7 +56,7 @@ public static partial class Login
 
         try
         {
-            // force：用户主动要求续期，不看 /cookie/info 的「是否需要刷新」信号。
+            // force：用户主动要求续期，不看 /cookie/info 的「是否需要刷新」信号
             // 该信号用于避免无谓刷新，与显式续期的意图相反
             var (newCookie, newRefresh) = await RefreshWebCookieAsync(cookie, refreshToken, true, token);
             if (string.IsNullOrEmpty(newCookie))
@@ -81,8 +81,8 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 主动续期 web cookie（best-effort）。仅当本地持有 refresh_token 时尝试；先问 /cookie/info 是否需要刷新，
-    /// 需要才走 RSA 签名 → 取 refresh_csrf → POST refresh → confirm 全流。任一步失败都回退到原 cookie，绝不阻断下载。
+    /// 主动续期 web cookie（best-effort）。仅当本地持有 refresh_token 时尝试；先问 /cookie/info 是否需要刷新
+    /// 需要才走 RSA 签名 → 取 refresh_csrf → POST refresh → confirm 全流。任一步失败都回退到原 cookie，绝不阻断下载
     /// </summary>
     public static async Task<string> TryRefreshWebCookieIfStaleAsync(string? dir = null, CancellationToken token = default)
     {
@@ -180,8 +180,8 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 问 /cookie/info 是否需要刷新 Cookie，并取当前毫秒时间戳（后者用于生成 CorrespondPath）。
-    /// 该端点对无效 Cookie 返回 <c>code = -400</c>（与 nav 的 -101 不同），异常上抛由调用方处置。
+    /// 问 /cookie/info 是否需要刷新 Cookie，并取当前毫秒时间戳（后者用于生成 CorrespondPath）
+    /// 该端点对无效 Cookie 返回 <c>code = -400</c>（与 nav 的 -101 不同），异常上抛由调用方处置
     /// </summary>
     internal static async Task<(bool needRefresh, long timestamp)> ReadCookieInfoAsync(string cookie, CancellationToken token)
     {

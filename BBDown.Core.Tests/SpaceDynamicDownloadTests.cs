@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace BBDown.Core.Tests;
 
-// TryResolveItem 为纯函数（JsonElement 内存输入，与 TrackReader 系列同性质）：
+// TryResolveItem 为纯函数（JsonElement 内存输入，与 TrackReader 系列同性质）
 // 动态 entry 结构取自 bilibili-API-collect docs/dynamic/space.md 的响应示例
 public class SpaceDynamicDownloadTests
 {
@@ -112,7 +112,7 @@ public class SpaceDynamicDownloadTests
     [InlineData("MAJOR_TYPE_COURSES")]
     public void TryResolveItem_UnsupportedMajor_Rejected(string majorType)
     {
-        // 直播 / 剧集 / 带图 / 失效等类型不在下载范围；NONE 无 orig（非转发形态）同样拒绝
+        // 直播 / 剧集 / 带图 / 失效等类型不在下载范围；NONE 无 orig（非转发方式）同样拒绝
         var entry = Parse($$"""
         {
           "id_str": "123",
@@ -163,7 +163,7 @@ public class SpaceDynamicDownloadTests
     [Fact]
     public void TryResolveItem_ForwardDepthExceeded_Rejected( )
     {
-        // 自嵌套转发数据异常时按深度上限止损（正常 orig 一层即达根原动态）；
+        // 自嵌套转发数据异常时按深度上限止损（正常 orig 一层即达根原动态）
         // 第 4 层仍见 orig（depth == MaxForwardDepth）即整体拒绝
         var entry = Parse("""
         {

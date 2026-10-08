@@ -6,7 +6,7 @@ using BBDown.Core.Live;
 
 namespace BBDown.GUI;
 
-/// <summary>目标资源域，GUI 可用性联动的判定依据；与 Core 的 ContentSelector.ModeOf 分支对齐。</summary>
+/// <summary>目标资源域，GUI 可用性联动的判定依据；与 Core 的 ContentSelector.ModeOf 分支相同。</summary>
 public enum TargetKind
 {
     Video,
@@ -32,8 +32,8 @@ public static partial class UrlDetector
             return null;
         }
 
-        // 直播形态以 Core 的 LiveInputResolver 为单一来源（live 号 / 带协议地址 / 无协议裸域名），
-        // 与任务执行期的路由判定同源，避免 GUI 预检与 Core 接受域不一致
+        // 直播形式以 Core 的 LiveInputResolver 为单一来源（live 号 / 带协议地址 / 无协议裸域名）
+        // 与任务执行期的路由判定相同，避免 GUI 预检与 Core 接受域不一致
         if (LiveInputResolver.TryParse(text, out _))
         {
             return new TargetInfo("直播间（live 号或地址）", TargetKind.Live);

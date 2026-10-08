@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace BBDown.Core.Tests;
 
-// TryGetOpus 为纯函数（JsonElement 内存输入，与 TrackReader 系列同性质）：
+// TryGetOpus 为纯函数（JsonElement 内存输入，与 TrackReader 系列同性质）
 // 动态 entry 结构取自 bilibili-API-collect docs/dynamic/space.md 的响应示例
 public class SpaceOpusDownloadTests
 {

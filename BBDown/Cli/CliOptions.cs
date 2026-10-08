@@ -7,15 +7,15 @@ using BBDown.Core.Download;
 namespace BBDown.Cli;
 
 /// <summary>
-/// 全部 CLI 选项与别名的静态定义，供根命令注册。
-/// 按 README「参数说明」的分组排列，注册顺序即 --help 显示顺序。
+/// 全部 CLI 选项与别名的静态定义，供根命令注册
+/// 按 README「参数说明」的分组排列，注册顺序即 --help 显示顺序
 /// </summary>
 internal static class CliOptions
 {
     internal static readonly Argument<string> Url = new("url") { Description = "视频地址 或 av|bv|BV|ep|ss，也可传直播间地址进行录制" };
 
     // 解析模式
-    // 单值枚举：非法值进 parseResult.Errors 报错退出（serve 侧为 JSON 契约，非法值回落 web，见 ServeRequestOptions）
+    // 单值枚举：非法值进 parseResult.Errors 报错退出（serve 侧为 JSON 约定，非法值按 web 处理，见 ServeRequestOptions）
     internal static readonly Option<ApiType> ApiOption = new("--api", ["-a"])
     {
         Description = "使用指定 API 解析通道：web / tv / app / intl，默认 web，忽略大小写",
@@ -139,7 +139,7 @@ internal static class CliOptions
         Description = "指定需导出的评论格式，逗号分隔",
         DefaultValueFactory = _ => "json,txt"
     };
-    // 单值枚举：非法值进 parseResult.Errors 报错退出（serve 侧为 JSON 契约，非法值回落 web，见 ServeRequestOptions）
+    // 单值枚举：非法值进 parseResult.Errors 报错退出（serve 侧为 JSON 约定，非法值按 web 处理，见 ServeRequestOptions）
     internal static readonly Option<MuxMode> MuxOption = new("--mux", ["-m"])
     {
         Description = """
@@ -169,7 +169,7 @@ internal static class CliOptions
         Description = """
         指定外部后处理进程（可执行文件路径）。
         下载完成后带特殊标记的轨道文件会交给该进程处理，成功产物替换原文件参与混流；
-        进程不可用或处理失败时静默保留原文件。处理方自行获取所需信息，本程序不感知其语义。
+        进程不可用或处理失败时静默保留原文件。处理方自行获取所需信息，本程序不感知处理内容。
         """
     };
     internal static readonly Option<bool> AllowPreview = new("--allow-preview", ["-P"]) { Description = "允许下载充电专属视频的试看片段，输出文件名带 [试看] 前缀" };
@@ -242,7 +242,7 @@ internal static class CliOptions
           3-5              闭区间（含两端：3,4,5）；3-3 仅第 3 集
           16-              开区间，到末集
           -22              开区间，从首集到 22
-          1,6-10,15-latest 混合写法
+          1,6-10,15-latest 混合形式
           latest / new     最后一集（最新一集）
           last / LAST      倒数第二集
         关键字大小写不敏感；越界数字自动夹紧到有效边界；非法项忽略并提醒。
@@ -263,7 +263,7 @@ internal static class CliOptions
     };
     internal static readonly Option<string> ConfigFile = new("--config", ["-c"])
     {
-        // 不设默认值：未显式指定时 ConfigParser 回退到程序目录下的 BBDown.config（README 约定），
+        // 不设默认值：未显式指定时 ConfigParser 回退到程序目录下的 BBDown.config（README 约定）
         // 设了默认值会让该回退成为死分支，实际按进程 cwd 查找
         Description = "读取指定的 BBDown 本地配置文件"
     };

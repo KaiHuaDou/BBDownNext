@@ -5,7 +5,7 @@ import { DEFAULT_OPTIONS, toServeRequest } from '../lib/options'
 describe('toServeRequest', () => {
   const credential = { cookie: 'SESSDATA=abc', accessToken: 'token123' }
 
-  it('默认选项映射为 serve 契约', () => {
+  it('默认选项映射为 serve 请求体', () => {
     const request = toServeRequest(DEFAULT_OPTIONS, 'av170001', credential)
     expect(request.url).toBe('av170001')
     expect(request.api).toBe('web')
@@ -39,14 +39,14 @@ describe('toServeRequest', () => {
     expect(request.api).toBe('tv')
   })
 
-  it('serve 排除字段不进请求契约', () => {
+  it('serve 排除字段不进请求体', () => {
     const request = toServeRequest(DEFAULT_OPTIONS, 'av170001', { cookie: '', accessToken: '' })
     expect('workDir' in request).toBe(false)
     expect('ffmpegPath' in request).toBe(false)
     expect('debug' in request).toBe(false)
   })
 
-  it('maxRetry 数值兜底：负数夹 0、小数截断、非法回落 0', () => {
+  it('maxRetry 数值处理：负数夹 0、小数截断、非法值取 0', () => {
     const cases: [number, number][] = [
       [-5, 0],
       [2.7, 2],

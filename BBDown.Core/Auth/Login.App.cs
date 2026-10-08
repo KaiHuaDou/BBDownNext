@@ -13,14 +13,14 @@ namespace BBDown.Core.Auth;
 
 public static partial class Login
 {
-    /// <summary>TV 扫码登录：生成二维码后回调 showQr，成功后返回 access_token（不落盘）；过期返回 null。</summary>
+    /// <summary>TV 扫码登录：生成二维码后回调 showQr，成功后返回 access_token（不写入）；过期返回 null。</summary>
     public static Task<string?> TvCredentialAsync(
         Func<string, Task>? showQr = null, Action<QrState>? onState = null, CancellationToken token = default)
     {
         return LoginWithAppKey(BiliApi.TvAppKey, "android_tv_yst", BiliApi.TvAppSecret, showQr, onState, token);
     }
 
-    /// <summary>APP 扫码登录：生成二维码后回调 showQr，成功后返回 access_token（不落盘）；过期返回 null。</summary>
+    /// <summary>APP 扫码登录：生成二维码后回调 showQr，成功后返回 access_token（不写入）；过期返回 null。</summary>
     public static Task<string?> AppCredentialAsync(
         Func<string, Task>? showQr = null, Action<QrState>? onState = null, CancellationToken token = default)
     {
@@ -91,7 +91,7 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 参数按 key 字典序排列，签名要求如此，新增字段须保持顺序。
+    /// 参数按 key 字典序排列，签名要求如此，新增字段须保持顺序
     /// </summary>
     private static NameValueCollection NewLoginParams(string appKey, string mobiApp)
     {
@@ -124,7 +124,7 @@ public static partial class Login
     }
 
     /// <summary>
-    /// 签名覆盖除 sign 外的全部参数，任何参数变动后都必须重新签名；旧 sign 残留在待签串里会让服务端返回 -3 签名错误。
+    /// 签名覆盖除 sign 外的全部参数，任何参数变动后都必须重新签名；旧 sign 残留在待签串里会让服务端返回 -3 签名错误
     /// </summary>
     private static void ApplySign(NameValueCollection parms, string secret)
     {
@@ -132,8 +132,8 @@ public static partial class Login
         parms.Add("sign", SignUtil.AppSign(ToQueryString(parms), secret));
     }
 
-    // 纯扫码流程：生成二维码、轮询、解释状态，成功后返回 access_token；落盘由各自入口负责。
-    // 此处直接使用 AppHttpClient 而不经凭据门：登录前不存在任何凭据，无从泄露；
+    // 纯扫码流程：生成二维码、轮询、解释状态，成功后返回 access_token；写入由各自入口负责
+    // 此处直接使用 AppHttpClient 而不经凭据门：登录前不存在任何凭据，无从泄露
     // 未来若登录流程需要在请求中携带凭据，必须改走 HttpTransfer.SendTrustGatedAsync
     private static async Task<string?> LoginWithAppKey(
         string appKey, string mobiApp, string appSecret,

@@ -46,7 +46,7 @@ public class DownloadTests
     [InlineData(true, 8628, 389, true)]
     // 非充电专属稿件一律不判定，避免误伤 timelength 异常的普通视频
     [InlineData(false, 8628, 389, false)]
-    // 番剧 / 互动视频的 dur 恒为 0
+    // 番剧 / 互动视频的 dur 固定为 0
     [InlineData(true, 0, 389, false)]
     // playurl 未给出时长
     [InlineData(true, 8628, 0, false)]
@@ -321,8 +321,8 @@ public class DownloadTests
         Assert.DoesNotContain('/', result);
     }
 
-    // 替换值本身长得像占位符时，按位置替换才不会被后续迭代二次展开；
-    // 尖括号是非法文件名字符，dfn 值里的 <aid> 先被净化成 _aid_，自然也不再具备占位符形态
+    // 替换值本身长得像占位符时，按位置替换才不会被后续迭代二次展开
+    // 尖括号是非法文件名字符，dfn 值里的 <aid> 先被净化成 _aid_，自然也不具备占位符形式
     [Fact]
     public void FormatSavePath_DoesNotReexpandSubstitutedValues( )
     {
@@ -427,7 +427,7 @@ public class DownloadTests
         Assert.Equal(64, sorted[0].Bandwidth);
     }
 
-    // --audio-quality 覆盖默认带宽排序：按音质名优先级重排，且输入大小写无关。
+    // --audio-quality 覆盖默认带宽排序：按音质名优先级重排，且输入大小写无关
     // 优先级刻意与带宽相反（192K 带宽最低却排最前），以真正触发音频档位排序而非回落带宽序
     [Fact]
     public void SortAudioTracks_ByAudioQualityPriorityCaseInsensitive( )

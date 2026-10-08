@@ -15,7 +15,7 @@ namespace BBDown.Core.Download;
 
 public static class BBDownAria2c
 {
-    // 退出码含可解读语义；非零必须显式抛出，调用方据此判定下载失败而非静默继续
+    // 退出码含可读信息；非零必须显式抛出，调用方据此判定下载失败而非静默继续
     internal static async Task RunAsync(string command, List<string> args, CancellationToken ct = default)
     {
         using Process p = new( );
@@ -36,8 +36,8 @@ public static class BBDownAria2c
             // 启动失败（未安装 / 路径错误）与退出码非零是两种独立失败，调用方统一按 InvalidOperationException 判定下载失败
             throw new InvalidOperationException($"无法启动 {command}：请确认已安装 aria2c，或用 --aria2c-path 指定路径", ex);
         }
-        // 6h 进程级兜底：防 aria2c 僵死长期占住并发槽。硬超时触发时杀进程并抛 TimeoutException，
-        // 与用户取消（ct 由调用方触发）区分语义
+        // 6h 进程级超时：防 aria2c 僵死长期占住并发槽。硬超时触发时杀进程并抛 TimeoutException
+        // 与用户取消（ct 由调用方触发）区分开
         using var hardStop = new CancellationTokenSource(TimeSpan.FromHours(6));
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, hardStop.Token);
         await using var _ = linked.Token.Register(( ) =>
@@ -56,7 +56,7 @@ public static class BBDownAria2c
         }
         catch (OperationCanceledException) when (hardStop.IsCancellationRequested)
         {
-            throw new TimeoutException("aria2c 下载超时（6h 兜底），已终止");
+            throw new TimeoutException("aria2c 下载超时（6h 上限），已终止");
         }
 
         if (p.ExitCode != 0)

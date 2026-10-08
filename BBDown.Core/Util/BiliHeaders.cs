@@ -9,8 +9,8 @@ using System.Web;
 namespace BBDown.Core.Util;
 
 /// <summary>
-/// 请求头构造与「这个地址值不值得托付 Cookie」的判定。纯静态，不持有任何客户端实例。
-/// 类名不叫 HttpHeaders 是为了避开 System.Net.Http.Headers.HttpHeaders。
+/// 请求头构造与「这个地址值不值得托付 Cookie」的判定。纯静态，不持有任何客户端实例
+/// 类名不叫 HttpHeaders 是为了避开 System.Net.Http.Headers.HttpHeaders
 /// </summary>
 public static partial class BiliHeaders
 {
@@ -31,7 +31,7 @@ public static partial class BiliHeaders
     // 进程级默认 UA：无配置（登录探测、重定向跟随等）或配置未指定时使用
     public static string UserAgent { get; } = GetRandomUserAgent( );
 
-    // 番剧播放页要带 CURRENT_FNVAL 才会吐出 dash 源。只认 /ep123 /ss123 这样完整的路径段，
+    // 番剧播放页要带 CURRENT_FNVAL 才会吐出 dash 源。只认 /ep123 /ss123 这样完整的路径段
     // 裸 Contains("/ep") 会把 /episodes、/ssl 之类一并命中
     internal static bool IsBangumiPlayPage(string url)
     {
@@ -42,7 +42,7 @@ public static partial class BiliHeaders
     [GeneratedRegex(@"^(ep|ss)\d+$")]
     private static partial Regex BangumiSegmentRegex( );
 
-    // 凭据门：携带操作者 Cookie 的请求只允许发往 B 站官方域或用户显式配置的 host（--host / --ep-host / --tv-host）。
+    // 凭据门：携带操作者 Cookie 的请求只允许发往 B 站官方域或用户显式配置的 host（--host / --ep-host / --tv-host）
     // b23.tv 短链展开后的目标不可信，拦截可防用户可控 URL 把 Cookie 外发给第三方
     private static readonly HashSet<string> TrustedCookieHosts =
     [
@@ -56,7 +56,7 @@ public static partial class BiliHeaders
 
     internal static bool IsTrustedCookieHost(string host, AppConfig cfg)
     {
-        // hdslb.com 是 B 站官方 CDN 域（字幕、封面等静态资源均下发此域），其子域全由 B 站掌控；
+        // hdslb.com 是 B 站官方 CDN 域（字幕、封面等静态资源均下发此域），其子域全由 B 站掌控
         // 字幕 URL 来自 B 站自有 API 响应（非用户可控），整体放行避免把 Cookie 错判为不可信主机
         if (host.Equals("hdslb.com", StringComparison.OrdinalIgnoreCase)
             || host.EndsWith(".hdslb.com", StringComparison.OrdinalIgnoreCase))
@@ -79,7 +79,7 @@ public static partial class BiliHeaders
     }
 
     // UA 请求级化：显式参数 > AppConfig.UserAgent > 进程级默认。CLI 的 --user-agent 由 WorkSetup.ResolveConfig
-    // 落入 AppConfig，serve 契约不含该字段，故不会出现跨任务互相覆盖全局 UA 的踩踏
+    // 落入 AppConfig，serve 约定不含该字段，故不会出现跨任务互相覆盖全局 UA 的踩踏
     internal static void ApplyStandardGetHeaders(HttpRequestMessage request, string url, AppConfig cfg, string? userAgent = null)
     {
         // 在附加任何头之前拒绝，避免把操作者 Cookie 发往不可信主机
@@ -91,7 +91,7 @@ public static partial class BiliHeaders
         var effectiveUserAgent = userAgent ?? (string.IsNullOrEmpty(cfg.UserAgent) ? UserAgent : cfg.UserAgent);
         request.Headers.TryAddWithoutValidation("User-Agent", effectiveUserAgent);
         // Accept-Encoding 不在此手动指定：AppHttpClient 开启了自动解压，handler 会按启用算法自动协商
-        // 设备标识统一由 Buvid.Fragment 提供：用户 cookie 若带浏览器导出的 buvid3/buvid4/b_nut，
+        // 设备标识统一由 Buvid.Fragment 提供：用户 cookie 若带浏览器导出的 buvid3/buvid4/b_nut
         // 直接追加会拼出双份设备标识，风控严格的接口（feed 系）会把设备不一致判为可疑直接 HTTP 412
         var cookie = Buvid.Fragment.Length == 0
             ? cfg.Cookie
@@ -100,7 +100,7 @@ public static partial class BiliHeaders
         request.Headers.TryAddWithoutValidation("Cookie", IsBangumiPlayPage(url) ? $"{cookie};CURRENT_FNVAL={Config.FnvalPgc};" : cookie);
 
         var host = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : "";
-        // passport 系接口（扫码登录 generate/poll 等）同样校验 Referer，浏览器从 www.bilibili.com 发起，
+        // passport 系接口（扫码登录 generate/poll 等）同样校验 Referer，浏览器从 www.bilibili.com 发起
         // 不带 Referer 会被服务端在拿到 data.Url 之前就挡下，导致 Web 登录拿不到 SESSDATA
         if (host is BiliApi.MainHost or BiliApi.PassportHost or "www.bilibili.com")
         {
@@ -135,16 +135,16 @@ public static partial class BiliHeaders
     }
 
     /// <summary>
-    /// 直播拉流头。部分 CDN 节点（如 cn-*-ct-* 系列）强制校验 Referer，缺失直接 403；
+    /// 直播拉流头。部分 CDN 节点（如 cn-*-ct-* 系列）强制校验 Referer，缺失直接 403
     /// 另一些节点则不校验，故不能靠「能拉通」推断可以省略。<see cref="AddDownloadHeaders"/>
-    /// 带的是 www 站点的 Referer，对直播 CDN 不适用。
+    /// 带的是 www 站点的 Referer，对直播 CDN 不适用
     /// </summary>
     public static void AddLiveStreamHeaders(HttpRequestMessage request, string cookie)
     {
         request.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
         request.Headers.TryAddWithoutValidation("Referer", BiliApi.LiveSite + "/");
         request.Headers.TryAddWithoutValidation("Origin", BiliApi.LiveSite);
-        // StreamHttpClient 关闭了自动解压，不会解协商；identity 显式拒绝部分节点强推的 gzip，
+        // StreamHttpClient 关闭了自动解压，不会解协商；identity 显式拒绝部分节点强推的 gzip
         // 否则拉到的压缩字节过不了 LiveSegmentWriter 的 FLV 签名校验，录制直接失败
         request.Headers.TryAddWithoutValidation("Accept-Encoding", "identity");
         if (!string.IsNullOrEmpty(cookie))

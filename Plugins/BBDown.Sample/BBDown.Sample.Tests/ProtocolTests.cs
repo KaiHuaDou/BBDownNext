@@ -4,8 +4,8 @@ using BBDown.Core.Download;
 
 namespace BBDown.Sample.Tests;
 
-// 协议契约测试：主程序以 PascalCase 序列化请求 JSON，Sample 复用主程序同款源生成器上下文
-// PostProcessJsonContext 反序列化，字段名与值必须严格对齐（模板的核心约定）。
+// 协议约定测试：主程序以 PascalCase 序列化请求 JSON，Sample 复用主程序同款源生成器上下文
+// PostProcessJsonContext 反序列化，字段名与值必须严格相符（模板的核心约定）
 public class ProtocolTests
 {
     [Fact]

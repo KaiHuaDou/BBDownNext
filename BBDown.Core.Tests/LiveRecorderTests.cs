@@ -34,7 +34,7 @@ public sealed class LiveRecorderTests : IDisposable
         return new LivePlayInfo(10000, 10000, [10000], candidates);
     }
 
-    // avc 与 hevc 候选并存：首段成功后必须锁定编码，否则失败轮换会跳到 hevc，
+    // avc 与 hevc 候选并存：首段成功后必须锁定编码，否则失败轮换会跳到 hevc
     // 合并时套单一 bsf 会把 avc 段静默丢弃（数据丢失）
     private static LivePlayInfo MixedCodecInfo( )
     {
@@ -199,7 +199,7 @@ public sealed class LiveRecorderTests : IDisposable
         Assert.Equal(["cdn1", "cdn2"], h.UsedHosts);
     }
 
-    // 首段锁定 avc 后，连续失败把 failures 推到 2（本应轮换到 hevc/cdn3），仍须只选 avc 候选，
+    // 首段锁定 avc 后，连续失败把 failures 推到 2（本应轮换到 hevc/cdn3），仍须只选 avc 候选
     // 否则合并时套单一 bsf 会把 avc 段静默丢弃（数据丢失）
     [Fact]
     public async Task CodecPinned_AfterFirstSegment_StaysAvcUnderFailureRotation( )
@@ -209,7 +209,7 @@ public sealed class LiveRecorderTests : IDisposable
         using var _2 = stop;
         using var _3 = record;
 
-        // 段1 成功(avc) → 段2/3 空(失败，failures 爬到 2) → 段4 成功(应锁定 avc，不选 hevc) → 流结束
+        // 段 1 成功(avc) → 段 2/3 空(失败，failures 爬到 2) → 段 4 成功(应锁定 avc，不选 hevc) → 流结束
         var plan = new Script<LivePlayInfo?>(MixedCodecInfo( ), MixedCodecInfo( ), MixedCodecInfo( ), MixedCodecInfo( ), null);
         var bytes = new Script<long>(5000L, 0L, 0L, 5000L);
         var h = new Harness( );
@@ -304,7 +304,7 @@ public sealed class LiveRecorderTests : IDisposable
         using var _2 = stop;
         using var _3 = record;
 
-        // 模拟写了一半的段：磁盘满前已落盘 999999 字节
+        // 模拟写了一半的段：磁盘满前已写入 999999 字节
         File.WriteAllBytes(seg1, new byte[999_999]);
 
         var h = new Harness( );

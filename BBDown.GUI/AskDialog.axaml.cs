@@ -11,8 +11,8 @@ using BBDown.Core.Workflow;
 namespace BBDown.GUI;
 
 /// <summary>
-/// 选项请求弹窗：显示 Prompt 与选项列表，点击选项即关闭并携带所选 Id；
-/// 窗口被关闭（取消 / Esc / 到期）时 Result 为 null，由调用方回落默认选项。
+/// 选项请求弹窗：显示 Prompt 与选项列表，点击选项即关闭并携带所选 Id
+/// 窗口被关闭（取消 / Esc / 到期）时 Result 为 null，由调用方回落默认选项
 /// </summary>
 public partial class AskDialog : Window
 {

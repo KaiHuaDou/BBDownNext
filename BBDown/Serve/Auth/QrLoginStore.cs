@@ -15,8 +15,8 @@ namespace BBDown.Serve.Auth;
 internal sealed record StartLoginOutcome(QrLoginSession? Session, string? Error, bool InvalidChannel = false);
 
 /// <summary>
-/// 扫码登录会话容器：经 Core Login 编排二维码登录，供 WebUI 经 REST 起点与轮询。
-/// 会话有界（并发上限 + 存活时间），超限 / 过期淘汰并取消对应后台登录任务；成功凭据同时写入 BBDown.data（与 CLI / GUI 一致）。
+/// 扫码登录会话容器：经 Core Login 编排二维码登录，供 WebUI 经 REST 起点与轮询
+/// 会话有界（并发上限 + 存活时间），超限 / 过期淘汰并取消对应后台登录任务；成功凭据同时写入 BBDown.data（与 CLI / GUI 一致）
 /// </summary>
 public sealed class QrLoginStore
 {
@@ -65,7 +65,7 @@ public sealed class QrLoginStore
             return false;
         }
 
-        // 终态会话不受 TTL 约束：凭据已落盘、后台任务已结束，此时淘汰只会让「TTL 到期瞬间完成扫码」
+        // 终态会话不受 TTL 约束：凭据已写入、后台任务已结束，此时淘汰只会让「TTL 到期瞬间完成扫码」
         // 的轮询拿到 not found，用户被迫重来（凭据实际已保存却无从告知）。终态会话由 PruneExpired 统一清理
         if (found.IsTerminal || DateTimeOffset.UtcNow - found.CreatedAt <= SessionTtl)
         {

@@ -2,8 +2,8 @@ using System.Threading.Tasks;
 
 namespace BBDown.Core.Tests;
 
-// 集合形态解析为纯字符串处理（不触网，不触发 FixAvidAsync 的 HEAD 探测），
-// 故可在无网络环境下断言内部 id 形态与 TryDispatch 的命中 / 未命中行为。
+// 集合形式解析为纯字符串处理（不触网，不触发 FixAvidAsync 的 HEAD 探测）
+// 故可在无网络环境下断言内部 id 形式与 TryDispatch 的命中 / 未命中行为
 public class InputResolverCollectionTests
 {
     // 四种集合 URL 与对应的 ResourceId 子类型
@@ -72,7 +72,7 @@ public class InputResolverCollectionTests
         Assert.IsType<ResourceId.SpaceAudio>(id);
     }
 
-    // 非法单音频形态不命中：纯前缀 / 非数字尾段 / 音频别字（audio123）一律拒绝
+    // 非法单音频形式不命中：纯前缀 / 非数字尾段 / 音频别字（audio123）一律拒绝
     [Theory]
     [InlineData("au")]
     [InlineData("auabc")]
@@ -90,7 +90,7 @@ public class InputResolverCollectionTests
         Assert.Equal(new ResourceId.ReadList(75249), id);
     }
 
-    // 回归护栏：视频形态不命中 TryDispatch（返回 false 走视频管道），避免分流误吞
+    // 回归护栏：视频形式不命中 TryDispatch（返回 false 走视频管道），避免分流误吞
     [Theory]
     [InlineData("https://www.bilibili.com/video/BV1xx411c7mD")]
     [InlineData("https://www.bilibili.com/video/av170001")]
@@ -123,7 +123,7 @@ public class InputResolverCollectionTests
         Assert.False(InputResolver.TryDispatch(input, out _));
     }
 
-    // 文集 URL 尾段非 rl 前缀数字时整体不命中（防止误吞成其它形态）
+    // 文集 URL 尾段非 rl 前缀数字时整体不命中（防止误吞成其它形式）
     [Theory]
     [InlineData("https://www.bilibili.com/read/readlist/abc")]
     [InlineData("https://www.bilibili.com/read/readlist/")]

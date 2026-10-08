@@ -11,8 +11,8 @@ using BBDown.Serve;
 namespace BBDown.Cli;
 
 /// <summary>
-/// 子命令构造器：只负责把选项与动作装配成 Command，不含业务逻辑（扫码登录在 Login，关服在 StartServer）。
-/// 从 Program 迁出，使后者回到单文件行数上限以内。
+/// 子命令构造器：只负责把选项与动作装配成 Command，不含业务逻辑（扫码登录在 Login，关服在 StartServer）
+/// 从 Program 迁出，使后者回到单文件行数上限以内
 /// </summary>
 internal static class SubCommands
 {
@@ -27,7 +27,7 @@ internal static class SubCommands
             LoginStatusCommand( ),
             LoginRefreshCommand( ),
         };
-        // status / refresh 一次处理全通道，与 --tv / --app 的「选一个通道登录」语义冲突：
+        // status / refresh 一次处理全通道，与 --tv / --app 的「选一个通道登录」相冲突
         // 静默忽略通道选项会让用户以为筛了通道，实际拿到全量
         command.Validators.Add(result =>
         {
@@ -86,7 +86,7 @@ internal static class SubCommands
             },
             new Option<string>("--host")
             {
-                Description = "API 请求 Host，所有任务统一使用此值；请求体不再能指定 host（防止凭据被导向外部服务器）"
+                Description = "API 请求 Host，所有任务统一使用此值；请求体不能指定 host（防止凭据被导向外部服务器）"
             },
             new Option<string>("--ep-host")
             {
@@ -107,11 +107,11 @@ internal static class SubCommands
             },
             new Option<bool>("--webui")
             {
-                Description = "将内嵌的 Web 前端与 API 同源托管在同一端口（静态资源根路径托管，前端自动以同源地址调用 API）。需构建时已将 WebUI dist 嵌入，否则该选项无效果。"
+                Description = "将内嵌的 Web 前端与 API 托管在同一端口（静态资源根路径托管，前端自动以该端口地址调用 API）。需构建时已将 WebUI dist 嵌入，否则该选项无效果。"
             }
         };
-        // server.Run 阻塞整个进程生命周期直到关服：挪到线程池让 InvokeAsync 真正异步等待，
-        // 也与 login 命令的真异步动作形态保持一致
+        // server.Run 阻塞整个进程生命周期直到关服：挪到线程池让 InvokeAsync 真正异步等待
+        // 也与 login 命令的真异步动作一致
         command.SetAction(result => Task.Run(( ) => StartServer(new ServeConfig(
             result.GetValue<string>("--listen"),
             result.GetValue<string>("--work-dir"),

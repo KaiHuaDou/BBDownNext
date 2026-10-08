@@ -4,7 +4,7 @@ namespace BBDown.Core.Opus;
 
 /// <summary>
 /// Opus 模块共用的源生成正则表达式。统一用 <c>[GeneratedRegex]</c> 替代
-/// <c>Regex.Replace</c> / <c>Regex.Match</c> 的运行时内联模式，保证 AOT 发布零反射、零解释器回退。
+/// <c>Regex.Replace</c> / <c>Regex.Match</c> 的运行时内联模式，保证 AOT 发布零反射、零解释器回退
 /// </summary>
 internal static partial class OpusRegexes
 {

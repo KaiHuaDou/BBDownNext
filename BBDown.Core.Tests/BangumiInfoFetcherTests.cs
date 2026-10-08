@@ -9,8 +9,8 @@ namespace BBDown.Core.Tests;
 [Collection<HttpStubCollectionDefinition>]
 public class BangumiInfoFetcherTests
 {
-    // 整季（md/ss 输入统一解析为 Season(season_id) 后进入此形态）：按 season_id 拉取整季正片，
-    // Index 留空 → 全量下载；section（OP/ED/PV）不计入正片。
+    // 整季（md/ss 输入统一解析为 Season(season_id) 后进入此形式）：按 season_id 拉取整季正片
+    // Index 留空 → 全量下载；section（OP/ED/PV）不计入正片
     private const string SeasonJson = """
     {
       "code": 0,
@@ -48,7 +48,7 @@ public class BangumiInfoFetcherTests
     [Fact]
     public async Task FetchAsync_EpForm_LocatesSingleEpisodeAndSetsIndex( )
     {
-        // ep 形态回归：按 ep_id 拉整季、定位到目标集的 Index，且 section 扫描仍生效
+        // ep 形式回归：按 ep_id 拉整季、定位到目标集的 Index，且 section 扫描仍生效
         var info = await HttpStub.WithJsonResponse(SeasonJson, ( ) => BangumiInfoFetcher.FetchAsync(new ResourceId.Ep(63471), AppConfig.Empty));
 
         Assert.Equal(3, info.PagesInfo.Count);
@@ -59,8 +59,8 @@ public class BangumiInfoFetcherTests
     [Fact]
     public async Task FetchAsync_SsForm_ApiError_ThrowsInvalidOpNotBangumiNotFound( )
     {
-        // ss 形态接口无 result 时，必须抛 InvalidOperationException（而非 BangumiNotFoundException），
-        // 否则会触发 FetcherRegistry 的课程误回退。
+        // ss 形式接口无 result 时，必须抛 InvalidOperationException（而非 BangumiNotFoundException）
+        // 否则会触发 FetcherRegistry 的课程误回退
         const string body = "{\"code\":-404,\"message\":\"番剧不存在\"}";
         await Assert.ThrowsAsync<InvalidOperationException>(( ) =>
             HttpStub.WithJsonResponse(body, ( ) => BangumiInfoFetcher.FetchAsync(new ResourceId.Season(2539), AppConfig.Empty)));

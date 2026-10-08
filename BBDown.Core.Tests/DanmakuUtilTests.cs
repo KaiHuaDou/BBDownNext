@@ -109,7 +109,7 @@ public class DanmakuUtilTests
         Assert.Null(ParseInlineXml("这不是 xml"));
     }
 
-    // 端点对无弹幕视频返回空响应，ParseXml 的 null 契约供上层按「没有弹幕」分流
+    // 端点对无弹幕视频返回空响应，ParseXml 的 null 约定供上层按「没有弹幕」分流
     [Fact]
     public void ParseXml_ReturnsNullOnEmptyContent( )
     {
@@ -145,7 +145,7 @@ public class DanmakuUtilTests
     [Fact]
     public void ToAssColor_ReturnsInputWhenNotHex( )
     {
-        // 解析失败原样返回，交由下游 ASS 渲染器报错，而非静默改成错误颜色
+        // 解析失败原样返回，交由下游 ASS 渲染器报错，而非静默替换成错误颜色
         Assert.Equal("nothex", DanmakuUtil.ToAssColor("nothex"));
     }
 

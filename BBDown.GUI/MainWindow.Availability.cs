@@ -11,8 +11,8 @@ using BBDown.Core.Download;
 namespace BBDown.GUI;
 
 /// <summary>
-/// 控件可用性联动：界面「可用」的选项与「实际生效」的选项保持同步。
-/// 单点幂等刷新，任何相关事件只调 <see cref="RefreshAvailability"/>；禁用不清空值，ReadOptions 照读、Core 自然失效兜底。
+/// 控件可用性联动：界面「可用」的选项与「实际生效」的选项保持同步
+/// 单点刷新，任何相关事件只调 <see cref="RefreshAvailability"/>；禁用不清空值，ReadOptions 照读、Core 自然失效
 /// </summary>
 public partial class MainWindow
 {
@@ -61,7 +61,7 @@ public partial class MainWindow
         return (content & (DownloadContent.Audio | DownloadContent.Video)) == (DownloadContent.Audio | DownloadContent.Video);
     }
 
-    // 弹幕 / 评论的格式与条数是输出选项，不因内容项未勾选而禁用（缺失组合由警告行提示，与 Core 的警告语义一致）；
+    // 弹幕 / 评论的格式与条数是输出选项，不因内容项未勾选而禁用（缺失组合由警告行提示，与 Core 的警告规则一致）
     // 评论条数为 0 时不下载评论，排序与格式随之失效
     private void ApplyContentArea(ContentMode? mode, bool infoOnly, int comments)
     {
@@ -97,7 +97,7 @@ public partial class MainWindow
         DanmakuAssCheckBox.IsEnabled = videoLike;
     }
 
-    // 混流方式 / 混流音频语言 / 后处理是输出配置，不随内容勾选闪烁（缺 a / v 的组合由警告行提示）；
+    // 混流方式 / 混流音频语言 / 后处理是输出配置，不随内容勾选闪烁（缺 a / v 的组合由警告行提示）
     // 可用性只随三个确定性输入变化：目标域、混流方式、仅解析
     private void ApplyDownloadArea(ContentMode? mode, bool infoOnly, string mux)
     {

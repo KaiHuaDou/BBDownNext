@@ -43,7 +43,7 @@ public class WorkDirTests
         }
     }
 
-    // 开头的 ~ 展开为用户主目录（Unix 习惯写法）；Windows 下同样适用
+    // 开头的 ~ 展开为用户主目录（Unix 习惯形式）；Windows 下同样适用
     [Fact]
     public void NormalizeWorkDir_ExpandsTildeToUserProfile( )
     {

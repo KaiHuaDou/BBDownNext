@@ -12,9 +12,9 @@ using static BBDown.Core.Logger;
 namespace BBDown.Core.Media;
 
 /// <summary>
-/// 把已下载分 P 的评论区导出为 JSON / TXT（按 <c>--comments-formats</c>）。
-/// 评论区按 oid 绑定，与 cid / 分 P 无关，挂 PageQueue 时用局部 HashSet 按 aid 去重；
-/// 与视频下载互不干扰：抓取失败只告警，不影响视频本体。
+/// 把已下载分 P 的评论区导出为 JSON / TXT（按 <c>--comments-formats</c>）
+/// 评论区按 oid 绑定，与 cid / 分 P 无关，挂 PageQueue 时用局部 HashSet 按 aid 去重
+/// 与视频下载互不干扰：抓取失败只告警，不影响视频本体
 /// </summary>
 public static class CommentDownload
 {

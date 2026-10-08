@@ -212,7 +212,7 @@ public class ProgramTests
         WorkSetup.ResolveToolPaths(o);
     }
 
-    // 需要混流却探测不到 ffmpeg 必须立刻炸，而不是下载完才失败。
+    // 需要混流却探测不到 ffmpeg 必须立刻炸，而不是下载完才失败
     // 临时清空 PATH，使 FindExecutable 只在 AppDir 找（测试产物目录无 ffmpeg），无论本机是否安装都确定性触发
     [Fact]
     public void ResolveToolPaths_MuxRequiresFfmpeg_ThrowsWhenMissing( )

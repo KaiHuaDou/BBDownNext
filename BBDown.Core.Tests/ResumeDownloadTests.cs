@@ -13,7 +13,7 @@ using BBDown.Core.Workflow;
 namespace BBDown.Core.Tests;
 
 // 本集合替换的是 DownloaderAdapter.HttpClientFactory，与 HttpStubCollectionDefinition
-// 替换的 HTTPUtil.AppHttpClient 是不同静态，故两个集合可并行。
+// 替换的 HTTPUtil.AppHttpClient 是不同静态，故两个集合可并行
 [CollectionDefinition("DownloadHttpStub")]
 public sealed class DownloadHttpStubCollectionDefinition;
 
@@ -22,7 +22,7 @@ public class ResumeDownloadTests
 {
     private const string Etag = "W/\"orig-etag\"";
 
-    // 独占语义：Range 切片 / 206 / Content-Range / ETag 全部耦合在下载器协议上，
+    // 独占理由：Range 切片 / 206 / Content-Range / ETag 全部耦合在下载器协议上
     // 其它桩用不到，故不收进 Stubs
     private sealed class ServingHandler(int delayMs = 0) : HttpMessageHandler
     {
@@ -96,7 +96,7 @@ public class ResumeDownloadTests
         }
     }
 
-    // 独占语义：用信号在达到目标并发数时精确放行，确保重叠窗口确定存在，不依赖固定延时窗。
+    // 独占理由：用信号在达到目标并发数时精确放行，确保重叠窗口确定存在，不依赖固定延时窗
     // releaseAt=1：首请求立即放行（单连接场景）；releaseAt=2：需等到第二请求在飞才放行（多线程场景）
     private sealed class GatedServingHandler(byte[] data, int releaseAt = 2) : HttpMessageHandler
     {

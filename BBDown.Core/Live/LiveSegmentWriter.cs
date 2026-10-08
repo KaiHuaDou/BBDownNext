@@ -10,7 +10,7 @@ using BBDown.Core.Util;
 namespace BBDown.Core.Live;
 
 /// <summary>
-/// 把一条直播 FLV 流写进一个分段文件，直到断流、下播或被取消。
+/// 把一条直播 FLV 流写进一个分段文件，直到断流、下播或被取消
 /// </summary>
 public static class LiveSegmentWriter
 {
@@ -19,14 +19,14 @@ public static class LiveSegmentWriter
     private static readonly byte[] FlvSignature = [0x46, 0x4C, 0x56];
 
     /// <summary>
-    /// 服务端保活时可能长时间不推数据。超过该间隔没有任何字节即判定断流，交由调用方重连。
+    /// 服务端保活时可能长时间不推数据。超过该间隔没有任何字节即判定断流，交由调用方重连
     /// </summary>
     private static readonly TimeSpan SilenceTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// 返回本段写入的字节数。
-    /// <paramref name="ct"/> 取消是**正常终止**而非错误——按下停录键时已写入的内容必须留下来参与混流，
-    /// 所以这里不抛 <see cref="OperationCanceledException"/>，由调用方自行检查取消状态。
+    /// 返回本段写入的字节数
+    /// <paramref name="ct"/> 取消是**正常终止**而非错误——按下停录键时已写入的内容必须留下来参与混流
+    /// 所以这里不抛 <see cref="OperationCanceledException"/>，由调用方自行检查取消状态
     /// </summary>
     public static async Task<long> WriteAsync(string url, string partPath, string cookie, Action<long>? onBytes, CancellationToken ct)
     {
@@ -92,7 +92,7 @@ public static class LiveSegmentWriter
                     verified = true;
                 }
 
-                // 刻意不传 ct：64 KiB 的落盘是有界操作，中途取消只会在分段末尾留下半个 FLV tag
+                // 刻意不传 ct：64 KiB 的写入是有界操作，中途取消只会在分段末尾留下半个 FLV tag
                 await target.WriteAsync(buffer.AsMemory(0, read), CancellationToken.None);
                 written += read;
                 onBytes?.Invoke(read);

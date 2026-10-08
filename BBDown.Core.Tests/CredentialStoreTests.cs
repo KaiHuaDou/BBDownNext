@@ -6,7 +6,7 @@ namespace BBDown.Core.Tests;
 
 public class CredentialStoreTests
 {
-    // 唯一保留的真实落盘往返：锁定「序列化 → 写入 → 读回」整链，其余用例均为纯函数测试
+    // 唯一保留的真实写入往返：锁定「序列化 → 写入 → 读回」整链，其余用例均为纯函数测试
     [Fact]
     public async Task SaveAndLoadWebCookie_RoundTrips( )
     {
@@ -16,8 +16,8 @@ public class CredentialStoreTests
         Assert.Equal("SESSDATA=xxx", CredentialStore.LoadWebCookie(dir.FullPath));
     }
 
-    // serve 并发任务各自触发保存：读改写序列无互斥时，基于同一旧快照的后写者会覆盖先写者的字段更新。
-    // 三类凭据并发各写多轮，结束后三类字段必须全部在位（丢失任何一个即读改写竞态回归）
+    // serve 并发任务各自触发保存：读改写序列无互斥时，基于同一旧快照的后写者会覆盖先写者的字段更新
+    // 三类凭据并发各写多轮，结束后三类字段必须全部存在（丢失任何一个即读改写竞态回归）
     [Fact]
     public async Task ConcurrentSaves_KeepAllCredentialFields( )
     {

@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 namespace BBDown.Core.Tests;
 
 /// <summary>
-/// 替换进程级静态 <c>HTTPUtil.AppHttpClient</c> 的唯一入口。
-/// 每个方法都在 <see cref="Install{T}"/> 内完成「保存原值 → 装桩 → 还原」，
-/// 用例不直接改这个静态。
+/// 替换进程级静态 <c>HTTPUtil.AppHttpClient</c> 的唯一入口
+/// 每个方法都在 <see cref="Install{T}"/> 内完成「保存原值 → 装桩 → 还原」
+/// 用例不直接改这个静态
 /// </summary>
 /// <remarks>
-/// 调用方必须挂 <see cref="HttpStubCollectionDefinition"/>：静态是进程级的，
-/// 并行的桩会互相还原对方的客户端。
+/// 调用方必须挂 <see cref="HttpStubCollectionDefinition"/>：静态是进程级的
+/// 并行的桩会互相还原对方的客户端
 /// </remarks>
 internal static class HttpStub
 {
@@ -48,8 +48,8 @@ internal static class HttpStub
     }
 
     /// <summary>
-    /// 恒回 200 并把请求原样回填到响应上：<c>FixAvidAsync</c> 之类的探测据此读取最终地址，
-    /// 不重定向即等于原地址。
+    /// 恒回 200 并把请求原样回填到响应上：<c>FixAvidAsync</c> 之类的探测据此读取最终地址
+    /// 不重定向即等于原地址
     /// </summary>
     public static Task<T> WithOkEcho<T>(Func<Task<T>> act)
     {

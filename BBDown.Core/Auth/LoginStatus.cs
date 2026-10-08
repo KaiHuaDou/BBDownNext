@@ -1,8 +1,8 @@
 namespace BBDown.Core.Auth;
 
 /// <summary>
-/// 单通道登录态。<see cref="Verified"/> 为 null 表示探测未完成（网络异常 / 响应不可解析），
-/// 与「服务端明确否认」是两种状态，不可合并。
+/// 单通道登录态。<see cref="Verified"/> 为 null 表示探测未完成（网络异常 / 响应不可解析）
+/// 与「服务端明确否认」是两种状态，不可合并
 /// </summary>
 /// <param name="Channel">通道名：WEB / TV / APP</param>
 /// <param name="Saved">本地是否持有该通道凭据</param>

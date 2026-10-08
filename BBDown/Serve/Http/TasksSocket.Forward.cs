@@ -10,8 +10,8 @@ using BBDown.Core.Workflow;
 namespace BBDown.Serve.Http;
 
 /// <summary>
-/// TaskSocketHub 的转发与广播部分：按任务转发事件 / 快照帧、结构变更全局广播（taskList）、订阅清理。
-/// 连接生命周期与帧收发见 TasksSocket.cs。
+/// TaskSocketHub 的转发与广播部分：按任务转发事件 / 快照帧、结构变更全局广播（taskList）、订阅清理
+/// 连接生命周期与帧收发见 TasksSocket.cs
 /// </summary>
 internal sealed partial class TaskSocketHub
 {
@@ -56,8 +56,8 @@ internal sealed partial class TaskSocketHub
         finally
         {
             // 仅当槽位仍是自己启动的 cts 才摘除（与 LiveSignal.Unregister 同范式）：RemoveSubscription 摘除并取消
-            // 旧 cts 后，新订阅者可能已注册新 cts，无条件 TryRemove 会把后注册者的条目一并删掉，产生并行重复转发器。
-            // 同源 Token 相等即为自己的 cts；CancellationTokenSource.Dispose 幂等，重复释放安全
+            // 旧 cts 后，新订阅者可能已注册新 cts，无条件 TryRemove 会把后注册者的条目一并删掉，产生并行重复转发器
+            // 同一 Token 相等即为自己的 cts；CancellationTokenSource.Dispose 可重复调用，重复释放安全
             if (forwarders.TryGetValue(task.Id, out var current) && current.Token == token)
             {
                 forwarders.TryRemove(task.Id, out _);
@@ -74,7 +74,7 @@ internal sealed partial class TaskSocketHub
         }
     }
 
-    // 快照轮询：仅阶段内样本引用变化时推帧（ProgressBus 阶段内复用同一 ProgressState 实例，
+    // 快照轮询：仅阶段内样本引用变化时推帧（ProgressBus 阶段内复用同一 ProgressState 实例
     // 每次 Publish 生成新 ProgressSampleEvent；按样本引用比较才能捕捉变化，按 state 比较会漏推）
     private static async Task ForwardSnapshotsAsync(string scope, ChannelWriter<EventFrame> writer, CancellationToken token)
     {
@@ -126,8 +126,8 @@ internal sealed partial class TaskSocketHub
         return new EventFrame("taskList", Tasks: new DownloadTaskSnapshot(store.RunningSnapshot( ), store.FinishedSnapshot( )));
     }
 
-    // 后台泵仅启动一次（单例生命周期内）：首次连接建立时触发，避免多连接重复开泵。
-    // 连接建立前发生的结构变更已缓存在 store 的变更通道里，泵启动时一并重放，不丢变更。
+    // 后台泵仅启动一次（单例生命周期内）：首次连接建立时触发，避免多连接重复开泵
+    // 连接建立前发生的结构变更已缓存在 store 的变更通道里，泵启动时一并重放，不丢变更
     private void EnsurePump( )
     {
         if (Interlocked.Exchange(ref pumpStarted, 1) == 0)
@@ -136,8 +136,8 @@ internal sealed partial class TaskSocketHub
         }
     }
 
-    // 订阅 store 变更通道：每次结构变更（增删 / 状态切换 / 完成 / 清空）向所有连接广播最新列表。
-    // 进度不在此列（由按任务的 snapshot 帧高频推送），故列表帧仅在结构变化时发送，开销极低。
+    // 订阅 store 变更通道：每次结构变更（增删 / 状态切换 / 完成 / 清空）向所有连接广播最新列表
+    // 进度不在此列（由按任务的 snapshot 帧高频推送），故列表帧仅在结构变化时发送，开销极低
     private async Task PumpStoreChangesAsync(CancellationToken token)
     {
         try

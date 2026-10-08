@@ -8,9 +8,9 @@ using static BBDown.Core.Util.JsonUtil;
 namespace BBDown.Core.PlayUrl;
 
 /// <summary>
-/// INTL（BiliPlus / 海外）playurl 响应（JSON）到轨道实体的解析。纯函数：输入已解析好的 <see cref="JsonElement"/>。
-/// 与 DASH 字段名不同（id vs stream_info.quality、codecid 位置不同），故不强行与 DASH 共用构建逻辑，
-/// 仅 <see cref="TrackFactory.BuildVideo"/> / <see cref="TrackFactory.BuildAudio"/> 这两处真正同形的逻辑复用。
+/// INTL（BiliPlus / 海外）playurl 响应（JSON）到轨道实体的解析。纯函数：输入已解析好的 <see cref="JsonElement"/>
+/// 与 DASH 字段名不同（id vs stream_info.quality、codecid 位置不同），故不强行与 DASH 共用构建逻辑
+/// 仅 <see cref="TrackFactory.BuildVideo"/> / <see cref="TrackFactory.BuildAudio"/> 这两处真正同形的逻辑复用
 /// </summary>
 internal static class IntlTrackReader
 {

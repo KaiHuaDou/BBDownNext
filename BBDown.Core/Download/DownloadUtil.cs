@@ -20,8 +20,8 @@ public static class DownloadUtil
     }
 
     /// <summary>
-    /// 唯一的下载入口。数据经 downloader 落到 &lt;path&gt;.download，完成后自动改名为正式文件；
-    /// 失败或取消时 .download 保留（内嵌续传元数据），下次重跑接着下。
+    /// 唯一的下载入口。数据经 downloader 落到 &lt;path&gt;.download，完成后自动改名为正式文件
+    /// 失败或取消时 .download 保留（内嵌续传元数据），下次重跑接着下
     /// </summary>
     public static async Task DownloadAsync(string url, string path, DownloadConfig config, bool resumable = true, CancellationToken ct = default)
     {
@@ -52,7 +52,7 @@ public static class DownloadUtil
 
         if (config.UseAria2c)
         {
-            // aria2c 中断后目标文件（预分配 / 半成品）与 .aria2 控制文件并存，
+            // aria2c 中断后目标文件（预分配 / 半成品）与 .aria2 控制文件并存
             // 控制文件仍在时交给 aria2c --continue 恢复，不能把残缺文件当成品跳过
             if (File.Exists(path) && !File.Exists(path + ".aria2"))
             {

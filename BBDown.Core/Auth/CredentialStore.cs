@@ -11,7 +11,7 @@ namespace BBDown.Core.Auth;
 
 /// <summary>
 /// 凭据读写收口：WEB cookie、TV token、APP token 三类凭据全部合并进单一文件
-/// <c>BBDown.data</c> 的同一个 JSON 对象，CLI 与 serve 模式共用，避免多份文件不一致。
+/// <c>BBDown.data</c> 的同一个 JSON 对象，CLI 与 serve 模式共用，避免多份文件不一致
 ///
 /// <code>
 /// {
@@ -24,20 +24,20 @@ namespace BBDown.Core.Auth;
 ///   "app_ts": 1700000000      // APP 凭据签发时间戳（未登录为 null）
 /// }
 /// </code>
-/// 各类凭据独立落盘：每次保存只更新对应字段并合并保留其余字段，互不影响。
+/// 各类凭据独立写入：每次保存只更新对应字段并合并保留其余字段，互不影响
 /// </summary>
 public static class CredentialStore
 {
     private const string DataFile = "BBDown.data";
 
-    // 保存走「读文件 → with 修改 → 写回」序列：serve 并发任务各自触发保存时，
-    // 无锁会让两个写者基于同一份旧快照合并，后写者覆盖先写者的字段更新（丢凭据）。
+    // 保存走「读文件 → with 修改 → 写回」序列：serve 并发任务各自触发保存时
+    // 无锁会让两个写者基于同一份旧快照合并，后写者覆盖先写者的字段更新（丢凭据）
     // 序列内有 await，lock 语句不可用，用信号量互斥；文件写入本身由 tmp + Move 保证原子
     private static readonly SemaphoreSlim saveGate = new(1, 1);
 
     private static readonly Credential Empty = new(null, null, null, null, null, null, null);
 
-    // 单一合并凭据模型；字段缺失即为 null。属性名经 JsonPropertyName 映射为磁盘上的 snake_case。
+    // 单一合并凭据模型；字段缺失即为 null。属性名经 JsonPropertyName 映射为磁盘上的 snake_case
     internal sealed record Credential(
         [property: JsonPropertyName("cookie")] string? Cookie,
         [property: JsonPropertyName("refresh_token")] string? RefreshToken,
@@ -64,8 +64,8 @@ public static class CredentialStore
     }
 
     /// <summary>
-    /// 读取 Web 凭据三元组：cookie、refresh_token（可能为空）、签发时间戳（可能为空）。
-    /// 文件缺失或非合法 JSON 时返回 ("", null, null)。
+    /// 读取 Web 凭据三元组：cookie、refresh_token（可能为空）、签发时间戳（可能为空）
+    /// 文件缺失或非合法 JSON 时返回 ("", null, null)
     /// </summary>
     public static (string cookie, string? refreshToken, long? issueTs) LoadWebCredential(string? dir = null)
     {
@@ -106,7 +106,7 @@ public static class CredentialStore
 
     // ── JSON 序列化 / 反序列化（源生成器，AOT 安全）────────────────────────────
 
-    /// <summary>读取完整凭据快照（含签发时间戳）。<see cref="LoadWebCredential"/> 等便捷方法只取所需字段，
+    /// <summary>读取完整凭据快照（含签发时间戳）。<see cref="LoadWebCredential"/> 等便捷方法只取所需字段
     /// 需要跨通道一次性取齐时走本方法，避免为拿时间戳重复读盘。</summary>
     internal static Credential LoadCredential(string? dir = null)
     {
@@ -153,7 +153,7 @@ public static class CredentialStore
         HardenFilePermissions(path);
     }
 
-    // 凭据明文落盘，尽量收紧文件权限：类 Unix 系统设为 600（仅 owner 可读写）；Windows 暂不收紧以避免误锁自身
+    // 凭据明文写入，尽量收紧文件权限：类 Unix 系统设为 600（仅 owner 可读写）；Windows 暂不收紧以避免误锁自身
     private static void HardenFilePermissions(string path)
     {
         try
@@ -170,7 +170,7 @@ public static class CredentialStore
     }
 
     /// <summary>
-    /// 合并命令行传入与本地文件的凭据：命令行优先；缺失时回退到对应类型的本地文件。
+    /// 合并命令行传入与本地文件的凭据：命令行优先；缺失时回退到对应类型的本地文件
     /// </summary>
     public static (string cookie, string token) LoadAll(
         string? cliCookie, string? cliToken, ApiType api, string? dir = null)

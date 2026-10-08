@@ -26,7 +26,7 @@ public class BBDownServer
     private static readonly TimeSpan AuthFailureWindow = TimeSpan.FromMinutes(1);
     private const int AuthFailureCap = 1024;
 
-    // 认证失败滑动窗口（实例级：每个服务实例独立限速）：每 IP 每分钟 5 次，超限 429（防令牌暴力）。
+    // 认证失败滑动窗口（实例级：每个服务实例独立限速）：每 IP 每分钟 5 次，超限 429（防令牌暴力）
     // 第二项是最后一次失败时刻，既用于判定窗口是否过期，也用于超限时的淘汰排序
     private readonly ConcurrentDictionary<string, (int Count, DateTimeOffset Last)> authFailures = new( );
 
@@ -89,10 +89,10 @@ public class BBDownServer
 
         builder.Services.ConfigureHttpJsonOptions((options) => options.SerializerOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(options.SerializerOptions.TypeInfoResolver, AppJsonSerializerContext.Default));
 
-        // CORS：放行回环来源（127.0.0.1 / localhost）与显式 --cors-origin 的浏览器请求。
-        // 安全前提：CORS 校验的是请求方 Origin 而非目标地址，恶意网页（非回环 Origin）依旧无 ACAO 头被浏览器拦截。
-        // 注意它挡不住 DNS rebinding——攻击者域名解析到 127.0.0.1 后，页面发起的是「同源」请求，
-        // 同源 GET 不携带 Origin。该场景由 Host 头白名单中间件兜底（见 ConfigurePipeline）。
+        // CORS：放行回环来源（127.0.0.1 / localhost）与显式 --cors-origin 的浏览器请求
+        // 安全前提：CORS 校验的是请求方 Origin 而非目标地址，恶意网页（非回环 Origin）依旧无 ACAO 头被浏览器拦截
+        // 注意它挡不住 DNS rebinding——攻击者域名解析到 127.0.0.1 后，浏览器视该页面与目标同地址
+        // 而 GET 请求不携带 Origin。该场景由 Host 头白名单中间件处理（见 ConfigurePipeline）
         builder.Services.AddCors(options => options.AddPolicy("AllowSpecificOrigin",
                 policy => policy
                     .SetIsOriginAllowed(origin => TaskSocketHub.IsAllowedOrigin(origin, config))
@@ -106,7 +106,7 @@ public class BBDownServer
             .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
                 ApiKeyAuthenticationOptions.DefaultScheme,
                 options => options.ExpectedToken = serveToken);
-        // UseAuthorization 要求授权服务始终注册；FallbackPolicy 默认拒绝仅鉴权模式启用，
+        // UseAuthorization 要求授权服务始终注册；FallbackPolicy 默认拒绝仅鉴权模式启用
         // 未启用强制鉴权（authRequired == false）时无 FallbackPolicy，匿名全放行
         builder.Services.AddAuthorization(options =>
         {
@@ -132,14 +132,14 @@ public class BBDownServer
 
         app = builder.Build( );
 
-        // 日志消息经桥接器按任务路由进事件流（WebSocket）。事件流始终启用，桥接器被静态订阅强持有，
-        // 存活至进程退出，无需字段引用或释放。
+        // 日志消息经桥接器按任务路由进事件流（WebSocket）。事件流始终启用，桥接器被静态订阅强持有
+        // 存活至进程退出，无需字段引用或释放
         _ = new TaskMessageBridge(app.Services.GetRequiredService<TaskStore>( ));
 
         ConfigurePipeline(app, config);
     }
 
-    // 全局限流（per-IP 固定窗口）兜底滥用；任务提交 / 登录二维码起点各自独立策略（防批量触发）
+    // 全局限流（per-IP 固定窗口）限制滥用；任务提交 / 登录二维码起点各自独立策略（防批量触发）
     private static void AddServeRateLimiting(IServiceCollection services)
     {
         services.AddRateLimiter(options =>
@@ -178,7 +178,7 @@ public class BBDownServer
 
     /// <summary>
     /// 请求管线装配：安全响应头 → 回环 Host 边界 → CORS → 限流 → 写端点 Origin 校验 →
-    /// 认证授权 → 认证失败限速 → WebSocket → 端点映射。
+    /// 认证授权 → 认证失败限速 → WebSocket → 端点映射
     /// </summary>
     private void ConfigurePipeline(WebApplication app, ServeConfig config)
     {
@@ -196,9 +196,9 @@ public class BBDownServer
             await next( );
         });
 
-        // 免令牌时 serve 的信任边界就是「回环直连」，按请求目标的 Host 头判定：
-        // 读端点（GET）拿不到 Origin（见上方 CORS 注释），只能靠 Host 把 rebinding 挡在外面。
-        // 带令牌时跳过——此时认证才是边界，Host 可能是反向代理的域名。
+        // 免令牌时 serve 的信任边界就是「回环直连」，按请求目标的 Host 头判定
+        // 读端点（GET）拿不到 Origin（见上方 CORS 注释），只能靠 Host 把 rebinding 挡在外面
+        // 带令牌时跳过——此时认证才是边界，Host 可能是反向代理的域名
         // 置于限流之前：连本机都不该来的请求不配消耗限流配额
         app.Use(async (context, next) =>
         {
@@ -314,7 +314,7 @@ public class BBDownServer
     /// <summary>
     /// 把失败记录压回条目上限。只清过期条目约束不住规模：用大量一次性 IP / XFF 值轰炸时
     /// 每条都是「刚刚失败」，永远不会过期。故先清过期，仍超限则按最后失败时间淘汰最旧的部分——
-    /// 整体清空会把攻击者的计数一并重置，等于周期性放宽限速。
+    /// 整体清空会把攻击者的计数一并重置，等于周期性放宽限速
     /// </summary>
     private void TrimAuthFailures(DateTimeOffset now)
     {

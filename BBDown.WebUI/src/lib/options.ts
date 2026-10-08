@@ -4,7 +4,7 @@ import { readLocalStorage, writeLocalStorage } from './storage'
 import type { ApiType, MuxMode, ServeRequestOptions } from './types'
 
 /**
- * 面板选项快照：复刻 GUI TaskParams 的字段与默认值，均随任务经 serve 请求契约（ServeRequestOptions）提交。
+ * 面板选项快照：复刻 GUI TaskParams 的字段与默认值，均随任务经 serve 请求体（ServeRequestOptions）提交。
  * 主机可控字段（路径 / 可执行文件 / 进程级开关）不在此处，由 serve 启动参数固定。
  */
 export interface TaskOptions {
@@ -40,7 +40,7 @@ export interface TaskOptions {
   api: ApiType
   area: string
   uposHost: string
-  /** 每个下载项的额外重试次数，缺省回落 3（与 serve MaxRetry 对齐）。 */
+  /** 每个下载项的额外重试次数，未指定时为 3（与 serve MaxRetry 相同）。 */
   maxRetry: number
 }
 
@@ -110,10 +110,10 @@ export const MUX_CHOICES: { value: MuxMode; label: string }[] = [
   { value: 'none', label: '不混流（保留裸轨）' }
 ]
 
-/** API 通道（与 Core ApiType 枚举小写对齐）。 */
+/** API 通道（与 Core ApiType 枚举的小写形式相同）。 */
 export const API_CHOICES: ApiType[] = ['web', 'tv', 'app', 'intl']
 
-/** 把面板选项映射为 serve 提交契约；cookie / accessToken 由外部凭据合并。 */
+/** 把面板选项映射为 serve 提交体；cookie / accessToken 由外部凭据合并。 */
 export function toServeRequest(
   options: TaskOptions,
   url: string,

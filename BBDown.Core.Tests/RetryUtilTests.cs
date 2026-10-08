@@ -71,7 +71,7 @@ public class RetryUtilTests
         Assert.Empty(delays);
     }
 
-    // 用户真正取消时不再退避重试，立即抛出
+    // 用户真正取消时不退避重试，立即抛出
     [Fact]
     public async Task RetryAsync_Cancellation_ThrowsImmediately( )
     {
@@ -109,7 +109,7 @@ public class RetryUtilTests
         Assert.Same(last, thrown);
     }
 
-    // 退避封顶 16 秒（与 LiveRecorder.Backoff 对齐）：2/4/8 之后不再指数增长，
+    // 退避上限 16 秒（与 LiveRecorder.Backoff 一致）：2/4/8 之后指数增长停止
     // 大重试预算下等待时间必须有界
     [Fact]
     public async Task RetryAsync_LargeRetryBudget_CapsBackoffAtSixteenSeconds( )
@@ -128,7 +128,7 @@ public class RetryUtilTests
         Assert.Equal(TimeSpan.FromSeconds(2), delays[0]);
         Assert.Equal(TimeSpan.FromSeconds(4), delays[1]);
         Assert.Equal(TimeSpan.FromSeconds(8), delays[2]);
-        Assert.All(delays, d => Assert.True(d <= TimeSpan.FromSeconds(16), $"退避 {d} 超过 16 秒封顶"));
+        Assert.All(delays, d => Assert.True(d <= TimeSpan.FromSeconds(16), $"退避 {d} 超过 16 秒上限"));
         Assert.Equal(TimeSpan.FromSeconds(16), delays[3]);
         Assert.Equal(TimeSpan.FromSeconds(16), delays[4]);
         Assert.Equal(TimeSpan.FromSeconds(16), delays[5]);

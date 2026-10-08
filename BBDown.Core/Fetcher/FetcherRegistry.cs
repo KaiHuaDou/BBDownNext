@@ -11,8 +11,8 @@ namespace BBDown.Core.Fetcher;
 
 public static class FetcherRegistry
 {
-    // switch 表达式按 ResourceId 子类型分发：缺分支编译报错。新增输入类型只需在 InputResolver 增加构造点 + 在此加一个 case。
-    // useIntlApi 作为统一形参贯穿（番剧分支内部据此选 bangumi/intl），其余分支用 _ 丢弃。
+    // switch 表达式按 ResourceId 子类型分发：缺分支编译报错。新增输入类型只需在 InputResolver 增加构造点 + 在此加一个 case
+    // useIntlApi 作为统一形参贯穿（番剧分支内部据此选 bangumi/intl），其余分支用 _ 丢弃
     public static async Task<VInfo> FetchAsync(ResourceId id, AppConfig cfg, bool useIntlApi = false, CancellationToken ct = default)
     {
         return id switch
@@ -33,8 +33,8 @@ public static class FetcherRegistry
         };
     }
 
-    // 仅输入 EP 时优先按番剧查找，找不到则回退到课程 (cheese) 查找。
-    // 候选链集中在此处，调用方无需感知 cheese 的存在。
+    // 仅输入 EP 时优先按番剧查找，找不到则回退到课程 (cheese) 查找
+    // 候选链集中在此处，调用方无需感知 cheese 的存在
     private static async Task<VInfo> FetchEpisodeAsync(Ep ep, AppConfig cfg, bool useIntlApi, CancellationToken ct = default)
     {
         try
@@ -45,14 +45,14 @@ public static class FetcherRegistry
         }
         catch (BangumiNotFoundException)
         {
-            // 只有 ep 形态会走到这里；整季形态（Season）不经过本方法，天然不回退。
+            // 只有 ep 形式会走到这里；整季形式（Season）不经过本方法，天然不回退
             LogWarn("未找到此 EP/SS 对应番剧信息，正在尝试按课程查找。");
             return await CheeseInfoFetcher.FetchAsync(new CheeseEp(ep.EpId), cfg, ct);
         }
     }
 
-    // 合集与系列共用 medialist 接口；合集解析失败（被删/私密/无权，或"系列"被误识别为合集）时回退按系列重试。
-    // 候选链集中在此处，各 Fetcher 保持单向、无互相调用。
+    // 合集与系列共用 medialist 接口；合集解析失败（被删/私密/无权，或"系列"被误识别为合集）时回退按系列重试
+    // 候选链集中在此处，各 Fetcher 保持单向、无互相调用
     private static async Task<VInfo> FetchMediaListWithSeriesFallback(MediaList list, AppConfig cfg, CancellationToken ct)
     {
         try

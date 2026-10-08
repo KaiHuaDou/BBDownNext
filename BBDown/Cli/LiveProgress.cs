@@ -10,8 +10,8 @@ using static BBDown.Core.Logger;
 namespace BBDown.Cli;
 
 /// <summary>
-/// 直播录制状态行：订阅 ProgressBus 的阶段事件渲染单行状态（CLI 专属）。
-/// 样本 Detail 承载「时长 / 分段 / 清晰度」，体积与速度取自样本字段；\r 原地刷新单行。
+/// 直播录制状态行：订阅 ProgressBus 的阶段事件渲染单行状态（CLI 专属）
+/// 样本 Detail 记录「时长 / 分段 / 清晰度」，体积与速度取自样本字段；\r 原地刷新单行
 /// </summary>
 public sealed class LiveProgress : IDisposable
 {
@@ -114,8 +114,8 @@ public sealed class LiveProgress : IDisposable
     }
 
     /// <summary>
-    /// 擦掉状态行，让紧随其后的日志从行首开始。日志打完由下一帧自动重画。
-    /// 作为 ConsoleHost.BeforeWrite 在 WriteGate 内被调用：单向锁序禁止在此取 gate。
+    /// 擦掉状态行，让紧随其后的日志从行首开始。日志打完由下一帧自动重画
+    /// 作为 ConsoleHost.BeforeWrite 在 WriteGate 内被调用：单向锁序禁止在此取 gate
     /// </summary>
     public void ClearLine( )
     {
@@ -128,7 +128,7 @@ public sealed class LiveProgress : IDisposable
         Blit(string.Empty);
     }
 
-    // \r 回到行首整行重写；新帧比旧帧窄时按 cell 数补空格，避免上一帧的残余留在屏幕上。
+    // \r 回到行首整行重写；新帧比旧帧窄时按 cell 数补空格，避免上一帧的残余留在屏幕上
     // 落写收口：全部控制台写入只在 WriteGate 内进行，且不得持有 gate 进入本方法——
     // 擦行回调同样在 WriteGate 内执行，双向取锁即 AB-BA 死锁（见 ConsoleHost 锁序说明）
     private void Blit(string text)
@@ -166,7 +166,7 @@ public sealed class LiveProgress : IDisposable
 
     public void Dispose( )
     {
-        // 摘钩在前：Dispose 之后不再有日志触发本实例的擦行回调；比较置空不误删后注册者的钩子
+        // 摘钩在前：Dispose 之后没有日志触发本实例的擦行回调；比较置空不误删后注册者的钩子
         ProgressBus.Unsubscribe(OnProgress);
         if (ReferenceEquals(ConsoleHost.BeforeWrite, clearLineHook))
         {
@@ -182,8 +182,8 @@ public sealed class LiveProgress : IDisposable
         EraseFinal( );
     }
 
-    // 终态擦行：disposed 已置位故不走 Blit；与在途 Render 的 Blit 经 WriteGate 串行，
-    // 在途帧要么先行（被本次擦掉）要么因 Blit 的 disposed 终检跳过
+    // 终态擦行：disposed 已置位故不走 Blit；与在途 Render 的 Blit 经 WriteGate 串行
+    // 在途帧要么先行（被该帧擦掉）要么因 Blit 的 disposed 终检跳过
     private void EraseFinal( )
     {
         if (!drawToConsole)

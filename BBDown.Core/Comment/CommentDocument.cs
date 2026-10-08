@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace BBDown.Core.Comment;
 
 /// <summary>
-/// 一份评论区的导出结果。JSON 与 TXT 两种产物都由它渲染而来。
+/// 一份评论区的导出结果。JSON 与 TXT 两种产物都由它渲染而来
 /// </summary>
 public sealed class CommentDocument
 {
@@ -23,7 +23,7 @@ public sealed class CommentDocument
 }
 
 /// <summary>
-/// 一条评论。楼中楼与主评论结构一致，故自递归复用同一类型。
+/// 一条评论。楼中楼与主评论结构一致，故自递归复用同一类型
 /// </summary>
 public sealed class CommentItem
 {
@@ -37,7 +37,7 @@ public sealed class CommentItem
     public int ReplyCount { get; set; }
     public bool UpLiked { get; set; }
     public bool Top { get; set; }
-    /// <summary>形如「IP属地：河北」；未登录时服务端不下发，为空串</summary>
+    /// <summary>形如「IP 属地：河北」；未登录时服务端不下发，为空串</summary>
     public string Location { get; set; } = "";
     public string Message { get; set; } = "";
     public List<string> Pictures { get; } = [];

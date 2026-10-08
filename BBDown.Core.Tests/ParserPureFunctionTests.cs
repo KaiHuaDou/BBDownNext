@@ -18,7 +18,7 @@ public class ParserPureFunctionTests
         Assert.Equal(expected, PlayUrlClient.BuildPrefix(tvApi, bangumi, cheese, "tv.host", "web.host"));
     }
 
-    // --host 指定 BiliPlus 代理时，普通稿件的 playurl 也必须走代理，
+    // --host 指定 BiliPlus 代理时，普通稿件的 playurl 也必须走代理
     // 否则代理只对番剧生效，普通稿件仍直连官方
     [Fact]
     public void BuildPlayUrlPrefix_WebPlayUrlHonorsCustomHost( )
@@ -63,7 +63,7 @@ public class ParserPureFunctionTests
         Assert.Equal(expected, PlayUrlResponse.IsVipRestricted(json));
     }
 
-    // 网页源码兜底路径会把 HTML 传进来，不能因为解析失败就崩
+    // 网页源码解析路径会把 HTML 传进来，不能因为解析失败就崩
     [Theory]
     [InlineData("")]
     [InlineData("<html>大会员专享限制</html>")]
@@ -131,7 +131,7 @@ public class ParserPureFunctionTests
         Assert.Contains("fnval=4048", PlayUrlClient.BuildWebQuery(req, "0"));
     }
 
-    // TV 端点实测不提供 qn=100（智能修复），恒为 4048
+    // TV 端点实测不提供 qn=100（智能修复），固定为 4048
     [Fact]
     public void BuildTvQuery_AlwaysFnval4048( )
     {

@@ -19,7 +19,7 @@ public static class Config
     // playurl 能力位掩码：16 dash|64 HDR|128 4K|256 杜比音|512 杜比视界|1024 8K|2048 AV1
     public const int Fnval = 4048;
 
-    // 8192 位 = 智能修复。仅 PGC(/pgc/、/pugv/) 端点接受；
+    // 8192 位 = 智能修复。仅 PGC(/pgc/、/pugv/) 端点接受
     // UGC 的 /x/player/wbi/playurl 带上该位会直接返回 -400，故必须按端点分发
     public const int FnvalPgc = Fnval | 8192; // 12240
 
@@ -29,14 +29,14 @@ public static class Config
         ("127", "8K 超高清"),
         ("126", "杜比视界"),
         ("125", "HDR 真彩"),
-        // HDR Vivid（qn=129）为 APP 端档位，Web 请求不会下发；仍登记画质名与排序位，
+        // HDR Vivid（qn=129）为 APP 端档位，Web 请求不会下发；仍登记画质名与排序位
         // 防止 APP 通道解析出的轨道被当成未知清晰度丢到排序末尾
         ("129", "HDR Vivid"),
         ("120", "4K 超清"),
         ("116", "1080P 高帧率"),
         ("112", "1080P 高码率"),
         ("80", "1080P 高清"),
-        // 智能修复是 AI 超分产物，源分辨率常低于原生 1080P，但 qn 数值(100)大于 80。
+        // 智能修复是 AI 超分产物，源分辨率常低于原生 1080P，但 qn 数值(100)大于 80
         // 默认不抢占原生 1080P，需要时以 -q "智能修复" 显式指定
         ("100", "智能修复"),
         ("74", "720P 高帧率"),
@@ -48,7 +48,7 @@ public static class Config
         ("5", "144P 流畅"),
     ];
 
-    // 音频音质（按码率从高到低，与播放页排序一致）。
+    // 音频音质（按码率从高到低，与播放页排序一致）
     // 30250 由 GetAudioQualityName 按 dolby.type 区分「杜比音效 / 杜比全景声」，不在此表登记，故不会进入 AudioQualityNames
     private static readonly (string Id, string Name)[] AudioQualities =
     [
@@ -68,8 +68,8 @@ public static class Config
     public const string DolbyAtmosQualityName = "杜比全景声";
     public const string DolbyQualityName = "杜比音效";
 
-    // 编码优先级候选：视频名与 TrackFactory.VideoCodec 输出对齐，音频名与 NormalizeAudioCodec 输出经
-    // Entity.ShortCodecs 的大写去连字符形态对齐（E-AC-3 → EAC3），排序键解析侧同样按该形态归一
+    // 编码优先级候选：视频名与 TrackFactory.VideoCodec 输出一致，音频名与 NormalizeAudioCodec 输出经
+    // Entity.ShortCodecs 的大写去连字符形式一致（E-AC-3 → EAC3），排序键解析侧同样按该形式归一
     public static readonly string[] EncodingNames = ["HEVC", "AV1", "AVC", "FLAC", "EAC3", "M4A"];
 
     // 画质名清单（高 → 低，同名双 qn 去重），排序键为 GetQualityName 的输出
@@ -79,7 +79,7 @@ public static class Config
     public static IReadOnlyList<string> AudioQualityNameList { get; } =
         [DolbyAtmosQualityName, .. AudioQualities.Select(q => q.Name), DolbyQualityName];
 
-    // Qualities 的 qn 顺序缓存为数组，供 QualityRank 在每次轨道排序比较时 O(1) 查下标，
+    // Qualities 的 qn 顺序缓存为数组，供 QualityRank 在每次轨道排序比较时 O(1) 查下标
     // 避免对每对比较都重新投影一次 Qualities
     private static readonly string[] QualityOrder = [.. Qualities.Select(q => q.Qn)];
 
@@ -91,7 +91,7 @@ public static class Config
         return QualityNameMap.TryGetValue(qn, out var name) ? name : $"未知清晰度(qn={qn})";
     }
 
-    // dolby.type：1=普通杜比音效，2=全景杜比音效；仅 id 30250 需要区分，其余按 id 直接映射。
+    // dolby.type：1=普通杜比音效，2=全景杜比音效；仅 id 30250 需要区分，其余按 id 直接映射
     // 未知 id 回落到原始值，避免抛 KeyNotFoundException
     public static string GetAudioQualityName(string id, int dolbyType = 0)
     {
@@ -103,8 +103,8 @@ public static class Config
         return AudioQualityNameMap.TryGetValue(id, out var name) ? name : $"未知音质(id={id})";
     }
 
-    // 轨道排序权重（越小越优先），以 Qualities 的排列为准。
-    // 未收录的新档位按 qn 数值算插入位，与同位次的已知档位并列（再由码率决胜），
+    // 轨道排序权重（越小越优先），以 Qualities 的排列为准
+    // 未收录的新档位按 qn 数值算插入位，与同位次的已知档位并列（再由码率决胜）
     // 不会被一律甩到末尾——B 站新增档位时不至于被当成最低画质
     public static int QualityRank(string qn)
     {
