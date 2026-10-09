@@ -55,7 +55,7 @@ public static class AudioDownload
         else
         {
             // 同一 UP 可能存在同名音频，追加 au 号保证唯一，避免被跳过逻辑误判已下载
-            baseName = $"{baseName}_{auId}";
+            baseName = FileNameUtil.AppendTag(baseName, $"_au{auId}");
         }
 
         var filePath = Path.Combine(workDir, baseName + ResolveExt(playUrl.Url));

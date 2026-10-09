@@ -14,12 +14,17 @@ namespace BBDown.Core;
 /// </summary>
 public static class Buvid
 {
-    public static string Fragment { get; private set; } = "";
+    // 写者只有 InitCoreAsync（拉取完成后），读者是任意线程（BiliHeaders 拼 Cookie、AppHelper 取 buvid 参数）
+    // 三个字段都经 Volatile 发布：写在锁外而 InitAsync 的锁不构成跨线程屏障
+    private static string fragment = "";
+    private static string value = "";
+    private static int initFailed;
 
-    public static string Value { get; private set; } = "";
+    public static string Fragment => Volatile.Read(ref fragment);
+
+    public static string Value => Volatile.Read(ref value);
 
     private static Task? initTask;
-    private static bool initFailed;
     private static readonly Lock gate = new( );
 
     /// <summary>
@@ -31,9 +36,9 @@ public static class Buvid
     {
         lock (gate)
         {
-            if (initTask is null || initFailed)
+            if (initTask is null || Volatile.Read(ref initFailed) != 0)
             {
-                initFailed = false;
+                Volatile.Write(ref initFailed, 0);
                 initTask = InitCoreAsync( );
             }
 
@@ -55,19 +60,19 @@ public static class Buvid
                 var buvid3 = b3.GetString( )!;
                 var buvid4 = b4.GetString( )!;
                 var bNut = DateTimeOffset.Now.ToUnixTimeSeconds( ).ToString( );
-                Value = buvid3;
-                Fragment = $"buvid3={buvid3};buvid4={buvid4};b_nut={bNut}";
+                Volatile.Write(ref value, buvid3);
+                Volatile.Write(ref fragment, $"buvid3={buvid3};buvid4={buvid4};b_nut={bNut}");
                 LogDebug("buvid 已生成");
             }
             else
             {
-                initFailed = true;
+                Volatile.Write(ref initFailed, 1);
                 LogDebug("获取 buvid 失败：返回结构缺少 b_3/b_4");
             }
         }
         catch (Exception ex)
         {
-            initFailed = true;
+            Volatile.Write(ref initFailed, 1);
             LogDebug("获取 buvid 失败（将不附加设备标识）: {0}", ex.Message);
         }
     }

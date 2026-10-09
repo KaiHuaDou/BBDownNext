@@ -6,7 +6,10 @@ using System.Threading.Tasks;
 using BBDown.Core;
 using BBDown.Core.Auth;
 using BBDown.Core.Download;
+using BBDown.Core.Pipeline;
 using BBDown.Serve;
+
+using static BBDown.Core.Logger;
 
 namespace BBDown.Cli;
 
@@ -78,21 +81,21 @@ internal static class SubCommands
             },
             new Option<string>("--serve-token")
             {
-                Description = "serve 模式鉴权令牌；显式传入后才启用强制鉴权（HTTP 接口须带 X-BBDown-Token 头，\n仅 WebSocket 握手 /hubs/tasks 例外接受 ?token= 查询参数，因浏览器无法自定义握手头），未传入则默认免令牌开放并仅警告"
+                Description = "serve 模式鉴权令牌；显式传入后才启用强制鉴权（HTTP 接口须带 X-BBDown-Token 头，\nWebSocket 握手 /hubs/tasks 因浏览器无法自定义握手头，改接受 Sec-WebSocket-Protocol 首值，另兼容 ?token= 查询参数；\n令牌须为 HTTP token 字符集，否则浏览器无法作为子协议名发送），未传入则默认免令牌开放并仅警告"
             },
             new Option<string>("--work-dir")
             {
                 Description = "所有任务的下载输出目录，请求中的同名字段会被忽略"
             },
-            new Option<string>("--host")
+            new Option<string>("--api-host")
             {
                 Description = "API 请求 Host，所有任务统一使用此值；请求体不能指定 host（防止凭据被导向外部服务器）"
             },
-            new Option<string>("--ep-host")
+            new Option<string>("--api-ep-host")
             {
                 Description = "番剧/影视 API 请求 Host，所有任务统一使用此值"
             },
-            new Option<string>("--tv-host")
+            new Option<string>("--api-tv-host")
             {
                 Description = "TV 端 API 请求 Host，所有任务统一使用此值"
             },
@@ -116,9 +119,9 @@ internal static class SubCommands
             result.GetValue<string>("--listen"),
             result.GetValue<string>("--work-dir"),
             result.GetValue<string>("--serve-token"),
-            result.GetValue<string>("--host"),
-            result.GetValue<string>("--ep-host"),
-            result.GetValue<string>("--tv-host"),
+            result.GetValue<string>("--api-host"),
+            result.GetValue<string>("--api-ep-host"),
+            result.GetValue<string>("--api-tv-host"),
             result.GetValue<string>("--cors-origin"),
             result.GetValue<int>("--max-concurrent"),
             result.GetValue<bool>("--webui")))));
@@ -132,11 +135,11 @@ internal static class SubCommands
         {
             try
             {
-                Core.Pipeline.WorkSetup.ValidateWorkDir(config.WorkDir);
+                WorkSetup.ValidateWorkDir(config.WorkDir);
             }
             catch (WorkDirException e)
             {
-                Core.Logger.LogError(e.Message);
+                LogError(e.Message);
                 return 1;
             }
         }

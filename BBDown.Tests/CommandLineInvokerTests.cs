@@ -152,10 +152,19 @@ public class CommandLineInvokerTests
     }
 
     [Fact]
-    public async Task DelayPerPage_DefaultsToZeroString( )
+    public async Task DelayPerPage_DefaultsToZero( )
     {
         var opt = await ParseAsync(SampleUrl);
-        Assert.Equal("0", opt.DelayPerPage);
+        Assert.Equal(0, opt.DelayPerPage);
+    }
+
+    // 计数类选项在解析期即判型，非数字输入须报错而非静默回落 0
+    [Fact]
+    public void DelayPerPage_NonNumeric_IsParseError( )
+    {
+        var root = CommandLineInvoker.GetRootCommand(_ => Task.FromResult(0));
+        var parseResult = root.Parse([SampleUrl, "--delay-per-page", "abc"]);
+        Assert.NotEmpty(parseResult.Errors);
     }
 
     [Fact]

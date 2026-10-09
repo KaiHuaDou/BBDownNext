@@ -6,7 +6,7 @@ using Avalonia.Media;
 
 namespace BBDown.GUI;
 
-/// <summary>任务状态 → 状态文字颜色；所有状态均返回显式非空笔刷，避免 null 在深色背景下渲染成黑色不可见。</summary>
+/// <summary>任务状态 → 状态文字颜色；取主题变体登记的笔刷，未登记时为 null，由控件沿用主题前景色。</summary>
 public sealed class StatusToBrushConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -19,15 +19,16 @@ public sealed class StatusToBrushConverter : IValueConverter
         throw new NotSupportedException( );
     }
 
+    /// <summary>取 App.axaml ThemeDictionaries 登记的画刷，已是单例引用，不再逐次新建</summary>
     public static IBrush? StatusColor(TaskStatus status)
     {
         return status switch
         {
-            TaskStatus.Waiting => new SolidColorBrush(Color.FromRgb(0xC9, 0xA2, 0x27)),
-            TaskStatus.Running => new SolidColorBrush(Color.FromRgb(0x2F, 0x6F, 0xEB)),
-            TaskStatus.Success => new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)),
-            TaskStatus.Failed => new SolidColorBrush(Color.FromRgb(0xE5, 0x39, 0x35)),
-            TaskStatus.Cancelled => new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E)),
+            TaskStatus.Waiting => ThemeBrush.Get(ThemeBrush.Waiting),
+            TaskStatus.Running => ThemeBrush.Get(ThemeBrush.Running),
+            TaskStatus.Success => ThemeBrush.Get(ThemeBrush.Ok),
+            TaskStatus.Failed => ThemeBrush.Get(ThemeBrush.Failed),
+            TaskStatus.Cancelled => ThemeBrush.Get(ThemeBrush.Hint),
             _ => null,
         };
     }

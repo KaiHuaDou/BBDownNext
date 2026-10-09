@@ -168,6 +168,10 @@ public static partial class Login
             // PostFormRawAsync 返回未释放的响应，须由调用方 Dispose，否则连接池逐渐耗尽
             using var _ = await HTTPUtil.PostFormRawAsync(ConfirmUrl, confirmForm, new AppConfig(newCookie, "", BiliApi.MainHost, BiliApi.MainHost, BiliApi.TvHost, "", "", ""), token);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             LogDebug("confirm/refresh 失败（可忽略）：{0}", e.Message);
@@ -181,7 +185,7 @@ public static partial class Login
         using var rsa = RSA.Create( );
         rsa.ImportFromPem(RefreshRsaPublicKey);
         var encrypted = rsa.Encrypt(Encoding.UTF8.GetBytes($"refresh_{timestamp}"), RSAEncryptionPadding.OaepSHA256);
-        return Convert.ToHexString(encrypted).ToLowerInvariant( );
+        return Convert.ToHexStringLower(encrypted);
     }
 
     /// <summary>

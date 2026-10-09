@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +17,8 @@ namespace BBDown.Core.Pipeline;
 public static class VideoInfo
 {
     // Web Cookie 主动续期只跑一次，避免批量下载时每个视频都打 /cookie/info
+    // 写者只有 FetchAsync：CAS 从 0 换到 1 的那个任务在续期前占位，取消时写回 0
+    // 0 = 未尝试 / 已取消，1 = 已尝试（成功或 best-effort 未续期）
     private static int cookieRefreshed;
 
     // nav 探测（wbi 密钥）缓存：进程内只探测一次
@@ -31,10 +34,19 @@ public static class VideoInfo
         // 主动续期 web cookie（best-effort，持有 refresh_token 才尝试；进程内仅一次）
         if (Interlocked.CompareExchange(ref cookieRefreshed, 1, 0) == 0)
         {
-            var newCookie = await Login.TryRefreshWebCookieIfStaleAsync(token: ct);
-            if (!string.IsNullOrEmpty(newCookie))
+            try
             {
-                cfg = cfg with { Cookie = newCookie };
+                var newCookie = await Login.TryRefreshWebCookieIfStaleAsync(token: ct);
+                if (!string.IsNullOrEmpty(newCookie))
+                {
+                    cfg = cfg with { Cookie = newCookie };
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // 取消不代表已续期，标志写回 0：否则本进程内再无人尝试续期
+                Volatile.Write(ref cookieRefreshed, 0);
+                throw;
             }
         }
 

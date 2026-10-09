@@ -152,34 +152,30 @@ public static partial class Utils
     }
 
     /// <summary>
-    /// 寻找指定目录下指定后缀的文件的详细路径 如".txt"
+    /// 取 URL 查询串中指定参数的值。先按 <c>?</c> / <c>#</c> 截出查询串，否则路径与 fragment 里的
+    /// 同名片段（如 <c>/x?a=1#p=2</c> 里的 <c>p</c>）会被误读成参数
     /// </summary>
-    public static string[] GetFiles(string dir, string ext)
-    {
-        List<string> al = [];
-        DirectoryInfo d = new(dir);
-        foreach (var fi in d.GetFiles( ))
-        {
-            if (string.Equals(fi.Extension, ext, StringComparison.OrdinalIgnoreCase))
-            {
-                al.Add(fi.FullName);
-            }
-        }
-
-        var res = al.ToArray( );
-        Array.Sort(res);
-        return res;
-    }
-
     public static string GetQueryString(string name, string url)
     {
-        var re = QueryRegex( );
-        var mc = re.Matches(url);
-        foreach (var m in mc.Cast<Match>( ))
+        var question = url.IndexOf('?');
+        if (question < 0)
         {
-            if (m.Result("$2").Equals(name, StringComparison.OrdinalIgnoreCase))
+            return "";
+        }
+
+        var query = url[(question + 1)..];
+        var hash = query.IndexOf('#');
+        if (hash >= 0)
+        {
+            query = query[..hash];
+        }
+
+        foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var eq = pair.IndexOf('=');
+            if (eq > 0 && pair.AsSpan(0, eq).Equals(name, StringComparison.OrdinalIgnoreCase))
             {
-                return m.Result("$3");
+                return Uri.UnescapeDataString(pair[(eq + 1)..]);
             }
         }
 
@@ -302,7 +298,4 @@ public static partial class Utils
     /// </summary>
     [GeneratedRegex("://[^/]+:\\d+/")]
     public static partial Regex PcdnRegex( );
-
-    [GeneratedRegex("(^|&)?(\\w+)=([^&]+)(&|$)?")]
-    private static partial Regex QueryRegex( );
 }

@@ -41,6 +41,11 @@ public static class OpusDownload
             {
                 input = await HTTPUtil.GetWebLocationAsync(input, token);
             }
+            catch (OperationCanceledException)
+            {
+                // 取消须上抛，否则会带着未展开的短链继续解析，报出「无法识别的专栏地址」
+                throw;
+            }
             catch (Exception e)
             {
                 LogWarn($"短链展开失败，按原输入解析：{e.Message}");
@@ -83,7 +88,7 @@ public static class OpusDownload
             var idTag = doc.CvId.Length > 0 ? doc.CvId : doc.OpusId;
             if (idTag.Length > 0)
             {
-                baseName = $"{baseName}_{idTag}";
+                baseName = FileNameUtil.AppendTag(baseName, $"_{idTag}");
             }
         }
 
@@ -274,7 +279,7 @@ public static class OpusDownload
             ext = ".jpg";
         }
 
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)))[..8].ToLowerInvariant( );
+        var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(url)))[..8];
         return $"{index:D3}-{hash}{ext}";
     }
 }

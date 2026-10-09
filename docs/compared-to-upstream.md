@@ -46,7 +46,7 @@
 
 - **`login`**：统一入口，无标志登录 WEB，加 `--tv` 登录 TV，加 `--app` 登录 APP（`BBDown/Cli/SubCommands.cs`：`LoginCommand` 的 `SetAction` → `Login.Web/TV/App`）。下挂 `status`（查询三通道登录态）与 `refresh`（续期 WEB Cookie）两个子命令；`status` / `refresh` 处理整组通道，与 `--tv` / `--app` 互斥。原版 `logintv` 已合并进 `login --tv`。
 - **专栏导出无子命令**：主命令在 `RunApp` 顶部用 `OpusInputResolver.TryParse` 识别专栏地址并分流（`BBDown/Program.cs`：`RunApp` 的 `OpusInputResolver.TryParse(...)` 分支），不注册子命令。
-- **`serve`**：服务器模式，选项含 `--listen` / `--serve-token` / `--work-dir` / `--host` / `--ep-host` / `--tv-host` / `--cors-origin` / `--max-concurrent`（`BBDown/Cli/SubCommands.cs`：`ServeCommand`）。
+- **`serve`**：服务器模式，选项含 `--listen` / `--serve-token` / `--work-dir` / `--api-host` / `--api-ep-host` / `--api-tv-host` / `--cors-origin` / `--max-concurrent`（`BBDown/Cli/SubCommands.cs`：`ServeCommand`）。
 - 主命令解析范围：`av` / `BV` / `ep` / `ss` / `md`、合集（`MediaList`）/ 系列（`Series`）、收藏夹（`Fav`）、空间（`Space`）、稍后再看（`WatchLater`）、cheese（`CheeseEp` / `CheeseSeason`），统一解析为 `ResourceId` 联合类型后由 `FetcherRegistry` 按子类型分发（`BBDown.Core/Pipeline/InputResolver.cs`：`ResolveIdAsync`）。
 
 ### 2.2 登录与凭据管理

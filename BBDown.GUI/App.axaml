@@ -8,9 +8,30 @@
         <StyleInclude Source="avares://BBDown.GUI/Theme.axaml" />
     </Application.Styles>
     <Application.Resources>
-        <gui:StatusToBrushConverter x:Key="StatusBrush" />
-        <gui:StatusToVisibilityConverter x:Key="StatusCancel" />
-        <gui:LiveStopVisibilityConverter x:Key="LiveStop" />
-        <gui:LiveIndeterminateConverter x:Key="LiveIndeterminate" />
+        <ResourceDictionary>
+            <gui:StatusToBrushConverter x:Key="StatusBrush" />
+            <gui:StatusToVisibilityConverter x:Key="StatusCancel" />
+            <gui:LiveStopVisibilityConverter x:Key="LiveStop" />
+            <gui:LiveIndeterminateConverter x:Key="LiveIndeterminate" />
+
+            <!--文字前景用的低彩度提示色与各状态色。色值按主题变体各取一套：
+                单一色值在浅色主题下达不到 WCAG AA 的 4.5:1（正文级文字要求），另一套在深色主题下过线-->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="HintBrush" Color="#5B5757" />
+                    <SolidColorBrush x:Key="WaitingBrush" Color="#7A5B00" />
+                    <SolidColorBrush x:Key="RunningBrush" Color="#1B4FC4" />
+                    <SolidColorBrush x:Key="OkBrush" Color="#2E7D32" />
+                    <SolidColorBrush x:Key="FailedBrush" Color="#C62828" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="HintBrush" Color="#C5C0C7" />
+                    <SolidColorBrush x:Key="WaitingBrush" Color="#E8C65A" />
+                    <SolidColorBrush x:Key="RunningBrush" Color="#A8C7FA" />
+                    <SolidColorBrush x:Key="OkBrush" Color="#7CD98A" />
+                    <SolidColorBrush x:Key="FailedBrush" Color="#FF8A80" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

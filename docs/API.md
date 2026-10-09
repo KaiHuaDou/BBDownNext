@@ -2,7 +2,7 @@
 
 BBDown 的服务器模式（`BBDown serve`）会在本地启动一个 HTTP 服务器，对外暴露任务增删查的 JSON API。本文档描述这些接口的请求 / 响应格式、数据结构与使用注意事项。
 
-> **⚠️ 安全警告：该接口默认免令牌即可调用，未指定 `--serve-token` 时即使绑定到非回环地址（如 `0.0.0.0`）也仅打印警告、不强制鉴权；显式指定 `--serve-token` 后所有接口强制令牌鉴权，客户端必须携带 `X-BBDown-Token` 请求头（WebSocket 握手经 `?token=` 查询参数，见 [WebSocket 事件流](#websocket-事件流)），否则返回 `401`。
+> **⚠️ 安全警告：该接口默认免令牌即可调用，未指定 `--serve-token` 时即使绑定到非回环地址（如 `0.0.0.0`）也仅打印警告、不强制鉴权；显式指定 `--serve-token` 后所有接口强制令牌鉴权，客户端必须携带 `X-BBDown-Token` 请求头（WebSocket 握手经 `Sec-WebSocket-Protocol` 子协议头，见 [WebSocket 事件流](#websocket-事件流)），否则返回 `401`。
 > 令牌只防未授权调用、不验证调用方身份；服务器**默认仅对回环来源开放 CORS**（`127.0.0.1` / `localhost` 页面的跨源请求带 `Access-Control-Allow-Origin` 响应头），其余来源需显式 `--cors-origin <url>` 放行；恶意网页（非回环 `Origin`）依旧拿不到 CORS 头、被浏览器拦截。无论是否开 CORS，**切勿直接暴露到公网**；需要跨机器访问时，请自行加反向代理与 TLS，再显式指定 `serve -l http://0.0.0.0:23333`。
 
 ---
@@ -20,13 +20,13 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | 参数               | 简写 | 说明                                                                                                                                                                          |
 | ------------------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--listen`         | `-l` | 监听地址，默认 `http://127.0.0.1:23333`                                                                                                                                       |
-| `--serve-token`    |      | 鉴权令牌；显式传入后才启用强制鉴权（所有接口均须携带 `X-BBDown-Token` 头，WebSocket 握手经 `?token=` 查询参数），未传入则默认免令牌开放并仅警告                               |
+| `--serve-token`    |      | 鉴权令牌；显式传入后才启用强制鉴权（所有接口均须携带 `X-BBDown-Token` 头，WebSocket 握手经 `Sec-WebSocket-Protocol` 子协议头），未传入则默认免令牌开放并仅警告                               |
 | `--work-dir`       |      | 所有任务的下载输出目录（请求体中的 `WorkDir` 字段会被忽略，一律以服务端为准）                                                                                                 |
 | `--max-concurrent` |      | 同时下载的任务数上限，默认 `0` 表示不限制；设为 `N > 0` 时最多 `N` 个任务同时下载，其余按提交顺序排队（`Status` 为 `Queued`），单个任务内部的下载并行度由多线程下载器自行决定 |
 
 服务器启动后会一直运行，直到进程被终止（可用 `Ctrl+C` 取消下载）。
 
-> **鉴权：** 默认免令牌即可调用，未指定 `--serve-token` 时仅打印警告；显式指定 `--serve-token` 后**所有接口**（含 `GET /api/v1/tasks*` 与 WebSocket 握手）均需携带鉴权令牌——HTTP API 用请求头 `X-BBDown-Token: <token>`，WebSocket 握手用查询参数 `?token=<token>`（浏览器无法自定义请求头，该例外仅限 `/hubs/tasks`），未携带或错误一律返回 `401`。令牌仅由 `--serve-token` 显式指定，未传入时即使绑定到非回环地址也仅警告、不自动生成令牌。
+> **鉴权：** 默认免令牌即可调用，未指定 `--serve-token` 时仅打印警告；显式指定 `--serve-token` 后**所有接口**（含 `GET /api/v1/tasks*` 与 WebSocket 握手）均需携带鉴权令牌——HTTP API 用请求头 `X-BBDown-Token: <token>`，WebSocket 握手用子协议头 `Sec-WebSocket-Protocol: <token>`（浏览器无法自定义请求头，该例外仅限 `/hubs/tasks`），未携带或错误一律返回 `401`。令牌仅由 `--serve-token` 显式指定，未传入时即使绑定到非回环地址也仅警告、不自动生成令牌。
 
 ---
 
@@ -46,8 +46,6 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | DELETE | `/api/v1/tasks/finished/failed` | 移除所有已失败（`IsSuccessful == false`）的已完成任务                                                  |
 | DELETE | `/api/v1/tasks/{id}`            | 移除指定已完成任务                                                                                     |
 | POST   | `/api/v1/tasks/{id}/stop`       | 取消指定运行中 / 排队中任务（不影响其他任务）                                                          |
-| POST   | `/api/v1/login/qr`              | 起点扫码登录：返回二维码 PNG（base64）与轮询键（见 [扫码登录](#扫码登录)）                             |
-| GET    | `/api/v1/login/qr/{qrcodeKey}`  | 轮询扫码登录状态，成功时一次性携带凭据（见 [扫码登录](#扫码登录)）                                     |
 | GET    | `/healthz`                      | 健康检查（匿名放行，不要求令牌）                                                                       |
 
 ---
@@ -152,32 +150,9 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
     - 找到匹配的运行中 / 排队中任务：取消该任务，返回 `200 OK`。
     - 未找到：返回 `404 Not Found`。
 
-### 扫码登录
+### 凭据
 
-WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录链路（`Login` / `CredentialStore`）的会话编排：凭据（WEB 为 Cookie，TV / APP 为 access_token）在 `success` 态一次性随轮询响应返回，同时写入本机 `BBDown.data`（与 CLI / GUI 登录一致）；前端另将凭据存于浏览器 localStorage，随任务请求的 `ServeRequestOptions` 附带。
-
-- **Endpoint：** `/api/v1/login/qr`
-- **Method：** POST
-- **Auth：** 与所有 serve 接口一致（默认免令牌；`--serve-token` 下需携带令牌）。额外受 `loginSubmit` 限流（每 IP 每分钟 10 次）。
-- **Description：** 发起一次扫码登录会话，后台开始生成二维码。返回二维码 PNG（base64，可直接置入 `<img src="data:image/png;base64,...">`）与轮询键 `qrcodeKey`。会话在服务端内存持有，并发上限 8，10 分钟过期。
-- **Request Body：** `{ "channel": "web" | "tv" | "app" }`，忽略大小写（`web` 得 Cookie，`tv` / `app` 得 access_token）。
-- **Response：**
-    - `200 OK`：`QrLoginStartResponse`，含 `qrcodeKey`、`qrPngBase64`、`channel`。
-    - `400 Bad Request`：`channel` 不是 web / tv / app。
-    - `504 Gateway Timeout`：10 秒内未拿到登录地址（多为网络故障），会话已销毁，客户端应重试。
-    - `429 Too Many Requests`：触发 `loginSubmit` 限流。
-
-- **Endpoint：** `/api/v1/login/qr/{qrcodeKey}`
-- **Method：** GET
-- **Auth：** 与所有 serve 接口一致。
-- **Description：** 轮询一次扫码状态；成功后凭据仅随该响应下发一次，客户端应立即保存并停止轮询。
-- **Parameters：**
-    - `{qrcodeKey}`（路径参数）：`POST /api/v1/login/qr` 返回的轮询键。
-- **Response：** `QrLoginStatusResponse`：
-    - `state`：`waitingScan` / `waitingConfirm` / `expired` / `success` / `failed`（小写枚举名，与 serve 全局 camelCase 序列化一致）。
-    - `success` 时携带：`cookie`（web 通道）、`accessToken`（tv / app 通道），以及可能为空的 `refreshToken`（web 通道）与 `accountName`（web 通道探测到的账号名）；其余状态这些字段为空。
-    - `failed` 时携带 `error`（失败原因）。
-    - 会话不存在 / 已淘汰：`404 Not Found`（客户端应重新发起登录）。
+serve 不提供登录端点。凭据由 CLI / GUI 的 `login` 命令写入本机 `BBDown.data`，serve 的任务请求不带 `cookie` 与 `accessToken`，服务端据此读取本机凭据。
 
 ---
 
@@ -190,7 +165,7 @@ WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录
 ### 连接与鉴权
 
 - **地址：** `ws://127.0.0.1:23333/hubs/tasks`（TLS 下为 `wss://`）。
-- **鉴权：** 浏览器 WebSocket 无法自定义请求头，握手令牌经 query 传（`?token=<token>`）；该例外**仅限** `/hubs/tasks` 路径。HTTP API 端点不接受 query 传令牌。
+- **鉴权：** 浏览器 WebSocket 无法自定义请求头，握手令牌经子协议头传（`Sec-WebSocket-Protocol: <token>`，服务端回显所选子协议）；该例外**仅限** `/hubs/tasks` 路径。非浏览器客户端另可用 `?token=<token>` 查询参数，HTTP API 端点两者都不接受。令牌须为 HTTP token 字符集，否则浏览器无法作为子协议名发送。
 - **Origin 校验（CSWSH 防线）：** 无 `Origin` 头（脚本 / 非浏览器客户端）放行；等于 `--cors-origin` 或回环来源放行；其余跨源握手拒绝（`403`）。
 - **连接上限：** 每客户端 IP 最多 5 个并发连接，超限拒绝升级（`429`）；单帧消息上限 64 KB，超限关闭连接。
 
@@ -308,6 +283,7 @@ WebUI 经 serve 端点完成 bilibili 扫码登录。serve 仅转发 Core 登录
 - **`--stop-on-error`：** 默认关闭，即某个分 P 下载失败时会继续下载其余分 P，最后汇总失败清单并以非零状态码退出；开启后遇到第一个失败的分 P 立即停止。
 - **`--max-retry`：** 每个下载项在首次尝试之外的额外重试次数，默认 3；非必要项（字幕 / 封面 / 弹幕 / 配音 / 评论）耗尽仅跳过该项，必要项（音视频 / 混流）耗尽则该分 P 失败。serve 请求体字段为 `MaxRetry`（对应 `ServeRequestOptions`）。
 - **`AllowPreview`：** 请求体可携带该布尔字段（对应命令行 `--allow-preview`）。充电专属稿件在无充电权限时接口照常返回成功但只下发试看片段，默认会被识别并跳过，任务表现为 `IsSuccessful == false`；传 `true` 则保留试看片段，输出文件名带 `[试看]` 前缀。
+- **`delayPerPage`：** 数字字段，单位秒，默认 `0`（无间隔）；非数字输入视为约定不合法，返回 `400`。
 - **CORS：** 服务器**默认仅对回环来源开放**（`127.0.0.1` / `localhost` 页面的跨源请求放行，与本机页面直连 serve 的场景一致）；其余来源需显式 `--cors-origin <url>` 放行。非回环 `Origin` 的浏览器请求依旧拿不到 `Access-Control-Allow-Origin` 头、被浏览器拦截（CSRF 面不因此扩大），仅建议在本地 / 可信网络下使用。
 - **专栏导出：** `POST /api/v1/tasks` 接受专栏（opus / cv）地址，与音视频链路共用同一受理队列与并发闸门，经 `OpusArticle` 路由到专栏导出链路。专栏模式生效的内容标志为 `A`（Markdown 文件）、`i`（专栏图片）、`M`（YAML Frontmatter）、`o`（评论）与 `O`（全部评论含楼中楼），其余标志（a / v / m / s / C / d / S）自然失效，任务日志会给出调试提示。默认内容集 `avmsCiAM` 已包含 `i` / `A` / `M`，即默认导出图片、Markdown 与 front matter；`A` 不选时只导出图片与评论，不写入 Markdown。
 - **评论下载：** 请求体可携带 `CommentCount` / `CommentSort` / `CommentFormats` / `FullComment` 四个字段（对应命令行 `--comments-count` / `--comments-sort` / `--comments-formats` 与内容标志 `O`，默认 `CommentCount=0` 即不下载）。视频任务中评论区按 `aid` 去重抓取（多 P 同稿只抓一次）；专栏 / 图文任务（含文集、空间图文、空间动态图文项）内容含 `o` / `O` 时同样导出评论区，产物齐全则重跑跳过。产物为与主文件同目录的 `<标题>.comments.json` / `<标题>.comments.txt`。注意：加 `FullComment`（额外翻页抓全楼中楼）会随评论条数线性放大请求量，显著拉长单个任务的耗时，请按需使用。

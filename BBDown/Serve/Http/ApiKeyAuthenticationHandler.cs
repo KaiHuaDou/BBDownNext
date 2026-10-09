@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -12,7 +14,7 @@ namespace BBDown.Serve.Http;
 
 /// <summary>
 /// 令牌认证：X-BBDown-Token 头始终接受；WebSocket 握手（/hubs/tasks，浏览器无法自定义请求头）例外接受
-/// ?token= 查询参数。比较走恒定时间，避免时序侧信道
+/// Sec-WebSocket-Protocol 的首个值，仍兼容 ?token= 查询参数。比较走恒定时间，避免时序侧信道
 /// </summary>
 internal sealed class ApiKeyAuthenticationHandler(
     IOptionsMonitor<ApiKeyAuthenticationOptions> options,
@@ -45,7 +47,14 @@ internal sealed class ApiKeyAuthenticationHandler(
             return headerToken.ToString( );
         }
 
-        // 仅握手路径例外接受 query 令牌：浏览器 WebSocket 无法自定义请求头
+        // 浏览器只能通过子协议头带令牌：URL 会进服务器日志、代理记录与浏览器历史，头不会
+        if (Request.Path.StartsWithSegments("/hubs/tasks")
+            && Request.Headers.TryGetValue("Sec-WebSocket-Protocol", out var subProtocols))
+        {
+            return subProtocols.ToString( ).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault( );
+        }
+
+        // 非浏览器客户端仍可用 query 传令牌
         return Request.Path.StartsWithSegments("/hubs/tasks")
             && Request.Query.TryGetValue("token", out var queryToken)
                 ? queryToken.ToString( )

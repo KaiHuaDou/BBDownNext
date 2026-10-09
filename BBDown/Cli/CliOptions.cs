@@ -182,7 +182,7 @@ internal static class CliOptions
         直播录制清晰度：10000 原画、400 蓝光、250 超清、150 高清、80 流畅；
         未登录时服务端通常只给到 250
         """,
-        DefaultValueFactory = _ => BBDown.Core.Download.LiveQuality.Original
+        DefaultValueFactory = _ => LiveQuality.Original
     };
 
     // 下载方式与性能
@@ -198,7 +198,7 @@ internal static class CliOptions
     {
         Description = "使用单线程下载，用于不支持 Range 的服务器。"
     };
-    internal static readonly Option<string> DelayPerPage = new("--delay-per-page", []) { Description = "设置下载合集分 P 之间的下载间隔时间（单位：秒）", DefaultValueFactory = _ => "0" };
+    internal static readonly Option<int> DelayPerPage = new("--delay-per-page", []) { Description = "设置下载合集分 P 之间的下载间隔时间（单位：秒）", DefaultValueFactory = _ => 0 };
     internal static readonly Option<int> MaxRetry = new("--max-retry", [])
     {
         Description = """

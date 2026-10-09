@@ -175,7 +175,30 @@ public partial class MainWindow
         return builder.ToString( );
     }
 
+    /// <summary>
+    /// 把配置回填到面板。整段处于批改深度内：控件事件在回填途中触发只记脏标记，
+    /// 退出最外层时统一刷新一次可用性（逐项各刷一次会对半应用的模型重复计算十余遍）
+    /// </summary>
     private void ApplyOptions(TaskParams options)
+    {
+        ApplyDepth++;
+        try
+        {
+            ApplyOptionsCore(options);
+        }
+        finally
+        {
+            ApplyDepth--;
+        }
+
+        if (AvailabilityDirty)
+        {
+            AvailabilityDirty = false;
+            RefreshAvailability( );
+        }
+    }
+
+    private void ApplyOptionsCore(TaskParams options)
     {
         ApplyContent(options.Content);
         UseAria2cCheckBox.IsChecked = options.UseAria2c;
@@ -225,7 +248,6 @@ public partial class MainWindow
         TvHostBox.Text = options.TvHost;
         AreaBox.Text = options.Area;
         UposHostBox.Text = options.UposHost;
-        RefreshAvailability( );
     }
 
     private void ApplyDanmakuFormats(string formats)
@@ -302,7 +324,7 @@ public partial class MainWindow
         var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = "选择工作目录",
-            SuggestedStartLocation = await TrySuggestedLocation(topLevel, WorkDirBox.Text.Trim( )),
+            SuggestedStartLocation = await TrySuggestedLocationAsync(topLevel, WorkDirBox.Text.Trim( )),
         });
         if (folders.Count > 0)
         {
@@ -346,7 +368,7 @@ public partial class MainWindow
         }
     }
 
-    private static async Task<IStorageFolder?> TrySuggestedLocation(TopLevel topLevel, string path)
+    private static async Task<IStorageFolder?> TrySuggestedLocationAsync(TopLevel topLevel, string path)
     {
         if (path.Length == 0)
         {

@@ -21,9 +21,6 @@ namespace BBDown.Serve;
 /// </summary>
 internal sealed class ServeRequestOptions
 {
-    // Area 会被逐字拼进官方 API 的 query（PlayUrlClient 的 area= 参数），取值域与 CLI 的 --area 一致
-    private static readonly HashSet<string> AllowedAreas = [with(StringComparer.OrdinalIgnoreCase), "hk", "tw", "th"];
-
     public string Url { get; set; } = default!;
     /// <summary>API 解析通道（web / tv / app / intl，忽略大小写），未指定时用 web。</summary>
     [JsonConverter(typeof(ApiTypeJsonConverter))]
@@ -66,9 +63,10 @@ internal sealed class ServeRequestOptions
     public string Cookie { get; set; } = "";
     public string AccessToken { get; set; } = "";
     public string UposHost { get; set; } = "";
-    public string DelayPerPage { get; set; } = "0";
+    public int DelayPerPage { get; set; }
     /// <summary>每个下载项的额外重试次数，未指定时为 3。</summary>
     public int MaxRetry { get; set; } = 3;
+    /// <summary>BiliPlus area（hk / tw / th），其余取值在 WorkSetup.ResolveConfig 回落空串。</summary>
     public string Area { get; set; } = "";
 
     /// <summary>任务完成回调地址（仅允许公网 http/https，由服务端做 SSRF 校验）。</summary>
@@ -100,15 +98,7 @@ internal sealed class ServeRequestOptions
             Host = BiliApi.MainHost,
             EpHost = BiliApi.MainHost,
             TvHost = BiliApi.TvHost,
-            Area = NormalizeArea(Area),
+            Area = Area,
         };
-    }
-
-    // Area 是唯一会被拼进官方 API query 的请求体字段：只接受 hk / tw / th（大小写不敏感，与 CLI 的 --area 取值域一致）
-    // 其余（含空值与 JSON null）回落空串，避免任意文本注入 query 参数或改变 playurl 的参数含义
-    private static string NormalizeArea(string? area)
-    {
-        var value = area?.Trim( ) ?? "";
-        return AllowedAreas.Contains(value) ? value.ToLowerInvariant( ) : "";
     }
 }

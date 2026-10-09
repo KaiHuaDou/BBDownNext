@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 
 using BBDown.Core;
@@ -63,7 +64,7 @@ internal static class ServeEndpoints
                 var task = result.Task!;
                 // 重复提交同资源：命中已有任务，返回 200；新受理返回 202 + 任务位置
                 return result.Duplicate
-                    ? Results.Ok(task)
+                    ? Results.Json(task, AppJsonSerializerContext.Default.DownloadTask)
                     : Results.Accepted($"/api/v1/tasks/{task.Id}", task);
             }
             catch (Exception e) when (e is ArgumentException or InvalidOperationException)
@@ -156,7 +157,8 @@ internal static class ServeEndpoints
 
             try
             {
-                using var socket = await context.WebSockets.AcceptWebSocketAsync( );
+                // 浏览器把令牌放在子协议头里，握手应答须原样回显客户端请求的首个子协议，否则浏览器判定不匹配并断开
+                using var socket = await context.WebSockets.AcceptWebSocketAsync(FirstSubProtocol(context.Request));
                 await hub.HandleAsync(socket, context.RequestAborted);
             }
             finally
@@ -170,5 +172,13 @@ internal static class ServeEndpoints
         app.MapGet("/healthz", (TaskStore store) =>
                 Results.Ok(new HealthStatus("ok", store.RunningSnapshot( ).FindAll(t => t.Status != DownloadStatus.Pending).Count)))
             .AllowAnonymous( );
+    }
+
+    // 握手应答回显客户端请求的首个子协议（浏览器把令牌放在此处）；未请求子协议时返回 null
+    private static string? FirstSubProtocol(HttpRequest request)
+    {
+        return request.Headers.TryGetValue("Sec-WebSocket-Protocol", out var offered)
+            ? offered.ToString( ).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault( )
+            : null;
     }
 }

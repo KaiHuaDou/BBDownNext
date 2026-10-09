@@ -63,7 +63,7 @@ public static class LiveSegmentWriter
     {
         var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
         long written = 0;
-        var verified = false;
+        var signatureChecked = 0;
         try
         {
             while (true)
@@ -86,10 +86,11 @@ public static class LiveSegmentWriter
                     break;
                 }
 
-                if (!verified)
+                // TCP 分片下首读可能不足 3 字节，攒够签名长度再判，否则误报「不是 FLV 数据」
+                if (signatureChecked < FlvSignature.Length)
                 {
-                    EnsureFlv(buffer, read);
-                    verified = true;
+                    signatureChecked += read;
+                    EnsureFlv(buffer, signatureChecked);
                 }
 
                 // 刻意不传 ct：64 KiB 的写入是有界操作，中途取消只会在分段末尾留下半个 FLV tag
@@ -107,9 +108,11 @@ public static class LiveSegmentWriter
         return written;
     }
 
-    private static void EnsureFlv(byte[] buffer, int read)
+    // available 为流首已到达的字节数：不足签名长度时只比已到达的前缀，前缀不符即可判失败
+    private static void EnsureFlv(byte[] buffer, int available)
     {
-        if (read < FlvSignature.Length || !buffer.AsSpan(0, FlvSignature.Length).SequenceEqual(FlvSignature))
+        var span = buffer.AsSpan(0, Math.Min(available, FlvSignature.Length));
+        if (!span.SequenceEqual(FlvSignature.AsSpan(0, span.Length)))
         {
             throw new InvalidDataException("拉流返回的不是 FLV 数据，可能是防盗链拦截或链接已失效");
         }

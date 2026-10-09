@@ -44,8 +44,12 @@ public sealed class ProgressSampler : IDisposable
         Interlocked.Exchange(ref downloadedBytes, downloaded);
     }
 
+    // 快照与回调分处锁内外：onSample 由消费方提供，会一路取到 CLI 渲染器的 ConsoleHost.WriteGate
+    // 持 gate 回调即构成 AB-BA 死锁的成对条件
     private void Sample( )
     {
+        double ratio;
+        long delta;
         lock (gate)
         {
             if (disposed)
@@ -55,11 +59,13 @@ public sealed class ProgressSampler : IDisposable
 
             // 只读一次：重复读会把两次读取之间新到的字节记进 lastSampledBytes 却没算进 delta，导致累计值偏少
             var total = Interlocked.Read(ref downloadedBytes);
-            var delta = Math.Max(total - lastSampledBytes, 0);
+            delta = Math.Max(total - lastSampledBytes, 0);
             lastSampledBytes = total;
-            onSample(Volatile.Read(ref progressRatio), delta);
+            ratio = Volatile.Read(ref progressRatio);
             sampleTimer.Change(SampleInterval, Timeout.InfiniteTimeSpan);
         }
+
+        onSample(ratio, delta);
     }
 
     public void Dispose( )

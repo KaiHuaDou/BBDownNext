@@ -136,7 +136,7 @@ public static class JsonUtil
         }
 
         var (code, message) = ReadApiError(root);
-        throw new InvalidOperationException($"获取{label}失败(code={code})：{message}");
+        throw new ApiException(code, $"获取{label}失败(code={code})：{message}");
     }
 
     // 番剧接口用 episodes[].Id 标识分集。原实现把整棵子树 ToString 后找 "/ep{id}"

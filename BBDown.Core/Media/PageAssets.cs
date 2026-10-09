@@ -99,6 +99,10 @@ public static class PageAssets
                     async ( ) => await DownloadFileAsync(pageCtx.CoverUrl, pageCtx.CoverPath, new DownloadConfig { Cookie = ctx.Fetch.Cfg.Cookie, Aria2cPath = ctx.Run.Tools.Aria2c }, ct),
                     myOption.MaxRetry, "封面", ct, ex => PageDownload.ShouldRetry(ex, ct));
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 LogWarn($"封面下载失败，已跳过：{ex.Message}");
@@ -131,6 +135,10 @@ public static class PageAssets
                 await RetryAsync(
                     async ( ) => await SubUtil.SaveSubtitleAsync(s.Url, s.Path, ctx.Fetch.Cfg, token),
                     myOption.MaxRetry, $"字幕 {s.Lan}", token, ex => PageDownload.ShouldRetry(ex, token));
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

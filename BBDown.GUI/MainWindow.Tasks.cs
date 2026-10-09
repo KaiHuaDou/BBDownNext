@@ -61,6 +61,7 @@ public partial class MainWindow
             }
         }
 
+        TaskListEmptyHint.IsVisible = tasks.Count == 0;
         QueueStatusText.Text = $"等待 {tasks.Count(t => t.Status == TaskStatus.Waiting)}" +
                                $" · 运行 {tasks.Count(t => t.Status == TaskStatus.Running)}" +
                                $" · 成功 {tasks.Count(t => t.Status == TaskStatus.Success)}" +
@@ -75,7 +76,12 @@ public partial class MainWindow
             return;
         }
 
-        QueueRunner.CancelTask(state);
+        if (!queue.CancelTask(state))
+        {
+            AppendLog($"任务{state.Index} 已不在运行中");
+            return;
+        }
+
         AppendLog($"任务{state.Index} 已请求取消");
     }
 

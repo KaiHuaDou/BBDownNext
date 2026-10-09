@@ -83,9 +83,17 @@
 
     <!--优先级空选态提示-->
     <Style Selector="TextBlock.PriorityEmptyHint">
-        <Setter Property="Foreground" Value="#9E9E9E" />
+        <Setter Property="Foreground" Value="{DynamicResource HintBrush}" />
         <Setter Property="FontSize" Value="12" />
         <Setter Property="Margin" Value="0,4,0,6" />
+    </Style>
+
+    <!--列表空态占位：叠在列表之上居中，列表非空时由代码隐藏-->
+    <Style Selector="TextBlock.EmptyHint">
+        <Setter Property="Foreground" Value="{DynamicResource HintBrush}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="IsHitTestVisible" Value="False" />
     </Style>
 
     <!--命名变量表行：双击复制占位符-->

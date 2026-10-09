@@ -149,7 +149,7 @@ export function toServeRequest(options: TaskOptions, url: string): ServeRequestO
     pages: options.pages,
     lang: options.lang,
     uposHost: options.uposHost,
-    delayPerPage: options.delayPerPage,
+    delayPerPage: Number.parseInt(options.delayPerPage, 10) || 0,
     area: options.area,
     // 数值输入清空/非法时回落 0（不重试）；负数经 Math.max 夹为 0
     maxRetry: Math.max(0, Math.trunc(options.maxRetry) || 0)

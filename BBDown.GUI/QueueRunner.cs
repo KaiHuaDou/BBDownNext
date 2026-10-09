@@ -1,8 +1,9 @@
-#pragma warning disable CA1001 // wakeup 仅走 WaitAsync 异步路径，不创建内核句柄，生命周期随窗口
+#pragma warning disable CA1001 // shutdown 只读 Token 作关停信号，不取 WaitHandle 故无内核句柄，生命周期随窗口
 
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -59,6 +60,11 @@ public sealed class TaskState : INotifyPropertyChanged
     }
 
     public required int Index { get; init; }
+
+    /// <summary>
+    /// 总线作用域与日志前缀用的序号串。固定用不变文化：随系统文化走会写出非 ASCII 数字，跨线程按串匹配随即失配
+    /// </summary>
+    public string Scope => Index.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>直播录制会话号（LiveTarget.SessionId）；非直播任务为 null，停止录制按钮据此定位录制会话。</summary>
     public string? LiveSessionId { get; set; }
@@ -160,25 +166,33 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
     private readonly List<TaskState> waiting = [];
     private readonly List<TaskState> running = [];
     private readonly List<TaskState> finished = [];
-    private readonly SemaphoreSlim wakeup = new(0);
+    private readonly CancellationTokenSource shutdown = new( );
+    // 槽位可用信号：SignalSlotFree 换新 TCS 并完成旧的，故任意时刻至多一个待消费信号。
+    // 计数值信号量做不到这点——并发上限上调多次会累积许可，等待者醒来后 CAS 连续失败形成忙等
+    private TaskCompletionSource slotFree = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int activeCount;
     private volatile bool scheduling;
     private int nextIndex = 1;
     private volatile int concurrency = 3;
 
-    /// <summary>同时运行的任务数上限，运行时调大立即唤醒排队中的等待任务。</summary>
+    /// <summary>
+    /// 同时运行的任务数上限。调大时唤醒一个排队中的任务立即扩容，调小不打断在途任务
+    /// （超出新上限的任务跑完当前项后不再调度下一项）
+    /// </summary>
     public int Concurrency
     {
         get => concurrency;
         set
         {
-            var previous = concurrency;
-            concurrency = value;
-            // 调大并发上限时主动放行一个等待槽，使排队任务立即扩容而非等到有任务完成
-            if (value > previous)
+            if (value > concurrency)
             {
-                wakeup.Release( );
+                concurrency = value;
+                // 主动唤醒一个等待者使其立刻重试获取槽位，否则它要等到有任务完成才醒
+                SignalSlotFree( );
+                return;
             }
+
+            concurrency = value;
         }
     }
 
@@ -238,7 +252,11 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
         return removed;
     }
 
-    /// <summary>把失败/已取消的任务重新入队尾并启动调度；不在已完成列表时返回 false。</summary>
+    /// <summary>
+    /// 把失败/已取消的任务重新入队尾并启动调度；不在已完成列表时返回 false
+    /// 速度 / 剩余时间基准一并清零：留着上一轮的 Detail、lastRatio 与 etaStart 时，
+    /// 重跑后首个样本到达前会显示上一轮的速度与剩余时间
+    /// </summary>
     public bool Retry(TaskState state)
     {
         if (!finished.Remove(state))
@@ -248,6 +266,9 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
 
         state.Status = TaskStatus.Waiting;
         state.Progress = 0;
+        state.Detail = null;
+        state.lastRatio = 0;
+        state.etaStart = DateTime.UtcNow;
         state.TokenSource = null;
         state.exitCode = -1;
         waiting.Add(state);
@@ -267,19 +288,33 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>取消全部运行中任务（关闭窗口时调用）。</summary>
-    public void CancelRunning( )
+    /// <summary>
+    /// 关窗收尾：取消全部运行中任务并终止调度循环。
+    /// 两件事必须同处一次调用——调度循环阻塞在槽位信号上，只取消任务不会让它退出
+    /// </summary>
+    public void Shutdown( )
     {
         foreach (var state in running)
         {
             state.TokenSource?.Cancel( );
         }
+
+        shutdown.Cancel( );
     }
 
-    /// <summary>取消指定运行中的任务；非运行态不生效。</summary>
-    public static void CancelTask(TaskState state)
+    /// <summary>
+    /// 取消指定运行中的任务；非本队列的运行态返回 false。
+    /// 归属校验不可省：取消源是任务自带的，不校验时任何 TaskState 都能被取消别的任务的执行
+    /// </summary>
+    public bool CancelTask(TaskState state)
     {
+        if (!running.Contains(state))
+        {
+            return false;
+        }
+
         state.TokenSource?.Cancel( );
+        return true;
     }
 
     private TaskState CreateState(TaskParams options, string url)

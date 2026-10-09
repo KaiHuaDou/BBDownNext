@@ -86,18 +86,21 @@ internal static class ConfigParser
         [
             .. File.ReadAllLines(configPath)
                 .Where(s => !string.IsNullOrWhiteSpace(s) && !s.TrimStart( ).StartsWith('#'))
-                .SelectMany(s =>
-                {
-                    var line = s.Trim( );
-                    if (!line.StartsWith('-') || !line.Contains(' '))
-                    {
-                        return [line.Trim('"')];
-                    }
-
-                    var spaceIndex = line.IndexOf(' ');
-                    string[] paramsGroup = [line[..spaceIndex], line[spaceIndex..]];
-                    return paramsGroup.Where(x => !string.IsNullOrEmpty(x)).Select(x => x.Trim(' ').Trim('"'));
-                })
+                .SelectMany(SplitConfigLine)
+                .Select(x => x.Trim('"'))
         ];
+    }
+
+    // 空格位置只扫一次：Contains 与 IndexOf 各扫一遍是同一件事
+    private static string[] SplitConfigLine(string raw)
+    {
+        var line = raw.Trim( );
+        var spaceIndex = line.IndexOf(' ');
+        if (!line.StartsWith('-') || spaceIndex < 0)
+        {
+            return [line];
+        }
+
+        return [line[..spaceIndex], line[(spaceIndex + 1)..]];
     }
 }

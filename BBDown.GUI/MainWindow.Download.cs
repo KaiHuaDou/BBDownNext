@@ -27,7 +27,7 @@ public partial class MainWindow
             Config.SetDebugLog(true);
         }
 
-        using (MessageBus.BeginScope(state.Index.ToString( )))
+        using (MessageBus.BeginScope(state.Scope))
         {
             try
             {
@@ -59,12 +59,12 @@ public partial class MainWindow
             }
             catch (OperationCanceledException)
             {
-                AppendProcessLog(state.Index, "已取消", false);
+                AppendTaskLog(state.Scope, "已取消", false);
                 throw;
             }
             catch (Exception e)
             {
-                AppendProcessLog(state.Index, $"失败：{e.Message}", true);
+                AppendTaskLog(state.Scope, $"失败：{e.Message}", true);
                 return 1;
             }
         }
@@ -89,6 +89,6 @@ public partial class MainWindow
     {
         return new(
         Meta: info => SetTaskTitle(state, info.Title),
-        Saved: path => AppendProcessLog(state.Index, $"已保存：{path}", false));
+        Saved: path => AppendTaskLog(state.Scope, $"已保存：{path}", false));
     }
 }

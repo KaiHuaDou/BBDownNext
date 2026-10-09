@@ -95,11 +95,12 @@ public class BangumiMdTests
     [Fact]
     public async Task ResolveIdAsync_BangumiMd_ApiError_ThrowsReadableMessage( )
     {
-        // 接口报错时应抛带 code/message 的可读异常，而非 KeyNotFoundException
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(( ) => HttpStub.WithResponder(
+        // 接口报错时应抛带 code/message 的可读异常（ApiException），而非 KeyNotFoundException
+        var ex = await Assert.ThrowsAsync<ApiException>(( ) => HttpStub.WithResponder(
             _ => HttpStub.Json("""{"code":-400,"message":"请求错误"}"""),
             ( ) => InputResolver.ResolveIdAsync("md2539", AppConfig.Empty)));
 
+        Assert.Equal(-400, ex.Code);
         Assert.Contains("-400", ex.Message);
         Assert.Contains("请求错误", ex.Message);
     }

@@ -1,5 +1,3 @@
-#pragma warning disable CA1001 // wakeup 仅走 WaitAsync 异步路径，不创建内核句柄，生命周期随窗口
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -143,23 +141,36 @@ public sealed partial class QueueRunner
         finished.Add(state);
     }
 
+    /// <summary>
+    /// 取一个并发槽位。CAS 成功即占用；失败则等槽位信号。
+    /// 等待带关停令牌：否则关窗后调度循环永远挂在这里，外层的 catch 与 finally 都不可达
+    /// </summary>
     private async Task AcquireSlotAsync( )
     {
         while (true)
         {
+            // 先取信号再试占槽：反序会在「判满之后、信号发出之前」的窗口里丢掉唤醒，等待者再也不醒
+            var signal = Volatile.Read(ref slotFree).Task;
             var current = Volatile.Read(ref activeCount);
             if (current < concurrency && Interlocked.CompareExchange(ref activeCount, current + 1, current) == current)
             {
                 return;
             }
 
-            await wakeup.WaitAsync( );
+            await signal.WaitAsync(shutdown.Token);
         }
     }
 
     private void ReleaseSlot( )
     {
         Interlocked.Decrement(ref activeCount);
-        wakeup.Release( );
+        SignalSlotFree( );
+    }
+
+    /// <summary>唤醒一个等待槽位的调度循环；重复调用不会累积许可（换新信号，旧信号立即完成）。</summary>
+    private void SignalSlotFree( )
+    {
+        var previous = Interlocked.Exchange(ref slotFree, new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+        previous.TrySetResult( );
     }
 }

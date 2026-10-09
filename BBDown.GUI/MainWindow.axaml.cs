@@ -24,8 +24,6 @@ public partial class MainWindow : Window
 {
     private readonly ObservableCollection<TaskState> tasks = [];
     private readonly QueueRunner queue;
-    private readonly Brush okBrush = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
-    private readonly Brush hintBrush = new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E));
     private const int DefaultConcurrency = 3;
     private const int MinConcurrency = 1;
     private const int MaxConcurrency = 8;
@@ -86,11 +84,18 @@ public partial class MainWindow : Window
     // MessageBus 回调跑在下载线程，需回投 UI 线程；closed 在 WindowClosed 置位，回投前判空避免向已销毁窗口 Post 崩溃
     private void OnLogMessage(LogMessage message)
     {
-        var line = message.Scope is { } scope ? $"[任务{scope}] {message.Text}" : message.Text;
         var isError = message.Level == LogLevel.Error;
         if (!closed)
         {
-            Dispatcher.UIThread.Post(( ) => AppendLog(line.TrimEnd('\n'), isError));
+            var text = message.Text.TrimEnd('\n');
+            if (message.Scope is { } scope)
+            {
+                Dispatcher.UIThread.Post(( ) => AppendTaskLog(scope, text, isError));
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(( ) => AppendLog(text, isError));
+            }
         }
     }
 
@@ -102,11 +107,11 @@ public partial class MainWindow : Window
         // 关闭窗口时取消全部挂起的交互提问，避免下载链路挂起 5 分钟超时
         foreach (var task in tasks)
         {
-            AskBus.CancelPending(task.Index.ToString( ));
+            AskBus.CancelPending(task.Scope);
         }
 
         closed = true;
-        queue.CancelRunning( );
+        queue.Shutdown( );
         try
         {
             if (WindowState != WindowState.Minimized)
@@ -339,12 +344,12 @@ public partial class MainWindow : Window
         if (UrlDetector.Describe(TargetBox.Text) is not { } info)
         {
             TargetHintText.Text = "未能识别";
-            TargetHintText.Foreground = hintBrush;
+            TargetHintText.Foreground = ThemeBrush.Get(ThemeBrush.Hint);
         }
         else
         {
             TargetHintText.Text = $"✓ {info.Description}";
-            TargetHintText.Foreground = okBrush;
+            TargetHintText.Foreground = ThemeBrush.Get(ThemeBrush.Ok);
         }
     }
 }

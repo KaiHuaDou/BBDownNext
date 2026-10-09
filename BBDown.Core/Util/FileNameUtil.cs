@@ -53,6 +53,16 @@ public static class FileNameUtil
     }
 
     /// <summary>
+    /// 基名后接区分标记（如动态号 / au 号）。标记先占字节预算再截基名，
+    /// 否则「先按 <see cref="MaxBytes"/> 截断基名、再拼标记」会超出 ext4 / APFS 的单段 255 字节上限
+    /// </summary>
+    public static string AppendTag(string baseName, string tag)
+    {
+        var budget = Math.Max(MaxBytes - Encoding.UTF8.GetByteCount(tag), 1);
+        return TruncateToBytes(baseName, budget) + tag;
+    }
+
+    /// <summary>
     /// 按 UTF-8 字节数截断。拼接文件名时须先各自截断再拼，否则整串截断会把尾部的时间戳之类切掉
     /// </summary>
     public static string TruncateToBytes(string input, int maxBytes)

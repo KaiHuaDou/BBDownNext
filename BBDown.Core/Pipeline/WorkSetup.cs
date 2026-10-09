@@ -35,7 +35,7 @@ public static class WorkSetup
         var commentFormats = ParseCommentFormats(myOption);
 
         var lang = myOption.Lang;
-        var delay = int.TryParse(myOption.DelayPerPage, out var delayValue) ? delayValue : 0;
+        var delay = myOption.DelayPerPage;
 
         LogDebug("AppDirectory: {0}", AppEnv.AppDir);
         LogDebug("运行参数：{0}", JsonSerializer.Serialize(myOption.WithSecretsRedacted( ), DownloadRequestJsonContext.Default.DownloadRequest));
@@ -170,9 +170,20 @@ public static class WorkSetup
             string.IsNullOrWhiteSpace(myOption.Host) ? BiliApi.MainHost : myOption.Host.Trim( ),
             string.IsNullOrWhiteSpace(myOption.EpHost) ? BiliApi.MainHost : myOption.EpHost.Trim( ),
             string.IsNullOrWhiteSpace(myOption.TvHost) ? BiliApi.TvHost : myOption.TvHost.Trim( ),
-            myOption.Area,
+            NormalizeArea(myOption.Area),
             "",
             myOption.UserAgent.Trim( ));
+    }
+
+    // Area 是唯一会被拼进官方 API query 的请求字段：取值域只有 hk / tw / th。
+    // 白名单收在此处，CLI 与 serve 共用，否则任意文本会作为 area 参数注入 playurl 请求。
+    // 命中返回白名单里的规范形式，用户输入的大小写不进入 query
+    private static readonly string[] AreaCodes = ["hk", "tw", "th"];
+
+    private static string NormalizeArea(string? area)
+    {
+        var value = area?.Trim( ) ?? "";
+        return AreaCodes.FirstOrDefault(code => code.Equals(value, StringComparison.OrdinalIgnoreCase)) ?? "";
     }
 
     /// <summary>

@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 
 using BBDown.Core;
 using BBDown.Core.Live;
+using BBDown.Core.Util;
 
 namespace BBDown.GUI;
 
@@ -39,7 +40,12 @@ public static partial class UrlDetector
             return new TargetInfo("直播间（live 号或地址）", TargetKind.Live);
         }
 
-        if (MatchKnownPrefix(text) is { } info)
+        // 地址只在解析出的 Uri 上判域名与路径：原始串上做子串比对会让 evil.com/?x=live.bilibili.com/1 命中
+        var uri = Uri.TryCreate(text, UriKind.Absolute, out var parsed) && parsed.Scheme is "http" or "https"
+            ? parsed
+            : null;
+
+        if (MatchKnownPrefix(text, uri) is { } info)
         {
             return info;
         }
@@ -49,16 +55,11 @@ public static partial class UrlDetector
             return new TargetInfo("视频（av 号）", TargetKind.Video);
         }
 
-        if (Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
-        {
-            return DescribeUrl(text);
-        }
-
-        return null;
+        return uri is null ? null : DescribeUrl(text, uri);
     }
 
     /// <summary>匹配已知 ID 前缀与特殊 URL，前缀后必须紧跟数字（BV 号亦以数字开头）。</summary>
-    private static TargetInfo? MatchKnownPrefix(string text)
+    private static TargetInfo? MatchKnownPrefix(string text, Uri? uri)
     {
         if (StartsWithId(text, IdPrefix.Av))
         {
@@ -142,8 +143,12 @@ public static partial class UrlDetector
             return new TargetInfo("音频（au 号）", TargetKind.Audio);
         }
 
-        if (text.StartsWith("https://www.bilibili.com/watchlater", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("page=watchlater", StringComparison.OrdinalIgnoreCase))
+        // 稍后再看：路径 /watchlater 或 /list/watchlater，或 www.bilibili.com/?page=watchlater
+        if (uri is { } watchLater
+            && string.Equals(watchLater.Host, "www.bilibili.com", StringComparison.OrdinalIgnoreCase)
+            && (watchLater.AbsolutePath.StartsWith("/watchlater", StringComparison.OrdinalIgnoreCase)
+                || watchLater.AbsolutePath.StartsWith("/list/watchlater", StringComparison.OrdinalIgnoreCase)
+                || Utils.GetQueryString("page", watchLater.Query).Equals("watchlater", StringComparison.OrdinalIgnoreCase)))
         {
             return new TargetInfo("稍后再看列表", TargetKind.Video);
         }
@@ -151,10 +156,10 @@ public static partial class UrlDetector
         return null;
     }
 
-    private static TargetInfo? DescribeUrl(string text)
+    private static TargetInfo? DescribeUrl(string text, Uri uri)
     {
         // live 域名但无房间号（如直播首页）：LiveInputResolver 未命中才会走到这里，无法下载，按未识别处理
-        if (text.Contains("live.bilibili.com", StringComparison.OrdinalIgnoreCase))
+        if (LiveInputResolver.IsLiveHost(uri.Host))
         {
             return null;
         }

@@ -21,7 +21,9 @@ public static partial class Login
         return new string([.. Enumerable.Repeat(Chars, length).Select(s => s[Random.Shared.Next(s.Length)])]);
     }
 
-    // 手写拼接，避免 System.Web.HttpUtility（AOT 裁剪告警且类型不可静态分析）
+    // 手写拼接：走 encodeURIComponent 语义而非 form-urlencoded。
+    // HttpUtility.UrlEncode 的规则不同（空格编成 +、十六进制小写、* 与 ~ 的处理相反），
+    // System.Net.WebUtility.UrlEncode 同样如此，故不能替换
     public static string ToQueryString(NameValueCollection nameValueCollection)
     {
         var builder = new StringBuilder( );

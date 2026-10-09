@@ -13,8 +13,17 @@ public readonly record struct LiveTarget(string RoomId)
 
 public static class LiveInputResolver
 {
-    private const string LiveHost = "live.bilibili.com";
-    private const string MobileLiveHost = "m.live.bilibili.com";
+    public const string LiveHost = "live.bilibili.com";
+    public const string MobileLiveHost = "m.live.bilibili.com";
+
+    /// <summary>
+    /// 是否直播间域名。调用方需要按域名做排除判定时用此方法，不自己拼子串比对
+    /// </summary>
+    public static bool IsLiveHost(string host)
+    {
+        return string.Equals(host, LiveHost, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(host, MobileLiveHost, StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// 把用户输入归一化为直播间定位符。仅识别直播间地址，形如
@@ -65,8 +74,7 @@ public static class LiveInputResolver
             return false;
         }
 
-        if (!string.Equals(uri.Host, LiveHost, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(uri.Host, MobileLiveHost, StringComparison.OrdinalIgnoreCase))
+        if (!IsLiveHost(uri.Host))
         {
             return false;
         }

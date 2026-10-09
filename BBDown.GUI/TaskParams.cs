@@ -113,7 +113,7 @@ public static class TaskParamsMapper
             Mp4boxPath = options.Mp4boxPath,
             Aria2cPath = options.Aria2cPath,
             UposHost = options.UposHost,
-            DelayPerPage = options.DelayPerPage,
+            DelayPerPage = int.TryParse(options.DelayPerPage, out var delay) ? delay : 0,
             MaxRetry = int.TryParse(options.MaxRetry, out var retry) ? retry : 3,
             Host = options.Host,
             EpHost = options.EpHost,

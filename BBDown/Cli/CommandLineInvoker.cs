@@ -139,7 +139,7 @@ internal static class CommandLineInvoker
                 NoForceHost = parseResult.GetValue(NoForceHost)!,
                 SaveArchivesToFile = parseResult.GetValue(SaveRecords)!,
                 StopOnError = parseResult.GetValue(StopOnError)!,
-                DelayPerPage = parseResult.GetValue(DelayPerPage) ?? "",
+                DelayPerPage = parseResult.GetValue(DelayPerPage),
                 MaxRetry = parseResult.GetValue(MaxRetry),
                 Host = parseResult.GetValue(Host) ?? "",
                 EpHost = parseResult.GetValue(EpHost) ?? "",

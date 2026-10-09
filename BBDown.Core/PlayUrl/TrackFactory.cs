@@ -26,10 +26,10 @@ internal static partial class TrackFactory
             Dur = dur,
             Id = id,
             Dfn = Config.GetQualityName(id),
-            Bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
+            Bandwidth = node.GetProperty("bandwidth").GetInt64( ) / 1000,
             BaseUrl = PickBaseUrl(BuildUrlList(node)),
             Codecs = VideoCodec(node.GetProperty("codecid").ToString( )),
-            Size = node.TryGetProperty("size", out var size) ? Convert.ToDouble(size.ToString( )) : 0
+            Size = node.TryGetProperty("size", out var size) ? size.GetDouble( ) : 0
         };
     }
 
@@ -41,7 +41,7 @@ internal static partial class TrackFactory
             Id = id,
             Dfn = dfn ?? id,
             Dur = dur,
-            Bandwidth = Convert.ToInt64(node.GetProperty("bandwidth").ToString( )) / 1000,
+            Bandwidth = node.GetProperty("bandwidth").GetInt64( ) / 1000,
             BaseUrl = PickBaseUrl(BuildUrlList(node)),
             Codecs = codecs ?? node.GetProperty("codecs").ToString( )
         };

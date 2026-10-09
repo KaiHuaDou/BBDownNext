@@ -67,7 +67,7 @@ public sealed record DownloadRequest
     public string Mp4boxPath { get; init; } = "";
     public string Aria2cPath { get; init; } = "";
     public string UposHost { get; init; } = "";
-    public string DelayPerPage { get; init; } = "0";
+    public int DelayPerPage { get; init; }
     public string Host { get; init; } = BiliApi.MainHost;
     public string EpHost { get; init; } = BiliApi.MainHost;
     public string TvHost { get; init; } = BiliApi.TvHost;

@@ -43,8 +43,9 @@ public static partial class SubUtil
         }
     }
 
-    // view 接口的 AI 字幕只有 lan 没有下载地址（subtitle_url 固定为空），属正常数据而非接口故障
-    // 逐条过滤即可；全部无效才整表回退
+    // view 接口的 AI 字幕只有 lan 没有下载地址：view 响应里 lan 以 "ai-" 开头时 subtitle_url 恒为空串
+    // （bilibili-API-collect/docs/video/info.md 的 view 响应样例，lan=ai-zh 对应 subtitle_url=""），
+    // 属正常数据而非接口故障，逐条过滤即可；全部无效才整表回退
     internal static List<Subtitle>? FilterUsable(List<Subtitle> subtitles)
     {
         var valid = subtitles.Where(s => !string.IsNullOrEmpty(s.Url)).ToList( );

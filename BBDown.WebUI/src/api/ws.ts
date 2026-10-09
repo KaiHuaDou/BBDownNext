@@ -4,7 +4,7 @@ import { resolveBaseUrl, type ServeConfig } from './client'
 
 /**
  * 任务事件 WebSocket 通道（/hubs/tasks）：订阅任务后接收消息 / 进度快照 / 选项请求 / 全量列表（taskList），
- * 经 submitChoice 帧应答选项。握手令牌经 query 传（浏览器无法自定义请求头）。
+ * 经 submitChoice 帧应答选项。握手令牌经子协议头传（浏览器无法自定义请求头；URL 会进日志与历史）。
  * 事件流始终启用（已移除 --no-interactive），任务列表与完成态均由推送驱动，无需轮询。
  */
 
@@ -148,7 +148,9 @@ function open(state: SocketState): void {
   }
 
   try {
-    state.socket = new WebSocket(toWsUrl(state.config))
+    // 令牌作子协议名传：浏览器会把所选子协议回显校验，非法子协议名会在此抛 SyntaxError
+    const token = state.config.token
+    state.socket = new WebSocket(toWsUrl(state.config), token ? [token] : undefined)
   } catch (e) {
     state.handlers.onStatus(`WebSocket 连接失败：${errorMessage(e)}`)
     scheduleReconnect(state)
@@ -163,12 +165,10 @@ function open(state: SocketState): void {
 
 function toWsUrl(config: ServeConfig): string {
   // 始终按 baseUrl（留空归一为本机 serve 默认地址）直连，不依赖 dev server 代理
-  // 鉴权令牌经 query 传（浏览器无法自定义握手头），仅建议回环或 TLS 场景使用
   const url = new URL(resolveBaseUrl(config.baseUrl))
   const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
   const path = `${url.pathname.replace(/\/+$/, '')}/hubs/tasks`
-  const token = config.token ? `?token=${encodeURIComponent(config.token)}` : ''
-  return `${protocol}//${url.host}${path}${token}`
+  return `${protocol}//${url.host}${path}`
 }
 
 export function connectTaskSocket(config: ServeConfig, handlers: SocketHandlers): TaskSocket {

@@ -56,9 +56,11 @@ public class LiveFetcherHttpTests
     [Fact]
     public async Task FetchRoomAsync_ApiError_Throws( )
     {
-        await Assert.ThrowsAsync<InvalidOperationException>(( ) => HttpStub.WithRoute(
+        var ex = await Assert.ThrowsAsync<ApiException>(( ) => HttpStub.WithRoute(
             _ => """{"code":1,"message":"房间不存在","data":null}""",
             ( ) => LiveFetcher.FetchRoomAsync(new LiveTarget("999999999"), new AppConfig( ), TestContext.Current.CancellationToken)));
+
+        Assert.Equal(1, ex.Code);
     }
 
     [Fact]

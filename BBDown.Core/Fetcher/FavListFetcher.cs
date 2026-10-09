@@ -179,13 +179,19 @@ public static class FavListFetcher
             {
                 foreach (var item in tmpInfo.PagesInfo)
                 {
-                    var p = item.CopyWith(index++);
+                    var p = item.CopyWith(index);
+                    index++;
                     p.Title = m.GetProperty("title").ToString( ) + $"_P{item.Index}_{item.Title}";
                     p.Cover = tmpInfo.Pic;
                     p.Desc = m.GetProperty("intro").ToString( );
+                    // 去重命中时序号已占用，必须回退，否则 Page.Index 出现跳号
                     if (seenPages.Add(p))
                     {
                         pagesInfo.Add(p);
+                    }
+                    else
+                    {
+                        index--;
                     }
                 }
             }
@@ -198,7 +204,7 @@ public static class FavListFetcher
 
                 Page p = new( )
                 {
-                    Index = index++,
+                    Index = index,
                     Aid = m.GetProperty("id").ToString( ),
                     Cid = m.GetProperty("ugc").GetProperty("first_cid").ToString( ),
                     EpId = "",
@@ -211,9 +217,14 @@ public static class FavListFetcher
                     OwnerName = m.GetProperty("upper").GetProperty("name").ToString( ),
                     OwnerMid = m.GetProperty("upper").GetProperty("mid").ToString( ),
                 };
+                index++;
                 if (seenPages.Add(p))
                 {
                     pagesInfo.Add(p);
+                }
+                else
+                {
+                    index--;
                 }
             }
         }

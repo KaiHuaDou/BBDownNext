@@ -73,7 +73,15 @@ public static class Muxer
         string? chapterFile = null;
         if (req.Points is { Count: > 0 } points)
         {
-            chapterFile = Path.Combine(Path.GetDirectoryName(videoPath.Length == 0 ? audioPath : videoPath)!, "chapters");
+            // 两轨都空说明上游选轨结果与内容集矛盾，报错指向轨道而非 GetDirectoryName 返回 null
+            var trackPath = videoPath.Length == 0 ? audioPath : videoPath;
+            var trackDir = Path.GetDirectoryName(trackPath);
+            if (string.IsNullOrEmpty(trackDir))
+            {
+                throw new InvalidOperationException($"章节写入失败：轨道路径无可用目录（{trackPath}）");
+            }
+
+            chapterFile = Path.Combine(trackDir, "chapters");
             File.WriteAllText(chapterFile, req.Mux == MuxMode.Mp4box ? ChapterMeta.GetMp4boxMetaString(points) : ChapterMeta.GetFFmpegMetaString(points));
         }
 

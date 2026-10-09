@@ -8,6 +8,7 @@ using BBDown.Cli;
 using BBDown.Core;
 using BBDown.Core.Download;
 using BBDown.Core.Live;
+using BBDown.Core.Logging;
 using BBDown.Core.Pipeline;
 using BBDown.Core.Util;
 
@@ -21,19 +22,24 @@ internal sealed class Program
     // volatile：主线程写、CancelKeyPress handler 线程读，需内存屏障保证 handler 读到最新值
     // 已知窗口：RunAsync 返回到 finally 置 null 之间到达的 Ctrl+Break 会命中已结束的会话（TryRequestStop 返回 false，无害）
     // 值与 LiveTarget.SessionId 同形，两处必须一致
-    private static volatile string? liveSessionId;
+    private static volatile string? CurrentLiveSessionId;
 
-    private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+    private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
         e.Cancel = true;
 
         // Ctrl+Break（SIGQUIT）在录制直播时是「停录并混流」，绝不能触发全局取消——那会把随后的 ffmpeg 一起杀掉
-        // 非录制场景 liveSessionId 为 null，TryRequestStop 固定为 false，直接落回原有的全局取消路径，既有行为零变化
-        if (e.SpecialKey == ConsoleSpecialKey.ControlBreak && liveSessionId is { } liveId && LiveSignal.TryRequestStop(liveId))
+        // 非录制场景 CurrentLiveSessionId 为 null，TryRequestStop 固定为 false，直接落回原有的全局取消路径，既有行为零变化
+        if (e.SpecialKey == ConsoleSpecialKey.ControlBreak
+            && CurrentLiveSessionId is { } liveId && LiveSignal.TryRequestStop(liveId))
         {
-            if (!Console.IsOutputRedirected)
+            // 与全部控制台写入同锁：换行会插进进度条帧中间
+            lock (ConsoleHost.WriteGate)
             {
-                Console.WriteLine( );
+                if (!Console.IsOutputRedirected)
+                {
+                    Console.WriteLine( );
+                }
             }
 
             LogWarn("收到停止信号，正在结束录制并混流...");
@@ -42,28 +48,32 @@ internal sealed class Program
 
         // 这样“正在退出”不会被残留的渲染定时器冲掉；随后换行再打印提示
         AppEnv.Cancel( );
-        if (!Console.IsOutputRedirected)
-        {
-            Console.WriteLine( );
-        }
-
-        LogWarn("收到取消信号，正在退出...");
         try
         {
-            Console.ResetColor( );
-            Console.CursorVisible = true;
+            lock (ConsoleHost.WriteGate)
+            {
+                if (!Console.IsOutputRedirected)
+                {
+                    Console.WriteLine( );
+                }
+
+                Console.ResetColor( );
+                Console.CursorVisible = true;
+            }
+
             if (!OperatingSystem.IsWindows( ))
             {
                 System.Diagnostics.Process.Start("stty", "echo");
             }
         }
         catch { }
+        LogWarn("收到取消信号，正在退出...");
     }
 
     public static async Task<int> Main(string[] args)
     {
         args = NormalizeArguments(args);
-        Console.CancelKeyPress += Console_CancelKeyPress;
+        Console.CancelKeyPress += OnCancelKeyPress;
         // 业务消息渲染（CLI 展示）：Core 只产生消息，本渲染器决定控制台如何展示
         using var messageRenderer = new ConsoleMessageRenderer( );
 
@@ -105,7 +115,6 @@ internal sealed class Program
             if (!HasUrlArgument(rootResult) && (rootResult.Errors.Count > 0 || string.IsNullOrEmpty(rootResult.GetValue<string>("--config"))))
             {
                 PrintUsageExample( );
-                // return 0
             }
         }
 
@@ -195,11 +204,11 @@ internal sealed class Program
                 if (dispatchId is ResourceId.LiveRoom)
                 {
                     // 直播录制产物是无限增长的流，分 P 选择、清晰度优先级那套解析对它无意义
-                    // liveSessionId 与 WorkerDispatcher 内 LiveSignal 注册键（规范串）一致，Ctrl+Break 据此停录
+                    // CurrentLiveSessionId 与 LiveDownload 内的 LiveSignal 注册键同形，Ctrl+Break 据此停录
                     try
                     {
                         using var liveProgress = new LiveProgress( );
-                        liveSessionId = ResourceIdJsonConverter.Format(dispatchId);
+                        CurrentLiveSessionId = ResourceIdJsonConverter.Format(dispatchId);
                         await WorkerDispatcher.RunAsync(dispatchId, myOption, default, null, AppEnv.CancellationToken);
                         return 0;
                     }
@@ -210,7 +219,7 @@ internal sealed class Program
                     }
                     finally
                     {
-                        liveSessionId = null;
+                        CurrentLiveSessionId = null;
                     }
                 }
 

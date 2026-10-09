@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -27,7 +28,9 @@ internal sealed partial class TaskSocketHub(TaskStore store)
     private readonly ConcurrentDictionary<ResourceId, ConcurrentDictionary<WebSocket, byte>> subscriptions = new( );
     private readonly ConcurrentDictionary<ResourceId, CancellationTokenSource> forwarders = new( );
     // 每连接发送锁：广播与回执帧可能并发写同一连接，WebSocket 不保证并发写安全
-    private readonly ConcurrentDictionary<WebSocket, SemaphoreSlim> socketGates = new( );
+    // 弱表：条目随连接对象回收。普通字典在「连接已关闭、广播快照仍持有该连接」时会补加回一条永不摘除的条目
+    // 且关服路径的 Dispose 会与在途 WaitAsync 竞态
+    private readonly ConditionalWeakTable<WebSocket, SemaphoreSlim> socketGates = new( );
     private readonly ConcurrentDictionary<string, int> connections = new( );
     private readonly TaskStore store = store;
     // 全局连接表：所有已建立 WS 的连接，用于广播任务列表（taskList）帧，与按任务订阅的表分离
@@ -84,8 +87,7 @@ internal sealed partial class TaskSocketHub(TaskStore store)
         {
             allSockets.TryRemove(socket, out _);
             RemoveAllSubscriptions(socket);
-            socketGates.TryRemove(socket, out var gate);
-            gate?.Dispose( );
+            // 发送锁在弱表里随连接对象回收，无需也不应在此释放：在途发送会拿到已释放的信号量
         }
     }
 
@@ -218,7 +220,7 @@ internal sealed partial class TaskSocketHub(TaskStore store)
 
     private async Task SendAsync(WebSocket socket, EventFrame frame, CancellationToken token)
     {
-        var gate = socketGates.GetOrAdd(socket, _ => new SemaphoreSlim(1, 1));
+        var gate = socketGates.GetValue(socket, _ => new SemaphoreSlim(1, 1));
         var json = JsonSerializer.Serialize(frame, ServeFramesJsonSerializerContext.Default.EventFrame);
         await gate.WaitAsync(token);
         try

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using BBDown.Core.Entity;
+using BBDown.Core.Util;
 
 using static BBDown.Core.Logger;
 using static BBDown.Core.ResourceId;
@@ -59,8 +60,11 @@ public static class FetcherRegistry
         {
             return await MediaListFetcher.FetchAsync(list, cfg, ct);
         }
-        catch (InvalidOperationException ex)
+        catch (ApiException ex) when (ex.Code == 0)
         {
+            // 只在服务端报成功却没给 data 时回退：该端点对不存在的合集与系列都回 code=0 + data=null
+            // 风控（-352）、未登录（-101）等带 code 的失败，以及接口结构变更引发的解析异常，都不再重试
+            LogDebug($"按合集解析未取到数据（{ex.Message}），改按系列重试");
             try
             {
                 return await MediaListFetcher.FetchListAsync(list.BizId, 5, true, "系列", cfg, ct);

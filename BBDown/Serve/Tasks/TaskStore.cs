@@ -26,6 +26,10 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
     private readonly ConcurrentDictionary<ResourceId, DownloadTask> finished = new( );
     // enqueue（不立即执行）任务的执行信封暂存：start 时取出写入执行队列，故暂停态任务不占执行队列
     private readonly ConcurrentDictionary<ResourceId, TaskEnvelope> pending = new( );
+    // 暂停表的容量判定与增删都在这把锁内完成：
+    // 先读 Count 再写是无原子性的，超限那一刻并发的受理会一并放行；
+    // Start 的回填与 RemoveTask 竞争也会把已摘除的任务写回（取消源已释放，任务却复活）
+    private readonly Lock pendingGate = new( );
     // 事件上下文按 scope（ResourceId 规范串，见 DownloadTask.Scope）键存：规范串与 /get-tasks 返回的 id 相同
     // 经 ResourceId.TryParse 可往返，避免 record ToString 与规范串不对称导致 opus 等任务订阅/交互失效
     private readonly ConcurrentDictionary<string, ChannelWorkflowContext> contexts = new( );
@@ -88,15 +92,19 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
         // 暂停表上限镜像执行队列，防止任务无限挂起累积事件上下文与取消源；超限回滚受理并返回 429
         if (mode == SubmitMode.Enqueue)
         {
-            if (pending.Count >= MaxEnqueued)
+            lock (pendingGate)
             {
-                running.TryRemove(id, out _);
-                contexts.TryRemove(ResourceIdJsonConverter.Format(task.Id), out _);
-                task.Cts.Dispose( );
-                return new EnqueueResult(null, false, true);
+                if (pending.Count >= MaxEnqueued)
+                {
+                    running.TryRemove(id, out _);
+                    contexts.TryRemove(task.Scope, out _);
+                    task.DisposeCts( );
+                    return new EnqueueResult(null, false, true);
+                }
+
+                pending[id] = envelope;
             }
 
-            pending[id] = envelope;
             NotifyChanged( );
             return new EnqueueResult(task, false, false);
         }
@@ -104,7 +112,11 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
         if (!queueWriter.TryWrite(envelope))
         {
             // 入队失败回滚：任务尚未执行，从运行表、暂停表与上下文表移除并释放取消源
-            pending.TryRemove(id, out _);
+            lock (pendingGate)
+            {
+                pending.TryRemove(id, out _);
+            }
+
             running.TryRemove(id, out _);
             contexts.TryRemove(task.Scope, out _);
             task.DisposeCts( );
@@ -121,19 +133,23 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
     /// </summary>
     public StartResult Start(ResourceId id)
     {
-        if (!pending.TryRemove(id, out var envelope))
+        // 取出、置态、入队与回填同处一把锁：与 RemoveTask 竞争时不会复活已移除的任务
+        lock (pendingGate)
         {
-            return StartResult.NotFound;
-        }
+            if (!pending.TryRemove(id, out var envelope))
+            {
+                return StartResult.NotFound;
+            }
 
-        // 先置等待态再入队：channel 写建立先后序，worker 取到的必然是 Queued 之后的状态
-        // TryWrite 失败回退 Pending，任务保留暂停态可再次 start
-        envelope.Task.Status = DownloadStatus.Queued;
-        if (!queueWriter.TryWrite(envelope))
-        {
-            pending[id] = envelope;
-            envelope.Task.Status = DownloadStatus.Pending;
-            return StartResult.QueueFull;
+            // 先置等待态再入队：channel 写建立先后序，worker 取到的必然是 Queued 之后的状态
+            // TryWrite 失败回退 Pending，任务保留暂停态可再次 start
+            envelope.Task.Status = DownloadStatus.Queued;
+            if (!queueWriter.TryWrite(envelope))
+            {
+                pending[id] = envelope;
+                envelope.Task.Status = DownloadStatus.Pending;
+                return StartResult.QueueFull;
+            }
         }
 
         NotifyChanged( );
@@ -260,11 +276,14 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
     public void RemoveTask(ResourceId id)
     {
         finished.TryRemove(id, out _);
-        if (pending.TryRemove(id, out var envelope))
+        lock (pendingGate)
         {
-            running.TryRemove(id, out _);
-            ReleaseContext(envelope.Task.Scope);
-            envelope.Task.DisposeCts( );
+            if (pending.TryRemove(id, out var envelope))
+            {
+                running.TryRemove(id, out _);
+                ReleaseContext(envelope.Task.Scope);
+                envelope.Task.DisposeCts( );
+            }
         }
 
         NotifyChanged( );
@@ -308,7 +327,7 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
         return option;
     }
 
-    // serve 模式的 API host 由启动参数（--host/--ep-host/--tv-host）决定，覆盖请求体（请求体已不含该字段）
+    // serve 模式的 API host 由启动参数（--api-host/--api-ep-host/--api-tv-host）决定，覆盖请求体（请求体已不含该字段）
     // 客户端无法把请求导向自己控制的服务器、从而窃走操作者的 SESSDATA。空值回落官方默认 host
     internal DownloadRequest ApplyServeHost(DownloadRequest option)
     {

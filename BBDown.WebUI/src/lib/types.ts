@@ -81,7 +81,7 @@ export interface ServeRequestOptions {
   pages: string
   lang: string
   uposHost: string
-  delayPerPage: string
+  delayPerPage?: number
   area: string
   /** 每个下载项的额外重试次数，未指定时为 3（与 serve ServeRequestOptions.MaxRetry 相同）。 */
   maxRetry: number

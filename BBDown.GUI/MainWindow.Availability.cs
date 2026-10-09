@@ -13,20 +13,40 @@ namespace BBDown.GUI;
 /// <summary>
 /// 控件可用性联动：界面「可用」的选项与「实际生效」的选项保持同步
 /// 单点刷新，任何相关事件只调 <see cref="RefreshAvailability"/>；禁用不清空值，ReadOptions 照读、Core 自然失效
+/// 批改期间（<see cref="ApplyDepth"/> 非 0）只记脏标记：逐项赋值会触发十余次控件事件，
+/// 逐次重算等于对着半应用的模型算十余遍，退出最外层批改时补一次真刷新即可
 /// </summary>
 public partial class MainWindow
 {
+    /// <summary>选项批量回填的嵌套层数；非 0 时可用性刷新只记脏标记</summary>
+    private int ApplyDepth;
+
+    private bool AvailabilityDirty;
+
+    /// <summary>可影响可用性的控件事件统一入口：复选框、评论数框、混流格式选择共用</summary>
+    private void AvailabilityInputChanged(object? o, RoutedEventArgs e)
+    {
+        RefreshAvailability( );
+    }
+
     private void RefreshAvailability( )
     {
+        if (ApplyDepth > 0)
+        {
+            AvailabilityDirty = true;
+            return;
+        }
+
         var info = UrlDetector.Describe(TargetBox.Text);
         var mode = info is null ? null : ModeOf(info.Kind);
         var content = ContentSelector.FromNormalizedString(ReadContent( ));
         var infoOnly = InfoOnlyCheckBox.IsChecked == true;
         var comments = (int)(CommentsCountBox.Value ?? 0);
+        var mux = ReadMux( );
 
         ApplyContentArea(mode, infoOnly, comments);
-        ApplyDownloadArea(mode, infoOnly, ReadMux( ));
-        ApplyEnvironmentArea(mode, infoOnly, UseAria2cCheckBox.IsChecked == true, ReadMux( ));
+        ApplyDownloadArea(mode, infoOnly, mux);
+        ApplyEnvironmentArea(mode, infoOnly, UseAria2cCheckBox.IsChecked == true, mux);
         ApplyParserArea(mode);
         ApplyContentWarn(info is not null, mode, content, comments, infoOnly);
     }
@@ -181,7 +201,7 @@ public partial class MainWindow
 
         ContentWarnText.Text = warnings.ToString( );
         ContentWarnText.IsVisible = warnings.Length > 0;
-        ContentWarnText.Foreground = hintBrush;
+        ContentWarnText.Foreground = ThemeBrush.Get(ThemeBrush.Hint);
     }
 
     private static void AppendWarn(StringBuilder builder, string text)
@@ -192,25 +212,5 @@ public partial class MainWindow
         }
 
         builder.Append(text);
-    }
-
-    private void ContentItemCheckedChanged(object? o, RoutedEventArgs e)
-    {
-        RefreshAvailability( );
-    }
-
-    private void CommentsCountBoxValueChanged(object? o, RoutedEventArgs e)
-    {
-        RefreshAvailability( );
-    }
-
-    private void MuxBoxSelectionChanged(object? o, SelectionChangedEventArgs e)
-    {
-        RefreshAvailability( );
-    }
-
-    private void UseAria2cCheckBoxCheckedChanged(object? o, RoutedEventArgs e)
-    {
-        RefreshAvailability( );
     }
 }

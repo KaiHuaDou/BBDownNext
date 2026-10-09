@@ -123,6 +123,6 @@ public static class SignUtil
     // CA5351: MD5 由 B 站签名协议规定，哈希值必须与服务端保持一致，不能替换为 SHA256
     private static string Md5Hex(string value)
     {
-        return string.Concat(MD5.HashData(Encoding.UTF8.GetBytes(value)).Select(b => b.ToString("x2")));
+        return Convert.ToHexStringLower(MD5.HashData(Encoding.UTF8.GetBytes(value)));
     }
 }

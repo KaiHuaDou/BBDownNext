@@ -265,17 +265,17 @@ public static partial class InputResolver
     // 避免先请求接口取首集 ep_id 再请求拉整季的冗余往返
     private static ResourceId ResolveCheese(string input)
     {
-        if (input.Contains("/ep"))
-        {
-            return new CheeseEp(RequireCheeseEpId(input));
-        }
-
         if (input.Contains("/ss"))
         {
             return new CheeseSeason(RequireCheeseSsId(input));
         }
 
-        return new CheeseEp(RequireCheeseEpId(input));
+        if (input.Contains("/ep"))
+        {
+            return new CheeseEp(RequireCheeseEpId(input));
+        }
+
+        throw new InvalidOperationException($"课程链接需带 ep 或 ss 号：{input}");
     }
 
     private static long RequireCheeseEpId(string input)

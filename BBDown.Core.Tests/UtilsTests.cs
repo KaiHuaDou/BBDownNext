@@ -54,6 +54,12 @@ public class UtilsTests
     [InlineData("from", "https://www.bilibili.com/video/BV1xx?from=search&p=12", "search")]
     [InlineData("p", "https://www.bilibili.com/video/BV1xx", "")]
     [InlineData("q", "https://www.bilibili.com/video/BV1xx?p=3", "")]
+    // fragment 与路径段不参与匹配：只认 ? 到 # 之间的查询串
+    [InlineData("p", "https://www.bilibili.com/video/BV1xx?a=1#p=9", "")]
+    [InlineData("a", "https://www.bilibili.com/video/p=9?a=1#p=9", "1")]
+    [InlineData("p", "https://www.bilibili.com/video/p=9", "")]
+    // 值做百分号解码，原始 query 里的编码值不再原样返回
+    [InlineData("q", "https://www.bilibili.com/x?q=%E4%B8%AD%E6%96%87", "中文")]
     public void GetQueryString_ReadsNamedParameter(string name, string url, string expected)
     {
         Assert.Equal(expected, Utils.GetQueryString(name, url));

@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Text;
 
@@ -115,5 +116,31 @@ public class FileNameUtilTests
         Assert.False(result.EndsWith('.'), "文件名不得以点结尾");
         Assert.False(result.EndsWith(' '), "文件名不得以空格结尾");
         Assert.NotEqual("", result);
+    }
+
+    // 标记先占字节预算再截基名：否则「先按 200 字节截断、再拼标记」会超出 ext4/APFS 的单段 255 字节上限
+    [Fact]
+    public void AppendTag_KeepsTotalWithinByteBudget( )
+    {
+        var result = FileNameUtil.AppendTag(new string('中', 200), "_au12345");
+
+        Assert.True(Encoding.UTF8.GetByteCount(result) <= 200);
+        Assert.EndsWith("_au12345", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AppendTag_ShortBaseNameUnchanged( )
+    {
+        Assert.Equal("标题_au12345", FileNameUtil.AppendTag("标题", "_au12345"));
+    }
+
+    // 标记本身超长时基名至少留 1 字节，标记完整保留
+    [Fact]
+    public void AppendTag_OversizedTag_KeepsTagIntact( )
+    {
+        var tag = new string('9', 300);
+        var result = FileNameUtil.AppendTag("标题", tag);
+
+        Assert.Equal(tag, result);
     }
 }
