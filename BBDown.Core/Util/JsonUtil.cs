@@ -8,6 +8,44 @@ namespace BBDown.Core.Util;
 // 结构化的 JSON 判定，替代在已解析过的 JSON 字符串上再做全文 Contains
 public static class JsonUtil
 {
+    // 标量读取的统一入口：属性缺失、父节点非对象、类型不符一律给零值（空串 / 0 / false）而不抛。
+    // TryGetInt64 在 ValueKind 非 Number 时抛而不是返回 false，故先判类型再取值
+    public static string ReadStr(JsonElement parent, string name)
+    {
+        return parent.ValueKind == JsonValueKind.Object
+               && parent.TryGetProperty(name, out var value)
+               && value.ValueKind == JsonValueKind.String
+            ? value.GetString( ) ?? ""
+            : "";
+    }
+
+    // 服务端对同一字段可能给字符串也可能给数字（如 aid / mid），两种都按原样取文本
+    public static string ReadText(JsonElement parent, string name)
+    {
+        return parent.ValueKind == JsonValueKind.Object
+               && parent.TryGetProperty(name, out var value)
+               && value.ValueKind is JsonValueKind.String or JsonValueKind.Number
+            ? value.ToString( )
+            : "";
+    }
+
+    public static long ReadLong(JsonElement parent, string name)
+    {
+        return parent.ValueKind == JsonValueKind.Object
+               && parent.TryGetProperty(name, out var value)
+               && value.ValueKind == JsonValueKind.Number
+               && value.TryGetInt64(out var number)
+            ? number
+            : 0;
+    }
+
+    public static bool ReadBool(JsonElement parent, string name)
+    {
+        return parent.ValueKind == JsonValueKind.Object
+               && parent.TryGetProperty(name, out var value)
+               && value.ValueKind == JsonValueKind.True;
+    }
+
     public static bool HasObject(JsonElement parent, string name)
     {
         return parent.ValueKind == JsonValueKind.Object

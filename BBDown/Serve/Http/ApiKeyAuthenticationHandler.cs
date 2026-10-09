@@ -69,9 +69,7 @@ internal sealed class ApiKeyAuthenticationHandler(
             return false;
         }
 
-        var provided = Encoding.UTF8.GetBytes(token);
-        var expectedBytes = Encoding.UTF8.GetBytes(expected);
-        return provided.Length == expectedBytes.Length
-               && CryptographicOperations.FixedTimeEquals(provided, expectedBytes);
+        // FixedTimeEquals 长度不等时返回 false，本身已覆盖长度检查
+        return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(token), Encoding.UTF8.GetBytes(expected));
     }
 }

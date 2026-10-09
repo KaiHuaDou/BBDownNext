@@ -60,14 +60,22 @@ export function startSocket(store: TaskStore): void {
 
 /** 保活轮询：仅探测 serve 存活，更新连接指示灯；不参与任务列表（任务由 WS 推送）。 */
 export async function probeHealth(store: TaskStore): Promise<void> {
+  let alive = false
+  let failure: string | null = null
   try {
     await fetchHealth(store.config.value)
-    store.connected.value = true
-    store.connectionError.value = null
+    alive = true
   } catch (e) {
-    store.connected.value = false
-    store.connectionError.value = errorMessage(e)
+    failure = errorMessage(e)
   }
+
+  // 探测在途时组件可能已卸载，此时回写状态已无接收方
+  if (store.disposed) {
+    return
+  }
+
+  store.connected.value = alive
+  store.connectionError.value = alive ? null : failure
 }
 
 /** 启动事件流与保活轮询。任务列表与完成态完全由 WS 订阅驱动，保活轮询仅用于存活探测。 */
@@ -77,8 +85,9 @@ export function startTimers(store: TaskStore): void {
   startSocket(store)
 }
 
-/** 停止事件流与保活轮询。 */
+/** 停止事件流与保活轮询，并封住状态写入：卸载后 store 拒绝一切改动 */
 export function stopTimers(store: TaskStore): void {
+  store.disposed = true
   if (store.healthTimer) {
     clearInterval(store.healthTimer)
     store.healthTimer = null

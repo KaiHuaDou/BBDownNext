@@ -31,6 +31,12 @@ export async function submitTaskAction(
     toServeRequest(options, url),
     mode
   )
+
+  // 提交在途时组件可能已卸载，选项快照与日志已无接收方
+  if (store.disposed) {
+    return { taskId: task.id, duplicate }
+  }
+
   store.submittedOptions.set(task.id, { ...options })
   appendLog(store, duplicate ? `任务已存在：${url}` : `任务已受理：${url}`)
   return { taskId: task.id, duplicate }
@@ -132,6 +138,11 @@ export function settleAsk(store: TaskStore, requestId: string, ok: boolean, erro
  * 重建前对挂起提问按默认项应答，否则服务端的 AskBus 条目会挂满 AskTimeout。
  */
 export function applyConfig(store: TaskStore, next: ServeConfig): void {
+  // 卸载后重建事件流会留下无人关闭的连接
+  if (store.disposed) {
+    return
+  }
+
   for (const ask of store.pendingAsks.value) {
     if (!ask.submitted) {
       store.socket?.submitChoice(ask.taskId, ask.requestId, ask.defaultOptionId ?? '')

@@ -204,9 +204,9 @@ public static class HTTPUtil
         return JsonDocument.Parse(await GetWebSourceAsync(url, cfg, null, ct));
     }
 
-    public static async Task<byte[]> GetPostResponseAsync(string Url, byte[] postData, Dictionary<string, string>? headers = null, CancellationToken ct = default)
+    public static async Task<byte[]> GetPostResponseAsync(string url, byte[] postData, Dictionary<string, string>? headers = null, CancellationToken ct = default)
     {
-        LogDebug("Post to: {0}, data: {1}", Redactor.Text(Url), Convert.ToBase64String(postData));
+        LogDebug("Post to: {0}, data: {1}", Redactor.Text(url), Convert.ToBase64String(postData));
         // 仅对已知无副作用的 gRPC 只读查询做有界重试：PlayView / 弹幕视图均不修改服务端状态
         // Widevine 走独立 client 不经此方法。写操作切勿复用此方法
         const int maxAttempts = 3;
@@ -217,7 +217,7 @@ public static class HTTPUtil
             content.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/grpc");
             using HttpRequestMessage request = new( )
             {
-                RequestUri = new Uri(Url),
+                RequestUri = new Uri(url),
                 Method = HttpMethod.Post,
                 Content = content,
             };
@@ -248,7 +248,7 @@ public static class HTTPUtil
                 // 仅 HttpClient.Timeout 触发、非用户取消
                 if (attempt >= maxAttempts)
                 {
-                    throw new TimeoutException($"POST 超时：{Url}");
+                    throw new TimeoutException($"POST 超时：{url}");
                 }
 
                 await Task.Delay(delay, ct); delay *= 2; continue;

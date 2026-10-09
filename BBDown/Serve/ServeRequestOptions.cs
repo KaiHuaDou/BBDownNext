@@ -19,6 +19,10 @@ namespace BBDown.Serve;
 /// 其中 Host/EpHost/TvHost 因「请求不带 cookie 时回落本机 SESSDATA、host 又由请求体控制」会形成凭据外泄链
 /// 不在请求约定中：由 serve 启动参数（--host/--ep-host/--tv-host）固定，详见 <see cref="TaskStore.ApplyServeHost"/>
 /// </summary>
+/// <remarks>
+/// 同目录约定类型均为 record，本类是唯一的可变 sealed class：
+/// System.Text.Json 反序列化要求属性可写，record 的 init-only 属性无法承接客户端提交的字段
+/// </remarks>
 internal sealed class ServeRequestOptions
 {
     public string Url { get; set; } = default!;

@@ -16,6 +16,13 @@ namespace BBDown.Core.PlayUrl;
 /// </summary>
 internal static partial class PlayUrlClient
 {
+    // 查询串取值一律转义：id / token 来自上游 JSON，净化器只挡文件名字符（不含 & = %），
+    // 镜像站或 --host 端点返回 "id": "1&fnval=9999" 就能注入任意 playurl 参数
+    private static string Esc(string value)
+    {
+        return Uri.EscapeDataString(value);
+    }
+
     internal static async Task<string> FetchAsync(PlayUrlRequest req, string qn = "0", CancellationToken ct = default)
     {
         LogDebug("aid={0},Cid={1},epId={2},api={3},qn={4}", req.Aid, req.Cid, req.EpId, req.Api, qn);
@@ -52,7 +59,7 @@ internal static partial class PlayUrlClient
     internal static string BuildWebPageUrl(bool cheese, string epId, string epHost)
     {
         var host = epHost == BiliApi.MainHost ? BiliApi.Site : $"https://{epHost}";
-        return $"{host}{(cheese ? BiliApi.CheesePlayPath : BiliApi.BangumiPlayPath)}/ep{epId}";
+        return $"{host}{(cheese ? BiliApi.CheesePlayPath : BiliApi.BangumiPlayPath)}/ep{Esc(epId)}";
     }
 
     // 大会员专享限制时, 改从网页源码抠 window.__playinfo__
@@ -97,18 +104,18 @@ internal static partial class PlayUrlClient
         StringBuilder query = new( );
         if (req.Cfg.Token.Length != 0)
         {
-            query.Append($"access_key={req.Cfg.Token}&");
+            query.Append($"access_key={Esc(req.Cfg.Token)}&");
         }
 
-        query.Append($"appkey={BiliApi.TvAppKey}&build=106500&cid={req.Cid}&device=android");
+        query.Append($"appkey={BiliApi.TvAppKey}&build=106500&cid={Esc(req.Cid)}&device=android");
         if (req.IsBangumi)
         {
-            query.Append($"&ep_id={req.EpId}&expire=0");
+            query.Append($"&ep_id={Esc(req.EpId)}&expire=0");
         }
 
         // TV 端点实测不提供 qn=100（智能修复），保持 4048 即可；强改 12240 无收益且可能触发风控
         query.Append("&fnval=4048&fnver=0&fourk=1&mid=0&mobi_app=android_tv_yst");
-        query.Append($"&object_id={req.Aid}&platform=android&playurl_type=1&qn={qn}&ts={UnixTimestamp( )}");
+        query.Append($"&object_id={Esc(req.Aid)}&platform=android&playurl_type=1&qn={qn}&ts={UnixTimestamp( )}");
         return $"{query}&sign={AppSign(query.ToString( ), BiliApi.TvAppSecret)}";
     }
 
@@ -116,17 +123,17 @@ internal static partial class PlayUrlClient
     {
         StringBuilder query = new( );
         var fnval = req.IsBangumi ? Config.FnvalPgc : Config.Fnval;
-        query.Append($"support_multi_audio=true&from_client=BROWSER&avid={req.Aid}&cid={req.Cid}&fnval={fnval}&fnver=0&fourk=1");
+        query.Append($"support_multi_audio=true&from_client=BROWSER&avid={Esc(req.Aid)}&cid={Esc(req.Cid)}&fnval={fnval}&fnver=0&fourk=1");
         if (req.Cfg.Area.Length != 0)
         {
-            query.Append($"&access_key={req.Cfg.Token}&area={req.Cfg.Area}");
+            query.Append($"&access_key={Esc(req.Cfg.Token)}&area={Esc(req.Cfg.Area)}");
         }
 
         query.Append($"&otype=json&qn={qn}");
         if (req.IsBangumi)
         {
             // 课程（cheese）复用番剧 playurl 参数（module=bangumi&ep_id&session）；pugv 端点会忽略 module，ep_id 为必需
-            query.Append($"&module=bangumi&ep_id={req.EpId}&session=");
+            query.Append($"&module=bangumi&ep_id={Esc(req.EpId)}&session=");
         }
 
         if (req.Cfg.Cookie.Length == 0)
@@ -148,16 +155,16 @@ internal static partial class PlayUrlClient
         StringBuilder query = new( );
         if (cfg.Token.Length != 0)
         {
-            query.Append($"access_key={cfg.Token}&");
+            query.Append($"access_key={Esc(cfg.Token)}&");
         }
 
-        query.Append($"aid={req.Aid}");
+        query.Append($"aid={Esc(req.Aid)}");
         if (isBiliPlus)
         {
-            query.Append($"&appkey={BiliApi.BiliPlusAppKey}&area={(cfg.Area.Length == 0 ? "th" : cfg.Area)}");
+            query.Append($"&appkey={BiliApi.BiliPlusAppKey}&area={Esc(cfg.Area.Length == 0 ? "th" : cfg.Area)}");
         }
 
-        query.Append($"&cid={req.Cid}&ep_id={req.EpId}&platform=android&prefer_code_type={code}&qn={qn}");
+        query.Append($"&cid={Esc(req.Cid)}&ep_id={Esc(req.EpId)}&platform=android&prefer_code_type={code}&qn={qn}");
         if (isBiliPlus)
         {
             query.Append($"&ts={UnixTimestamp( )}");

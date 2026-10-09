@@ -9,13 +9,8 @@ namespace BBDown.Core.Util;
 /// 派生自 <see cref="InvalidOperationException"/>，上层的宽泛捕获仍照旧生效
 /// <see cref="Code"/> 为接口外层 code；<c>0</c> 表示服务端报成功却没给 data
 /// </summary>
-public sealed class ApiException : InvalidOperationException
+public sealed class ApiException(int code, string message) : InvalidOperationException(message)
 {
-    public ApiException(int code, string message) : base(message)
-    {
-        Code = code;
-    }
-
-    public int Code { get; }
+    public int Code { get; } = code;
 }
 

@@ -41,10 +41,11 @@ public static class CommentWriter
                     : CommentRenderer.Render(document, fullReplies);
                 await File.WriteAllTextAsync(path, content, token);
             }
-            catch (IOException ex) when (ex is PathTooLongException or DirectoryNotFoundException)
+            // 追加后缀后路径可能越限，或落到已被删除的目录：两者都属路径问题，只跳过该格式。
+            // 不兜住 IOException 基类，磁盘满、句柄耗尽等属于真实故障，应上抛
+            catch (Exception ex) when (ex is PathTooLongException or DirectoryNotFoundException)
             {
-                // 标题截断只作用于基底文件名，追加 .comments.* 仍可能越限；不阻断其余格式
-                LogWarn($"评论文件因路径过长无法写入（{path}）：{ex.Message}");
+                LogWarn($"评论文件因路径问题无法写入（{path}）：{ex.Message}");
                 continue;
             }
 

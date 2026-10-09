@@ -78,16 +78,16 @@ internal static class CommandLineInvoker
             Debug
         };
 
-        rootCommand.SetAction(async parseResult =>
+        rootCommand.SetAction(parseResult =>
         {
             var content = ContentSelector.Resolve(
                 parseResult.GetValue(Content) ?? [],
                 parseResult.GetValue(WithContent) ?? [],
                 parseResult.GetValue(WithoutContent) ?? [],
-                commentCountExplicit: IsExplicit(parseResult, "--comments-count"),
-                commentSortExplicit: IsExplicit(parseResult, "--comments-sort"),
-                commentFormatsExplicit: IsExplicit(parseResult, "--comments-formats"),
-                danmakuFormatsExplicit: IsExplicit(parseResult, "--danmaku-formats"),
+                commentCountExplicit: IsExplicit(parseResult, CommentsCount),
+                commentSortExplicit: IsExplicit(parseResult, CommentsSort),
+                commentFormatsExplicit: IsExplicit(parseResult, CommentsFormats),
+                danmakuFormatsExplicit: IsExplicit(parseResult, DownloadDanmakuFormats),
                 out var warnings);
             foreach (var warning in warnings)
             {
@@ -147,16 +147,16 @@ internal static class CommandLineInvoker
                 Area = parseResult.GetValue(Area) ?? "",
                 ConfigFile = parseResult.GetValue(ConfigFile) ?? ""
             };
-            return await action(option);
+            return action(option);
         });
 
         return rootCommand;
     }
 
     // 判断选项是否由命令行显式给出（而非默认值）：评论 / 弹幕配套选项未给对应内容字符时要警告
-    private static bool IsExplicit(ParseResult parseResult, string name)
+    private static bool IsExplicit(ParseResult parseResult, Option option)
     {
-        return parseResult.CommandResult.Children.OfType<OptionResult>( ).Any(o => !o.Implicit && o.Option.Name == name);
+        return parseResult.CommandResult.Children.OfType<OptionResult>( ).Any(o => !o.Implicit && o.Option == option);
     }
 
     /// <summary>
@@ -187,10 +187,10 @@ internal static class CommandLineInvoker
         }
 
         return encodingIndex >= 0 && dfnIndex >= 0 && encodingIndex < dfnIndex;
+    }
 
-        static bool Matches(Option option, string value)
-        {
-            return value == option.Name || option.Aliases.Contains(value);
-        }
+    private static bool Matches(Option option, string value)
+    {
+        return value == option.Name || option.Aliases.Contains(value);
     }
 }

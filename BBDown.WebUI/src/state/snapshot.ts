@@ -10,6 +10,11 @@ const TRIM_BATCH = 200
 
 /** 追加日志行并在超限时批量截断。 */
 export function appendLog(store: TaskStore, text: string, isError = false): void {
+  // 日志是所有写入的必经之处，卸载后在此收口即可拦住各处的在途写入
+  if (store.disposed) {
+    return
+  }
+
   store.logLines.value.push({ text, isError })
   const lines = store.logLines.value
   if (lines.length > MAX_LOG_LINES + TRIM_BATCH) {
@@ -147,24 +152,31 @@ export function applySnapshot(store: TaskStore, snapshot: TaskSnapshot): void {
   )
 }
 
-// 挂起提问、已应答记录与重试选项快照只属于存活任务：任务结束后剔除，避免交互 / 重试相关状态常驻堆积
+/**
+ * 挂起提问的存废由服务端 choiceResult 决定（settleAsk），任务收尾时弹窗可能仍停在等待确认；
+ * 重试按钮还要读已完成任务的选项快照。两者因此随任务留在列表中即保留。
+ * 已应答记录与耗时基准只服务运行中任务：任务离开 running 即摘除，
+ * 否则长命标签页下增长边界是未清空的已完成任务数，而非运行中任务数
+ */
 function pruneDeadState(store: TaskStore, runningIds: string[], finishedIds: string[]): void {
-  const alive = new Set([...runningIds, ...finishedIds])
-  store.pendingAsks.value = store.pendingAsks.value.filter((ask) => alive.has(ask.taskId))
+  const running = new Set(runningIds)
+  const inList = new Set([...runningIds, ...finishedIds])
+
+  store.pendingAsks.value = store.pendingAsks.value.filter((ask) => inList.has(ask.taskId))
   for (const id of store.submittedOptions.keys()) {
-    if (!alive.has(id)) {
+    if (!inList.has(id)) {
       store.submittedOptions.delete(id)
     }
   }
 
   for (const [requestId, taskId] of store.answeredAsks) {
-    if (!alive.has(taskId)) {
+    if (!running.has(taskId)) {
       store.answeredAsks.delete(requestId)
     }
   }
 
   for (const taskId of store.elapsedBase.keys()) {
-    if (!alive.has(taskId)) {
+    if (!running.has(taskId)) {
       store.elapsedBase.delete(taskId)
     }
   }

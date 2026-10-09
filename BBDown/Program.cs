@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Linq;
@@ -67,6 +67,7 @@ internal sealed class Program
             }
         }
         catch { }
+
         LogWarn("收到取消信号，正在退出...");
     }
 
@@ -112,7 +113,7 @@ internal sealed class Program
             }
 
             // 既无 URL 参数、也无配置文件提供地址时，打印用法而不是抛「缺少必需参数」（--help/--version 不产生错误，仍走原流程）
-            if (!HasUrlArgument(rootResult) && (rootResult.Errors.Count > 0 || string.IsNullOrEmpty(rootResult.GetValue<string>("--config"))))
+            if (!HasUrlArgument(rootResult) && (rootResult.Errors.Count > 0 || string.IsNullOrEmpty(rootResult.GetValue<string>(CliOptions.ConfigFile.Name))))
             {
                 PrintUsageExample( );
             }
@@ -158,11 +159,13 @@ internal sealed class Program
         BBDown 哔哩哔哩下载器
 
         用法示例：
-          BBDown <视频地址>                下载视频（支持 av / BV / EP / SS）
+          BBDown <视频地址>                下载视频（支持 AV / BV / EP / SS）
           BBDown <视频地址> -p 1-5         仅下载第 1~5 集
           BBDown <视频地址> -g a           仅下载音频
           BBDown <视频地址> -g av -W s     不下载字幕
           BBDown <专栏地址|cv 号>          导出专栏为 Markdown
+          BBDown login                     登录账号（加 --tv 登录 TV，加 --app 登录 APP）
+          BBDown serve                     以服务器模式运行
           BBDown --help                    查看全部参数说明
 
         """);

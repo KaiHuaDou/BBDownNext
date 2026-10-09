@@ -114,13 +114,4 @@ public static class SpaceOpusDownload
         item = new OpusItem(opusId, title, author);
         return true;
     }
-
-    private static string ReadStr(JsonElement obj, string name)
-    {
-        return obj.ValueKind == JsonValueKind.Object
-            && obj.TryGetProperty(name, out var v)
-            && v.ValueKind == JsonValueKind.String
-            ? v.GetString( ) ?? ""
-            : "";
-    }
 }

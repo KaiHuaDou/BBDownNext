@@ -110,18 +110,25 @@ export type WorkflowEvent =
       defaultOptionId?: string
     }
 
-/** 服务端 → 客户端帧。 */
-export interface EventFrame {
-  kind: 'event' | 'snapshot' | 'choiceResult' | 'error' | 'taskList'
-  taskId?: string
-  event?: WorkflowEvent
-  snapshot?: { scope: string; ratio: number; totalBytes: number; speed: number; detail?: string }
-  /** taskList 帧携带的全量任务列表（running + finished），用于免轮询刷新。 */
-  tasks?: TaskSnapshot
-  requestId?: string
-  ok?: boolean
-  error?: string
+/** 进度样本：progressSample 事件与 snapshot 帧共用同一形状。 */
+export interface ProgressSample {
+  scope: string
+  ratio: number
+  totalBytes: number
+  speed: number
+  detail?: string
 }
+
+/**
+ * 服务端 → 客户端帧：按 kind 区分联合，各成员的必填字段即校验依据（校验见 api/ws.ts）。
+ * taskList 帧携带全量任务列表（running + finished），用于免轮询刷新
+ */
+export type EventFrame =
+  | { kind: 'event'; taskId: string; event: WorkflowEvent }
+  | { kind: 'snapshot'; taskId: string; snapshot: ProgressSample }
+  | { kind: 'choiceResult'; requestId: string; ok?: boolean; error?: string }
+  | { kind: 'error'; error?: string }
+  | { kind: 'taskList'; tasks: TaskSnapshot }
 
 /** 客户端 → 服务端帧。 */
 export interface ClientFrame {

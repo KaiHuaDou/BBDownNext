@@ -20,7 +20,17 @@ public partial class MainWindow
 
     private async Task HandleAskAsync(OptionRequestEvent request)
     {
-        var fallback = new AskAnswer(request.DefaultOptionId ?? request.Options[0].Id);
+        // 取默认项排在 try 之外：DefaultOptionId 为 null 且 Options 为空时抛 IndexOutOfRangeException，
+        // 调用点是无人观察的任务，异常会让 AskBus 永远收不到应答，下载线程挂满超时
+        var options = request.Options;
+        var defaultId = request.DefaultOptionId ?? (options.Count > 0 ? options[0].Id : null);
+        if (defaultId is null)
+        {
+            AskBus.Answer(request.RequestId, new AskAnswer(""));
+            return;
+        }
+
+        var fallback = new AskAnswer(defaultId);
         // 已关窗或已过 Deadline：AskBus 侧不接受应答，直接回落默认选项（与 CLI 回车回落规则一致）
         if (closed || request.Deadline <= DateTimeOffset.Now)
         {

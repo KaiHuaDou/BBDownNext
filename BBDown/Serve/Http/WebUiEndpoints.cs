@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -16,7 +17,8 @@ namespace BBDown.Serve.Http;
 internal static class WebUiEndpoints
 {
     // 扩展名 → MIME：纯查表，AOT 安全（无反射）。未知类型回落 application/octet-stream
-    private static readonly Dictionary<string, string> ContentTypes = new( )
+    // FrozenDictionary 让「构造后只读」由类型保证，无需靠约定
+    private static readonly FrozenDictionary<string, string> ContentTypes = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         [".js"] = "application/javascript",
         [".mjs"] = "application/javascript",
@@ -34,7 +36,7 @@ internal static class WebUiEndpoints
         [".woff2"] = "font/woff2",
         [".txt"] = "text/plain",
         [".map"] = "application/json",
-    };
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
     internal static string GetContentType(string path)
     {

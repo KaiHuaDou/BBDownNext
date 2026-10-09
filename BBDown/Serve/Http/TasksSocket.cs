@@ -23,6 +23,8 @@ internal sealed partial class TaskSocketHub(TaskStore store)
 {
     private const int MaxConnectionsPerIp = 5;
     private const int MaxFrameBytes = 64 * 1024;
+    // 单帧发送（含排队）超时：慢客户端不得拖住转发泵
+    private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(15);
 
     // 订阅表：任务 → 订阅该任务的连接；转发循环在表非空时存在（见 TasksSocket.Forward.cs）
     private readonly ConcurrentDictionary<ResourceId, ConcurrentDictionary<WebSocket, byte>> subscriptions = new( );
@@ -30,7 +32,7 @@ internal sealed partial class TaskSocketHub(TaskStore store)
     // 每连接发送锁：广播与回执帧可能并发写同一连接，WebSocket 不保证并发写安全
     // 弱表：条目随连接对象回收。普通字典在「连接已关闭、广播快照仍持有该连接」时会补加回一条永不摘除的条目
     // 且关服路径的 Dispose 会与在途 WaitAsync 竞态
-    private readonly ConditionalWeakTable<WebSocket, SemaphoreSlim> socketGates = new( );
+    private readonly ConditionalWeakTable<WebSocket, SemaphoreSlim> socketGates = [];
     private readonly ConcurrentDictionary<string, int> connections = new( );
     private readonly TaskStore store = store;
     // 全局连接表：所有已建立 WS 的连接，用于广播任务列表（taskList）帧，与按任务订阅的表分离
@@ -218,14 +220,21 @@ internal sealed partial class TaskSocketHub(TaskStore store)
         await SendAsync(socket, new EventFrame("choiceResult", RequestId: frame.RequestId, Ok: ok, Error: ok ? null : "选项非法或已应答"), token);
     }
 
+    /// <summary>
+    /// 发一帧。排队与发送都带超时：广播是逐订阅者串行的，一个停止读取的连接会卡住整条转发泵，
+    /// 连同该任务的其他订阅者一起饿死。超时抛 OperationCanceledException，由调用方摘除该连接
+    /// </summary>
     private async Task SendAsync(WebSocket socket, EventFrame frame, CancellationToken token)
     {
+        // 序列化移到锁外：锁内只留实际写入
+        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(frame, ServeFramesJsonSerializerContext.Default.EventFrame));
         var gate = socketGates.GetValue(socket, _ => new SemaphoreSlim(1, 1));
-        var json = JsonSerializer.Serialize(frame, ServeFramesJsonSerializerContext.Default.EventFrame);
-        await gate.WaitAsync(token);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(SendTimeout);
+        await gate.WaitAsync(timeout.Token);
         try
         {
-            await socket.SendAsync(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text, true, token);
+            await socket.SendAsync(bytes, WebSocketMessageType.Text, true, timeout.Token);
         }
         finally
         {

@@ -84,4 +84,57 @@ describe('事件帧解析', () => {
     expect(seen.onTaskList).toHaveBeenCalledTimes(1)
     expect(seen.dropped).toEqual(['事件帧不是合法 JSON，已丢弃 1 帧', '事件帧不是合法 JSON，已丢弃 1 帧'])
   })
+
+  it('缺必填字段的帧与未知帧类型一并计入丢弃', () => {
+    const { sockets } = fakeWebSocket()
+    const seen = handlers()
+    const socket = connectTaskSocket(CONFIG, seen)
+    socket.connect()
+    const live = sockets[0]!
+
+    live.onmessage?.({ data: '{"kind":"event"}' } as MessageEvent)
+    live.onmessage?.({
+      data: '{"kind":"snapshot","taskId":"av1","snapshot":{"scope":"下载"}}'
+    } as MessageEvent)
+    live.onmessage?.({ data: '{"kind":"choiceResult"}' } as MessageEvent)
+    live.onmessage?.({ data: '{"kind":"taskList"}' } as MessageEvent)
+    live.onmessage?.({ data: '{"kind":"future","taskId":"av1"}' } as MessageEvent)
+
+    expect(seen.dropped).toEqual([
+      'event 帧缺少 taskId 或 event 字段，已丢弃 1 帧',
+      'snapshot 帧缺少 taskId 或 snapshot 字段，已丢弃 2 帧',
+      'choiceResult 帧缺少 requestId 字段，已丢弃 3 帧',
+      'taskList 帧缺少 tasks 字段，已丢弃 4 帧',
+      '未知帧类型（future），已丢弃 5 帧'
+    ])
+    expect(seen.onEvent).not.toHaveBeenCalled()
+    expect(seen.onSnapshot).not.toHaveBeenCalled()
+    expect(seen.onChoiceResult).not.toHaveBeenCalled()
+    expect(seen.onTaskList).not.toHaveBeenCalled()
+    expect(seen.statuses).toEqual([])
+  })
+
+  it('字段齐全的帧仍按类型分发', () => {
+    const { sockets } = fakeWebSocket()
+    const seen = handlers()
+    const socket = connectTaskSocket(CONFIG, seen)
+    socket.connect()
+    const live = sockets[0]!
+
+    live.onmessage?.({
+      data: '{"kind":"event","taskId":"av1","event":{"type":"message","text":"ok","time":""}}'
+    } as MessageEvent)
+    live.onmessage?.({
+      data: '{"kind":"snapshot","taskId":"av1","snapshot":{"scope":"下载","ratio":0.5,"totalBytes":10,"speed":100}}'
+    } as MessageEvent)
+
+    expect(seen.onEvent).toHaveBeenCalledWith('av1', { type: 'message', text: 'ok', time: '' })
+    expect(seen.onSnapshot).toHaveBeenCalledWith('av1', {
+      scope: '下载',
+      ratio: 0.5,
+      totalBytes: 10,
+      speed: 100
+    })
+    expect(seen.dropped).toEqual([])
+  })
 })

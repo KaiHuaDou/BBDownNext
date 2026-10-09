@@ -9,7 +9,7 @@ namespace BBDown.Serve;
 
 internal record struct ServeBindingResult<T>(T? Result, Exception? Exception)
 {
-    public readonly bool IsValid => Exception is null;
+    public bool IsValid => Exception is null;
 
     public static async ValueTask<ServeBindingResult<T>> BindAsync(HttpContext httpContext)
     {

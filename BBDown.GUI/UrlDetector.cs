@@ -55,7 +55,7 @@ public static partial class UrlDetector
             return new TargetInfo("视频（av 号）", TargetKind.Video);
         }
 
-        return uri is null ? null : DescribeUrl(text, uri);
+        return uri is null ? null : DescribeUrl(uri);
     }
 
     /// <summary>匹配已知 ID 前缀与特殊 URL，前缀后必须紧跟数字（BV 号亦以数字开头）。</summary>
@@ -162,7 +162,9 @@ public static partial class UrlDetector
         return null;
     }
 
-    private static TargetInfo? DescribeUrl(string text, Uri uri)
+    // 路径与域名的判定基准取 host + AbsolutePath，不含 query 与 fragment：
+    // 在原始串上做子串比对，evil.com/?x=BV1xx 与 example.com/#av123 都会被判成视频
+    private static TargetInfo? DescribeUrl(Uri uri)
     {
         // live 域名但无房间号（如直播首页）：LiveInputResolver 未命中才会走到这里，无法下载，按未识别处理
         if (LiveInputResolver.IsLiveHost(uri.Host))
@@ -170,89 +172,92 @@ public static partial class UrlDetector
             return null;
         }
 
-        if (text.Contains("/cheese/", StringComparison.OrdinalIgnoreCase))
+        var host = uri.Host;
+        var path = uri.AbsolutePath;
+
+        if (path.Contains("/cheese/", StringComparison.OrdinalIgnoreCase))
         {
             return new TargetInfo("课程地址", TargetKind.Pgc);
         }
 
-        if (text.Contains("/read/readlist/", StringComparison.OrdinalIgnoreCase))
+        if (path.Contains("/read/readlist/", StringComparison.OrdinalIgnoreCase))
         {
             return new TargetInfo("文集地址", TargetKind.Opus);
         }
 
         // 空间子页限定 host（与 Core 的 TryParseCollection 守卫一致），非空间域的 /audio 等路径不误标
-        var spaceHost = text.Contains("/space.bilibili.com/", StringComparison.OrdinalIgnoreCase);
-        if (spaceHost && text.Contains("/upload/opus", StringComparison.OrdinalIgnoreCase))
+        var spaceHost = host.Equals("space.bilibili.com", StringComparison.OrdinalIgnoreCase);
+        if (spaceHost && path.Contains("/upload/opus", StringComparison.OrdinalIgnoreCase))
         {
             return new TargetInfo("空间图文投稿地址", TargetKind.Opus);
         }
 
         // 旧版音频页 space.bilibili.com/{mid}/audio 与新版 /upload/audio 同义（/audio 判定两者通吃）
-        if (spaceHost && text.Contains("/audio", StringComparison.OrdinalIgnoreCase))
+        if (spaceHost && path.Contains("/audio", StringComparison.OrdinalIgnoreCase))
         {
             return new TargetInfo("空间音频投稿地址", TargetKind.Audio);
         }
 
-        if (spaceHost && text.Contains("/dynamic", StringComparison.OrdinalIgnoreCase))
+        if (spaceHost && path.Contains("/dynamic", StringComparison.OrdinalIgnoreCase))
         {
             return new TargetInfo("空间动态地址", TargetKind.Mixed);
         }
 
         // 合集 / 系列：space lists 页（?type=series 为系列，其余按合集）、channel 页、老版 medialist/ml 分享链接
-        if (spaceHost && text.Contains("/lists/", StringComparison.OrdinalIgnoreCase))
+        if (spaceHost && path.Contains("/lists/", StringComparison.OrdinalIgnoreCase))
         {
-            return text.Contains("type=series", StringComparison.OrdinalIgnoreCase)
+            return Utils.GetQueryString("type", uri.Query).Equals("series", StringComparison.OrdinalIgnoreCase)
                 ? new TargetInfo("系列地址", TargetKind.Video)
                 : new TargetInfo("合集地址", TargetKind.Video);
         }
 
-        if (text.Contains("/channel/collectiondetail", StringComparison.OrdinalIgnoreCase))
+        if (path.Contains("/channel/collectiondetail", StringComparison.OrdinalIgnoreCase))
         {
             return new TargetInfo("合集地址", TargetKind.Video);
         }
 
-        if (text.Contains("/channel/seriesdetail", StringComparison.OrdinalIgnoreCase))
+        if (path.Contains("/channel/seriesdetail", StringComparison.OrdinalIgnoreCase))
         {
             return new TargetInfo("系列地址", TargetKind.Video);
         }
 
-        if (MedialistMlRegex( ).IsMatch(text))
+        if (MedialistMlRegex( ).IsMatch(path))
         {
             return new TargetInfo("合集地址", TargetKind.Video);
         }
 
         // 单音频页 www.bilibili.com/audio/au12345（space 域的 /audio 列表页已在上面先行识别）
-        if (text.Contains("/audio/au", StringComparison.OrdinalIgnoreCase))
+        if (path.Contains("/audio/au", StringComparison.OrdinalIgnoreCase))
         {
             return new TargetInfo("音频地址（au 号）", TargetKind.Audio);
         }
 
-        if (BvRegex( ).Match(text) is { Success: true } bv)
+        if (BvRegex( ).Match(path) is { Success: true } bv)
         {
             return new TargetInfo($"视频（{bv.Value}）", TargetKind.Video);
         }
 
-        if (AvInUrlRegex( ).IsMatch(text))
+        if (AvInUrlRegex( ).IsMatch(path))
         {
             return new TargetInfo("视频（av 号）", TargetKind.Video);
         }
 
-        if (EpRegex( ).IsMatch(text))
+        if (EpRegex( ).IsMatch(path))
         {
             return new TargetInfo("番剧（ep 号）", TargetKind.Pgc);
         }
 
-        if (SsRegex( ).IsMatch(text))
+        if (SsRegex( ).IsMatch(path))
         {
             return new TargetInfo("番剧（ss 号）", TargetKind.Pgc);
         }
 
-        if (OpusRegex( ).IsMatch(text))
+        if (OpusRegex( ).IsMatch(path))
         {
             return new TargetInfo("专栏（opus）", TargetKind.Opus);
         }
 
-        if (CvRegex( ).IsMatch(text))
+        if (CvRegex( ).IsMatch(path))
         {
             return new TargetInfo("专栏（cv）", TargetKind.Opus);
         }
@@ -270,27 +275,32 @@ public static partial class UrlDetector
         return char.IsAsciiDigit(text[prefix.Length]);
     }
 
+    // 数字前后都不许再接字母数字：否则 /video/av123x、/bangumi/ss456a 会被误判成合法号
+    private const string Word = @"(?<![0-9A-Za-z])";
+
+    private const string Tail = @"(?![0-9A-Za-z])";
+
     [GeneratedRegex(@"^[0-9]+$")]
     private static partial Regex AvNumberRegex( );
 
-    [GeneratedRegex(@"BV[0-9A-Za-z]+", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(Word + @"BV1[0-9A-Za-z]+" + Tail, RegexOptions.IgnoreCase)]
     private static partial Regex BvRegex( );
 
-    [GeneratedRegex(@"av[0-9]+", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(Word + @"av[0-9]+" + Tail, RegexOptions.IgnoreCase)]
     private static partial Regex AvInUrlRegex( );
 
-    [GeneratedRegex(@"ep[0-9]+", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(Word + @"ep[0-9]+" + Tail, RegexOptions.IgnoreCase)]
     private static partial Regex EpRegex( );
 
-    [GeneratedRegex(@"ss[0-9]+", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(Word + @"ss[0-9]+" + Tail, RegexOptions.IgnoreCase)]
     private static partial Regex SsRegex( );
 
-    [GeneratedRegex(@"opus/?[0-9]+", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(Word + @"opus/?[0-9]+" + Tail, RegexOptions.IgnoreCase)]
     private static partial Regex OpusRegex( );
 
-    [GeneratedRegex(@"cv/?[0-9]+", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(Word + @"cv/?[0-9]+" + Tail, RegexOptions.IgnoreCase)]
     private static partial Regex CvRegex( );
 
-    [GeneratedRegex(@"medialist/(?:play|detail)/ml[0-9]+", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(Word + @"medialist/(?:play|detail)/ml[0-9]+" + Tail, RegexOptions.IgnoreCase)]
     private static partial Regex MedialistMlRegex( );
 }

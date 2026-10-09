@@ -121,6 +121,45 @@ public class LiveSignalTests
         Assert.True(second.IsCancellationRequested);
     }
 
+    // 短号与长号是同一房间的两种写法，只按输入串占位会被别名绕过互斥
+    [Fact]
+    public void Register_AliasOccupied_Throws( )
+    {
+        using var first = new CancellationTokenSource( );
+        using var second = new CancellationTokenSource( );
+        using var scope = LiveSignal.Register("live123", first, "live456");
+
+        Assert.Throws<InvalidOperationException>(( ) => LiveSignal.Register("live456", second));
+        Assert.True(LiveSignal.TryRequestStop("live123"));
+        Assert.True(first.IsCancellationRequested);
+    }
+
+    // 别名占位失败时本次已占的键一并回滚，否则该别名会被永久占住
+    [Fact]
+    public void Register_AliasConflict_RollsBackPrimary( )
+    {
+        using var holder = new CancellationTokenSource( );
+        using var blocked = new CancellationTokenSource( );
+        using var held = LiveSignal.Register("live-blocked", holder);
+
+        Assert.Throws<InvalidOperationException>(( ) => LiveSignal.Register("live-fresh", blocked, "live-blocked"));
+
+        // 回滚生效：主键槽位已被摘除，本次的停止源不该收到取消
+        Assert.False(LiveSignal.TryRequestStop("live-fresh"));
+        Assert.False(blocked.IsCancellationRequested);
+    }
+
+    // 别名与主键相同时不重复占位，否则第二次注册会与自己冲突
+    [Fact]
+    public void Register_AliasSameAsPrimary_Succeeds( )
+    {
+        using var cts = new CancellationTokenSource( );
+        using var scope = LiveSignal.Register("live-same", cts, "live-same");
+
+        Assert.True(LiveSignal.TryRequestStop("live-same"));
+        Assert.True(cts.IsCancellationRequested);
+    }
+
     [Fact]
     public void Register_NullSource_Throws( )
     {

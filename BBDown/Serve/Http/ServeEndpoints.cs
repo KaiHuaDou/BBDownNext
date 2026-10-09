@@ -25,7 +25,7 @@ internal static class ServeEndpoints
 
         var tasks = app.MapGroup("/api/v1/tasks");
         tasks.MapGet("", (TaskStore store) => Results.Json(new DownloadTaskSnapshot(store.RunningSnapshot( ), store.FinishedSnapshot( )), AppJsonSerializerContext.Default.DownloadTaskSnapshot));
-        tasks.MapGet("/running", (TaskStore store) => Results.Json(store.RunningSnapshot( ).FindAll(t => t.Status != DownloadStatus.Pending), AppJsonSerializerContext.Default.ListDownloadTask));
+        tasks.MapGet("/running", (TaskStore store) => Results.Json(store.RunningOnlySnapshot( ), AppJsonSerializerContext.Default.ListDownloadTask));
         tasks.MapGet("/finished", (TaskStore store) => Results.Json(store.FinishedSnapshot( ), AppJsonSerializerContext.Default.ListDownloadTask));
         tasks.MapGet("/{id}", (string id, TaskStore store) =>
         {
@@ -63,9 +63,15 @@ internal static class ServeEndpoints
 
                 var task = result.Task!;
                 // 重复提交同资源：命中已有任务，返回 200；新受理返回 202 + 任务位置
-                return result.Duplicate
-                    ? Results.Json(task, AppJsonSerializerContext.Default.DownloadTask)
-                    : Results.Accepted($"/api/v1/tasks/{task.Id}", task);
+                if (result.Duplicate)
+                {
+                    return Results.Json(task, AppJsonSerializerContext.Default.DownloadTask);
+                }
+
+                // Results.Accepted 没有 JsonTypeInfo 重载，走非泛型重载会依赖运行时反射解析器；
+                // 这里自行写 Location 头后交给 Results.Json，保持源生成序列化
+                http.Response.Headers.Location = $"/api/v1/tasks/{task.Id}";
+                return Results.Json(task, AppJsonSerializerContext.Default.DownloadTask, statusCode: StatusCodes.Status202Accepted);
             }
             catch (Exception e) when (e is ArgumentException or InvalidOperationException)
             {
@@ -73,6 +79,8 @@ internal static class ServeEndpoints
                 return Results.BadRequest("输入有误");
             }
         }).RequireRateLimiting("taskSubmit");
+
+        // 变更类端点必须用 POST/DELETE，不能暴露为 GET，否则与本就全开的 CORS 叠加形成 CSRF
         tasks.MapPost("/{id}/start", (string id, TaskStore store, HttpContext http) =>
         {
             if (!ResourceId.TryParse(id, out var rid))
@@ -92,7 +100,10 @@ internal static class ServeEndpoints
                 return Results.StatusCode(StatusCodes.Status429TooManyRequests);
             }
 
-            return Results.NotFound( );
+            // 已在运行 / 已结束与「不存在」含义不同：前者是 409（重复的启动请求），后者才是 404
+            return started == StartResult.AlreadyStarted
+                ? Results.StatusCode(StatusCodes.Status409Conflict)
+                : Results.NotFound( );
         });
         // 变更类端点必须用 POST/DELETE，不能暴露为 GET，否则与本就全开的 CORS 叠加形成 CSRF
         tasks.MapPost("/{id}/stop", (string id, TaskStore store) =>
@@ -109,7 +120,11 @@ internal static class ServeEndpoints
                 return Results.Ok( );
             }
 
-            return store.CancelRunning(rid) ? Results.Ok( ) : Results.NotFound( );
+            return store.Stop(rid) switch
+            {
+                StopResult.NotFound => Results.NotFound( ),
+                _ => Results.Ok( )
+            };
         });
         tasks.MapDelete("/finished", (TaskStore store) =>
         {
@@ -170,7 +185,7 @@ internal static class ServeEndpoints
         // 健康检查：匿名放行（探活不要求令牌）；计数排除 enqueue 暂停态（Pending 尚未进入执行队列，不计入运行中）
         // 事件流（WebSocket /hubs/tasks）始终启用，无需开关字段；任务状态经 WS 推送感知，无轮询端点
         app.MapGet("/healthz", (TaskStore store) =>
-                Results.Ok(new HealthStatus("ok", store.RunningSnapshot( ).FindAll(t => t.Status != DownloadStatus.Pending).Count)))
+                Results.Json(new HealthStatus("ok", store.RunningCount( )), AppJsonSerializerContext.Default.HealthStatus))
             .AllowAnonymous( );
     }
 

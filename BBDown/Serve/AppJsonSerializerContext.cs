@@ -17,4 +17,4 @@ namespace BBDown.Serve;
 [JsonSerializable(typeof(ResourceId))]
 [JsonSerializable(typeof(HealthStatus))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
-public partial class AppJsonSerializerContext : JsonSerializerContext;
+internal partial class AppJsonSerializerContext : JsonSerializerContext;

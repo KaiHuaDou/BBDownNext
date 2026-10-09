@@ -19,16 +19,18 @@ export interface TaskStore {
   submittedOptions: Map<string, TaskOptions>
   /** 已订阅（WS）的任务 id。 */
   subscribed: Set<string>
-  /** 已应答过的选项请求 id → 所属任务 id。存任务 id 是为了能随任务结束一并摘除，否则长命标签页下无界增长。 */
+  /** 已应答过的选项请求 id → 所属任务 id。存任务 id 是为了能随任务离开运行中一并摘除，否则长命标签页下无界增长。 */
   answeredAsks: Map<string, string>
   /**
    * 剩余时间外推的耗时基准：任务 id → 基准时刻（epoch 毫秒）。
-   * 取墙钟耗时与 GUI 一致，同一任务两侧得出同一个数；随任务结束一并摘除
+   * 取墙钟耗时与 GUI 一致，同一任务两侧得出同一个数；随任务离开运行中一并摘除
    */
   elapsedBase: Map<string, number>
   socket: TaskSocket | null
   /** 保活轮询定时器（60s 探 /healthz 感知 serve 存活），任务列表不依赖它。 */
   healthTimer: ReturnType<typeof setInterval> | null
+  /** 组件卸载后由 stopTimers 置位：在途 Promise 与事件流回调回来时一律不写状态 */
+  disposed: boolean
 }
 
 export function createStore(): TaskStore {
@@ -45,6 +47,7 @@ export function createStore(): TaskStore {
     answeredAsks: new Map(),
     elapsedBase: new Map(),
     socket: null,
-    healthTimer: null
+    healthTimer: null,
+    disposed: false
   }
 }

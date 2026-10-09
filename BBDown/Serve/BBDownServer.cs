@@ -17,7 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace BBDown.Serve;
 
-public class BBDownServer
+internal class BBDownServer
 {
     internal const string DefaultListenUrl = "http://127.0.0.1:23333";
 
@@ -223,7 +223,8 @@ public class BBDownServer
         app.Use(async (context, next) =>
         {
             await next( );
-            if (authRequired && context.Response.StatusCode == StatusCodes.Status401Unauthorized
+            // HasStarted 守卫：响应一旦开始写就改不了状态码与头，强行赋值只会抛 InvalidOperationException
+            if (authRequired && !context.Response.HasStarted && context.Response.StatusCode == StatusCodes.Status401Unauthorized
                 && ExceedsAuthFailureLimit(context.Connection.RemoteIpAddress?.ToString( ) ?? "unknown"))
             {
                 context.Response.StatusCode = StatusCodes.Status429TooManyRequests;

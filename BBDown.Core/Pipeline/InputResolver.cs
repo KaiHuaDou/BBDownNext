@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,7 +15,7 @@ namespace BBDown.Core.Pipeline;
 
 /// <summary>
 /// 把用户输入（URL / av / BV / ep / ss / 合集 / 系列 / 收藏 / 空间等）解析为内部统一的 <see cref="ResourceId"/>
-/// 形式分发（TryDispatch，见 InputResolver.Dispatch.cs）与 URL / 简写解析拆为两个 partial 文件
+/// 形式分发（TryDispatch，见 InputResolver.Dispatch.cs）、URL / 简写解析与触网换算（见 InputResolver.Fetch.cs）拆为三个 partial 文件
 /// </summary>
 public static partial class InputResolver
 {
@@ -74,7 +73,7 @@ public static partial class InputResolver
 
         // 稍后再看页：/watchlater/、/watchlater/#/list、/list/watchlater、/?page=WatchLater 等形式
         // 分享链接携带 bvid/oid 参数指向单个视频时只下载该视频（bvid 优先，本地解码），否则按整个列表处理
-        if (input.Contains("/watchlater") || input.Contains("page=watchlater", StringComparison.OrdinalIgnoreCase))
+        if (IsWatchLaterUrl(input))
         {
             var bvid = GetQueryString("bvid", input);
             if (bvid.Length > 0)
@@ -98,6 +97,21 @@ public static partial class InputResolver
         }
 
         return null;
+    }
+
+    // 稍后再看页限 www.bilibili.com 域：GUI 与 WebUI 的预检都只认该域，
+    // 执行侧不限就会把 evil.com/watchlater 这类地址也拉成「稍后再看列表」，两边宽窄不一致
+    private static bool IsWatchLaterUrl(string input)
+    {
+        if (!Uri.TryCreate(input, UriKind.Absolute, out var uri)
+            || !uri.Host.Equals("www.bilibili.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return uri.AbsolutePath.StartsWith("/watchlater", StringComparison.OrdinalIgnoreCase)
+            || uri.AbsolutePath.StartsWith("/list/watchlater", StringComparison.OrdinalIgnoreCase)
+            || GetQueryString("page", uri.Query).Equals("watchlater", StringComparison.OrdinalIgnoreCase);
     }
 
     // 番剧快路径：ep / ss 正则。ss 需要一次网络请求归一化季号，故带 cfg / ct
@@ -330,81 +344,6 @@ public static partial class InputResolver
         }
 
         return result;
-    }
-
-    private static async Task<long> ScrapeFirstEpIdAsync(string input, Core.AppConfig cfg, CancellationToken ct = default)
-    {
-        var web = await GetWebSourceAsync(input, cfg, ct: ct);
-        // 解析失败时：匹配不到 __INITIAL_STATE__ 或页面不含 epList 时给可读错误，而不是 JsonDocument/GetProperty 抛晦涩异常
-        if (InitialStateRegex( ).Match(web) is not { Success: true } stateMatch)
-        {
-            throw new InvalidOperationException("无法从页面源码解析出番剧播放信息（epList 缺失），请使用 ep/ss 链接直接下载");
-        }
-
-        using var jDoc = JsonDocument.Parse(stateMatch.Groups[1].Value);
-        if (jDoc.RootElement.TryGetProperty("epList", out var epList) && epList.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var ep in epList.EnumerateArray( ))
-            {
-                if (ep.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number)
-                {
-                    return id.GetInt64( );
-                }
-            }
-        }
-
-        throw new InvalidOperationException("无法从页面源码解析出番剧播放信息（epList 为空），请使用 ep/ss 链接直接下载");
-    }
-
-    // 纯数字 av 号可能实际指向番剧（稿件被重定向到番剧播放页），HEAD 探测后转 Ep，否则保持 Av
-    private static async Task<ResourceId> FixAvidAsync(ResourceId id, CancellationToken ct = default)
-    {
-        if (id is not Av av)
-        {
-            return id;
-        }
-
-        var api = $"{BiliApi.VideoPage}/av{av.Aid}/";
-        var location = await GetWebLocationAsync(api, ct);
-        var epMatch = EpRegex( ).Match(location);
-        return epMatch.Success && location.Contains("/ep") ? new Ep(long.Parse(epMatch.Groups[1].Value)) : id;
-    }
-
-    // ss（番剧季号）直接解析为 season_id，与 md 路径完全对称：同样交由 BangumiInfoFetcher 按 season_id 拉取整季正片
-    private static async Task<long> GetSeasonIdBySSAsync(string ssId, Core.AppConfig cfg, CancellationToken ct = default)
-    {
-        var api = $"https://{cfg.EpHost}{BiliApi.SeasonPgcPath}?season_id={ssId}";
-        var json = await GetWebSourceAsync(api, cfg, ct: ct);
-        using var jDoc = JsonDocument.Parse(json);
-        var result = JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result");
-        // 字段缺失时给可读错误：接口变更 / 风控返回非预期结构，裸 GetProperty 只会抛晦涩 KeyNotFoundException
-        if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty("season_id", out var seasonId) || seasonId.ValueKind != JsonValueKind.Number)
-        {
-            throw new InvalidOperationException($"番剧接口返回缺少 season_id 字段（ss={ssId}），接口返回结构可能已变更或被风控拦截");
-        }
-
-        return seasonId.GetInt64( );
-    }
-
-    // md（番剧详情页 id）本质是 media_id，需经 pgc/review/user 映射出 season_id
-    // 交由 BangumiInfoFetcher 按 season_id 拉取整季正片，用户可用 -p 选定具体集
-    private static async Task<long> GetSeasonIdByMDAsync(string mdId, Core.AppConfig cfg, CancellationToken ct = default)
-    {
-        var api = $"{BiliApi.ReviewUser}?media_id={mdId}";
-        var json = await GetWebSourceAsync(api, cfg, ct: ct);
-        using var jDoc = JsonDocument.Parse(json);
-        var result = JsonUtil.GetApiData(jDoc.RootElement, "番剧信息", "result");
-        if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty("media", out var media) || media.ValueKind != JsonValueKind.Object)
-        {
-            throw new InvalidOperationException($"番剧接口返回缺少 media 字段（md={mdId}），接口返回结构可能已变更或被风控拦截");
-        }
-
-        if (!media.TryGetProperty("season_id", out var seasonId) || seasonId.ValueKind != JsonValueKind.Number)
-        {
-            throw new InvalidOperationException($"番剧接口返回缺少 season_id 字段（md={mdId}），接口返回结构可能已变更或被风控拦截");
-        }
-
-        return seasonId.GetInt64( );
     }
 
     [GeneratedRegex("av(\\d+)")]

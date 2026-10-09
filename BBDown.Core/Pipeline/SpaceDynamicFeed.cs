@@ -93,13 +93,4 @@ internal static class SpaceDynamicFeed
             throw new InvalidOperationException("获取空间动态流被风控拦截（HTTP 412），请先登录（携带有效 SESSDATA）或稍后重试", ex);
         }
     }
-
-    private static string ReadStr(JsonElement obj, string name)
-    {
-        return obj.ValueKind == JsonValueKind.Object
-            && obj.TryGetProperty(name, out var v)
-            && v.ValueKind == JsonValueKind.String
-            ? v.GetString( ) ?? ""
-            : "";
-    }
 }

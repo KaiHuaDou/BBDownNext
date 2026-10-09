@@ -127,13 +127,16 @@ public static class Account
     }
 
     // 取 url 末段文件名（去掉扩展名），用于拼接 WBI 原串
+    // 末段无扩展名时返回整段，不做截断：越界由 <see cref="GetMixinKey"/> 按长度统一判定
     public static string RSubString(string sub)
     {
-        sub = sub[(sub.LastIndexOf('/') + 1)..];
-        return sub[..sub.LastIndexOf('.')];
+        var name = sub[(sub.LastIndexOf('/') + 1)..];
+        var dot = name.LastIndexOf('.');
+        return dot > 0 ? name[..dot] : name;
     }
 
     // WBI 固定置换表，把 64 位原串压缩为 32 位 mixin key
+    // 表内最大索引 58，原串短于此长度时无可取字符，给出可辨识原因而非越界异常
     internal static string GetMixinKey(string orig)
     {
         byte[] mixinKeyEncTab =
@@ -141,6 +144,11 @@ public static class Account
             46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35,
             27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13
         ];
+
+        if (orig.Length <= mixinKeyEncTab[^1])
+        {
+            throw new InvalidOperationException($"WBI 密钥原串长度不足：{orig.Length} 字符");
+        }
 
         var tmp = new StringBuilder(32);
         foreach (var index in mixinKeyEncTab)

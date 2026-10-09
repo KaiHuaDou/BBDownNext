@@ -103,7 +103,13 @@ public static class DownloadUtil
             return url;
         }
 
+        // 只换 scheme：带签名参数的 CDN 地址其 query 内可能嵌套 https://，全文替换会破坏签名
+        if (!url.StartsWith("https:", StringComparison.OrdinalIgnoreCase))
+        {
+            return url;
+        }
+
         LogDebug("将 https 更改为 http");
-        return url.Replace("https:", "http:");
+        return $"http:{url["https:".Length..]}";
     }
 }

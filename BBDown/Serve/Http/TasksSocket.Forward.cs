@@ -16,6 +16,9 @@ namespace BBDown.Serve.Http;
 internal sealed partial class TaskSocketHub
 {
     private static readonly TimeSpan SnapshotInterval = TimeSpan.FromMilliseconds(200);
+    // 转发队列有界：停止读取的订阅者原本能让生产通道无界增长，单个停滞客户端也会拖住同任务的其他订阅者。
+    // 满了丢最旧的进度帧——日志与选项请求不能丢，它们走同一队列，故按整帧丢最旧
+    private const int OutgoingCapacity = 256;
 
     private void StartForwarder(DownloadTask task, ChannelWorkflowContext ctx)
     {
@@ -34,7 +37,7 @@ internal sealed partial class TaskSocketHub
     {
         try
         {
-            var outgoing = Channel.CreateUnbounded<EventFrame>( );
+            var outgoing = Channel.CreateBounded<EventFrame>(new BoundedChannelOptions(OutgoingCapacity) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(token);
             var sender = Task.Run(( ) => SendLoopAsync(task.Id, outgoing.Reader, linked.Token), linked.Token);
             var events = Task.Run(( ) => ForwardEventsAsync(task.Scope, ctx, outgoing.Writer, linked.Token), linked.Token);

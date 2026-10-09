@@ -22,11 +22,11 @@ public static class LiveDownload
 {
     public static async Task RunAsync(DownloadRequest myOption, LiveTarget target, PipelineSink sink = default, CancellationToken ct = default)
     {
-        // 先占住房间：同一房间的第二次录制在此就被拒，不进后面的网络请求与文件准备
+        // 先按输入串占住房间：原样重发同一地址的第二次录制在此就被拒，不进后面的网络请求与文件准备
         using var stopCts = new CancellationTokenSource( );
-        using var signalScope = LiveSignal.Register(target.SessionId, stopCts);
+        using var inputScope = LiveSignal.Register(target.SessionId, stopCts);
 
-        // 录了几小时才发现没有 ffmpeg 是不可接受的，开录前就要探测
+        // 录了几小时才发现没有 ffmpeg 是不接受的，开录前就要探测
         var tools = WorkSetup.ResolveToolPaths(myOption);
         var workDir = WorkSetup.ResolveWorkDir(myOption);
 
@@ -34,6 +34,10 @@ public static class LiveDownload
 
         Log("获取直播间信息...");
         var room = await LiveFetcher.FetchRoomAsync(target, cfg, ct);
+        // 真实房间号与输入串是同一房间的两种写法（短号 / 长号），一并占位才不会被别名绕过互斥。
+        // 真实房间号要等 room_init 换算，发起前无从得知，只能到这里补占；已被占用即表示同一房间在录
+        using var roomScope = LiveSignal.Register(room.SessionId, stopCts, target.SessionId);
+
         Log($"直播间：{room.RoomId}{(string.IsNullOrEmpty(room.ShortId) || room.ShortId == "0" ? "" : $"（短号 {room.ShortId}）")}");
         Log($"主播：{room.Uname}");
         Log($"标题：{room.Title}");

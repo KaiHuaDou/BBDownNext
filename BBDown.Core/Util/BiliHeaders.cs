@@ -64,7 +64,17 @@ public static partial class BiliHeaders
             return true;
         }
 
-        return TrustedCookieHosts.Contains(host) || host == cfg.Host || host == cfg.EpHost || host == cfg.TvHost;
+        // Uri.Host 由 BCL 归一化为小写，--host 等来自命令行原样，比较须忽略大小写
+        // 配置项为空时不参与比较：空串会与任何非空主机名都不相等，但判定方向不能反
+        return TrustedCookieHosts.Contains(host)
+               || Matches(host, cfg.Host)
+               || Matches(host, cfg.EpHost)
+               || Matches(host, cfg.TvHost);
+    }
+
+    private static bool Matches(string host, string configured)
+    {
+        return configured.Length > 0 && host.Equals(configured, StringComparison.OrdinalIgnoreCase);
     }
 
     // cookie 值不含 ';'，故按 ';' 切分后逐段剔除设备标识段即可；保留其余段原样拼接不破坏用户 cookie 格式

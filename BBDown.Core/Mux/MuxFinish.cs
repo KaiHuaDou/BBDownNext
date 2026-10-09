@@ -140,7 +140,7 @@ public static class MuxFinish
         Log("清理临时文件...");
         // 下载层临时文件随 track 一起清理：只在混流成功时走到这里
         // 失败/Ctrl+C 时 DownloadAsync 保留 .download，重跑即可续上
-        // Discard 内含对 track 本身的 SafeDelete，此处不再单独删一次
+        // Discard 内含对 track 本身的 SafeDelete
         DownloadUtil.Discard(videoPath);
         DownloadUtil.Discard(audioPath);
         var trackPath = string.IsNullOrEmpty(videoPath) ? audioPath : videoPath;
@@ -151,7 +151,6 @@ public static class MuxFinish
 
         foreach (var a in audioMaterial)
         {
-            SafeDelete(a.Path);
             DownloadUtil.Discard(a.Path);
         }
 

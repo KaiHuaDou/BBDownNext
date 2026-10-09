@@ -215,23 +215,16 @@ public static class SpaceListFetcher
         };
     }
 
-    private static string ReadStr(JsonElement obj, string name)
-    {
-        return obj.TryGetProperty(name, out var v) && v.ValueKind is JsonValueKind.String or JsonValueKind.Number
-            ? v.ToString( )
-            : "";
-    }
-
     private static SpaceItem ReadItem(JsonElement v)
     {
         return new(
-        Aid: ReadStr(v, "aid"),
-        Title: ReadStr(v, "title").Trim( ),
-        Desc: ReadStr(v, "description").Trim( ),
-        Pic: ReadStr(v, "pic"),
-        Created: v.TryGetProperty("created", out var c) && c.ValueKind == JsonValueKind.Number ? c.GetInt64( ) : 0,
-        Author: ReadStr(v, "author"),
-        Mid: ReadStr(v, "mid"),
+        Aid: ReadText(v, "aid"),
+        Title: ReadText(v, "title").Trim( ),
+        Desc: ReadText(v, "description").Trim( ),
+        Pic: ReadText(v, "pic"),
+        Created: ReadLong(v, "created"),
+        Author: ReadText(v, "author"),
+        Mid: ReadText(v, "mid"),
         IsLesson: ReadFlag(v, "is_lesson_video"));
     }
 }

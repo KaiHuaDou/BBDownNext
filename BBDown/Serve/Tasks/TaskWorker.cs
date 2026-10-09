@@ -96,8 +96,10 @@ internal sealed partial class TaskWorker : BackgroundService
 
     public override void Dispose( )
     {
-        gate?.Dispose( );
+        // base.Dispose 等待 ExecuteAsync 收尾：闸门须留到在途任务全部退出后再释放，
+        // 否则 WaitAsync / Release 会撞上已释放的 SemaphoreSlim
         base.Dispose( );
+        gate?.Dispose( );
     }
 
     // 任务级并发闸门：未限流时直接执行；限流时先排队取额度（期间 Status=Queued）

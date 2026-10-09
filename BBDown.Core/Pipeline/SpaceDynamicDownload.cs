@@ -170,13 +170,4 @@ public static class SpaceDynamicDownload
             && TryGetObject(modules, "module_author", out var authorModule)
             && (name = ReadStr(authorModule, "name")).Length > 0;
     }
-
-    private static string ReadStr(JsonElement obj, string name)
-    {
-        return obj.ValueKind == JsonValueKind.Object
-            && obj.TryGetProperty(name, out var v)
-            && v.ValueKind == JsonValueKind.String
-            ? v.GetString( ) ?? ""
-            : "";
-    }
 }

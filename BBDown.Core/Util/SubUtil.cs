@@ -43,7 +43,7 @@ public static partial class SubUtil
         }
     }
 
-    // view 接口的 AI 字幕只有 lan 没有下载地址：view 响应里 lan 以 "ai-" 开头时 subtitle_url 恒为空串
+    // view 接口的 AI 字幕只有 lan 没有下载地址：view 响应里 lan 以 "ai-" 开头时 subtitle_url 一直为空串
     // （bilibili-API-collect/docs/video/info.md 的 view 响应样例，lan=ai-zh 对应 subtitle_url=""），
     // 属正常数据而非接口故障，逐条过滤即可；全部无效才整表回退
     internal static List<Subtitle>? FilterUsable(List<Subtitle> subtitles)
@@ -73,15 +73,15 @@ public static partial class SubUtil
         var pathPrefix = $"{aid}/{aid}.{cid}";
         var intlWebHost = cfg.EpHost == BiliApi.MainHost ? BiliApi.IntlWebHost : cfg.EpHost;
         var intlAppHost = cfg.Host == BiliApi.MainHost ? BiliApi.IntlAppHost : cfg.Host;
-        var accessKey = cfg.Token.Length != 0 ? $"&access_key={cfg.Token}" : "";
+        var accessKey = cfg.Token.Length != 0 ? $"&access_key={Uri.EscapeDataString(cfg.Token)}" : "";
 
         // 候选接口按优先级排列，第一个成功返回的结果生效
         Func<Task<List<Subtitle>>>[] candidates = intl
             ?
             [
-                ( ) => FromJsonAsync($"https://{intlWebHost}{BiliApi.IntlSubtitleWebPath}?episode_id={epId}",
+                ( ) => FromJsonAsync($"https://{intlWebHost}{BiliApi.IntlSubtitleWebPath}?episode_id={Uri.EscapeDataString(epId)}",
                     root => root.GetProperty("data").GetProperty("subtitles"), "lang_key", "url", pathPrefix, intl, cfg, ct),
-                ( ) => FromJsonAsync($"https://{intlAppHost}{BiliApi.IntlSeasonAppPath}?ep_id={epId}&platform=android&s_locale=zh_SG{accessKey}",
+                ( ) => FromJsonAsync($"https://{intlAppHost}{BiliApi.IntlSeasonAppPath}?ep_id={Uri.EscapeDataString(epId)}&platform=android&s_locale=zh_SG{accessKey}",
                     root => root.GetProperty("result").GetProperty("modules")[0].GetProperty("data").GetProperty("episodes")[index - 1].GetProperty("subtitles"),
                     "key", "url", pathPrefix, intl, cfg, ct),
             ]
@@ -91,9 +91,9 @@ public static partial class SubUtil
                 :
                 [
                     // wbi 接口未签名会被服务端拒绝
-                    ( ) => FromJsonAsync($"{BiliApi.PlayerWbiV2}?{SignUtil.WbiSignNow($"aid={aid}&cid={cid}", cfg)}",
+                    ( ) => FromJsonAsync($"{BiliApi.PlayerWbiV2}?{SignUtil.WbiSignNow($"aid={Uri.EscapeDataString(aid)}&cid={Uri.EscapeDataString(cid)}", cfg)}",
                         root => root.GetProperty("data").GetProperty("subtitle").GetProperty("subtitles"), "lan", "subtitle_url", pathPrefix, intl, cfg, ct),
-                    ( ) => FromJsonAsync($"{BiliApi.View}?aid={aid}&cid={cid}",
+                    ( ) => FromJsonAsync($"{BiliApi.View}?aid={Uri.EscapeDataString(aid)}&cid={Uri.EscapeDataString(cid)}",
                         root => root.GetProperty("data").GetProperty("subtitle").GetProperty("list"), "lan", "subtitle_url", pathPrefix, intl, cfg, ct),
                     ( ) => FromAppAsync(aid, cid, pathPrefix, cfg, ct),
                 ];

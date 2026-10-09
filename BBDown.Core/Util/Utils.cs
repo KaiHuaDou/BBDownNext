@@ -224,7 +224,7 @@ public static partial class Utils
         }
     }
 
-    /// <summary>运行外部程序，stderr 逐行回吐日志，取消时杀掉子进程；返回退出码。</summary>
+    /// <summary>运行外部程序，stderr 逐行回吐日志、stdout 逐行进调试日志，取消时杀掉子进程；返回退出码。</summary>
     public static async Task<int> RunExe(string app, List<string> args, CancellationToken ct = default)
     {
         LogDebug("{0}命令: {1}", Path.GetFileNameWithoutExtension(app), FormatArgs(args));
@@ -237,8 +237,11 @@ public static partial class Utils
 
         p.StartInfo.UseShellExecute = false;
         p.StartInfo.RedirectStandardError = true;
-        p.StartInfo.CreateNoWindow = true;
+        // stdout 一并重定向并读空：本方法的调用点（ffmpeg / mp4box）都不消费 stdout，
+        // 不重定向时子进程往 stdout 写满管道缓冲区就会永久阻塞，父进程在 WaitForExit 上挂死
+        p.StartInfo.RedirectStandardOutput = true;
         p.StartInfo.StandardErrorEncoding = Encoding.UTF8;
+        p.StartInfo.StandardOutputEncoding = Encoding.UTF8;
         p.ErrorDataReceived += (sendProcess, output) =>
         {
             if (!string.IsNullOrWhiteSpace(output.Data))
@@ -246,8 +249,16 @@ public static partial class Utils
                 Log(output.Data);
             }
         };
+        p.OutputDataReceived += (sendProcess, output) =>
+        {
+            if (!string.IsNullOrWhiteSpace(output.Data))
+            {
+                LogDebug(output.Data);
+            }
+        };
         p.Start( );
         p.BeginErrorReadLine( );
+        p.BeginOutputReadLine( );
         // 子进程可能派生继承句柄的孙进程，只杀直接进程会留下占用文件与带宽的孤儿
         await using var _ = ct.Register(( ) => { try { p.Kill(true); } catch { } });
         await p.WaitForExitAsync(ct);

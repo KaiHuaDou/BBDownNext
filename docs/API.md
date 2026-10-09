@@ -253,7 +253,7 @@ serve 不提供登录端点。凭据由 CLI / GUI 的 `login` 命令写入本机
 | `IsSuccessful`         | `bool`               | 任务是否成功完成                                                                                                                                                                                                     |
 | `IsCancelled`          | `bool`               | 任务是否被取消（用户停止 / 服务器退出）；取消的任务 `IsSuccessful == false` 且此字段为 `true`，客户端据此区分「已取消」与真实失败                                                                                    |
 | `Status`               | `string`             | 任务状态：`Pending`（已受理、等待手动启动，仅 `?mode=enqueue` 提交时使用）/ `Queued`（已提交执行、等待并发额度，仅 `--max-concurrent > 0` 时使用）/ `Running`（下载中）/ `Finished`（已结束，成败见 `IsSuccessful`） |
-| `SavePaths`            | `Collection<string>` | 已生成文件的本地路径集合（可能包含视频、音频、弹幕、封面等）                                                                                                                                                         |
+| `SavePaths`            | `Collection<string>` | 已生成文件的**文件名**集合（可能包含视频、音频、弹幕、封面等）。只含文件名，不含目录：任务帧会经 WebSocket 与完成回调外发，绝对路径会泄露本机目录布局                                                      |
 
 ### `DownloadTaskSnapshot`
 

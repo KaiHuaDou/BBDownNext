@@ -92,22 +92,7 @@ internal sealed class LiveRecorder(
                 break;
             }
 
-            // 同一清晰度的多个 CDN 按失败次数轮换，避免死磕一个坏节点
-            // 锁定编码后只在该编码的候选里轮换；该编码候选全部消失时停止录制，否则会继续混入异编码分段
-            // 而合并阶段只对全部分段套同一 bsf，编码不一的段会被 ffmpeg 静默丢弃（数据丢失）
-            var pool = pinnedCodec.Length == 0
-                ? info.Candidates
-                : [.. info.Candidates.Where(c => c.CodecName == pinnedCodec)];
-            if (pinnedCodec.Length != 0 && pool.Count == 0)
-            {
-                // 锁定的编码不在候选中：回退到全集候选以避免无候选卡死，但显式记录，避免静默混入异编码分段
-                LogWarn($"锁定的编码 {pinnedCodec} 已不可用，回退到全部候选（后续分段可能混入不同编码）");
-            }
-
-            if (pool.Count == 0)
-            {
-                pool = info.Candidates;
-            }
+            var pool = SelectPool(info, pinnedCodec);
 
             var candidate = pool[failures % pool.Count];
             var partPath = LiveFileNaming.BuildSegmentPath(destPathWithoutExtension, segments.Count + 1);
@@ -186,6 +171,23 @@ internal sealed class LiveRecorder(
         }
 
         return new LiveRecordResult(segments, codecName, reason);
+    }
+
+    // 同一清晰度的多个 CDN 按失败次数轮换，避免死磕一个坏节点
+    // 锁定编码后只在该编码的候选里轮换；该编码候选全部消失时回退全集，否则会继续混入异编码分段，
+    // 而合并阶段只对全部分段套同一 bsf，编码不一的段会被 ffmpeg 静默丢弃（数据丢失）
+    private static IReadOnlyList<LiveStreamCandidate> SelectPool(LivePlayInfo info, string pinnedCodec)
+    {
+        var pool = pinnedCodec.Length == 0
+            ? info.Candidates
+            : [.. info.Candidates.Where(c => c.CodecName == pinnedCodec)];
+        if (pinnedCodec.Length != 0 && pool.Count == 0)
+        {
+            // 锁定的编码不在候选中：回退到全集候选以避免无候选卡死，但显式记录，避免静默混入异编码分段
+            LogWarn($"锁定的编码 {pinnedCodec} 已不可用，回退到全部候选（后续分段可能混入不同编码）");
+        }
+
+        return pool.Count == 0 ? info.Candidates : pool;
     }
 
     private static void Keep(List<string> segments, string partPath, LiveStreamCandidate candidate, ref string codecName)

@@ -43,7 +43,6 @@ public static class CommentFetcher
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var offset = "";
         var firstPage = true;
-
         while (document.Comments.Count < limit)
         {
             var query = SignUtil.WbiSignedQuery(
@@ -92,10 +91,10 @@ public static class CommentFetcher
             {
                 document.AllCount = (int) ReadNumber(cursor, "all_count");
                 LogDebug("评论区置顶节点：{0}", Child(data, "top").ToString( ));
-                Take(Child(Child(data, "top"), "upper"), top: true);
+                Take(Child(Child(data, "top"), "upper"), true, document, seen, limit);
                 foreach (var pinned in JsonUtil.EnumerateArrayOrEmpty(Child(data, "top_replies")))
                 {
-                    Take(pinned, top: true);
+                    Take(pinned, true, document, seen, limit);
                 }
 
                 firstPage = false;
@@ -109,7 +108,7 @@ public static class CommentFetcher
                     break;
                 }
 
-                Take(reply, top: false);
+                Take(reply, false, document, seen, limit);
             }
 
             if (document.Comments.Count >= limit)
@@ -141,23 +140,24 @@ public static class CommentFetcher
         }
 
         return document;
+    }
 
-        void Take(JsonElement node, bool top)
+    // 去重并并入文档，已收满时后续调用直接返回。seen 与 limit 由调用方持有，随分页游标一路传下来
+    private static void Take(JsonElement node, bool top, CommentDocument document, HashSet<string> seen, int limit)
+    {
+        if (document.Comments.Count >= limit)
         {
-            if (document.Comments.Count >= limit)
-            {
-                return;
-            }
-
-            var item = MapItem(node);
-            if (item == null || !seen.Add(item.Rpid))
-            {
-                return;
-            }
-
-            item.Top = top;
-            document.Comments.Add(item);
+            return;
         }
+
+        var item = MapItem(node);
+        if (item == null || !seen.Add(item.Rpid))
+        {
+            return;
+        }
+
+        item.Top = top;
+        document.Comments.Add(item);
     }
 
     /// <summary>

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -14,10 +13,10 @@ using BBDown.Core.Workflow;
 namespace BBDown.Serve.Tasks;
 
 /// <summary>
-/// 任务状态容器与受理入口：running / finished 两表、按 ResourceId 去重、完成后裁剪
-/// host 三兄弟与工作目录由服务端启动参数固定，经 ApplyServe* 注入每个任务
+/// 任务受理与状态机：URL 与 ResourceId 两级去重、暂停表、执行队列投递、停止与启动
+/// 两表维护与 serve 参数注入见 TaskStore.Table.cs
 /// </summary>
-internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> queueWriter)
+internal sealed partial class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> queueWriter)
 {
     private const int MaxFinishedTasks = 200;
     private const int MaxEnqueued = 100;
@@ -26,9 +25,11 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
     private readonly ConcurrentDictionary<ResourceId, DownloadTask> finished = new( );
     // enqueue（不立即执行）任务的执行信封暂存：start 时取出写入执行队列，故暂停态任务不占执行队列
     private readonly ConcurrentDictionary<ResourceId, TaskEnvelope> pending = new( );
-    // 暂停表的容量判定与增删都在这把锁内完成：
+    // 暂停表的容量判定、增删、占位与入队都在这把锁内完成：
     // 先读 Count 再写是无原子性的，超限那一刻并发的受理会一并放行；
-    // Start 的回填与 RemoveTask 竞争也会把已摘除的任务写回（取消源已释放，任务却复活）
+    // Start 的回填与 RemoveTask 竞争也会把已摘除的任务写回（取消源已释放，任务却复活）；
+    // running 先占位、pending 后写入时，RemoveTask 会因暂停表里还没有条目而整体跳过，
+    // 随后受理方把条目写进暂停表，得到一个 running 查不到、却能被 start 投入执行的孤儿任务
     private readonly Lock pendingGate = new( );
     // 事件上下文按 scope（ResourceId 规范串，见 DownloadTask.Scope）键存：规范串与 /get-tasks 返回的 id 相同
     // 经 ResourceId.TryParse 可往返，避免 record ToString 与规范串不对称导致 opus 等任务订阅/交互失效
@@ -52,75 +53,64 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
     }
 
     /// <summary>
-    /// 受理任务：解析 URL → 去重 → 按模式处理
+    /// 受理任务：按原样 URL 去重 → 解析 → 占位并入队
     /// Execute 直接写执行队列（受理即跑）；Enqueue 仅入暂停表、不写执行队列，待 <see cref="Start"/> 才执行
     /// 命中已有任务返回 Duplicate（携带已有任务），执行队列写满返回 QueueFull，均由端点映射为对应状态码
     /// </summary>
     public async Task<EnqueueResult> EnqueueAsync(ServeRequestOptions req, SubmitMode mode, CancellationToken token)
     {
         var option = ApplyServeHost(ApplyServeWorkDir(req.ToDownloadRequest( )));
-        var config = WorkSetup.ResolveConfig(option, option.Api);
-        // 解析阶段尚无任务级令牌（任务在解析成功后创建），用进程级令牌：服务器关停即可中断排队中的解析
-        var id = await InputResolver.ResolveIdAsync(option.Url, config, token);
-        var task = CreateTask(id, option.Url, mode == SubmitMode.Enqueue ? DownloadStatus.Pending : DownloadStatus.Queued);
-        var claimed = running.GetOrAdd(id, task);
-        if (!ReferenceEquals(claimed, task))
-        {
-            // 重复提交同资源：新建任务的白费掉，其 linked CTS 必须释放，否则重复请求会累积泄漏
-            task.DisposeCts( );
-            // enqueue 暂停态任务遇到执行模式提交：直接触发启动，避免被判 Duplicate 后永不执行
-            if (claimed.Status == DownloadStatus.Pending)
-            {
-                return Start(id) switch
-                {
-                    StartResult.Started => new EnqueueResult(claimed, false, false),
-                    StartResult.QueueFull => new EnqueueResult(null, false, true),
-                    _ => new EnqueueResult(claimed, true, false)
-                };
-            }
+        var requestConfig = WorkSetup.ResolveConfig(option, option.Api);
+        var requestedUrl = option.Url.Trim( );
 
-            return new EnqueueResult(claimed, true, false);
+        // 先按原样 URL 去重：解析可能展开 b23 短链、抓播放页、调 FixAvidAsync（数次外发 HTTPS），
+        // 而重复提交最常见的形式正是原样重发同一地址，不该为它放大成数次对 B 站的请求
+        if (FindByUrl(requestedUrl) is { } same)
+        {
+            // 拉起暂停态要动暂停表，与受理路径同处一把锁
+            lock (pendingGate)
+            {
+                return Relaunch(same);
+            }
         }
 
-        // 任务自受理起即持有事件上下文（事件流始终启用）。注册先于入队：任务被立即消费并收尾时
-        // ReleaseContext 也能命中，避免上下文在收尾之后才写入造成僵尸条目
-        var ctx = new ChannelWorkflowContext( );
-        contexts[task.Scope] = ctx;
+        // 解析阶段尚无任务级令牌（任务在解析成功后创建），用进程级令牌：服务器关停即可中断排队中的解析
+        var id = await InputResolver.ResolveIdAsync(requestedUrl, requestConfig, token);
+        var task = CreateTask(id, requestedUrl, mode == SubmitMode.Enqueue ? DownloadStatus.Pending : DownloadStatus.Queued);
 
-        var envelope = new TaskEnvelope(task, option, req.CallBackWebHook);
-        // Enqueue 模式：仅存入暂停表，不写执行队列（WebUI「加入队列不执行」）；start 时再取出投入
-        // 暂停表上限镜像执行队列，防止任务无限挂起累积事件上下文与取消源；超限回滚受理并返回 429
-        if (mode == SubmitMode.Enqueue)
+        lock (pendingGate)
         {
-            lock (pendingGate)
+            var claimed = running.GetOrAdd(id, task);
+            if (!ReferenceEquals(claimed, task))
+            {
+                // 重复提交同资源：新建任务的白费掉，其 linked CTS 必须释放，否则重复请求会累积泄漏
+                task.DisposeCts( );
+                return Relaunch(claimed);
+            }
+
+            // 任务自受理起即持有事件上下文（事件流始终启用）。注册先于入队：任务被立即消费并收尾时
+            // ReleaseContext 也能命中，避免上下文在收尾之后才写入造成僵尸条目
+            contexts[task.Scope] = new ChannelWorkflowContext( );
+            var envelope = new TaskEnvelope(task, option, req.CallBackWebHook);
+
+            // Enqueue 模式：仅存入暂停表，不写执行队列（WebUI「加入队列不执行」）；start 时再取出投入
+            // 暂停表上限镜像执行队列，防止任务无限挂起累积事件上下文与取消源；超限回滚受理并返回 429
+            if (mode == SubmitMode.Enqueue)
             {
                 if (pending.Count >= MaxEnqueued)
                 {
-                    running.TryRemove(id, out _);
-                    contexts.TryRemove(task.Scope, out _);
-                    task.DisposeCts( );
+                    RollbackLocked(id, task);
                     return new EnqueueResult(null, false, true);
                 }
 
                 pending[id] = envelope;
             }
-
-            NotifyChanged( );
-            return new EnqueueResult(task, false, false);
-        }
-
-        if (!queueWriter.TryWrite(envelope))
-        {
-            // 入队失败回滚：任务尚未执行，从运行表、暂停表与上下文表移除并释放取消源
-            lock (pendingGate)
+            else if (!queueWriter.TryWrite(envelope))
             {
-                pending.TryRemove(id, out _);
+                // 入队失败回滚：任务尚未执行，从运行表与上下文表移除并释放取消源
+                RollbackLocked(id, task);
+                return new EnqueueResult(null, false, true);
             }
-
-            running.TryRemove(id, out _);
-            contexts.TryRemove(task.Scope, out _);
-            task.DisposeCts( );
-            return new EnqueueResult(null, false, true);
         }
 
         NotifyChanged( );
@@ -128,31 +118,94 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
     }
 
     /// <summary>
-    /// 启动一个 enqueue 暂停的任务：取出其执行信封写入执行队列
-    /// 不在暂停表（已运行 / 未知 / 已结束）返回 NotFound；执行队列写满返回 QueueFull（任务保留暂停态可重试）
+    /// 命中已有任务时的处理：暂停态直接拉起（否则被判 Duplicate 后永不执行），
+    /// 其余情况报 Duplicate
     /// </summary>
-    public StartResult Start(ResourceId id)
+    private EnqueueResult Relaunch(DownloadTask claimed)
     {
-        // 取出、置态、入队与回填同处一把锁：与 RemoveTask 竞争时不会复活已移除的任务
-        lock (pendingGate)
+        if (claimed.Status != DownloadStatus.Pending)
         {
-            if (!pending.TryRemove(id, out var envelope))
-            {
-                return StartResult.NotFound;
-            }
+            return new EnqueueResult(claimed, true, false);
+        }
 
-            // 先置等待态再入队：channel 写建立先后序，worker 取到的必然是 Queued 之后的状态
-            // TryWrite 失败回退 Pending，任务保留暂停态可再次 start
-            envelope.Task.Status = DownloadStatus.Queued;
-            if (!queueWriter.TryWrite(envelope))
+        return StartLocked(claimed.Id) switch
+        {
+            StartResult.Started => new EnqueueResult(claimed, false, false),
+            StartResult.QueueFull => new EnqueueResult(null, false, true),
+            _ => new EnqueueResult(claimed, true, false)
+        };
+    }
+
+    // 回滚一次刚占位却未成功入队的任务。调用方必须持有 pendingGate
+    private void RollbackLocked(ResourceId id, DownloadTask task)
+    {
+        running.TryRemove(id, out _);
+        contexts.TryRemove(task.Scope, out _);
+        task.DisposeCts( );
+    }
+
+    /// <summary>
+    /// 按原始 URL 找任务（运行中优先，其次已完成）。URL 未规范化，只能挡住原样重发，
+    /// 同一资源的不同写法（BV 号 / 短链 / 带 query 的地址）仍走解析后的 id 比对
+    /// </summary>
+    private DownloadTask? FindByUrl(string url)
+    {
+        foreach (var task in running.Values)
+        {
+            if (task.Url == url)
             {
-                pending[id] = envelope;
-                envelope.Task.Status = DownloadStatus.Pending;
-                return StartResult.QueueFull;
+                return task;
             }
         }
 
-        NotifyChanged( );
+        foreach (var task in finished.Values)
+        {
+            if (task.Url == url)
+            {
+                return task;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 启动一个 enqueue 暂停的任务：取出其执行信封写入执行队列
+    /// 不在暂停表时按「已运行 / 已结束」与「不存在」分别返回 AlreadyStarted 与 NotFound；
+    /// 执行队列写满返回 QueueFull（任务保留暂停态可重试）
+    /// </summary>
+    public StartResult Start(ResourceId id)
+    {
+        lock (pendingGate)
+        {
+            var result = StartLocked(id);
+            if (result == StartResult.Started)
+            {
+                NotifyChanged( );
+            }
+
+            return result;
+        }
+    }
+
+    // 取出、置态、入队与回填同处 pendingGate：与 RemoveTask 竞争时不会复活已移除的任务。调用方必须持有 pendingGate
+    private StartResult StartLocked(ResourceId id)
+    {
+        if (!pending.TryRemove(id, out var envelope))
+        {
+            return Get(id) is null ? StartResult.NotFound : StartResult.AlreadyStarted;
+        }
+
+        // 先置等待态再入队：channel 写建立先后序，worker 取到的必然是 Queued 之后的状态
+        // TryWrite 失败回退 Pending，任务保留暂停态可再次 start
+        envelope.Task.Status = DownloadStatus.Queued;
+        if (!queueWriter.TryWrite(envelope))
+        {
+            pending[id] = envelope;
+            envelope.Task.Status = DownloadStatus.Pending;
+            return StartResult.QueueFull;
+        }
+
         return StartResult.Started;
     }
 
@@ -224,58 +277,12 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
     }
 
     /// <summary>
-    /// 取消运行中任务（经任务级取消源，不影响其他任务），返回是否命中
+    /// 停止任务（经任务级取消源，不影响其他任务），返回是否命中
+    /// enqueue 暂停态的任务尚未投入执行，取消它没有意义（worker 拿到已取消的令牌会立刻退出，
+    /// 用户看到的是「已启动后秒取消」），故改为从暂停表与运行表移除，返回 Removed 表示已移除
     /// </summary>
-    public bool CancelRunning(ResourceId id)
+    public StopResult Stop(ResourceId id)
     {
-        if (!running.TryGetValue(id, out var task))
-        {
-            return false;
-        }
-
-        task.Cancel( );
-        return true;
-    }
-
-    public List<DownloadTask> RunningSnapshot( )
-    {
-        return [.. running.Values];
-    }
-
-    public List<DownloadTask> FinishedSnapshot( )
-    {
-        return [.. finished.Values];
-    }
-
-    public void ClearFinished( )
-    {
-        finished.Clear( );
-        NotifyChanged( );
-    }
-
-    /// <summary>
-    /// 仅清已失败（IsSuccessful == false）的已完成任务
-    /// </summary>
-    public void ClearFailedFinished( )
-    {
-        foreach (var (id, task) in finished)
-        {
-            if (!task.IsSuccessful)
-            {
-                finished.TryRemove(id, out _);
-            }
-        }
-
-        NotifyChanged( );
-    }
-
-    /// <summary>
-    /// 移除指定任务：已完成的直接清；enqueue 暂停态的从暂停表与运行表移除、释放取消源并清事件上下文
-    /// 运行中的任务（已投入执行队列）不在此处理，须先用 stop 端点取消
-    /// </summary>
-    public void RemoveTask(ResourceId id)
-    {
-        finished.TryRemove(id, out _);
         lock (pendingGate)
         {
             if (pending.TryRemove(id, out var envelope))
@@ -283,88 +290,17 @@ internal sealed class TaskStore(ServeConfig config, ChannelWriter<TaskEnvelope> 
                 running.TryRemove(id, out _);
                 ReleaseContext(envelope.Task.Scope);
                 envelope.Task.DisposeCts( );
+                NotifyChanged( );
+                return StopResult.Removed;
             }
         }
 
-        NotifyChanged( );
-    }
-
-    /// <summary>
-    /// 任务结束收尾：运行表移除、写入完成表并裁剪最旧条目
-    /// </summary>
-    public void MoveToFinished(DownloadTask task)
-    {
-        running.TryRemove(task.Id, out _);
-        finished[task.Id] = task;
-        TrimFinishedTasks( );
-        NotifyChanged( );
-    }
-
-    // 已完成任务无上限增长会造成内存泄漏，超过阈值后按完成时间淘汰最旧的
-    private void TrimFinishedTasks( )
-    {
-        if (finished.Count <= MaxFinishedTasks)
+        if (!running.TryGetValue(id, out var task))
         {
-            return;
+            return StopResult.NotFound;
         }
 
-        // 一次排序淘汰最旧的一批，避免循环内反复 OrderBy 造成 O(n²)
-        foreach (var (id, oldest) in finished.OrderBy(kv => kv.Value.TaskFinishTime).Take(finished.Count - MaxFinishedTasks))
-        {
-            finished.TryRemove(id, out _);
-        }
+        task.Cancel( );
+        return StopResult.Cancelled;
     }
-
-    // serve 模式的工作目录由启动参数 --work-dir 决定，覆盖请求体（请求体根本不含该字段）
-    // 客户端无法把写入位置指向任意目录
-    internal DownloadRequest ApplyServeWorkDir(DownloadRequest option)
-    {
-        if (!string.IsNullOrEmpty(workDir))
-        {
-            return option with { WorkDir = workDir };
-        }
-
-        return option;
-    }
-
-    // serve 模式的 API host 由启动参数（--api-host/--api-ep-host/--api-tv-host）决定，覆盖请求体（请求体已不含该字段）
-    // 客户端无法把请求导向自己控制的服务器、从而窃走操作者的 SESSDATA。空值回落官方默认 host
-    internal DownloadRequest ApplyServeHost(DownloadRequest option)
-    {
-        return option with
-        {
-            Host = string.IsNullOrWhiteSpace(host) ? BiliApi.MainHost : host.Trim( ),
-            EpHost = string.IsNullOrWhiteSpace(epHost) ? BiliApi.MainHost : epHost.Trim( ),
-            TvHost = string.IsNullOrWhiteSpace(tvHost) ? BiliApi.TvHost : tvHost.Trim( ),
-        };
-    }
-}
-
-/// <summary>
-/// 受理结果：Duplicate 表示命中已有任务（携带已有任务），QueueFull 表示队列写满
-/// </summary>
-internal sealed record EnqueueResult(DownloadTask? Task, bool Duplicate, bool QueueFull);
-
-/// <summary>
-/// 任务受理模式：Execute 受理即写执行队列（等同旧 POST 行为）；Enqueue 仅入暂停表，待 Start 才执行
-/// </summary>
-internal enum SubmitMode
-{
-    Execute,
-    Enqueue,
-}
-
-/// <summary>
-/// 排队中的任务执行单元：Request 供下载管线消费，CallBackWebHook 为任务完成回调地址
-/// </summary>
-internal sealed record TaskEnvelope(DownloadTask Task, DownloadRequest Request, string? CallBackWebHook);
-
-/// <summary>
-/// Start 结果：Started 已投入执行队列；NotFound 表示不在暂停表（已运行 / 未知 / 已结束）；QueueFull 表示执行队列写满
-/// </summary>
-internal enum StartResult
-{
-    Started,
-    NotFound,
-    QueueFull,
 }

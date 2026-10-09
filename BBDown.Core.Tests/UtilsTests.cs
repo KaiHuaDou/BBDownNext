@@ -58,7 +58,7 @@ public class UtilsTests
     [InlineData("p", "https://www.bilibili.com/video/BV1xx?a=1#p=9", "")]
     [InlineData("a", "https://www.bilibili.com/video/p=9?a=1#p=9", "1")]
     [InlineData("p", "https://www.bilibili.com/video/p=9", "")]
-    // 值做百分号解码，原始 query 里的编码值不再原样返回
+    // 值做百分号解码，原始 query 里的编码值不会原样返回
     [InlineData("q", "https://www.bilibili.com/x?q=%E4%B8%AD%E6%96%87", "中文")]
     public void GetQueryString_ReadsNamedParameter(string name, string url, string expected)
     {
@@ -74,11 +74,18 @@ public class UtilsTests
         Assert.Equal(expected, Account.RSubString(input));
     }
 
-    // 无扩展名时 LastIndexOf('.') 返回 -1，直接越界
+    // 无扩展名时末段原样返回，越界交给 GetMixinKey 按长度判定
     [Fact]
-    public void RSubString_NoExtensionThrows( )
+    public void RSubString_NoExtensionReturnsSegment( )
     {
-        Assert.ThrowsAny<ArgumentException>(( ) => Account.RSubString("https://cdn.example.com/a/b/video"));
+        Assert.Equal("video", Account.RSubString("https://cdn.example.com/a/b/video"));
+    }
+
+    [Fact]
+    public void GetMixinKey_ShortSourceThrowsWithLength( )
+    {
+        var ex = Assert.Throws<InvalidOperationException>(( ) => Account.GetMixinKey("short"));
+        Assert.Contains("长度不足", ex.Message);
     }
 
     // wbi 签名用的固定置换表，长度 32，索引最大 58

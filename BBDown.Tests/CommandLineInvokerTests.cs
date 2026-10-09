@@ -174,10 +174,10 @@ public class CommandLineInvokerTests
         Assert.Equal("api.bilibili.com", opt.Host);
     }
 
-    // 合并策略前提：同名选项重复出现时，后出现者胜出
-    // 配置文件参数拼在命令行参数之前，命令行因此天然覆盖配置文件
-    // System.CommandLine 2.0.10 对重复出现的单值选项不做「后者胜出」，而是在取值时抛异常
-    // 这决定了配置文件只能「补齐」命令行未指定的选项，不能简单拼接。见 ConfigParser.MergeWithConfig
+    // ConfigParser.MergeWithConfig 把配置文件的选项拼在命令行之后（extraArguments + cliArgs + extraOptions），
+    // 若解析器按「后者胜出」取值，配置文件会反过来盖掉命令行；
+    // System.CommandLine 2.0.10 对重复出现的单值选项改为取值时抛异常，配置文件因此只能补齐、不能覆盖
+    // 本测试锁定该行为，防止有人改成「后者胜出」后配置静默压过命令行
     [Fact]
     public void DuplicatedOption_ThrowsOnGetValue( )
     {

@@ -27,7 +27,7 @@ internal static class ConfigParser
         ArgumentNullException.ThrowIfNull(rootCommand);
         try
         {
-            var configPath = cliResult.GetValue<string>("--config");
+            var configPath = cliResult.GetValue<string>(CliOptions.ConfigFile.Name);
             if (string.IsNullOrEmpty(configPath))
             {
                 configPath = Path.Combine(AppEnv.AppDir, "BBDown.config");

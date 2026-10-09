@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -64,16 +65,24 @@ internal static class AppHelper
                 LogWarn("APP 的番剧不支持 HEVC 以外的编码。");
             }
 
-            var body = GetPayload(Convert.ToInt64(epId), Convert.ToInt64(cid), PlayViewReq.Types.CodeType.Code265);
+            var body = GetPayload(Num(epId, nameof(epId)), Num(cid, nameof(cid)), PlayViewReq.Types.CodeType.Code265);
             data = await GetPostResponseAsync(api, body, headers, ct);
         }
         else
         {
-            var body = GetPayload(Convert.ToInt64(aid), Convert.ToInt64(cid), GetVideoCodeType(encoding));
+            var body = GetPayload(Num(aid, nameof(aid)), Num(cid, nameof(cid)), GetVideoCodeType(encoding));
             data = await GetPostResponseAsync(api, body, headers, ct);
         }
 
         return ReplyParser.ParseFrom(GrpcUtil.ReadMessage(data));
+    }
+
+    // id 来自上游 JSON，非数字时 Convert.ToInt64 抛 FormatException，诊断信息里看不出是哪个字段坏了
+    private static long Num(string value, string name)
+    {
+        return long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : throw new InvalidOperationException($"{name} 不是合法的数字：{value}");
     }
 
     private static byte[] GetPayload(long aid, long cid, PlayViewReq.Types.CodeType codec)

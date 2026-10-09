@@ -18,6 +18,12 @@ public sealed record LiveRoomInfo(
 {
     /// <summary>直播状态 2 是轮播（录播循环），不是真开播，不予录制。</summary>
     public bool IsLiving => LiveStatus == 1;
+
+    /// <summary>
+    /// 录制会话标识：以真实房间号为键。短号输入时与 <see cref="LiveTarget.SessionId"/> 不同，
+    /// 两者同占一个槽位才算把别名闭合
+    /// </summary>
+    public string SessionId => $"{IdPrefix.Live}{RoomId}";
 }
 
 /// <summary>

@@ -304,11 +304,6 @@ public partial class MainWindow
         }
     }
 
-    private void InfoOnlyCheckBoxChanged(object? o, RoutedEventArgs e)
-    {
-        RefreshAvailability( );
-    }
-
     private void DebugCheckBoxChecked(object? o, RoutedEventArgs e)
     {
         LogExpander.IsExpanded = true;

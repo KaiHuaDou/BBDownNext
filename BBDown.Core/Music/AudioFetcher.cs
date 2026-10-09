@@ -82,23 +82,4 @@ public static class AudioFetcher
             _ => $"获取{label}失败(code={code})：{message}（au{auId}）",
         });
     }
-
-    private static string ReadStr(JsonElement obj, string name)
-    {
-        return obj.ValueKind == JsonValueKind.Object
-            && obj.TryGetProperty(name, out var v)
-            && v.ValueKind == JsonValueKind.String
-            ? v.GetString( ) ?? ""
-            : "";
-    }
-
-    private static long ReadLong(JsonElement obj, string name)
-    {
-        return obj.ValueKind == JsonValueKind.Object
-            && obj.TryGetProperty(name, out var v)
-            && v.ValueKind == JsonValueKind.Number
-            && v.TryGetInt64(out var value)
-            ? value
-            : 0;
-    }
 }

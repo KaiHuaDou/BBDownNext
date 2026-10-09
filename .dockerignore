@@ -8,9 +8,15 @@
 Plugins
 bilibili-API-collect
 docs
+node_modules
+**/memory
+**/probe
+**/reports
+**/tmp
 BBDown.Tests
 BBDown.Core.Tests
 BBDown.GUI
 .github
+**/TestResults
 *.md
 LICENSE

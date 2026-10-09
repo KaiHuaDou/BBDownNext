@@ -63,12 +63,10 @@ BBDown/
 │       ├── AppJsonSerializerContext.cs # serve 响应 DTO 源生成器上下文
 │       ├── HealthStatus.cs             # /healthz 响应 record（Status / Running）
 │       ├── SsrfGuard.cs                # SSRF 防护静态类（IsSafeWebHook / IsPrivateAddress / IsLoopbackUrl / WebHookClient）
-│       ├── Auth/                       # 命名空间 BBDown.Serve.Auth — serve 侧扫码登录会话
-│       │   ├── QrLoginStore.cs          # 会话容器（并发上限 / 过期淘汰 / 后台跑 Core 登录编排）
-│       │   └── QrLoginModels.cs         # 登录起点 / 状态轮询 DTO
-│       ├── Http/ServeEndpoints.cs      # Minimal API 路由（/api/v1/tasks*、/healthz）
-│       ├── Http/LoginEndpoints.cs      # 扫码登录端点（POST /api/v1/login/qr 起点 + GET 轮询）
+│       ├── Http/ApiKeyAuthenticationHandler.cs # 令牌鉴权处理器（X-BBDown-Token / Sec-WebSocket-Protocol / ?token= 三路取令牌）
 │       ├── Http/TasksSocket.cs         # WebSocket hub（/hubs/tasks 事件流）
+│       ├── Http/ServeEndpoints.cs      # Minimal API 路由（/api/v1/tasks*、/healthz）
+│       ├── Http/WebUiEndpoints.cs       # 内嵌 WebUI 静态资源端点（免鉴权放行页面自身）
 │       ├── Http/TaskMessageBridge.cs   # Core 总线 → WebSocket 帧桥接
 │       ├── Http/ServeFramesJsonSerializerContext.cs # 帧 DTO 源生成器上下文
 │       ├── Tasks/TaskStore.cs          # 任务表维护（DownloadTask / Queued → Running → Finished，去重淘汰）
@@ -135,7 +133,7 @@ BBDown/
 │   │   ├── LiveSegmentWriter.cs    # 单段 FLV 写入
 │   │   ├── LiveFileNaming.cs       # 分段/产物文件名（主播名-标题-时间戳）
 │   │   ├── LiveMuxer.cs            # 分段 FLV → mp4 合并（avc/hevc bitstream filter 分派、+genpts）
-│   │   └── LiveSignal.cs           # 按 sessionId 键控的直播停录注册表（Register / TryRequestStop / LiveSignalScope，并发录制互不干扰）
+│   │   └── LiveSignal.cs           # 按会话标识键控的直播停录注册表（Register 支持别名占位 / TryRequestStop / LiveSignalScope，同房间并发互斥）
 │   │
 │   ├── Auth/               # 命名空间 BBDown.Core.Auth — 登录与凭据
 │   │   ├── Login.cs                # 扫码登录公共轮询编排（QrLoginPlan / RunQrLoginAsync，接入全局取消与失败重试）
@@ -486,8 +484,8 @@ v1 的 `serve` JSON API 面向音视频、直播、专栏（opus / cv）与集�
 `BBDown.WebUI` 是 serve 模式的 Web 前端（Vue 3 + Vite + TypeScript，pnpm workspace），目标复刻 GUI 业务功能，当前为 WIP（尚未生产可用）。它不内置下载能力，全部经 serve 的 REST（任务提交 / 取消 / 移除 / 清空 / 启动）与始终开启的 WebSocket 事件流（`/hubs/tasks`，任务列表与完成态由 `taskList` 帧推送驱动）与 `BBDown serve` 通信。设计要点：
 
 - **状态层与视图分离**：`state/` 持有全局状态（`store` + `types`），`snapshot` 把 WS 推送的 `taskList` 快照归一到统一视图模型，`taskView` 把 `DownloadTask` 映射为视图模型（按 `ResourceId` 规范 id 前缀识别资源类型）；`connection` 管理 WebSocket 订阅与重连，`actions` 收口提交 / 取消 / 移除 / 启动，`useTasks` 为组合式封装。
-- **网络层**：`api/client` 负责 REST 任务控制（提交 / 取消 / 移除 / 清空 / 启动）与扫码登录调用（`fetchLoginQr` / `pollLoginStatus`），`api/ws` 维护始终开启的 WebSocket 事件流连接（任务列表与完成态由 `taskList` 帧推送，断线指数退避自动重连），`api/login` 负责凭据读写（localStorage）、登录通道定义与去桩后的扫码登录流程。
+- **网络层**：`api/client` 负责 REST 任务控制（提交 / 取消 / 移除 / 清空 / 启动），`api/ws` 维护始终开启的 WebSocket 事件流连接（任务列表与完成态由 `taskList` 帧推送，断线指数退避自动重连）。凭据由用户在「设置」中填写，随任务请求提交，不做浏览器侧持久化。
 - **纯函数优先**：`lib/` 下 `content`（内容字符表与顺序）、`options`（选项映射）、`format`（ETA 与耗时格式化）、`urlDetector`（下载目标识别）、`live`（直播清晰度）均为可单测纯函数，测试在 `src/__tests__/` 与 `src/state/*.spec.ts`。
-- **视图组件**：`ConnectionBar`（纯状态栏，地址 / 令牌展示与「设置」入口）、`OptionsPanel`（内容 / 下载 / 解析选项，serve 接口排除的字段禁用并标注原因）、`TaskList`（任务队列与状态）、`LogPanel`（日志区）、`AskDialog`（交互选项弹窗）、`LoginDialog`（扫码登录弹窗，内部 1.5 秒轮询，成功后凭据上报 App 并联动 API 通道）、`ServeSettingsDialog`（连接设置弹窗，地址与令牌 localStorage 持久化）。三枚弹窗均由 App 根层持有，避免组件内部 `Teleport`。
+- **视图组件**：`ConnectionBar`（纯状态栏，地址 / 令牌展示与「设置」入口）、`OptionsPanel`（内容 / 下载 / 解析选项，serve 接口排除的字段禁用并标注原因）、`TaskList`（任务队列与状态）、`LogPanel`（日志区）、`AskDialog`（交互选项弹窗）、`ServeSettingsDialog`（连接设置弹窗，地址与令牌 localStorage 持久化）。两枚弹窗均由 App 根层持有，避免组件内部 `Teleport`。
 
 构建与运行见 [README](./README.md)「Web 前端」节。

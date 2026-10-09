@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,23 +18,23 @@ namespace BBDown.Core.Pipeline;
 
 public static class VideoInfo
 {
-    // Web Cookie 主动续期只跑一次，避免批量下载时每个视频都打 /cookie/info
-    // 写者只有 FetchAsync：CAS 从 0 换到 1 的那个任务在续期前占位，取消时写回 0
-    // 0 = 未尝试 / 已取消，1 = 已尝试（成功或 best-effort 未续期）
-    private static int cookieRefreshed;
+    // 已续期的 Cookie 集合：每个凭据各享一次续期额度，避免批量下载时每个视频都打 /cookie/info
+    // 写者只有 FetchAsync：TryAdd 抢到的那次在续期前占位，取消时摘除条目让后续任务还能重试
+    // 摘除按键而非整体清零：进程级单槽会让首个凭据用尽其余任务的机会（serve 下多凭据并存）
+    private static readonly ConcurrentDictionary<string, byte> refreshedCookies = new( );
 
-    // nav 探测（wbi 密钥）缓存：进程内只探测一次
-    // 读写都用 lock 保护：并发探测只保留一个 task；失败清空时校验引用
-    // 防止并发期间他人新建的探测被误清
-    private static readonly Lock probeGate = new( );
-    private static Task<(AccountInfo Info, string Wbi)>? accountProbeTask;
+    // nav 探测缓存：按凭据分键，进程内每份凭据只探测一次
+    // nav 返回的登录态随 Cookie 变化，wbi 密钥虽与凭据无关但与目标 host 有关，
+    // 进程级单槽会把首个调用方的结果套给其余凭据
+    // 惰性包在键外：GetOrAdd 的工厂可能被并发执行多次，直接存 Task 会重复打 nav
+    private static readonly ConcurrentDictionary<string, Lazy<Task<(AccountInfo Info, string Wbi)>>> accountProbes = new( );
 
     public static async Task<(DownloadRequest Effective, FetchResult Fetch)> FetchAsync(DownloadRequest myOption, RunConfig runConfig, CancellationToken ct = default)
     {
         var cfg = WorkSetup.ResolveConfig(myOption, myOption.Api);
 
-        // 主动续期 web cookie（best-effort，持有 refresh_token 才尝试；进程内仅一次）
-        if (Interlocked.CompareExchange(ref cookieRefreshed, 1, 0) == 0)
+        // 主动续期 web cookie（best-effort，持有 refresh_token 才尝试；每份凭据一次）
+        if (refreshedCookies.TryAdd(cfg.Cookie, 0))
         {
             try
             {
@@ -44,8 +46,8 @@ public static class VideoInfo
             }
             catch (OperationCanceledException)
             {
-                // 取消不代表已续期，标志写回 0：否则本进程内再无人尝试续期
-                Volatile.Write(ref cookieRefreshed, 0);
+                // 取消不代表已续期，摘除占位：否则本进程内再无人尝试续期这一份凭据
+                refreshedCookies.TryRemove(cfg.Cookie, out _);
                 throw;
             }
         }
@@ -62,7 +64,7 @@ public static class VideoInfo
         catch
         {
             // 探测抛异常（网络抖动等）：清空故障 Task，否则会被缓存导致后续所有抓取反复失败无恢复
-            InvalidateProbe(navTask);
+            InvalidateProbe(cfg, navTask);
             throw;
         }
 
@@ -71,7 +73,7 @@ public static class VideoInfo
         // 未拿到 wbi（网络抖动/未登录）时不缓存，允许后续 URL 重试
         if (string.IsNullOrEmpty(wbi))
         {
-            InvalidateProbe(navTask);
+            InvalidateProbe(cfg, navTask);
         }
 
         if (myOption.Api == ApiType.Web)
@@ -97,27 +99,31 @@ public static class VideoInfo
         return (myOption, new FetchResult(vInfo, cfg, id, fetchApi));
     }
 
-    // nav 探测（wbi 密钥）进程内仅执行一次；后续调用复用同一 Task，避免批量下载时每个 URL 重复打 nav 接口
-    // 共享任务不捕获调用方令牌：抢到锁者的 ct 一旦取消或超时，其余并发任务会一直 await 一个已死任务，
-    // 故取消只在 await 处生效；探测失败（wbi 为空）由调用方清空 accountProbeTask 触发重试
+    // nav 探测（登录态与 wbi 密钥）进程内每份凭据仅执行一次；后续调用复用同一 Task，避免批量下载时每个 URL 重复打 nav 接口
+    // 共享任务不捕获调用方令牌：抢到槽者的 ct 一旦取消或超时，其余并发任务会一直 await 一个已死任务，
+    // 故取消只在 await 处生效；探测失败（wbi 为空）由调用方 InvalidateProbe 触发重试
     private static Task<(AccountInfo Info, string Wbi)> EnsureAccountProbedAsync(AppConfig cfg, CancellationToken ct)
     {
-        lock (probeGate)
-        {
-            return (accountProbeTask ??= Account.ProbeAccountAsync(cfg, CancellationToken.None)).WaitAsync(ct);
-        }
+        var probe = accountProbes.GetOrAdd(
+            ProbeKey(cfg),
+            _ => new Lazy<Task<(AccountInfo Info, string Wbi)>>( ( ) => Account.ProbeAccountAsync(cfg, CancellationToken.None) )).Value;
+        return probe.WaitAsync(ct);
     }
 
     // 仅当缓存中仍是当前探测任务时才清空：并发下他人可能已新建探测，无条件清空会误删其成果
-    private static void InvalidateProbe(Task<(AccountInfo Info, string Wbi)> task)
+    private static void InvalidateProbe(AppConfig cfg, Task<(AccountInfo Info, string Wbi)> task)
     {
-        lock (probeGate)
+        if (accountProbes.TryGetValue(ProbeKey(cfg), out var cached) && ReferenceEquals(cached.Value, task))
         {
-            if (ReferenceEquals(accountProbeTask, task))
-            {
-                accountProbeTask = null;
-            }
+            accountProbes.TryRemove(new KeyValuePair<string, Lazy<Task<(AccountInfo Info, string Wbi)>>>(ProbeKey(cfg), cached));
         }
+    }
+
+    // 键取 nav 请求里真正起作用的四项。Area / EpHost / TvHost 不参与 nav，Wbi 此刻尚未填充
+    // 分隔符用 NUL：Cookie 与 Token 是 HTTP 头值，不含该字符，拼接不会歧义
+    private static string ProbeKey(AppConfig cfg)
+    {
+        return string.Join('\0', cfg.Cookie, cfg.Token, cfg.Host, cfg.UserAgent);
     }
 
     private static void PrintAccountStatus(AccountInfo info)

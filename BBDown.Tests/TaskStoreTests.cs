@@ -1,5 +1,8 @@
 using System;
+using System.Globalization;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Threading.Channels;
 
 using BBDown.Serve.Tasks;
@@ -7,7 +10,7 @@ using BBDown.Serve.Tasks;
 namespace BBDown.Tests;
 
 /// <summary>
-/// 任务域状态容器测试：服务端配置注入（work-dir / host）、任务创建与状态迁移
+/// 任务域状态容器测试：服务端配置注入（work-dir / host）、任务创建与状态迁移、暂停表的启停
 /// </summary>
 public class TaskStoreTests
 {
@@ -127,5 +130,99 @@ public class TaskStoreTests
         var store = NewStore(new ServeConfig( ));
 
         Assert.Null(store.ReleaseContext(new ResourceId.Av(1).ToString( )));
+    }
+
+    // live 形式不经 InputResolver 的触网分支（TryDispatch 直接打标，FixAvidAsync 对 LiveRoom 直接返回），
+    // 因此 EnqueueAsync 在本用例里是纯内存操作
+    private static async Task<(TaskStore Store, Channel<TaskEnvelope> Queue, ResourceId Id)> EnqueuedAsync(ServeConfig config, SubmitMode mode)
+    {
+        var queue = Channel.CreateUnbounded<TaskEnvelope>( );
+        var store = new TaskStore(config, queue.Writer);
+
+        var result = await store.EnqueueAsync(new ServeRequestOptions { Url = "live" + NextLiveRoom( ) }, mode, CancellationToken.None);
+
+        return (store, queue, result.Task!.Id);
+    }
+
+    private static int nextLiveRoom = 900000;
+
+    private static string NextLiveRoom( )
+    {
+        return Interlocked.Increment(ref nextLiveRoom).ToString(CultureInfo.InvariantCulture);
+    }
+
+    [Fact]
+    public async Task Start_PendingTask_WritesToQueue( )
+    {
+        var (store, queue, id) = await EnqueuedAsync(new ServeConfig( ), SubmitMode.Enqueue);
+
+        Assert.Equal(StartResult.Started, store.Start(id));
+        Assert.True(queue.Reader.TryRead(out var envelope));
+        Assert.Equal(id, envelope.Task.Id);
+        Assert.Equal(DownloadStatus.Queued, envelope.Task.Status);
+    }
+
+    [Fact]
+    public async Task Start_AlreadyStarted_ReportsConflictInsteadOfNotFound( )
+    {
+        // 已在运行与「不存在」含义不同：前者是重复的启动请求，端点据此返回 409 而非 404
+        var (store, _, id) = await EnqueuedAsync(new ServeConfig( ), SubmitMode.Enqueue);
+        store.Start(id);
+
+        Assert.Equal(StartResult.AlreadyStarted, store.Start(id));
+    }
+
+    [Fact]
+    public void Start_UnknownId_ReturnsNotFound( )
+    {
+        var store = NewStore(new ServeConfig( ));
+
+        Assert.Equal(StartResult.NotFound, store.Start(new ResourceId.Av(123456)));
+    }
+
+    // 暂停态任务尚未投入执行，取消它只会表现为「已启动后秒取消」，故从暂停表与运行表整体移除
+    [Fact]
+    public async Task Stop_PendingTask_RemovesItAndCannotStartLater( )
+    {
+        var (store, queue, id) = await EnqueuedAsync(new ServeConfig( ), SubmitMode.Enqueue);
+
+        Assert.Equal(StopResult.Removed, store.Stop(id));
+        Assert.Null(store.Get(id));
+        Assert.False(queue.Reader.TryRead(out _));
+        Assert.Equal(StartResult.NotFound, store.Start(id));
+    }
+
+    [Fact]
+    public async Task Stop_RunningTask_CancelsWithoutRemoving( )
+    {
+        var (store, _, id) = await EnqueuedAsync(new ServeConfig( ), SubmitMode.Execute);
+
+        Assert.Equal(StopResult.Cancelled, store.Stop(id));
+        Assert.NotNull(store.Get(id));
+    }
+
+    [Fact]
+    public void Stop_UnknownId_ReturnsNotFound( )
+    {
+        var store = NewStore(new ServeConfig( ));
+
+        Assert.Equal(StopResult.NotFound, store.Stop(new ResourceId.Av(654321)));
+    }
+
+    // 原样重发同一地址不该为它放大成数次对 B 站的请求：受理应直接命中已有任务
+    [Fact]
+    public async Task EnqueueAsync_SameUrlTwice_ReportsDuplicate( )
+    {
+        var queue = Channel.CreateUnbounded<TaskEnvelope>( );
+        var store = new TaskStore(new ServeConfig( ), queue.Writer);
+        var req = new ServeRequestOptions { Url = "live" + NextLiveRoom( ) };
+
+        var first = await store.EnqueueAsync(req, SubmitMode.Execute, CancellationToken.None);
+        var second = await store.EnqueueAsync(req, SubmitMode.Execute, CancellationToken.None);
+
+        Assert.False(first.Duplicate);
+        Assert.True(second.Duplicate);
+        Assert.Equal(first.Task!.Id, second.Task!.Id);
+        Assert.Single(store.RunningSnapshot( ));
     }
 }

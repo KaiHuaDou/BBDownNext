@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 
+using BBDown.Core;
 using BBDown.Core.Logging;
 using BBDown.Core.Util;
 using BBDown.Core.Workflow;
@@ -22,8 +23,7 @@ public sealed class LiveProgress : IDisposable
     private readonly bool drawToConsole = !Console.IsOutputRedirected;
     private readonly Lock gate = new( );
     private readonly Timer? renderTimer;
-    // 比较置空需要委托实例一致：方法组每次转换都会生成新委托，注册时缓存一份
-    private readonly Action? clearLineHook;
+    private readonly CancellationToken cancelToken;
 
     // 以下字段只在持有 gate 时访问（disposed 例外：Blit 在 WriteGate 内终检，volatile 保证可见性）
     private ProgressSampleEvent? sample;
@@ -36,13 +36,13 @@ public sealed class LiveProgress : IDisposable
 
     public LiveProgress( )
     {
+        cancelToken = AppEnv.CancellationToken;
         ProgressBus.Subscribe(OnProgress);
         if (drawToConsole)
         {
             renderTimer = new Timer(_ => Render( ));
             renderTimer.Change(RenderInterval, Timeout.InfiniteTimeSpan);
-            clearLineHook = ClearLine;
-            ConsoleHost.BeforeWrite = clearLineHook;
+            RenderHook.Install(this, ClearLine);
         }
     }
 
@@ -133,7 +133,7 @@ public sealed class LiveProgress : IDisposable
     // 擦行回调同样在 WriteGate 内执行，双向取锁即 AB-BA 死锁（见 ConsoleHost 锁序说明）
     private void Blit(string text)
     {
-        if (!drawToConsole)
+        if (!drawToConsole || cancelToken.IsCancellationRequested)
         {
             return;
         }
@@ -166,12 +166,9 @@ public sealed class LiveProgress : IDisposable
 
     public void Dispose( )
     {
-        // 摘钩在前：Dispose 之后没有日志触发本实例的擦行回调；比较置空不误删后注册者的钩子
+        // 摘钩在前：Dispose 之后没有日志触发本实例的擦行回调；不误删后注册者的钩子
         ProgressBus.Unsubscribe(OnProgress);
-        if (ReferenceEquals(ConsoleHost.BeforeWrite, clearLineHook))
-        {
-            ConsoleHost.BeforeWrite = null;
-        }
+        RenderHook.Uninstall(this);
 
         lock (gate)
         {
@@ -184,9 +181,10 @@ public sealed class LiveProgress : IDisposable
 
     // 终态擦行：disposed 已置位故不走 Blit；与在途 Render 的 Blit 经 WriteGate 串行
     // 在途帧要么先行（被该帧擦掉）要么因 Blit 的 disposed 终检跳过
+    // 与 Blit 一致地在取消后跳过：Ctrl+C 时取消提示已落在本行，再擦会打到提示行上
     private void EraseFinal( )
     {
-        if (!drawToConsole)
+        if (!drawToConsole || cancelToken.IsCancellationRequested)
         {
             return;
         }

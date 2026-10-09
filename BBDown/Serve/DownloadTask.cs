@@ -8,7 +8,7 @@ using BBDown.Core;
 namespace BBDown.Serve;
 
 [JsonConverter(typeof(JsonStringEnumConverter<DownloadStatus>))]
-public enum DownloadStatus
+internal enum DownloadStatus
 {
     Pending,  // 已受理、等待手动 start（enqueue 提交，不自动执行）
     Queued,   // 已提交执行、等待并发额度（仅 --max-concurrent > 0 时出现）
@@ -16,7 +16,7 @@ public enum DownloadStatus
     Finished, // 已结束，成败见 IsSuccessful
 }
 
-public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
+internal record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
 {
     public string? Title { get; set; }
     public string? Pic { get; set; }
@@ -144,4 +144,4 @@ public record DownloadTask(ResourceId Id, string Url, long TaskCreateTime)
     }
 }
 
-public record DownloadTaskSnapshot(IReadOnlyList<DownloadTask> Running, IReadOnlyList<DownloadTask> Finished);
+internal record DownloadTaskSnapshot(IReadOnlyList<DownloadTask> Running, IReadOnlyList<DownloadTask> Finished);

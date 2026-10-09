@@ -85,11 +85,8 @@ public static class ReadListDownload
         {
             foreach (var item in array.EnumerateArray( ))
             {
-                if (item.ValueKind == JsonValueKind.Object
-                    && item.TryGetProperty("id", out var id)
-                    && id.ValueKind == JsonValueKind.Number
-                    && id.TryGetInt64(out var cvId)
-                    && cvId > 0)
+                var cvId = ReadLong(item, "id");
+                if (cvId > 0)
                 {
                     articles.Add(cvId);
                 }
@@ -97,14 +94,5 @@ public static class ReadListDownload
         }
 
         return (name, articles);
-    }
-
-    private static string ReadStr(JsonElement obj, string name)
-    {
-        return obj.ValueKind == JsonValueKind.Object
-            && obj.TryGetProperty(name, out var v)
-            && v.ValueKind == JsonValueKind.String
-            ? v.GetString( ) ?? ""
-            : "";
     }
 }

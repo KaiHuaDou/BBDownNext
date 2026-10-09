@@ -70,6 +70,8 @@ public static class WatchLaterFetcher
         }
 
         List<Page> pagesInfo = [];
+        // Page 以 (aid,cid,epid) 判等，用 HashSet 做 O(1) 去重
+        var seen = new HashSet<Page>( );
         var index = 1;
         foreach (var m in medias)
         {
@@ -82,7 +84,7 @@ public static class WatchLaterFetcher
                     p.Title = m.GetProperty("title").ToString( ) + $"_P{item.Index}_{item.Title}";
                     p.Cover = tmpInfo.Pic;
                     p.Desc = m.GetProperty("desc").ToString( );
-                    if (!pagesInfo.Contains(p))
+                    if (seen.Add(p))
                     {
                         pagesInfo.Add(p);
                     }
@@ -105,7 +107,7 @@ public static class WatchLaterFetcher
                     OwnerName = m.GetProperty("owner").GetProperty("name").ToString( ),
                     OwnerMid = m.GetProperty("owner").GetProperty("mid").ToString( ),
                 };
-                if (!pagesInfo.Contains(p))
+                if (seen.Add(p))
                 {
                     pagesInfo.Add(p);
                 }

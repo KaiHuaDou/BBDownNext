@@ -23,7 +23,6 @@ public sealed class ProgressBar : IDisposable
     private readonly CancellationToken cancelToken;
     private readonly bool drawToConsole = !Console.IsOutputRedirected;
     // 比较置空需要委托实例一致：方法组每次转换都会生成新委托，注册时缓存一份
-    private readonly Action? clearLineHook;
     private readonly Action? suspendHook;
     private readonly Action? resumeHook;
 
@@ -53,10 +52,9 @@ public sealed class ProgressBar : IDisposable
             renderTimer.Change(RenderInterval, Timeout.InfiniteTimeSpan);
             // 退格重绘假定光标停在本行末尾，日志若直接跟在进度条后面会把光标推走，下一帧就把 spinner 打到日志行首
             // 注册日志前置钩子：写日志前先擦掉进度条行，让日志从行首开始（与 LiveProgress 同一机制）
-            clearLineHook = ClearLine;
+            RenderHook.Install(this, ClearLine);
             suspendHook = Suspend;
             resumeHook = Resume;
-            ConsoleHost.BeforeWrite = clearLineHook;
             // 逐集确认 / 选轨等交互读输入前暂停渲染，避免进度条覆盖提示与用户输入
             CliInteraction.BeforeRead = suspendHook;
             CliInteraction.AfterRead = resumeHook;
@@ -291,11 +289,8 @@ public sealed class ProgressBar : IDisposable
     {
         // 摘钩在前：Dispose 之后没有日志触发本实例的擦行回调
         ProgressBus.Unsubscribe(OnProgress);
-        // 比较置空只清自己注册的委托：两实例共存时不误删后注册者的钩子
-        if (ReferenceEquals(ConsoleHost.BeforeWrite, clearLineHook))
-        {
-            ConsoleHost.BeforeWrite = null;
-        }
+        // 只清自己登记的钩子：两实例共存时不误删后注册者的钩子
+        RenderHook.Uninstall(this);
 
         if (ReferenceEquals(CliInteraction.BeforeRead, suspendHook))
         {
@@ -318,9 +313,10 @@ public sealed class ProgressBar : IDisposable
 
     // 终态擦行：disposed 已置位故不走 Blit；与在途 Render 的 Blit 经 WriteGate 串行
     // 在途帧要么先行（被该帧擦掉）要么因 Blit 的 disposed 终检跳过
+    // 与 Blit 一致地在取消后跳过：Ctrl+C 时取消提示已落在本行，再擦会打到提示行上
     private void EraseFinal( )
     {
-        if (!drawToConsole)
+        if (!drawToConsole || cancelToken.IsCancellationRequested)
         {
             return;
         }

@@ -12,7 +12,7 @@ namespace BBDown.Cli;
 /// </summary>
 internal static class CliOptions
 {
-    internal static readonly Argument<string> Url = new("url") { Description = "视频地址 或 av|bv|BV|ep|ss，也可传直播间地址进行录制" };
+    internal static readonly Argument<string> Url = new("url") { Description = "视频地址 或 av|bv|ep|ss，也可传直播间地址进行录制" };
 
     // 解析模式
     // 单值枚举：非法值进 parseResult.Errors 报错退出（serve 侧为 JSON 约定，非法值按 web 处理，见 ServeRequestOptions）
@@ -33,6 +33,16 @@ internal static class CliOptions
             return api.Value;
         }
     };
+
+    // 枚举选项的补全默认取成员名（PascalCase），与说明里的小写取值域不符；
+    // 解析实际忽略大小写，故清掉默认补全后按说明中的小写取值域重新给出
+    static CliOptions( )
+    {
+        ApiOption.CompletionSources.Clear();
+        ApiOption.CompletionSources.Add(["web", "tv", "app", "intl"]);
+        MuxOption.CompletionSources.Clear();
+        MuxOption.CompletionSources.Add(["none", "mpeg4", "mp4box", "mkv"]);
+    }
     internal static readonly Option<string> Host = new("--host", [])
     {
         Description = """
@@ -146,7 +156,7 @@ internal static class CliOptions
         none 不混流
         mpeg4 使用 FFmpeg 混流为 MP4
         mp4box 使用 MP4Box 混流
-        mkv 使用 FFmpeg 混流为 Matrosk
+        mkv 使用 FFmpeg 混流为 Matroska
         （视频扩展名 .mp4/.mkv / 纯音频扩展名 .m4a/.mka）
         忽略大小写
         """,
