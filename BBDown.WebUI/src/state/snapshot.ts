@@ -24,9 +24,13 @@ export function handleEvent(store: TaskStore, taskId: string, event: WorkflowEve
       appendLog(store, `[任务${taskId}] ${event.text}`)
       break
     }
-    case 'progressStart':
+    case 'progressStart': {
+      // 阶段开始即重置耗时基准，否则新阶段的首帧样本会沿用上一阶段的耗时外推剩余时间
+      resetElapsed(store, event.scope)
+      break
+    }
     case 'progressEnd': {
-      // 阶段边界：快照样本到达前无需动作，进度条由快照驱动
+      // 阶段结束：基准留到下一个 progressStart 再重置
       break
     }
     case 'progressSample': {
@@ -35,6 +39,7 @@ export function handleEvent(store: TaskStore, taskId: string, event: WorkflowEve
     }
     case 'optionRequest': {
       if (!store.answeredAsks.has(event.requestId)) {
+        store.answeredAsks.set(event.requestId, event.scope)
         store.pendingAsks.value.push({
           requestId: event.requestId,
           taskId: event.scope,
@@ -50,6 +55,17 @@ export function handleEvent(store: TaskStore, taskId: string, event: WorkflowEve
   }
 }
 
+/** 重置某任务的耗时基准。阶段切换与进度回退（分 P 切换）都要调，否则剩余时间会沿用上一段的外推。 */
+function resetElapsed(store: TaskStore, taskId: string): void {
+  store.elapsedBase.set(taskId, Date.now())
+}
+
+/** 已耗时（秒）；无基准时返回 null，此时不显示剩余时间。 */
+function elapsedOf(store: TaskStore, taskId: string): number | null {
+  const base = store.elapsedBase.get(taskId)
+  return base === undefined ? null : (Date.now() - base) / 1000
+}
+
 /** 用进度样本改运行中视图的进度与详情（ratio 夹紧 0-1）。 */
 export function applySample(
   store: TaskStore,
@@ -61,8 +77,13 @@ export function applySample(
     return
   }
 
+  // 进度回退视为分 P 切换，重置基准
+  if (!store.elapsedBase.has(taskId) || sample.ratio < view.progress) {
+    resetElapsed(store, taskId)
+  }
+
   view.progress = Math.min(Math.max(sample.ratio, 0), 1)
-  view.detail = buildDetail(sample.ratio, sample.speed, sample.totalBytes, sample.detail)
+  view.detail = buildDetail(sample.ratio, sample.speed, elapsedOf(store, taskId), sample.detail)
 }
 
 /** 仅对运行中任务维持 WS 订阅，退订已结束任务。 */
@@ -104,7 +125,7 @@ export function resubscribe(store: TaskStore): void {
 export function applySnapshot(store: TaskStore, snapshot: TaskSnapshot): void {
   const running = snapshot.running.map((t) => t.id)
   const views = [
-    ...snapshot.running.map((t) => toView(t)),
+    ...snapshot.running.map((t) => toView(t, elapsedOf(store, t.id))),
     ...snapshot.finished.map((t) => toView(t))
   ]
 
@@ -126,13 +147,25 @@ export function applySnapshot(store: TaskStore, snapshot: TaskSnapshot): void {
   )
 }
 
-// 挂起提问与重试选项快照只属于存活任务：任务结束后剔除，避免交互 / 重试相关状态常驻堆积
+// 挂起提问、已应答记录与重试选项快照只属于存活任务：任务结束后剔除，避免交互 / 重试相关状态常驻堆积
 function pruneDeadState(store: TaskStore, runningIds: string[], finishedIds: string[]): void {
   const alive = new Set([...runningIds, ...finishedIds])
   store.pendingAsks.value = store.pendingAsks.value.filter((ask) => alive.has(ask.taskId))
   for (const id of store.submittedOptions.keys()) {
     if (!alive.has(id)) {
       store.submittedOptions.delete(id)
+    }
+  }
+
+  for (const [requestId, taskId] of store.answeredAsks) {
+    if (!alive.has(taskId)) {
+      store.answeredAsks.delete(requestId)
+    }
+  }
+
+  for (const taskId of store.elapsedBase.keys()) {
+    if (!alive.has(taskId)) {
+      store.elapsedBase.delete(taskId)
     }
   }
 }

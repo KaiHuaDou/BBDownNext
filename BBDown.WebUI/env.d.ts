@@ -1,7 +1,4 @@
 /// <reference types="vite/client" />
 
-declare module '*.vue' {
-  import type { DefineComponent } from 'vue'
-  const component: DefineComponent<Record<string, never>, Record<string, never>, unknown>
-  export default component
-}
+// 不声明 `*.vue` 模块：vue-tsc 直接解析 SFC，声明通配模块会把所有组件的 props 与
+// defineEmits 抹成 Record<string, never>，模板传错属性、事件名拼错都查不出来

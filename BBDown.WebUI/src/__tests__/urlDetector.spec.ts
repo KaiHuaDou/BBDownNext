@@ -91,4 +91,17 @@ describe('describeTarget', () => {
     expect(describeTarget('live')).toBeNull()
     expect(describeTarget('BV2xx411c7mD')).toBeNull()
   })
+
+  it('直播地址支持裸域名与协议相对两种写法', () => {
+    expect(describeTarget('live.bilibili.com/12345')).toBe('直播地址')
+    expect(describeTarget('m.live.bilibili.com/12345')).toBe('直播地址')
+    expect(describeTarget('//live.bilibili.com/12345')).toBe('直播地址')
+  })
+
+  it('域名按 Host 比对，他域携带同名片段不误判', () => {
+    // 原始串上做子串比对会让这几条蒙混过关（Core LiveInputResolver 的注释记着同一约束）
+    expect(describeTarget('https://evil.com/?x=live.bilibili.com/1')).toBe('视频地址')
+    expect(describeTarget('https://evil.com/watchlater')).toBe('视频地址')
+    expect(describeTarget('https://evil.com/?page=watchlater')).toBe('视频地址')
+  })
 })

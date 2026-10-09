@@ -36,21 +36,26 @@ export function formatTime(totalSeconds: number): string {
     : `${hours}h${pad(minutes)}m${pad(seconds)}s`
 }
 
-/** 按已下载比例与当前速率外推剩余时间；比例过低（<=2%）时发散，返回 null 不显示。 */
-export function formatEta(ratio: number, speed: number, downloadedBytes: number): string | null {
-  if (ratio <= 0.02 || speed <= 0) {
+/**
+ * 按已下载比例与已耗时外推剩余时间；比例过低（<=2%）时发散，返回 null 不显示。
+ * 基准取墙钟耗时而非已下载字节数，与 Core Utils.FormatEta 和 GUI 一致，同一任务两侧得出同一个数。
+ */
+export function formatEta(ratio: number, elapsedSeconds: number): string | null {
+  if (ratio <= 0.02 || elapsedSeconds <= 0) {
     return null
   }
 
-  const remainingBytes = (downloadedBytes * (1 - ratio)) / ratio
-  return formatTime(remainingBytes / speed)
+  return formatTime((elapsedSeconds * (1 - ratio)) / ratio)
 }
 
-/** 运行中任务的详情文本：优先阶段文本（直播等），否则速度 + 剩余时间。 */
+/**
+ * 运行中任务的详情文本：优先阶段文本（直播等），否则速度 + 剩余时间。
+ * elapsedSeconds 为空表示没有耗时基准（全量快照重建时只有瞬时样本），此时不显示剩余时间
+ */
 export function buildDetail(
   ratio: number,
   speed: number,
-  totalBytes: number,
+  elapsedSeconds: number | null,
   stageDetail?: string
 ): string {
   if (stageDetail) {
@@ -58,7 +63,7 @@ export function buildDetail(
   }
 
   const speedText = speed > 0 ? formatSpeed(speed) : ''
-  const eta = formatEta(ratio, speed, totalBytes)
+  const eta = elapsedSeconds === null ? null : formatEta(ratio, elapsedSeconds)
   if (eta) {
     return speedText.length === 0 ? `剩余 ${eta}` : `${speedText} · 剩余 ${eta}`
   }

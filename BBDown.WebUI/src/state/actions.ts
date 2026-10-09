@@ -103,7 +103,7 @@ export async function clearFailed(store: TaskStore): Promise<void> {
  */
 export function answerAsk(store: TaskStore, ask: PendingAsk, choice: string): void {
   store.socket?.submitChoice(ask.taskId, ask.requestId, choice)
-  store.answeredAsks.add(ask.requestId)
+  store.answeredAsks.set(ask.requestId, ask.taskId)
   store.pendingAsks.value = store.pendingAsks.value.map((a) =>
     a.requestId === ask.requestId ? { ...a, submitted: true } : a
   )

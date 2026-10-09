@@ -28,24 +28,28 @@ describe('formatSpeed / formatTime', () => {
 })
 
 describe('formatEta', () => {
-  it('按已下载字节与速率外推（剩余 = 已下载 × (1-比例) ÷ 比例 = 总量 × (1-比例)）', () => {
-    expect(formatEta(0.5, 100, 100)).toBe('00m01s')
-    expect(formatEta(0.25, 100, 100)).toBe('00m03s')
+  it('按已耗时与已完成比例外推（剩余 = 已耗时 × (1-比例) ÷ 比例）', () => {
+    expect(formatEta(0.5, 1)).toBe('00m01s')
+    expect(formatEta(0.25, 1)).toBe('00m03s')
   })
 
-  it('比例过低或速度为 0 时不显示', () => {
-    expect(formatEta(0.01, 100, 100)).toBeNull()
-    expect(formatEta(0.5, 0, 100)).toBeNull()
+  it('比例过低或耗时为 0 时不显示', () => {
+    expect(formatEta(0.01, 100)).toBeNull()
+    expect(formatEta(0.5, 0)).toBeNull()
   })
 })
 
 describe('buildDetail', () => {
   it('优先阶段文本并附速度', () => {
-    expect(buildDetail(0.5, 100, 100, '原画')).toBe('原画 | 100 bytes/s')
+    expect(buildDetail(0.5, 100, 1, '原画')).toBe('原画 | 100 bytes/s')
   })
 
   it('无阶段文本时速度 + 剩余时间', () => {
-    expect(buildDetail(0.5, 100, 100)).toBe('100 bytes/s · 剩余 00m01s')
+    expect(buildDetail(0.5, 100, 1)).toBe('100 bytes/s · 剩余 00m01s')
+  })
+
+  it('无耗时基准时只给速度，不外推剩余时间', () => {
+    expect(buildDetail(0.5, 100, null)).toBe('100 bytes/s')
   })
 
   it('无速度时为空', () => {

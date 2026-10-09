@@ -35,17 +35,22 @@ let options = reactive<TaskOptions>(loadOptions())
 const serveSettingsVisible = ref(false)
 const submitting = ref(false)
 // 选项变化即持久化，刷新后保留；节流后写入，避免逐键同步写 localStorage
+// flush: 'post' 让回调排在渲染之后，reactive 对象的深度遍历不占按键事件的前台时间
 let saveTimer: ReturnType<typeof setTimeout> | null = null
-watch(options, () => {
-  if (saveTimer !== null) {
-    clearTimeout(saveTimer)
-  }
+watch(
+  options,
+  () => {
+    if (saveTimer !== null) {
+      clearTimeout(saveTimer)
+    }
 
-  saveTimer = setTimeout(() => {
-    saveOptions(options)
-    saveTimer = null
-  }, 400)
-})
+    saveTimer = setTimeout(() => {
+      saveOptions(options)
+      saveTimer = null
+    }, 400)
+  },
+  { flush: 'post' }
+)
 
 const targetHint = computed(() => describeTarget(target.value))
 const contentChecked = computed<Set<string>>({

@@ -49,6 +49,10 @@ export function startSocket(store: TaskStore): void {
     // 订阅失败（任务不存在 / 已结束）：仅记录，不影响连接；任务状态仍由 taskList 帧推送
     onSubscribeError: (error) => {
       appendLog(store, `任务订阅失败：${error}`, true)
+    },
+    // 坏帧只记日志：连接仍在，事件流状态不变
+    onFrameDropped: (reason) => {
+      appendLog(store, `事件帧已丢弃：${reason}`, true)
     }
   })
   store.socket.connect()

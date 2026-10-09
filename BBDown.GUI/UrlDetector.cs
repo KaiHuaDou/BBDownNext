@@ -143,6 +143,12 @@ public static partial class UrlDetector
             return new TargetInfo("音频（au 号）", TargetKind.Audio);
         }
 
+        // 裸简写与 URL 形式同义（Core InputResolver 的相等判定接受裸写，GUI 不接受即与 CLI 不一致）
+        if (text.Equals("watchlater", StringComparison.OrdinalIgnoreCase))
+        {
+            return new TargetInfo("稍后再看列表", TargetKind.Video);
+        }
+
         // 稍后再看：路径 /watchlater 或 /list/watchlater，或 www.bilibili.com/?page=watchlater
         if (uri is { } watchLater
             && string.Equals(watchLater.Host, "www.bilibili.com", StringComparison.OrdinalIgnoreCase)

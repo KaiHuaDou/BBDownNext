@@ -86,13 +86,16 @@ export function kindOfId(id: string): string {
   return '视频'
 }
 
-/** 由 serve 任务对象构造前端视图。 */
-export function toView(task: DownloadTask): TaskView {
+/**
+ * 由 serve 任务对象构造前端视图。
+ * elapsedSeconds 为已耗时（秒），决定是否显示剩余时间；无基准时只给速度
+ */
+export function toView(task: DownloadTask, elapsedSeconds: number | null = null): TaskView {
   const { status, statusText } = statusOf(task)
   const isLive = /live\.bilibili\.com|^live\d+/i.test(task.url)
   const detail =
     status === 'Running' && task.progress > 0
-      ? buildDetail(task.progress, task.downloadSpeed, task.totalDownloadedBytes)
+      ? buildDetail(task.progress, task.downloadSpeed, elapsedSeconds)
       : ''
   return {
     id: task.id,

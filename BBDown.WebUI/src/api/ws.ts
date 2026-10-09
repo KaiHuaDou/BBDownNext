@@ -32,6 +32,8 @@ export interface SocketHandlers {
   onOpen: () => void
   /** 订阅失败（任务不存在 / 事件流未启用），与连接生命周期无关。 */
   onSubscribeError: (error: string) => void
+  /** 收到无法解析的帧（协议不匹配 / 代理改写）。连接本身仍正常，故不并入 onStatus。 */
+  onFrameDropped: (reason: string) => void
 }
 
 export interface TaskSocket {
@@ -51,6 +53,8 @@ interface SocketState {
   retryDelay: number
   retryTimer: ReturnType<typeof setTimeout> | null
   pingTimer: ReturnType<typeof setInterval> | null
+  /** 连续丢弃的帧数：解析失败时累加，成功解析后归零，用于把丢弃量带上报给用户</summary> */
+  droppedFrames: number
 }
 
 function stopPing(state: SocketState): void {
@@ -90,11 +94,40 @@ function onOpen(state: SocketState): void {
   state.pingTimer = setInterval(() => send(state, { kind: 'ping' }), PingIntervalMs)
 }
 
-function onMessage(state: SocketState, message: MessageEvent): void {
+/**
+ * 解析一帧。返回 null 表示这一帧无法理解，已计入丢弃计数并上报：
+ * 二进制帧、反向代理改写协议、serve 与前端版本不匹配都会走到这里，静默丢帧会让进度与提问无征兆停摆
+ */
+function parseFrame(state: SocketState, data: unknown): EventFrame | null {
+  const fail = (reason: string): null => {
+    state.droppedFrames += 1
+    state.handlers.onFrameDropped(`${reason}，已丢弃 ${state.droppedFrames} 帧`)
+    return null
+  }
+
+  if (typeof data !== 'string') {
+    return fail(`收到非文本帧（${typeof data}）`)
+  }
+
   let frame: EventFrame
   try {
-    frame = JSON.parse(message.data as string) as EventFrame
+    frame = JSON.parse(data) as EventFrame
   } catch {
+    return fail('事件帧不是合法 JSON')
+  }
+
+  if (typeof frame.kind !== 'string') {
+    return fail('事件帧缺少 kind 字段')
+  }
+
+  // 一帧解析成功即认为链路恢复正常，计数归零，后续再坏只报当次的增量
+  state.droppedFrames = 0
+  return frame
+}
+
+function onMessage(state: SocketState, message: MessageEvent): void {
+  const frame = parseFrame(state, message.data)
+  if (frame === null) {
     return
   }
 
@@ -179,7 +212,8 @@ export function connectTaskSocket(config: ServeConfig, handlers: SocketHandlers)
     closed: false,
     retryDelay: 1000,
     retryTimer: null,
-    pingTimer: null
+    pingTimer: null,
+    droppedFrames: 0
   }
 
   return {

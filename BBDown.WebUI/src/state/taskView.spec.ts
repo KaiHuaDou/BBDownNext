@@ -69,8 +69,16 @@ describe('toView 状态映射', () => {
 
   it('运行态带进度与速度时构造详情文本', () => {
     const view = toView(
-      makeTask({ status: 'Running', progress: 0.5, downloadSpeed: 100, totalDownloadedBytes: 100 })
+      makeTask({ status: 'Running', progress: 0.5, downloadSpeed: 100, totalDownloadedBytes: 100 }),
+      10
     )
     expect(view.detail).toContain('剩余')
+  })
+
+  it('无耗时基准时只给速度，不外推剩余时间', () => {
+    const view = toView(
+      makeTask({ status: 'Running', progress: 0.5, downloadSpeed: 100, totalDownloadedBytes: 100 })
+    )
+    expect(view.detail).toBe('100 bytes/s')
   })
 })
