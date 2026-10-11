@@ -9,7 +9,6 @@ import type { ApiType, MuxMode, ServeRequestOptions } from './types'
  */
 export interface TaskOptions {
   content: string
-  useAria2c: boolean
   singleThread: boolean
   infoOnly: boolean
   showAll: boolean
@@ -46,7 +45,6 @@ export interface TaskOptions {
 
 export const DEFAULT_OPTIONS: TaskOptions = {
   content: DEFAULT_CONTENT,
-  useAria2c: false,
   singleThread: false,
   infoOnly: false,
   showAll: false,
@@ -113,6 +111,59 @@ export const MUX_CHOICES: { value: MuxMode; label: string }[] = [
 /** API 通道（与 Core ApiType 枚举的小写形式相同）。 */
 export const API_CHOICES: ApiType[] = ['web', 'tv', 'app', 'intl']
 
+/** 编码优先级候选（与 Core Config.EncodingNames 一致）。 */
+export const ENCODING_CHOICES: string[] = ['HEVC', 'AV1', 'AVC', 'FLAC', 'EAC3', 'M4A']
+
+/** 画质优先级候选（与 Core Config.QualityNameList 一致，高 → 低，同名去重）。 */
+export const DFN_CHOICES: string[] = [
+  '8K 超高清',
+  '杜比视界',
+  'HDR 真彩',
+  'HDR Vivid',
+  '4K 超清',
+  '1080P 高帧率',
+  '1080P 高码率',
+  '1080P 高清',
+  '智能修复',
+  '720P 高帧率',
+  '720P 高清',
+  '480P 清晰',
+  '360P 流畅',
+  '240P 流畅',
+  '144P 流畅'
+]
+
+/** 音频档位候选（与 Core Config.AudioQualityNameList 一致，码率高 → 低）。 */
+export const AUDIO_QUALITY_CHOICES: string[] = [
+  '杜比全景声',
+  'Hi-Res 无损',
+  '192K',
+  '132K',
+  '64K',
+  '杜比音效'
+]
+
+/** 解析优先级逗号串：去空白、忽略候选外的 token、去重（GUI PriorityPicker.Reset 同规则） */
+export function parsePriority(value: string, choices: string[]): string[] {
+  const known = new Set(choices.map((c) => c.toLowerCase()))
+  const picked: string[] = []
+  for (const token of value.split(',')) {
+    const name = token.trim()
+    if (
+      name.length > 0 &&
+      known.has(name.toLowerCase()) &&
+      !picked.some((p) => p.toLowerCase() === name.toLowerCase())
+    ) {
+      const match = choices.find((c) => c.toLowerCase() === name.toLowerCase())
+      if (match) {
+        picked.push(match)
+      }
+    }
+  }
+
+  return picked
+}
+
 /** 把面板选项映射为 serve 提交体。cookie / accessToken 不在此列：凭据由服务端的 BBDown.data 提供。 */
 export function toServeRequest(options: TaskOptions, url: string): ServeRequestOptions {
   const orUndefined = (value: string): string | undefined =>
@@ -128,7 +179,6 @@ export function toServeRequest(options: TaskOptions, url: string): ServeRequestO
     encodingFirst: options.encodingFirst,
     onlyShowInfo: options.infoOnly,
     showAll: options.showAll,
-    useAria2c: options.useAria2c,
     hideStreams: options.hideStreams,
     singleThread: options.singleThread,
     noForceHttp: options.noForceHttp,

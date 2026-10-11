@@ -9,9 +9,9 @@ import type {
 import { resolveBaseUrl, type ServeConfig } from './client'
 
 /**
- * 任务事件 WebSocket 通道（/hubs/tasks）：订阅任务后接收消息 / 进度快照 / 选项请求 / 全量列表（taskList），
- * 经 submitChoice 帧应答选项。握手令牌经子协议头传（浏览器无法自定义请求头；URL 会进日志与历史）。
- * 事件流始终启用（已移除 --no-interactive），任务列表与完成态均由推送驱动，无需轮询。
+ * 任务事件 WebSocket 通道（/hubs/tasks）：订阅任务后接收消息 / 进度快照 / 选项请求 / 全量列表（taskList）
+ * 经 submitChoice 帧应答选项；握手令牌经 Sec-WebSocket-Protocol 子协议头传（URL 会进日志与历史）
+ * 事件流始终启用（已移除 --no-interactive），任务列表与完成态均由推送驱动，无需轮询
  */
 
 /** 保活 ping 间隔：服务端无事件推送时连接可能被中间层空闲回收。 */
@@ -128,7 +128,9 @@ function isChoiceResultFrame(frame: SourceFrame): frame is FrameOf<'choiceResult
 
 function isTaskListFrame(frame: SourceFrame): frame is FrameOf<'taskList'> {
   return (
-    isRecord(frame.tasks) && Array.isArray(frame.tasks.running) && Array.isArray(frame.tasks.finished)
+    isRecord(frame.tasks) &&
+    Array.isArray(frame.tasks.running) &&
+    Array.isArray(frame.tasks.finished)
   )
 }
 
@@ -140,7 +142,7 @@ function dropFrame(state: SocketState, reason: string): null {
 }
 
 /**
- * 解析一帧为待校验的帧对象，只取出 JSON 与 kind；字段形状交由 onMessage 按帧类型判定。
+ * 解析一帧为待校验的帧对象，只取出 JSON 与 kind；字段形状交由 onMessage 按帧类型判定
  * 返回 null 表示这一帧无法理解，已计入丢弃计数并上报：
  * 二进制帧、反向代理改写协议、serve 与前端版本不匹配都会走到这里，静默丢帧会让进度与提问无征兆停摆
  */

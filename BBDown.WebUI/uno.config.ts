@@ -38,9 +38,9 @@ export default defineConfig({
           --glass-3: rgba(255,255,255,0.16);
           --hairline: rgba(255,255,255,0.10);
           --hairline-strong: rgba(255,255,255,0.18);
-          --text: #e9edf4;
-          --text-dim: #a8b0c0;
-          --text-faint: #7a8294;
+          --text: #f2f5fa;
+          --text-dim: #b9c1d1;
+          --text-faint: #8c94a6;
           --accent: #00aeec;
           --accent-strong: #3cc4f5;
           --accent-soft: rgba(0,174,236,0.22);
@@ -189,6 +189,14 @@ export default defineConfig({
       'inline-flex shrink-0 items-center rounded-md border border-[var(--hairline)] bg-[var(--glass-2)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-dim)]',
     stat: 'inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] bg-[var(--glass-2)] px-2 py-0.5 text-xs text-[var(--text-dim)]',
     'stat-text': 'inline-flex items-center gap-1.5 text-xs text-[var(--text-dim)]',
-    'stat-dot': 'h-1.5 w-1.5 rounded-full'
+    'stat-dot': 'h-1.5 w-1.5 rounded-full',
+
+    // 优先级选择器 chips
+    chip:
+      'inline-flex cursor-grab select-none items-center gap-1.5 rounded-full border border-[var(--accent-soft)] bg-[var(--accent-soft)] px-2.5 py-0.5 text-xs text-[var(--text)] active:cursor-grabbing',
+    'chip-x':
+      'flex h-4 w-4 cursor-pointer items-center justify-center rounded-full text-[var(--text-faint)] transition-colors hover:bg-[var(--glass-3)] hover:text-[var(--st-failed)]',
+    'chip-add':
+      'inline-flex select-none items-center rounded-full border border-[var(--hairline)] bg-[var(--glass-2)] px-2.5 py-0.5 text-xs text-[var(--text-dim)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--text)]'
   }
 })

@@ -10,7 +10,7 @@ using BBDown.Serve.Tasks;
 namespace BBDown.Tests;
 
 /// <summary>
-/// 任务域状态容器测试：服务端配置注入（work-dir / host）、任务创建与状态迁移、暂停表的启停
+/// 任务域状态容器测试：服务端配置注入（ApplyServeSettings）、任务创建与状态迁移、暂停表的启停
 /// </summary>
 public class TaskStoreTests
 {
@@ -20,41 +20,60 @@ public class TaskStoreTests
     }
 
     [Fact]
-    public void ApplyServeWorkDir_FallsBackToServerConfig( )
+    public void ApplyServeSettings_InjectsServerConfig( )
     {
-        // 验证服务端配置的工作目录会被注入到每个任务（且请求体不含该字段，无法被客户端覆盖）
+        // 服务端固定字段由启动参数注入每个任务（请求体不含这些字段，无法被客户端覆盖）
         var tmp = Path.Combine(Path.GetTempPath( ), "bbdown-workdir-" + Guid.NewGuid( ).ToString("N"));
-        var store = NewStore(new ServeConfig(WorkDir: tmp));
+        var store = NewStore(new ServeConfig(
+            WorkDir: tmp,
+            Host: "https://biliplus.example.com",
+            EpHost: "https://biliplus.example.com",
+            TvHost: "api.snm0516.aisee.tv",
+            UseAria2c: true,
+            FFmpegPath: "/opt/ffmpeg",
+            Mp4boxPath: "/opt/mp4box",
+            Aria2cPath: "/opt/aria2c",
+            Aria2cArgs: "-x8",
+            PostProcessPath: "/opt/postprocess",
+            UserAgent: "BBDownServe/1.0",
+            FilePattern: "[title]",
+            MultiFilePattern: "[title]/P[p]"));
 
-        var opts = store.ApplyServeWorkDir(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
+        var opts = store.ApplyServeSettings(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
 
         Assert.Equal(tmp, opts.WorkDir);
-    }
-
-    [Fact]
-    public void ApplyServeHost_FallsBackToServerConfig( )
-    {
-        // host 由 serve 启动参数决定，请求体不含该字段，无法被客户端覆盖
-        var store = NewStore(new ServeConfig(Host: "https://biliplus.example.com", EpHost: "https://biliplus.example.com", TvHost: "api.snm0516.aisee.tv"));
-
-        var opts = store.ApplyServeHost(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
-
         Assert.Equal("https://biliplus.example.com", opts.Host);
         Assert.Equal("https://biliplus.example.com", opts.EpHost);
         Assert.Equal("api.snm0516.aisee.tv", opts.TvHost);
+        Assert.True(opts.UseAria2c);
+        Assert.Equal("/opt/ffmpeg", opts.FFmpegPath);
+        Assert.Equal("/opt/mp4box", opts.Mp4boxPath);
+        Assert.Equal("/opt/aria2c", opts.Aria2cPath);
+        Assert.Equal("-x8", opts.Aria2cArgs);
+        Assert.Equal("/opt/postprocess", opts.PostProcessPath);
+        Assert.Equal("BBDownServe/1.0", opts.UserAgent);
+        Assert.Equal("[title]", opts.FilePattern);
+        Assert.Equal("[title]/P[p]", opts.MultiFilePattern);
     }
 
     [Fact]
-    public void ApplyServeHost_EmptyFallsBackToDefault( )
+    public void ApplyServeSettings_EmptyFallsBackToDefaults( )
     {
-        // serve 启动参数 host 为空时回落官方默认，避免空 host 抛出 UriFormatException
+        // serve 启动参数留空的字段回落安全默认值：官方 host、空路径、不调用 aria2c
         var store = NewStore(new ServeConfig(Host: "", EpHost: null, TvHost: "  "));
 
-        var opts = store.ApplyServeHost(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
+        var opts = store.ApplyServeSettings(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
 
         Assert.Equal(BiliApi.MainHost, opts.Host);
         Assert.Equal(BiliApi.MainHost, opts.EpHost);
         Assert.Equal(BiliApi.TvHost, opts.TvHost);
+        Assert.False(opts.UseAria2c);
+        Assert.Equal("", opts.FFmpegPath);
+        Assert.Equal("", opts.Aria2cArgs);
+        Assert.Equal("", opts.PostProcessPath);
+        Assert.Equal("", opts.UserAgent);
+        Assert.Equal("", opts.FilePattern);
+        Assert.Equal("", opts.MultiFilePattern);
     }
 
     [Fact]

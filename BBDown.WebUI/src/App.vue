@@ -8,15 +8,17 @@ import LogPanel from './components/LogPanel.vue'
 import OptionsPanel from './components/OptionsPanel.vue'
 import ServeSettingsDialog from './components/ServeSettingsDialog.vue'
 import TaskList from './components/TaskList.vue'
+import { contentItemEnabled, contentWarnings, modeOf, type ContentMode } from './lib/availability'
 import { CONTENT_ORDER, checkedFromContent, contentFromChecked } from './lib/content'
-import { DEFAULT_OPTIONS, loadOptions, saveOptions, type TaskOptions } from './lib/options'
-import { describeTarget } from './lib/urlDetector'
 import { errorMessage } from './lib/errors'
+import { DEFAULT_OPTIONS, loadOptions, saveOptions, type TaskOptions } from './lib/options'
+import { detectTarget, describeTarget } from './lib/urlDetector'
 import {
   answerAsk,
   applyConfig,
   clearAll,
   clearFailed,
+  clearLog,
   exportLog,
   remove,
   retry,
@@ -53,6 +55,30 @@ watch(
 )
 
 const targetHint = computed(() => describeTarget(target.value))
+// 目标域驱动选项可用性与组合警告（GUI RefreshAvailability 同思路，未识别目标不限制）
+const targetInfo = computed(() => detectTarget(target.value))
+const contentMode = computed<ContentMode | null>(() =>
+  targetInfo.value ? modeOf(targetInfo.value.kind) : null
+)
+const contentEnabled = computed(() => !options.infoOnly && contentMode.value !== 'Live')
+const contentEnabledMap = computed(() => {
+  const map = new Map<string, boolean>()
+  for (const item of CONTENT_ORDER) {
+    map.set(item.ch, contentItemEnabled(contentMode.value, item.ch))
+  }
+
+  return map
+})
+const contentWarnLines = computed(() =>
+  contentWarnings({
+    hasTarget: targetInfo.value !== null,
+    mode: contentMode.value,
+    content: options.content,
+    commentsCount: Number.parseInt(options.commentsCount, 10) || 0,
+    danmakuFormats: options.danmakuFormats,
+    infoOnly: options.infoOnly
+  })
+)
 const contentChecked = computed<Set<string>>({
   get: () => checkedFromContent(options.content),
   set: (next) => {
@@ -121,7 +147,11 @@ const dismissAsk = (): void => {
     return
   }
 
-  answerAsk(store, currentAsk.value, currentAsk.value.defaultOptionId ?? currentAsk.value.options[0]?.id ?? '')
+  answerAsk(
+    store,
+    currentAsk.value,
+    currentAsk.value.defaultOptionId ?? currentAsk.value.options[0]?.id ?? ''
+  )
 }
 
 const onSaveServeSettings = (next: ServeConfig): void => {
@@ -186,28 +216,34 @@ const onSaveServeSettings = (next: ServeConfig): void => {
             <template v-else>粘贴链接后将自动识别类型</template>
           </div>
 
-          <!-- 内容选择（12 项，3 列紧凑布局） -->
+          <!-- 内容选择（13 项，列优先每列 4 个，与 GUI 纵向 WrapPanel 同向）；直播域整体禁用，其余按目标域逐项禁用 -->
           <div class="mt-2.5">
             <div
-              class="grid grid-cols-3 gap-x-3 gap-y-1"
-              :class="{ 'pointer-events-none opacity-50': options.infoOnly }">
-              <label v-for="item in CONTENT_ORDER" :key="item.ch" class="check">
+              class="grid auto-cols-fr grid-flow-col grid-rows-4 gap-x-3 gap-y-1"
+              :class="{ 'pointer-events-none opacity-50': !contentEnabled }">
+              <label
+                v-for="item in CONTENT_ORDER"
+                :key="item.ch"
+                class="check"
+                :class="{ 'pointer-events-none': !contentEnabledMap.get(item.ch) }">
                 <input
                   type="checkbox"
+                  :disabled="!contentEnabledMap.get(item.ch)"
                   :checked="contentChecked.has(item.ch)"
                   @change="toggleContent(item.ch, ($event.target as HTMLInputElement).checked)" />
                 {{ item.name }}
                 <span class="text-[var(--text-faint)]">({{ item.ch }})</span>
               </label>
             </div>
+            <div v-if="contentWarnLines.length > 0" class="mt-1.5 text-xs text-[var(--st-waiting)]">
+              {{ contentWarnLines.join('；') }}
+            </div>
           </div>
         </div>
 
         <!-- 选项（整体滚动） -->
         <div class="card card-pad flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <OptionsPanel
-            v-model="options"
-            :class="{ 'pointer-events-none opacity-50': options.infoOnly }" />
+          <OptionsPanel v-model="options" :mode="contentMode" />
         </div>
       </section>
 
@@ -249,14 +285,22 @@ const onSaveServeSettings = (next: ServeConfig): void => {
 
         <!-- 日志 -->
         <details open class="expander">
-          <summary class="exp-head">
+          <summary class="exp-head log-head">
             <span>日志</span>
-            <button
-              class="btn-ghost px-2.5 py-1 text-xs"
-              type="button"
-              @click.stop.prevent="exportLog(store)">
-              导出日志
-            </button>
+            <span class="ml-auto flex gap-1">
+              <button
+                class="btn-ghost px-2.5 py-1 text-xs"
+                type="button"
+                @click.stop.prevent="exportLog(store)">
+                导出
+              </button>
+              <button
+                class="btn-ghost px-2.5 py-1 text-xs"
+                type="button"
+                @click.stop.prevent="clearLog(store)">
+                清空
+              </button>
+            </span>
           </summary>
           <div class="p-1 pt-0">
             <LogPanel :log-lines="logLines" />
@@ -278,3 +322,10 @@ const onSaveServeSettings = (next: ServeConfig): void => {
       @close="serveSettingsVisible = false" />
   </div>
 </template>
+
+<style scoped>
+/* 面板 chevron 的 auto margin 让位给操作按钮，令导出 / 清空贴最右 */
+.log-head::after {
+  margin-left: 0;
+}
+</style>

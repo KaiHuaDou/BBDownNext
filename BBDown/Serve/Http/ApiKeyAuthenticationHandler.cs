@@ -13,8 +13,8 @@ using Microsoft.Extensions.Options;
 namespace BBDown.Serve.Http;
 
 /// <summary>
-/// 令牌认证：X-BBDown-Token 头始终接受；WebSocket 握手（/hubs/tasks，浏览器无法自定义请求头）例外接受
-/// Sec-WebSocket-Protocol 的首个值，仍兼容 ?token= 查询参数。比较走恒定时间，避免时序侧信道
+/// 令牌认证：HTTP API 用 X-BBDown-Token 头；WebSocket 握手（/hubs/tasks）用 Sec-WebSocket-Protocol
+/// 的首个值，另接受 ?token= 查询参数。比较走恒定时间，避免时序侧信道
 /// </summary>
 internal sealed class ApiKeyAuthenticationHandler(
     IOptionsMonitor<ApiKeyAuthenticationOptions> options,

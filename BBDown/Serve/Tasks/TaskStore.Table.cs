@@ -106,27 +106,27 @@ internal sealed partial class TaskStore
         }
     }
 
-    // serve 模式的工作目录由启动参数 --work-dir 决定，覆盖请求体（请求体根本不含该字段）
-    // 客户端无法把写入位置指向任意目录
-    internal DownloadRequest ApplyServeWorkDir(DownloadRequest option)
-    {
-        if (!string.IsNullOrEmpty(workDir))
-        {
-            return option with { WorkDir = workDir };
-        }
-
-        return option;
-    }
-
-    // serve 模式的 API host 由启动参数（--api-host/--api-ep-host/--api-tv-host）决定，覆盖请求体（请求体已不含该字段）
-    // 客户端无法把请求导向自己控制的服务器、从而窃走操作者的 SESSDATA。空值回落官方默认 host
-    internal DownloadRequest ApplyServeHost(DownloadRequest option)
+    // 服务端固定字段统一由启动参数注入，覆盖请求体（请求体不含这些字段，结构上无法注入）：
+    // 工作目录 / API host / aria2c 与外部工具 / user-agent / 文件命名模式
+    // host 空值回落官方默认，避免空 host 抛 UriFormatException
+    // 请求不带 cookie 时若 host 可由请求体控制会形成凭据外泄链，故 host 一律以服务端为准
+    internal DownloadRequest ApplyServeSettings(DownloadRequest option)
     {
         return option with
         {
+            WorkDir = workDir ?? "",
             Host = string.IsNullOrWhiteSpace(host) ? BiliApi.MainHost : host.Trim( ),
             EpHost = string.IsNullOrWhiteSpace(epHost) ? BiliApi.MainHost : epHost.Trim( ),
             TvHost = string.IsNullOrWhiteSpace(tvHost) ? BiliApi.TvHost : tvHost.Trim( ),
+            UseAria2c = useAria2c,
+            FFmpegPath = ffmpegPath ?? "",
+            Mp4boxPath = mp4boxPath ?? "",
+            Aria2cPath = aria2cPath ?? "",
+            Aria2cArgs = aria2cArgs ?? "",
+            PostProcessPath = postProcessPath ?? "",
+            UserAgent = userAgent ?? "",
+            FilePattern = filePattern ?? "",
+            MultiFilePattern = multiFilePattern ?? "",
         };
     }
 }

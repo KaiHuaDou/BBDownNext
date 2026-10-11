@@ -28,8 +28,7 @@ function mockFetch(): void {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
       return url.endsWith('/healthz')
         ? Response.json({ status: 'ok', running: 0 })
         : new Response('not found', { status: 404 })
@@ -52,6 +51,7 @@ describe('App', () => {
     expect(wrapper.text()).toContain('内容选项')
     expect(wrapper.text()).toContain('下载选项')
     expect(wrapper.text()).toContain('解析选项')
+    expect(wrapper.text()).toContain('网络选项')
     expect(wrapper.text()).toContain('加入并执行')
     expect(wrapper.text()).toContain('加入队列')
     expect(wrapper.text()).toContain('重置选项')

@@ -486,13 +486,23 @@ APP 未登录    本地无 access_token
 | 参数               | 简写   | 说明                                                                                                                                             |
 | ------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `--listen`         | `-l`   | 监听地址，默认 `http://127.0.0.1:23333`                                                                                                          |
-| `--serve-token`    | <br /> | serve 鉴权令牌；显式传入后才启用强制鉴权（HTTP 接口须带 `X-BBDown-Token` 头，WebSocket 握手 `/hubs/tasks` 改接受 `Sec-WebSocket-Protocol` 首值、另兼容 `?token=` 查询参数），未传入则默认免令牌开放并警告 |
+| `--serve-token`    | <br /> | serve 鉴权令牌；显式传入后才启用强制鉴权（HTTP 接口须带 `X-BBDown-Token` 头，WebSocket 握手 `/hubs/tasks` 用 `Sec-WebSocket-Protocol` 首值、另兼容 `?token=` 查询参数），未传入则默认免令牌开放并警告 |
 | `--work-dir`       | <br /> | 所有任务的下载输出目录，请求中的同名字段会被忽略                                                                                                 |
 | `--api-host`       | <br /> | API 请求 Host，所有任务统一使用此值；请求体不能指定 host（防止凭据被导向外部服务器）                                                             |
 | `--api-ep-host`    | <br /> | 番剧 / 影视 API 请求 Host，所有任务统一使用此值                                                                                                  |
 | `--api-tv-host`    | <br /> | TV 端 API 请求 Host，所有任务统一使用此值                                                                                                        |
 | `--cors-origin`    | <br /> | 除回环来源（127.0.0.1 / localhost）外，额外允许该单一来源跨域调用 serve（CORS）                                                                  |
 | `--max-concurrent` | <br /> | 同时下载的任务数上限，默认 0（不限制）；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队                                                       |
+| `--aria2c`         | <br /> | 所有任务统一调用 aria2c 下载（需自行准备可执行文件）                                                                                             |
+| `--ffmpeg-path`    | <br /> | 所有任务统一使用的 FFmpeg 路径，留空在 `PATH` 与程序目录查找                                                                                     |
+| `--mp4box-path`    | <br /> | 所有任务统一使用的 MP4Box 路径，留空在 `PATH` 与程序目录查找                                                                                     |
+| `--aria2c-path`    | <br /> | 所有任务统一使用的 aria2c 路径，留空在 `PATH` 与程序目录查找                                                                                     |
+| `--aria2c-args`    | <br /> | 所有任务统一使用的 aria2c 附加参数（详见脚注 [^aria2cargs]）                                                                                     |
+| `--post-process`   | <br /> | 所有任务统一使用的后处理程序路径，留空不启用                                                                                                     |
+| `--user-agent`     | <br /> | 所有任务统一使用的 user-agent，留空用默认值                                                                                                      |
+| `--debug`          | <br /> | 输出调试日志                                                                                                                                     |
+| `--file-pattern`   | <br /> | 所有任务统一使用的单 P 文件名模板，留空用默认值                                                                                                  |
+| `--multi-file-pattern` | <br /> | 所有任务统一使用的多 P 文件名模板，留空用默认值                                                                                              |
 | `--webui`          | <br /> | 启用内嵌 WebUI：在同一监听端口一并托管前端（任意 `--listen` 均生效），无需单独部署 BBDown.WebUI；构建时未嵌入 dist 则启动告警并不托管前端        |
 
 ```bash
@@ -545,7 +555,7 @@ BV1uv411q7Mv
 `BBDown serve` 会在本地启动一个 HTTP 服务器，对外暴露任务增删查的 JSON API，适合与下载器面板、自动化脚本集成。完整接口定义、数据结构与请求示例见 **[API.md](./docs/API.md)**。
 
 - **默认免令牌即可调用**，便于本机脚本使用；启动时若未通过 `--serve-token` 指定令牌，会打印警告提示暴露风险。
-- **显式传入 `--serve-token` 后**，BBDown 强制要求令牌鉴权：所有访问均须携带 `X-BBDown-Token` 请求头（浏览器无法自定义 WebSocket 握手请求头，`/hubs/tasks` 改接受 `Sec-WebSocket-Protocol` 子协议头，另兼容 `?token=` 查询参数），令牌不匹配一律返回 `401`。令牌须为 HTTP token 字符集。
+- **显式传入 `--serve-token` 后**，BBDown 强制要求令牌鉴权：所有访问均须携带 `X-BBDown-Token` 请求头（WebSocket 握手 `/hubs/tasks` 用 `Sec-WebSocket-Protocol` 子协议头，另兼容 `?token=` 查询参数），令牌不匹配一律返回 `401`。令牌须为 HTTP token 字符集。
 - 服务器**默认仅对回环来源开放 CORS**（`127.0.0.1` / `localhost` 页面的跨源请求放行），其余来源需显式 `--cors-origin <url>` 指定。
 - 需要跨机器访问时请自行加反向代理与 TLS，并显式指定 `serve -l http://0.0.0.0:23333`。
 

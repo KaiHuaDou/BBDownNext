@@ -28,12 +28,14 @@ public class BBDownApiServerTests
             "mp4boxPath": "/evil/mp4box",
             "aria2cPath": "/evil/aria2c",
             "aria2cArgs": "--on-download-complete /evil.sh",
+            "postProcessPath": "/evil/postprocess",
             "workDir": "/tmp/escape",
             "filePattern": "../../../etc/cron.d/pwn",
             "multiFilePattern": "../../../root/.bashrc",
             "debug": true,
             "userAgent": "Mozilla/5.0 (attacker)",
             "configFile": "/etc/passwd",
+            "useAria2c": true,
             "host": "https://evil.example.com",
             "epHost": "https://evil.example.com",
             "tvHost": "https://evil.example.com"
@@ -47,12 +49,15 @@ public class BBDownApiServerTests
         Assert.Equal("", opts.Mp4boxPath);
         Assert.Equal("", opts.Aria2cPath);
         Assert.Equal("", opts.Aria2cArgs);
+        Assert.Equal("", opts.PostProcessPath);
         Assert.Equal("", opts.WorkDir);
         Assert.Equal("", opts.FilePattern);
         Assert.Equal("", opts.MultiFilePattern);
         Assert.False(opts.Debug);
         Assert.Equal("", opts.UserAgent);
         Assert.Null(opts.ConfigFile);
+        // 是否调用 aria2c 由启动参数 --aria2c 决定，请求体注入无效
+        Assert.False(opts.UseAria2c);
         // 请求不带 cookie 时会回落本机 SESSDATA，host 若可由请求体控制就成了凭据外泄链
         Assert.Equal(BiliApi.MainHost, opts.Host);
         Assert.Equal(BiliApi.MainHost, opts.EpHost);

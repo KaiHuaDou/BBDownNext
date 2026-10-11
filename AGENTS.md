@@ -335,3 +335,7 @@ AGENT 对此文档的修改只能添加在本节，在本节添加内容无需�
 - 例外只有一种：改动确实无法靠阅读排错，必须先确认能否编译才能继续写（例如新增的公开成员名已被别处引用）。除此之外一律先改完
 - 收尾时统一跑：`dotnet build BBDown.slnx -c Debug -t:Compile`（须 0 警告 0 错误）、`dotnet test BBDown.slnx -c Debug`、`vue-tsc --build --force`、`vitest run`
 - 收尾发现红时**不要**回到「改一处验一处」的节奏；把整批改完再统一重跑
+
+### tsgolint 在本机不可用
+
+`.oxlintrc.jsonc` 的 `options` 节（`typeAware` / `typeCheck`）使 oxlint spawn `tsgolint.CMD`，本机该 spawn 必败（os error 231，所有的管道范例都在使用中），oxlint 随即整体退出、无诊断输出。`tsgolint.CMD` 经 cmd.exe 手动调用正常，属 oxlint 自身拒绝 spawn `.CMD`，与 shim 和配置无关。跑 BBDown.WebUI 的 lint 时用 `-c` 指向去掉 `options` 节的配置副本（放临时目录，勿入仓库），改动只要求不新增诊断

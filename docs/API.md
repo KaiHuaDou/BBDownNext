@@ -22,11 +22,26 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | `--listen`         | `-l` | 监听地址，默认 `http://127.0.0.1:23333`                                                                                                                                       |
 | `--serve-token`    |      | 鉴权令牌；显式传入后才启用强制鉴权（所有接口均须携带 `X-BBDown-Token` 头，WebSocket 握手经 `Sec-WebSocket-Protocol` 子协议头），未传入则默认免令牌开放并仅警告                               |
 | `--work-dir`       |      | 所有任务的下载输出目录（请求体中的 `WorkDir` 字段会被忽略，一律以服务端为准）                                                                                                 |
+| `--api-host`       |      | API 请求 Host，所有任务统一使用此值；请求体不能指定 host（防止凭据被导向外部服务器）                                                                                          |
+| `--api-ep-host`    |      | 番剧 / 影视 API 请求 Host，所有任务统一使用此值                                                                                                                              |
+| `--api-tv-host`    |      | TV 端 API 请求 Host，所有任务统一使用此值                                                                                                                                    |
+| `--cors-origin`    |      | 仅允许该单一来源跨域调用 serve（CORS）；不指定则完全关闭 CORS，回环来源（127.0.0.1 / localhost）始终放行                                                                      |
 | `--max-concurrent` |      | 同时下载的任务数上限，默认 `0` 表示不限制；设为 `N > 0` 时最多 `N` 个任务同时下载，其余按提交顺序排队（`Status` 为 `Queued`），单个任务内部的下载并行度由多线程下载器自行决定 |
+| `--aria2c`         |      | 所有任务统一调用 aria2c 下载（需自行准备可执行文件，放在 BBDown 同目录或系统 `PATH` 中）                                                                                     |
+| `--ffmpeg-path`    |      | 所有任务统一使用的 FFmpeg 路径，留空在 `PATH` 与程序目录查找                                                                                                                 |
+| `--mp4box-path`    |      | 所有任务统一使用的 MP4Box 路径，留空在 `PATH` 与程序目录查找                                                                                                                 |
+| `--aria2c-path`    |      | 所有任务统一使用的 aria2c 路径，留空在 `PATH` 与程序目录查找                                                                                                                 |
+| `--aria2c-args`    |      | 所有任务统一使用的 aria2c 附加参数                                                                                                                                           |
+| `--post-process`   |      | 所有任务统一使用的后处理程序路径，留空不启用                                                                                                                                 |
+| `--user-agent`     |      | 所有任务统一使用的 user-agent，留空用默认值                                                                                                                                  |
+| `--debug`          |      | 输出调试日志                                                                                                                                                                 |
+| `--file-pattern`   |      | 所有任务统一使用的单 P 文件名模板，留空用默认值                                                                                                                              |
+| `--multi-file-pattern` |  | 所有任务统一使用的多 P 文件名模板，留空用默认值                                                                                                                              |
+| `--webui`          |      | 启用内嵌 WebUI：在同一监听端口一并托管前端（任意 `--listen` 均生效）；构建时未嵌入 dist 则启动告警并不托管前端                                                                |
 
 服务器启动后会一直运行，直到进程被终止（可用 `Ctrl+C` 取消下载）。
 
-> **鉴权：** 默认免令牌即可调用，未指定 `--serve-token` 时仅打印警告；显式指定 `--serve-token` 后**所有接口**（含 `GET /api/v1/tasks*` 与 WebSocket 握手）均需携带鉴权令牌——HTTP API 用请求头 `X-BBDown-Token: <token>`，WebSocket 握手用子协议头 `Sec-WebSocket-Protocol: <token>`（浏览器无法自定义请求头，该例外仅限 `/hubs/tasks`），未携带或错误一律返回 `401`。令牌仅由 `--serve-token` 显式指定，未传入时即使绑定到非回环地址也仅警告、不自动生成令牌。
+> **鉴权：** 默认免令牌即可调用，未指定 `--serve-token` 时仅打印警告；显式指定 `--serve-token` 后**所有接口**（含 `GET /api/v1/tasks*` 与 WebSocket 握手）均需携带鉴权令牌——HTTP API 用请求头 `X-BBDown-Token: <token>`，WebSocket 握手用 `Sec-WebSocket-Protocol: <token>` 子协议头，未携带或错误一律返回 `401`。令牌仅由 `--serve-token` 显式指定，未传入时即使绑定到非回环地址也仅警告、不自动生成令牌。
 
 ---
 
@@ -95,8 +110,8 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
     - 受理队列已满：`429 Too Many Requests`。
 
 > **安全限制：** 出于安全考虑，请求体只接受客户端可提交的子集字段，以下服务端指定字段**不在** `ServeRequestOptions` 中（即便传入也会被忽略），一律以服务端启动时的配置为准：
-> `FFmpegPath`、`Mp4boxPath`、`Aria2cPath`、`Aria2cArgs`、`WorkDir`、`FilePattern`、`MultiFilePattern`、`Debug`、`UserAgent`、`ConfigFile`。
-> 下载输出目录请在启动服务时用 `serve --work-dir` 指定；FFmpeg / MP4Box / aria2c 请放在 BBDown 同目录或系统 `PATH` 中。
+> `FFmpegPath`、`Mp4boxPath`、`Aria2cPath`、`Aria2cArgs`、`PostProcessPath`、`WorkDir`、`FilePattern`、`MultiFilePattern`、`Debug`、`UserAgent`、`ConfigFile`、`UseAria2c`。
+> 下载输出目录请在启动服务时用 `serve --work-dir` 指定；外部工具路径、aria2c、user-agent、调试日志与文件命名模式均由 `serve` 对应启动参数指定。
 >
 > **回调：** 请求体可携带 `CallBackWebHook`（字符串），任务**完成**后会以 `POST` 方式向该地址回传 `DownloadTask` 的 JSON；留空或不传则不回调。
 
@@ -165,7 +180,7 @@ serve 不提供登录端点。凭据由 CLI / GUI 的 `login` 命令写入本机
 ### 连接与鉴权
 
 - **地址：** `ws://127.0.0.1:23333/hubs/tasks`（TLS 下为 `wss://`）。
-- **鉴权：** 浏览器 WebSocket 无法自定义请求头，握手令牌经子协议头传（`Sec-WebSocket-Protocol: <token>`，服务端回显所选子协议）；该例外**仅限** `/hubs/tasks` 路径。非浏览器客户端另可用 `?token=<token>` 查询参数，HTTP API 端点两者都不接受。令牌须为 HTTP token 字符集，否则浏览器无法作为子协议名发送。
+- **鉴权：** WebSocket 握手用 `Sec-WebSocket-Protocol: <token>` 子协议头（服务端回显所选子协议）。非浏览器客户端另可用 `?token=<token>` 查询参数，HTTP API 端点两者都不接受。令牌须为 HTTP token 字符集，否则浏览器无法作为子协议名发送。
 - **Origin 校验（CSWSH 防线）：** 无 `Origin` 头（脚本 / 非浏览器客户端）放行；等于 `--cors-origin` 或回环来源放行；其余跨源握手拒绝（`403`）。
 - **连接上限：** 每客户端 IP 最多 5 个并发连接，超限拒绝升级（`429`）；单帧消息上限 64 KB，超限关闭连接。
 
@@ -277,7 +292,7 @@ serve 不提供登录端点。凭据由 CLI / GUI 的 `login` 命令写入本机
 
 - **进度偏差：** 受 BBDown 下载进度回报频率所限，`TotalDownloadedBytes` 会比实际下载文件偏小，大约少等效于 1 秒下载速度的体积；文件本身极小时偏差比例会更明显。
 - **单任务取消：** `POST /api/v1/tasks/{id}/stop` 可取消单个运行中 / 排队中的任务（不影响其他任务），详见 [接口详情](#取消单个任务)。终止整个服务器（`Ctrl+C`）仍会经全局令牌取消所有运行中的任务。
-- **并发控制：** 默认**不限制**同时执行的下载任务数，短时间内频繁提交任务会同时拉起大量下载，可能耗尽带宽 / 系统资源。启动时加 `--max-concurrent N`（`N > 0`）即可限流：最多 `N` 个任务同时下载，多余任务按提交顺序排队（`Status` 为 `Queued`，排队期间即可查询到该任务）；每个任务内部的下载并行度（分片并发）由多线程下载器自行决定，不受此上限约束。注意：`POST /api/v1/tasks` 返回 `202` 只代表任务已受理，不代表已开始下载；受理队列有长度上限，写满时返回 `429`；同一资源重复提交仍会被去重（返回已有任务）；若请求中开启了 `UseAria2c`，实际连接由 aria2c 自行管理，不受此上限约束。
+- **并发控制：** 默认**不限制**同时执行的下载任务数，短时间内频繁提交任务会同时拉起大量下载，可能耗尽带宽 / 系统资源。启动时加 `--max-concurrent N`（`N > 0`）即可限流：最多 `N` 个任务同时下载，多余任务按提交顺序排队（`Status` 为 `Queued`，排队期间即可查询到该任务）；每个任务内部的下载并行度（分片并发）由多线程下载器自行决定，不受此上限约束。注意：`POST /api/v1/tasks` 返回 `202` 只代表任务已受理，不代表已开始下载；受理队列有长度上限，写满时返回 `429`；同一资源重复提交仍会被去重（返回已有任务）；服务端以 `--aria2c` 启用时实际连接由 aria2c 自行管理，不受此上限约束。
 - **断点续传：** 下载统一走 downloader 库，数据先写入 `<目标路径>.download` 临时文件。**重跑同一条命令即可从断点继续**——既能在单条流范围续传，也能在合集 / 多 P 范围续传：某分 P 的视频轨下完但音频轨失败，重跑时视频轨会被直接跳过、只补下音频轨。下载失败或被 `Ctrl+C` 中断时，临时文件会保留，重跑即可续上；服务端内容变化（如换画质）时自动删除临时文件重下。所有分片（连同边下边混流的临时文件）都成功后才清理这些临时文件。
 - **`--save-records`：** 归档以 `(aid, cid)` 为键，同一 `aid` 的不同分 P 互不干扰；**只有整段（含混流）成功后才写入**；记录的文件被删除 / 移动后会重新下载。`aid|` 拼接格式不受支持，启动时遇到会被忽略并提示一次。
 - **`--stop-on-error`：** 默认关闭，即某个分 P 下载失败时会继续下载其余分 P，最后汇总失败清单并以非零状态码退出；开启后遇到第一个失败的分 P 立即停止。

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { describeTarget } from '../lib/urlDetector'
+import { describeTarget, detectTarget } from '../lib/urlDetector'
 
 describe('describeTarget', () => {
   it('识别各类 ID 前缀', () => {
@@ -103,5 +103,48 @@ describe('describeTarget', () => {
     expect(describeTarget('https://evil.com/?x=live.bilibili.com/1')).toBe('视频地址')
     expect(describeTarget('https://evil.com/watchlater')).toBe('视频地址')
     expect(describeTarget('https://evil.com/?page=watchlater')).toBe('视频地址')
+  })
+})
+
+describe('detectTarget', () => {
+  it('描述与资源域成对返回', () => {
+    expect(detectTarget('av170001')).toEqual({ label: '视频（av 号）', kind: 'Video' })
+    expect(detectTarget('ep2539')).toEqual({ label: '番剧（ep 号）', kind: 'Pgc' })
+    expect(detectTarget('cheese/ep12345')).toEqual({ label: '课程（ep 号）', kind: 'Pgc' })
+    expect(detectTarget('opus123')).toEqual({ label: '专栏（opus）', kind: 'Opus' })
+    expect(detectTarget('rl75249')).toEqual({ label: '文集', kind: 'Opus' })
+    expect(detectTarget('au12345')).toEqual({ label: '音频（au 号）', kind: 'Audio' })
+    expect(detectTarget('live123456')).toEqual({ label: '直播间（live 号）', kind: 'Live' })
+    expect(detectTarget('spaceDynamic213741')).toEqual({ label: '空间动态', kind: 'Mixed' })
+    // 用户空间按视频域联动（GUI 同）
+    expect(detectTarget('space402787936')).toEqual({ label: '用户空间', kind: 'Video' })
+  })
+
+  it('URL 形式的资源域与简写一致', () => {
+    expect(detectTarget('https://www.bilibili.com/video/BV1xx411c7mD')).toEqual({
+      label: '视频（BV1xx411c7mD）',
+      kind: 'Video'
+    })
+    expect(detectTarget('https://www.bilibili.com/cheese/play/ep12345')).toEqual({
+      label: '课程地址',
+      kind: 'Pgc'
+    })
+    expect(detectTarget('https://space.bilibili.com/213741/dynamic')).toEqual({
+      label: '空间动态地址',
+      kind: 'Mixed'
+    })
+    expect(detectTarget('https://live.bilibili.com/12345')).toEqual({
+      label: '直播地址',
+      kind: 'Live'
+    })
+    expect(detectTarget('https://evil.com/?x=live.bilibili.com/1')).toEqual({
+      label: '视频地址',
+      kind: 'Video'
+    })
+  })
+
+  it('无法识别返回 null', () => {
+    expect(detectTarget('')).toBeNull()
+    expect(detectTarget('随便什么')).toBeNull()
   })
 })

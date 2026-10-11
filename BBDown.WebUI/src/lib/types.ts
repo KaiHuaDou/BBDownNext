@@ -60,7 +60,6 @@ export interface ServeRequestOptions {
   encodingFirst: boolean
   onlyShowInfo: boolean
   showAll: boolean
-  useAria2c: boolean
   hideStreams: boolean
   singleThread: boolean
   noForceHttp: boolean

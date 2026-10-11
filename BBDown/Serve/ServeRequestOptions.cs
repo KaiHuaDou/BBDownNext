@@ -12,12 +12,14 @@ namespace BBDown.Serve;
 /// <summary>
 /// serve 模式的任务请求约定（<c>POST /api/v1/tasks</c> 的 JSON 请求体）
 /// 它是 <see cref="DownloadRequest"/> 的「客户端可提交的子集」：只包含客户端允许提交的字段
-/// 主动排除服务端指定字段（FFmpegPath / Mp4boxPath / Aria2cPath / Aria2cArgs / WorkDir / FilePattern / MultiFilePattern / Host / EpHost / TvHost）
+/// 主动排除服务端指定字段（FFmpegPath / Mp4boxPath / Aria2cPath / Aria2cArgs / PostProcessPath / WorkDir /
+/// FilePattern / MultiFilePattern / Host / EpHost / TvHost / UseAria2c）
 /// 进程级全局字段（Debug / UserAgent）与本地配置文件（ConfigFile）——
 /// 这样新增一个下载选项时不会自动变成 serve 的可注入点，也不必再维护一份「清零列表」
 /// 交互式选项（InteractivePages / InteractiveQuality）经 WebSocket 事件流送达客户端应答，随任务提交
+/// 排除字段一律由 serve 启动参数固定，注入见 <see cref="TaskStore.ApplyServeSettings"/>
 /// 其中 Host/EpHost/TvHost 因「请求不带 cookie 时回落本机 SESSDATA、host 又由请求体控制」会形成凭据外泄链
-/// 不在请求约定中：由 serve 启动参数（--host/--ep-host/--tv-host）固定，详见 <see cref="TaskStore.ApplyServeHost"/>
+/// Debug 由启动参数 --debug 在进程启动时写入 Config.DebugLog，不经任务请求
 /// </summary>
 /// <remarks>
 /// 同目录约定类型均为 record，本类是唯一的可变 sealed class：
@@ -41,7 +43,6 @@ internal sealed class ServeRequestOptions
     public bool EncodingFirst { get; set; }
     public bool OnlyShowInfo { get; set; }
     public bool ShowAll { get; set; }
-    public bool UseAria2c { get; set; }
     public bool HideStreams { get; set; }
     public bool SingleThread { get; set; }
     public bool NoForceHttp { get; set; }
@@ -89,7 +90,7 @@ internal sealed class ServeRequestOptions
                 ServeRequestOptionsJsonContext.Default.DownloadRequest)!;
         return r with
         {
-            // 服务端指定字段不在请求约定中，回落为安全默认值（空路径 / 官方 host）
+            // 服务端指定字段不在请求约定中，回落为安全默认值（空路径 / 官方 host / 不调用 aria2c）
             FFmpegPath = "",
             Mp4boxPath = "",
             Aria2cPath = "",
@@ -99,6 +100,7 @@ internal sealed class ServeRequestOptions
             FilePattern = "",
             MultiFilePattern = "",
             UserAgent = "",
+            UseAria2c = false,
             Host = BiliApi.MainHost,
             EpHost = BiliApi.MainHost,
             TvHost = BiliApi.TvHost,

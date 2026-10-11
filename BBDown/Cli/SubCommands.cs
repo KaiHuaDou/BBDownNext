@@ -123,6 +123,46 @@ internal static class SubCommands
                 """,
                 DefaultValueFactory = _ => 0,
             },
+            new Option<bool>("--aria2c")
+            {
+                Description = "所有任务统一调用 aria2c 下载（你需要自行准备可执行文件）"
+            },
+            new Option<string>("--ffmpeg-path")
+            {
+                Description = "所有任务统一使用的 FFmpeg 路径，留空在 PATH 与程序目录查找"
+            },
+            new Option<string>("--mp4box-path")
+            {
+                Description = "所有任务统一使用的 MP4Box 路径，留空在 PATH 与程序目录查找"
+            },
+            new Option<string>("--aria2c-path")
+            {
+                Description = "所有任务统一使用的 aria2c 路径，留空在 PATH 与程序目录查找"
+            },
+            new Option<string>("--aria2c-args")
+            {
+                Description = "所有任务统一使用的 aria2c 附加参数"
+            },
+            new Option<string>("--post-process")
+            {
+                Description = "所有任务统一使用的后处理程序路径，留空不启用"
+            },
+            new Option<string>("--user-agent")
+            {
+                Description = "所有任务统一使用的 user-agent，留空用默认值"
+            },
+            new Option<bool>("--debug")
+            {
+                Description = "输出调试日志"
+            },
+            new Option<string>("--file-pattern")
+            {
+                Description = "所有任务统一使用的单 P 文件名模板，留空用默认值"
+            },
+            new Option<string>("--multi-file-pattern")
+            {
+                Description = "所有任务统一使用的多 P 文件名模板，留空用默认值"
+            },
             new Option<bool>("--webui")
             {
                 Description = """
@@ -134,15 +174,25 @@ internal static class SubCommands
         // server.Run 阻塞整个进程生命周期直到关服：挪到线程池让 InvokeAsync 真正异步等待
         // 也与 login 命令的真异步动作一致
         command.SetAction(result => Task.Run(( ) => StartServer(new ServeConfig(
-            result.GetValue<string>("--listen"),
-            result.GetValue<string>("--work-dir"),
-            result.GetValue<string>("--serve-token"),
-            result.GetValue<string>("--api-host"),
-            result.GetValue<string>("--api-ep-host"),
-            result.GetValue<string>("--api-tv-host"),
-            result.GetValue<string>("--cors-origin"),
-            result.GetValue<int>("--max-concurrent"),
-            result.GetValue<bool>("--webui")))));
+            ListenUrl: result.GetValue<string>("--listen"),
+            WorkDir: result.GetValue<string>("--work-dir"),
+            ServeToken: result.GetValue<string>("--serve-token"),
+            Host: result.GetValue<string>("--api-host"),
+            EpHost: result.GetValue<string>("--api-ep-host"),
+            TvHost: result.GetValue<string>("--api-tv-host"),
+            CorsOrigin: result.GetValue<string>("--cors-origin"),
+            MaxConcurrent: result.GetValue<int>("--max-concurrent"),
+            UseAria2c: result.GetValue<bool>("--aria2c"),
+            FFmpegPath: result.GetValue<string>("--ffmpeg-path"),
+            Mp4boxPath: result.GetValue<string>("--mp4box-path"),
+            Aria2cPath: result.GetValue<string>("--aria2c-path"),
+            Aria2cArgs: result.GetValue<string>("--aria2c-args"),
+            PostProcessPath: result.GetValue<string>("--post-process"),
+            UserAgent: result.GetValue<string>("--user-agent"),
+            Debug: result.GetValue<bool>("--debug"),
+            FilePattern: result.GetValue<string>("--file-pattern"),
+            MultiFilePattern: result.GetValue<string>("--multi-file-pattern"),
+            EnableWebUi: result.GetValue<bool>("--webui")))));
         return command;
     }
 
@@ -162,6 +212,7 @@ internal static class SubCommands
             }
         }
 
+        Config.SetDebugLog(config.Debug);
         // 渲染器已由 Main 顶层装配并覆盖 serve 生命周期，此处不得重复创建，避免双订阅导致日志双打印
         var server = new BBDownServer( );
         server.SetUpServer(config);

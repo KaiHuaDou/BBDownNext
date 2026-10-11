@@ -13,5 +13,18 @@ internal sealed record ServeConfig(
     string? TvHost = null,
     string? CorsOrigin = null,
     int MaxConcurrent = 0,
+    // 下载器与工具相关：由启动参数决定，请求体无法覆盖
+    bool UseAria2c = false,
+    string? FFmpegPath = null,
+    string? Mp4boxPath = null,
+    string? Aria2cPath = null,
+    string? Aria2cArgs = null,
+    string? PostProcessPath = null,
+    // 进程级全局项
+    string? UserAgent = null,
+    bool Debug = false,
+    // 输出布局：文件命名模式与工作目录同性质，由服务端控制写入位置与产物名
+    string? FilePattern = null,
+    string? MultiFilePattern = null,
     // 内嵌 WebUI 与 API 同端口托管开关：启用后 BBDown.Serve 在同一端口托管前端（详见 WebUiEndpoints）
     bool EnableWebUi = false);

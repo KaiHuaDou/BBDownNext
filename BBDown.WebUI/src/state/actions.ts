@@ -77,7 +77,11 @@ export async function remove(store: TaskStore, view: TaskView): Promise<void> {
 }
 
 /** 继续：用提交时的选项快照重新提交；无快照时回落当前面板选项。 */
-export async function retry(store: TaskStore, view: TaskView, fallback: TaskOptions): Promise<void> {
+export async function retry(
+  store: TaskStore,
+  view: TaskView,
+  fallback: TaskOptions
+): Promise<void> {
   try {
     await submitTaskAction(store, store.submittedOptions.get(view.id) ?? fallback, view.url)
   } catch (e) {
@@ -170,4 +174,9 @@ export function exportLog(store: TaskStore): void {
   anchor.download = `BBDown.WebUI.log.${new Date().toISOString().replace(/[:.]/g, '')}.txt`
   anchor.click()
   URL.revokeObjectURL(url)
+}
+
+/** 清空日志区（仅前端展示层，不影响任务队列与事件流）。 */
+export function clearLog(store: TaskStore): void {
+  store.logLines.value = []
 }

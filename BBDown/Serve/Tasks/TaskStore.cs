@@ -38,6 +38,15 @@ internal sealed partial class TaskStore(ServeConfig config, ChannelWriter<TaskEn
     private readonly string? host = config.Host;
     private readonly string? epHost = config.EpHost;
     private readonly string? tvHost = config.TvHost;
+    private readonly bool useAria2c = config.UseAria2c;
+    private readonly string? ffmpegPath = config.FFmpegPath;
+    private readonly string? mp4boxPath = config.Mp4boxPath;
+    private readonly string? aria2cPath = config.Aria2cPath;
+    private readonly string? aria2cArgs = config.Aria2cArgs;
+    private readonly string? postProcessPath = config.PostProcessPath;
+    private readonly string? userAgent = config.UserAgent;
+    private readonly string? filePattern = config.FilePattern;
+    private readonly string? multiFilePattern = config.MultiFilePattern;
 
     /// <summary>
     /// 任务结构变更通知通道：任何 running / finished / pending 的增删改都写入一个标记项
@@ -59,7 +68,7 @@ internal sealed partial class TaskStore(ServeConfig config, ChannelWriter<TaskEn
     /// </summary>
     public async Task<EnqueueResult> EnqueueAsync(ServeRequestOptions req, SubmitMode mode, CancellationToken token)
     {
-        var option = ApplyServeHost(ApplyServeWorkDir(req.ToDownloadRequest( )));
+        var option = ApplyServeSettings(req.ToDownloadRequest( ));
         var requestConfig = WorkSetup.ResolveConfig(option, option.Api);
         var requestedUrl = option.Url.Trim( );
 
