@@ -56,7 +56,7 @@ interface SocketState {
   retryDelay: number
   retryTimer: ReturnType<typeof setTimeout> | null
   pingTimer: ReturnType<typeof setInterval> | null
-  /** 连续丢弃的帧数：解析失败时累加，成功解析后归零，用于把丢弃量带上报给用户</summary> */
+  /** 连续丢弃的帧数：解析失败时累加，成功解析后归零，随丢弃日志一并报出。 */
   droppedFrames: number
 }
 

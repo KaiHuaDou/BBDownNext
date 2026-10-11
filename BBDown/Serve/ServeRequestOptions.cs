@@ -13,12 +13,12 @@ namespace BBDown.Serve;
 /// serve 模式的任务请求约定（<c>POST /api/v1/tasks</c> 的 JSON 请求体）
 /// 它是 <see cref="DownloadRequest"/> 的「客户端可提交的子集」：只包含客户端允许提交的字段
 /// 主动排除服务端指定字段（FFmpegPath / Mp4boxPath / Aria2cPath / Aria2cArgs / PostProcessPath / WorkDir /
-/// FilePattern / MultiFilePattern / Host / EpHost / TvHost / UseAria2c）
+/// FilePattern / MultiFilePattern / Host / EpHost / TvHost / Cookie / AccessToken / UseAria2c）
 /// 进程级全局字段（Debug / UserAgent）与本地配置文件（ConfigFile）——
 /// 这样新增一个下载选项时不会自动变成 serve 的可注入点，也不必再维护一份「清零列表」
 /// 交互式选项（InteractivePages / InteractiveQuality）经 WebSocket 事件流送达客户端应答，随任务提交
 /// 排除字段一律由 serve 启动参数固定，注入见 <see cref="TaskStore.ApplyServeSettings"/>
-/// 其中 Host/EpHost/TvHost 因「请求不带 cookie 时回落本机 SESSDATA、host 又由请求体控制」会形成凭据外泄链
+/// 其中 Host/EpHost/TvHost 与凭据同为服务端指定：host 若由请求体控制会把回落的本机 SESSDATA 导向外部服务器
 /// Debug 由启动参数 --debug 在进程启动时写入 Config.DebugLog，不经任务请求
 /// </summary>
 /// <remarks>
@@ -65,8 +65,6 @@ internal sealed class ServeRequestOptions
     public int LiveQuality { get; set; } = BBDown.Core.Download.LiveQuality.Original;
     public string Pages { get; set; } = "";
     public string Lang { get; set; } = "";
-    public string Cookie { get; set; } = "";
-    public string AccessToken { get; set; } = "";
     public string UposHost { get; set; } = "";
     public int DelayPerPage { get; set; }
     /// <summary>每个下载项的额外重试次数，未指定时为 3。</summary>
@@ -79,7 +77,7 @@ internal sealed class ServeRequestOptions
 
     /// <summary>
     /// 把请求 DTO 转换为完整下载配置。服务端指定字段不在本 DTO 中，转换时显式回落为
-    /// <see cref="DownloadRequest"/> 的安全默认值（空路径、官方 host）——它们本就不在请求体里
+    /// <see cref="DownloadRequest"/> 的安全默认值（空路径、官方 host、空凭据）——它们本就不在请求体里
     /// 但 record 经 STJ 反序列化时字段初始化器被跳过（改用生成构造器，字符串参数默认 null）
     /// 故在此用 <c>with</c> 填默认值，结构上杜绝远程注入
     /// </summary>
@@ -90,7 +88,7 @@ internal sealed class ServeRequestOptions
                 ServeRequestOptionsJsonContext.Default.DownloadRequest)!;
         return r with
         {
-            // 服务端指定字段不在请求约定中，回落为安全默认值（空路径 / 官方 host / 不调用 aria2c）
+            // 服务端指定字段不在请求约定中，回落为安全默认值（空路径 / 官方 host / 空凭据 / 不调用 aria2c）
             FFmpegPath = "",
             Mp4boxPath = "",
             Aria2cPath = "",
@@ -104,6 +102,8 @@ internal sealed class ServeRequestOptions
             Host = BiliApi.MainHost,
             EpHost = BiliApi.MainHost,
             TvHost = BiliApi.TvHost,
+            Cookie = "",
+            AccessToken = "",
             Area = Area,
         };
     }

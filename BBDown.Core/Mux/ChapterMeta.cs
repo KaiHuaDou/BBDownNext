@@ -64,7 +64,7 @@ public static partial class ChapterMeta
             {
                 // from/to 逐字段取值：任一字段异常就整段抛出，会被上层吞成 Empty，
                 // Empty 的 is_upower_exclusive=false 会让充电试看片段被当成完整视频并写入归档。
-                // 数字与数字串都接受（接口两种形态都出现过），其余一律跳过该章节
+                // 数字与数字串都接受（接口两种形式都出现过），其余一律跳过该章节
                 if (point.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.String
                     && TryReadSeconds(point, "from", out var start)
                     && TryReadSeconds(point, "to", out var end))

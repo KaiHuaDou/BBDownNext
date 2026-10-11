@@ -160,6 +160,35 @@ public class LiveSignalTests
         Assert.True(cts.IsCancellationRequested);
     }
 
+    // 同一停止源的两段占位：真实房间号补占时带着输入串已占的键作别名，
+    // Register 对同源占位幂等，不与自身冲突（对应 LiveDownload 的两段注册）
+    [Fact]
+    public void Register_SameSourceReclaimsOccupiedAlias_Succeeds( )
+    {
+        using var cts = new CancellationTokenSource( );
+        using var inputScope = LiveSignal.Register("live-reclaim-a", cts);
+        using var roomScope = LiveSignal.Register("live-reclaim-b", cts, "live-reclaim-a");
+
+        Assert.True(LiveSignal.TryRequestStop("live-reclaim-a"));
+        Assert.True(cts.IsCancellationRequested);
+    }
+
+    // 同源补占遇到他人占用：本次新占的键被回滚，输入串的先占段不受波及
+    [Fact]
+    public void Register_SameSourceRollbackKeepsPriorClaim( )
+    {
+        using var cts = new CancellationTokenSource( );
+        using var holder = new CancellationTokenSource( );
+        using var inputScope = LiveSignal.Register("live-keep-a", cts);
+        using var holdScope = LiveSignal.Register("live-keep-c", holder);
+
+        Assert.Throws<InvalidOperationException>(( ) => LiveSignal.Register("live-keep-b", cts, "live-keep-c"));
+
+        Assert.False(LiveSignal.TryRequestStop("live-keep-b"));
+        Assert.True(LiveSignal.TryRequestStop("live-keep-a"));
+        Assert.True(cts.IsCancellationRequested);
+    }
+
     [Fact]
     public void Register_NullSource_Throws( )
     {

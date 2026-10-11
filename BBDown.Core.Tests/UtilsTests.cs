@@ -88,6 +88,14 @@ public class UtilsTests
         Assert.Contains("长度不足", ex.Message);
     }
 
+    // 置换表索引最大 58：长度 14~58 的原串越过表尾元素（13）的守卫后仍会在中途越界，须按最大索引拦截
+    [Fact]
+    public void GetMixinKey_LengthBelowMaxIndex_ThrowsWithLength( )
+    {
+        var ex = Assert.Throws<InvalidOperationException>(( ) => Account.GetMixinKey(new string('k', 32)));
+        Assert.Contains("32", ex.Message);
+    }
+
     // wbi 签名用的固定置换表，长度 32，索引最大 58
     [Fact]
     public void GetMixinKey_AppliesFixedPermutation( )

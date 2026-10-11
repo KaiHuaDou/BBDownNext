@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -145,7 +146,7 @@ public static class Account
             27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13
         ];
 
-        if (orig.Length <= mixinKeyEncTab[^1])
+        if (orig.Length <= mixinKeyEncTab.Max( ))
         {
             throw new InvalidOperationException($"WBI 密钥原串长度不足：{orig.Length} 字符");
         }

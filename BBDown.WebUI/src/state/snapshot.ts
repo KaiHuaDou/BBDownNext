@@ -153,16 +153,17 @@ export function applySnapshot(store: TaskStore, snapshot: TaskSnapshot): void {
 }
 
 /**
- * 挂起提问的存废由服务端 choiceResult 决定（settleAsk），任务收尾时弹窗可能仍停在等待确认；
- * 重试按钮还要读已完成任务的选项快照。两者因此随任务留在列表中即保留。
- * 已应答记录与耗时基准只服务运行中任务：任务离开 running 即摘除，
+ * 挂起提问只在任务存活期间有效：任务收尾后服务端只取消挂起的等待方（AskBus），没有 choiceResult 可等，
+ * 保留弹窗会让它停在等待确认的假死状态，故离开 running 即摘除。
+ * 重试按钮读的选项快照（submittedOptions）不同，随任务留在列表中即保留。
+ * 已应答记录与耗时基准同样只服务运行中任务：任务离开 running 即摘除，
  * 否则长命标签页下增长边界是未清空的已完成任务数，而非运行中任务数
  */
 function pruneDeadState(store: TaskStore, runningIds: string[], finishedIds: string[]): void {
   const running = new Set(runningIds)
   const inList = new Set([...runningIds, ...finishedIds])
 
-  store.pendingAsks.value = store.pendingAsks.value.filter((ask) => inList.has(ask.taskId))
+  store.pendingAsks.value = store.pendingAsks.value.filter((ask) => running.has(ask.taskId))
   for (const id of store.submittedOptions.keys()) {
     if (!inList.has(id)) {
       store.submittedOptions.delete(id)

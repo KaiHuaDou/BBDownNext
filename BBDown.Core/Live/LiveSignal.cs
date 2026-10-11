@@ -20,9 +20,10 @@ public static class LiveSignal
 
     /// <summary>
     /// 按会话标识挂载停止源，返回的 scope 释放后摘除该会话的挂载
-    /// 同一标识已在录制时抛 <see cref="InvalidOperationException"/>：覆盖会让先注册者的摘除比较失败，槽位留成第二次的悬空挂载
+    /// 同一标识已被其它停止源占用时抛 <see cref="InvalidOperationException"/>：覆盖会让先注册者的摘除比较失败，槽位留成第二次的悬空挂载
     /// <paramref name="aliases"/> 是同一房间的其它写法（短号 / 长号）：只按输入串占位会被别名绕过，
-    /// 两者一并占位才算闭合；与 <paramref name="sessionId"/> 相同时跳过，不会与自己冲突
+    /// 两者一并占位才算闭合；别名已被本次同一停止源占用时按幂等处理——录制的两段占位（输入串先占、
+    /// 真实房间号补占）就是先后两次 Register 带着同一停止源，彼此不算并发冲突
     /// </summary>
     public static IDisposable Register(string sessionId, CancellationTokenSource cts, params string[] aliases)
     {
@@ -36,15 +37,23 @@ public static class LiveSignal
             }
         }
 
+        // 回滚只摘本次新占的键：已在槽位里的自己占位（输入串先占段）不是本次的成果，摘掉会让先占段悬空
+        var claimed = new List<string>(keys.Count);
         foreach (var key in keys)
         {
-            if (active.TryAdd(key, cts))
+            if (active.TryGetValue(key, out var existing) && ReferenceEquals(existing, cts))
             {
                 continue;
             }
 
+            if (active.TryAdd(key, cts))
+            {
+                claimed.Add(key);
+                continue;
+            }
+
             // 回滚本次已占的键：不留半占的槽位，否则这次退出后那个房间会被永久占住
-            Unregister(keys, cts);
+            Unregister(claimed, cts);
             throw new InvalidOperationException($"{key} 已在录制中，不接受同一房间的并发录制");
         }
 

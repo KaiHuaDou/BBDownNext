@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 
@@ -29,14 +30,32 @@ public static class JsonUtil
             : "";
     }
 
+    // 数字与数字串都接受（接口两种形式都出现过），其余给零值
+    public static long ReadLong(JsonElement value)
+    {
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number => value.TryGetInt64(out var number) ? number : 0,
+            JsonValueKind.String => long.TryParse(value.GetString( ), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0,
+            _ => 0,
+        };
+    }
+
     public static long ReadLong(JsonElement parent, string name)
     {
-        return parent.ValueKind == JsonValueKind.Object
-               && parent.TryGetProperty(name, out var value)
-               && value.ValueKind == JsonValueKind.Number
-               && value.TryGetInt64(out var number)
-            ? number
+        return parent.ValueKind == JsonValueKind.Object && parent.TryGetProperty(name, out var value)
+            ? ReadLong(value)
             : 0;
+    }
+
+    public static double ReadDouble(JsonElement value)
+    {
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number => value.TryGetDouble(out var number) ? number : 0,
+            JsonValueKind.String => double.TryParse(value.GetString( ), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0,
+            _ => 0,
+        };
     }
 
     public static bool ReadBool(JsonElement parent, string name)

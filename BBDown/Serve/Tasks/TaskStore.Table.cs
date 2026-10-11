@@ -107,9 +107,10 @@ internal sealed partial class TaskStore
     }
 
     // 服务端固定字段统一由启动参数注入，覆盖请求体（请求体不含这些字段，结构上无法注入）：
-    // 工作目录 / API host / aria2c 与外部工具 / user-agent / 文件命名模式
+    // 工作目录 / API host / 凭据 / aria2c 与外部工具 / user-agent / 文件命名模式
     // host 空值回落官方默认，避免空 host 抛 UriFormatException
-    // 请求不带 cookie 时若 host 可由请求体控制会形成凭据外泄链，故 host 一律以服务端为准
+    // 凭据与 host 一律以服务端为准：请求体控制 host 会把回落的本机 SESSDATA 导向外部服务器
+    // 凭据留空回落本机 BBDown.data，由 CredentialStore 在 ResolveConfig 内加载
     internal DownloadRequest ApplyServeSettings(DownloadRequest option)
     {
         return option with
@@ -118,6 +119,8 @@ internal sealed partial class TaskStore
             Host = string.IsNullOrWhiteSpace(host) ? BiliApi.MainHost : host.Trim( ),
             EpHost = string.IsNullOrWhiteSpace(epHost) ? BiliApi.MainHost : epHost.Trim( ),
             TvHost = string.IsNullOrWhiteSpace(tvHost) ? BiliApi.TvHost : tvHost.Trim( ),
+            Cookie = cookie ?? "",
+            AccessToken = accessToken ?? "",
             UseAria2c = useAria2c,
             FFmpegPath = ffmpegPath ?? "",
             Mp4boxPath = mp4boxPath ?? "",

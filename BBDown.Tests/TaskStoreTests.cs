@@ -29,6 +29,8 @@ public class TaskStoreTests
             Host: "https://biliplus.example.com",
             EpHost: "https://biliplus.example.com",
             TvHost: "api.snm0516.aisee.tv",
+            Cookie: "SESSDATA=abc",
+            AccessToken: "tv-token",
             UseAria2c: true,
             FFmpegPath: "/opt/ffmpeg",
             Mp4boxPath: "/opt/mp4box",
@@ -45,6 +47,8 @@ public class TaskStoreTests
         Assert.Equal("https://biliplus.example.com", opts.Host);
         Assert.Equal("https://biliplus.example.com", opts.EpHost);
         Assert.Equal("api.snm0516.aisee.tv", opts.TvHost);
+        Assert.Equal("SESSDATA=abc", opts.Cookie);
+        Assert.Equal("tv-token", opts.AccessToken);
         Assert.True(opts.UseAria2c);
         Assert.Equal("/opt/ffmpeg", opts.FFmpegPath);
         Assert.Equal("/opt/mp4box", opts.Mp4boxPath);
@@ -59,7 +63,7 @@ public class TaskStoreTests
     [Fact]
     public void ApplyServeSettings_EmptyFallsBackToDefaults( )
     {
-        // serve 启动参数留空的字段回落安全默认值：官方 host、空路径、不调用 aria2c
+        // serve 启动参数留空的字段回落安全默认值：官方 host、空路径、空凭据、不调用 aria2c
         var store = NewStore(new ServeConfig(Host: "", EpHost: null, TvHost: "  "));
 
         var opts = store.ApplyServeSettings(new DownloadRequest { Url = "https://www.bilibili.com/video/BV1xx411c7XD" });
@@ -67,6 +71,8 @@ public class TaskStoreTests
         Assert.Equal(BiliApi.MainHost, opts.Host);
         Assert.Equal(BiliApi.MainHost, opts.EpHost);
         Assert.Equal(BiliApi.TvHost, opts.TvHost);
+        Assert.Equal("", opts.Cookie);
+        Assert.Equal("", opts.AccessToken);
         Assert.False(opts.UseAria2c);
         Assert.Equal("", opts.FFmpegPath);
         Assert.Equal("", opts.Aria2cArgs);

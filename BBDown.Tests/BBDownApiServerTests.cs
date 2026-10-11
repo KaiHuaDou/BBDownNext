@@ -38,7 +38,9 @@ public class BBDownApiServerTests
             "useAria2c": true,
             "host": "https://evil.example.com",
             "epHost": "https://evil.example.com",
-            "tvHost": "https://evil.example.com"
+            "tvHost": "https://evil.example.com",
+            "cookie": "SESSDATA=evil",
+            "accessToken": "evil-token"
         }
         """;
         var req = JsonSerializer.Deserialize<ServeRequestOptions>(maliciousJson, ServeRequestOptionsJsonContext.Default.ServeRequestOptions)!;
@@ -62,6 +64,9 @@ public class BBDownApiServerTests
         Assert.Equal(BiliApi.MainHost, opts.Host);
         Assert.Equal(BiliApi.MainHost, opts.EpHost);
         Assert.Equal(BiliApi.TvHost, opts.TvHost);
+        // 凭据由 serve 启动参数指定，请求体传入无效
+        Assert.Equal("", opts.Cookie);
+        Assert.Equal("", opts.AccessToken);
         // 正常字段仍正确透传
         Assert.Equal("https://www.bilibili.com/video/BV1xx411c7XD", opts.Url);
     }
@@ -84,13 +89,13 @@ public class BBDownApiServerTests
         {
             Url = "https://www.bilibili.com/video/BV1xx411c7XD",
             Api = ApiType.Tv,
-            Cookie = "SESSDATA=abc",
+            Pages = "1-3",
             AllowPreview = true
         };
         var opts = req.ToDownloadRequest( );
 
         Assert.Equal(ApiType.Tv, opts.Api);
-        Assert.Equal("SESSDATA=abc", opts.Cookie);
+        Assert.Equal("1-3", opts.Pages);
         Assert.True(opts.AllowPreview);
     }
 

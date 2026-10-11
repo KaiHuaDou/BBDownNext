@@ -13,6 +13,9 @@ internal sealed record ServeConfig(
     string? TvHost = null,
     string? CorsOrigin = null,
     int MaxConcurrent = 0,
+    // 凭据：由启动参数统一指定，请求体不含这两个字段；留空回落本机 BBDown.data
+    string? Cookie = null,
+    string? AccessToken = null,
     // 下载器与工具相关：由启动参数决定，请求体无法覆盖
     bool UseAria2c = false,
     string? FFmpegPath = null,

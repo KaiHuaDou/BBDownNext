@@ -92,6 +92,7 @@ internal static class ConfigParser
     }
 
     // 空格位置只扫一次：Contains 与 IndexOf 各扫一遍是同一件事
+    // 值段 Trim 吞掉连续空格：选项与值之间写多空格时值不得带前导空白
     private static string[] SplitConfigLine(string raw)
     {
         var line = raw.Trim( );
@@ -101,6 +102,6 @@ internal static class ConfigParser
             return [line];
         }
 
-        return [line[..spaceIndex], line[(spaceIndex + 1)..]];
+        return [line[..spaceIndex], line[(spaceIndex + 1)..].Trim( )];
     }
 }

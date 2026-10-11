@@ -164,7 +164,7 @@ export function parsePriority(value: string, choices: string[]): string[] {
   return picked
 }
 
-/** 把面板选项映射为 serve 提交体。cookie / accessToken 不在此列：凭据由服务端的 BBDown.data 提供。 */
+/** 把面板选项映射为 serve 提交体。cookie / accessToken 不在此列：凭据由 serve 启动参数或本机 BBDown.data 提供。 */
 export function toServeRequest(options: TaskOptions, url: string): ServeRequestOptions {
   const orUndefined = (value: string): string | undefined =>
     value.length === 0 ? undefined : value

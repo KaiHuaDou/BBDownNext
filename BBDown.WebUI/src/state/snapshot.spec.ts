@@ -89,8 +89,9 @@ describe('挂起状态随任务结束清理', () => {
 
     expect(store.answeredAsks.has('req-av1')).toBe(false)
     expect(store.elapsedBase.has('av1')).toBe(false)
-    // 挂起提问与选项快照随任务列表保留，重试按钮仍能读到提交时的选项
-    expect(store.pendingAsks.value).toHaveLength(1)
+    // 任务收尾后没有 choiceResult 可等，挂起提问随之摘除，弹窗不会停在等待确认的假死状态；
+    // 选项快照随任务列表保留，重试按钮仍能读到提交时的选项
+    expect(store.pendingAsks.value).toHaveLength(0)
     expect(store.submittedOptions.has('av1')).toBe(true)
   })
 

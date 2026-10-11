@@ -25,6 +25,8 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | `--api-host`       |      | API 请求 Host，所有任务统一使用此值；请求体不能指定 host（防止凭据被导向外部服务器）                                                                                          |
 | `--api-ep-host`    |      | 番剧 / 影视 API 请求 Host，所有任务统一使用此值                                                                                                                              |
 | `--api-tv-host`    |      | TV 端 API 请求 Host，所有任务统一使用此值                                                                                                                                    |
+| `--cookie`         |      | 所有任务统一使用的 Cookie（如 `SESSDATA`），留空回落本机 `BBDown.data`；请求体不含凭据字段                                                                                    |
+| `--access-token`   |      | 所有任务统一使用的 `access_token`（TV / APP 接口），留空回落本机 `BBDown.data`                                                                                               |
 | `--cors-origin`    |      | 仅允许该单一来源跨域调用 serve（CORS）；不指定则完全关闭 CORS，回环来源（127.0.0.1 / localhost）始终放行                                                                      |
 | `--max-concurrent` |      | 同时下载的任务数上限，默认 `0` 表示不限制；设为 `N > 0` 时最多 `N` 个任务同时下载，其余按提交顺序排队（`Status` 为 `Queued`），单个任务内部的下载并行度由多线程下载器自行决定 |
 | `--aria2c`         |      | 所有任务统一调用 aria2c 下载（需自行准备可执行文件，放在 BBDown 同目录或系统 `PATH` 中）                                                                                     |
@@ -56,7 +58,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | GET    | `/api/v1/tasks/finished`        | 获取已完成的任务列表                                                                                   |
 | GET    | `/api/v1/tasks/{id}`            | 获取指定任务详情                                                                                       |
 | POST   | `/api/v1/tasks`                 | 新增下载任务（202 受理 / 200 命中已有 / 400 / 429）；`?mode=enqueue` 仅入暂停表不执行，待 `start` 触发 |
-| POST   | `/api/v1/tasks/{id}/start`      | 启动 enqueue 暂停的任务（200 已启动 / 404 非暂停态 / 429 队列满）                                      |
+| POST   | `/api/v1/tasks/{id}/start`      | 启动 enqueue 暂停的任务（200 已启动 / 409 重复启动 / 404 任务不存在 / 429 队列满）                     |
 | DELETE | `/api/v1/tasks/finished`        | 移除所有已完成任务                                                                                     |
 | DELETE | `/api/v1/tasks/finished/failed` | 移除所有已失败（`IsSuccessful == false`）的已完成任务                                                  |
 | DELETE | `/api/v1/tasks/{id}`            | 移除指定已完成任务                                                                                     |
@@ -150,7 +152,8 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
     - `{id}`（路径参数）：任务的规范 id（如 `av170001`、`season2539`），见 [任务标识](#任务标识)。
 - **Response：**
     - 任务在暂停表且已投入执行队列：`200 OK`，任务转为 `Queued` / `Running`。
-    - 任务不在暂停表（已运行 / 未知 / 已结束）：`404 Not Found`。
+    - 任务已在运行或已结束（重复的启动请求）：`409 Conflict`。
+    - 任务不存在：`404 Not Found`。
     - 执行队列写满：`429 Too Many Requests`，任务保留 `Pending` 可重试。
 
 ### 取消单个任务
@@ -167,7 +170,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 
 ### 凭据
 
-serve 不提供登录端点。凭据由 CLI / GUI 的 `login` 命令写入本机 `BBDown.data`，serve 的任务请求不带 `cookie` 与 `accessToken`，服务端据此读取本机凭据。
+serve 不提供登录端点。凭据由启动参数 `--cookie` / `--access-token` 指定（所有任务统一生效），未指定时回落本机 `BBDown.data`（由 CLI / GUI 的 `login` 命令写入）；任务请求体不含 `cookie` 与 `accessToken` 字段，传入会被忽略。
 
 ---
 

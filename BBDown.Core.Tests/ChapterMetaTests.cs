@@ -82,8 +82,8 @@ public class ChapterMetaTests
     }
 
     // 章节字段非数字或缺失时整段抛出，上层会吞成 Empty；Empty 的 is_upower_exclusive=false
-// 会让充电试看片段被当成完整视频并写入归档，故此处锁定「跳过坏章节、其余保留」
-[Fact]
+    // 会让充电试看片段被当成完整视频并写入归档，故此处锁定「跳过坏章节、其余保留」
+    [Fact]
     public void ParsePlayerV2_SkipsMalformedPoints_KeepsRest( )
     {
         const string Json = """

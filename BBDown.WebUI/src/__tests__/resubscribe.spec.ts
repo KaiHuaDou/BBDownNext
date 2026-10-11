@@ -57,7 +57,7 @@ describe('重连后重建订阅', ( ) => {
 
     resubscribe(store)
 
-    // av2 已结束，不再订阅；av1 必须重发一次（重连后的新 socket 上没有任何服务端订阅）
+    // av2 已结束，不订阅；av1 必须重发一次（重连后的新 socket 上没有任何服务端订阅）
     expect(store.subscribed.has('av1')).toBe(true)
     expect(store.subscribed.has('av2')).toBe(false)
     expect(store.socket!.subscribe).toHaveBeenCalledTimes(1)

@@ -189,7 +189,9 @@ internal static class ServeEndpoints
             .AllowAnonymous( );
     }
 
-    // 握手应答回显客户端请求的首个子协议（浏览器把令牌放在此处）；未请求子协议时返回 null
+    // 握手应答回显客户端请求的首个子协议；认证过滤器已校验首值等于令牌，回显的正是该令牌
+    // 若改为取任意一个子协议，回显值会与认证通过的值脱节，浏览器将判定子协议不匹配而断开
+    // 未请求子协议时返回 null
     private static string? FirstSubProtocol(HttpRequest request)
     {
         return request.Headers.TryGetValue("Sec-WebSocket-Protocol", out var offered)

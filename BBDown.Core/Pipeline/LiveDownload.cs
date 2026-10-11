@@ -35,7 +35,8 @@ public static class LiveDownload
         Log("获取直播间信息...");
         var room = await LiveFetcher.FetchRoomAsync(target, cfg, ct);
         // 真实房间号与输入串是同一房间的两种写法（短号 / 长号），一并占位才不会被别名绕过互斥。
-        // 真实房间号要等 room_init 换算，发起前无从得知，只能到这里补占；已被占用即表示同一房间在录
+        // 真实房间号要等 room_init 换算，发起前无从得知，只能到这里补占；
+        // 输入串已被本次的停止源占用，Register 对同源占位幂等，其余占用仍然拒绝
         using var roomScope = LiveSignal.Register(room.SessionId, stopCts, target.SessionId);
 
         Log($"直播间：{room.RoomId}{(string.IsNullOrEmpty(room.ShortId) || room.ShortId == "0" ? "" : $"（短号 {room.ShortId}）")}");

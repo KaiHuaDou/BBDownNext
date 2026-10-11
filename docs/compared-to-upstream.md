@@ -79,11 +79,11 @@
     - `POST /api/v1/tasks`（新增下载任务，202 受理 / 200 命中已有 / 400 非法 / 429 队列满）。
     - `DELETE /api/v1/tasks/finished`、`/api/v1/tasks/finished/failed`、`/api/v1/tasks/{id}`（清理已完成任务）。
     - `POST /api/v1/tasks/{id}/stop`（取消单个运行中 / 排队中任务，不影响其他任务）。
-- **鉴权**：`FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时设置 `authRequired = true`，请求须带 `X-BBDown-Token` 头或 `?token=` 查询参数，缺失/错误返回 401（中间件 `context.Response.StatusCode = 401`）；未传入令牌时默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。
+- **鉴权**：`FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时设置 `authRequired = true`，HTTP 接口须带 `X-BBDown-Token` 头，WebSocket 握手 `/hubs/tasks` 接受 `Sec-WebSocket-Protocol` 首值（非浏览器客户端另可用 `?token=` 查询参数），缺失/错误返回 401（中间件 `context.Response.StatusCode = 401`）；未传入令牌时默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。
 - **SSRF 防护**（`BBDown/Serve/SsrfGuard.cs`，独立静态防护类）：
     - `IsSafeWebHook(uri)` 仅允许公网 `http/https`，拒绝 `localhost`、回环与私网地址。
     - 专用 `WebHookClient` 关闭自动重定向，并在 `ConnectCallback` 中于建立 TCP 连接前对最终端点 IP 做 `IsPrivateAddress` 二次校验（消除 DNS 重绑定 TOCTOU 窗口），拒绝私网/回环/链路本地/未指定地址（`::`）。
-- **服务端固定字段**：`host` / `ep-host` / `tv-host` 三兄弟与 `work-dir` 不写入请求 DTO（`ServeRequestOptions`），由 serve 启动参数固定（聚合为 `ServeConfig` record），避免请求不带 cookie 时回落本机 `SESSDATA` 被导向外部服务器（`BBDown/Serve/ServeConfig.cs`）。
+- **服务端固定字段**：`host` / `ep-host` / `tv-host` 三兄弟、`work-dir` 与凭据（`--cookie` / `--access-token`）不写入请求 DTO（`ServeRequestOptions`），由 serve 启动参数固定（聚合为 `ServeConfig` record），避免请求控制 host 或凭据把回落的本机 `SESSDATA` 导向外部服务器（`BBDown/Serve/ServeConfig.cs`）。
 - **CORS 默认放行回环来源**：`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环判定，非回环 `Origin` 仍被浏览器拦截；指定 `--cors-origin` 时叠加该单一来源（`AddCors` → `AllowSpecificOrigin`）。
 - **并发度**：`--max-concurrent N>0` 用 `SemaphoreSlim` 限制同时下载任务数，多余任务排队（`DownloadTask.Status == Queued`）；单个任务内部的下载并行度由多线程下载器自行决定，不压到 1；`0`（默认）表示不限制。任务模型为 `DownloadTask` / `DownloadStatus`。
 

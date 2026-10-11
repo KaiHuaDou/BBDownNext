@@ -241,10 +241,10 @@ BBDown/
 ├── BBDown.WebUI/           # Web 前端（Vue 3 + Vite + TypeScript，pnpm workspace，复刻 GUI 业务功能，WIP）
 │   ├── src/main.ts         # 应用入口（挂 App.vue，注入状态层）
 │   ├── src/App.vue         # 根组件（连接设置 / 任务提交 / 选项面板 / 任务列表 / 日志区）
-│   ├── src/lib/            # 纯函数与工具：content（内容字符表）/ options（选项映射）/ format（ETA 与耗时格式化）/ urlDetector（目标识别）/ errors / storage（localStorage）/ live（直播清晰度）
-│   ├── src/api/            # 网络层：client（REST 任务控制 + 扫码登录客户端）/ ws（WebSocket 事件流状态机，任务列表经 taskList 帧推送）/ login（凭据读写与登录通道）
+│   ├── src/lib/            # 纯函数与工具：content（内容字符表）/ options（选项映射）/ availability（选项可用性联动）/ format（ETA 与耗时格式化）/ urlDetector（目标识别）/ errors / storage（localStorage）/ live（直播清晰度）
+│   ├── src/api/            # 网络层：client（REST 任务控制）/ ws（WebSocket 事件流状态机，任务列表经 taskList 帧推送）
 │   ├── src/state/          # 状态层：store（全局状态）/ types / snapshot（任务列表快照归一）/ taskView（任务 → 视图模型，含 ResourceId 前缀识别）/ connection（WS 订阅与重连）/ actions（提交 / 取消 / 移除 / 启动）/ useTasks（组合式封装）
-│   └── src/components/      # 视图组件：ConnectionBar（状态栏）/ OptionsPanel / TaskList / LogPanel / AskDialog / LoginDialog / ServeSettingsDialog（连接设置弹窗）
+│   └── src/components/      # 视图组件：ConnectionBar（状态栏）/ OptionsPanel / PriorityPicker（优先级选择器）/ TaskList / LogPanel / AskDialog / ServeSettingsDialog（连接设置弹窗）
 ├── BBDown.Tests/           # 针对 BBDown 的 xUnit 测试
 ├── BBDown.Core.Tests/      # 针对 BBDown.Core 的 xUnit 测试
 └── Plugins/                # 插件（BBDown.Sample 内置模板；其余为独立 git 仓库，不进主构建）
@@ -350,8 +350,8 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 
 `BBDown serve` 用 ASP.NET Minimal API 暴露任务增删查接口（完整接口见 [API.md](./API.md)）。主干为 `BBDownServer`，端点注册在 `Http/ServeEndpoints.cs`、WebSocket 在 `Http/TasksSocket.cs`、任务表与消费循环在 `Tasks/`（TaskStore / TaskWorker），SSRF 防护抽到独立静态类 `SsrfGuard`，启动参数聚合为 `ServeConfig` record。设计要点：
 
-- **令牌鉴权**：`SetUpServer` → `FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时启用强制鉴权；未传入则默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。强制鉴权时客户端必须携带 `X-BBDown-Token` 请求头或 `?token=` 查询参数，否则返回 `401`。
-- **请求字段收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的客户端可提交的子集，刻意剔除服务端指定字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在请求字段中，Web 前端经 WebSocket 事件流远程应答选项请求。
+- **令牌鉴权**：`SetUpServer` → `FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时启用强制鉴权；未传入则默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。强制鉴权时 HTTP 接口须携带 `X-BBDown-Token` 请求头，WebSocket 握手 `/hubs/tasks` 接受 `Sec-WebSocket-Protocol` 首值（浏览器无法自定义握手头），非浏览器客户端另可用 `?token=` 查询参数，否则返回 `401`。
+- **请求字段收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的客户端可提交的子集，刻意剔除服务端指定字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`/`Cookie`/`AccessToken`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在请求字段中，Web 前端经 WebSocket 事件流远程应答选项请求。
 - **SSRF 防护**（`SsrfGuard`）：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点；专用 `WebHookClient` 关闭自动重定向并在连接前二次校验端点 IP。
 - **CORS**：默认放行**回环来源**（`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环判定），非回环 `Origin` 依旧无 `Access-Control-Allow-Origin` 头、被浏览器拦截，与写端点 / WebSocket 的 Origin 校验（防 DNS rebinding）保持一致；公网暴露仍需配合反向代理与 TLS。
 - **容量上限**：已完成任务保留上限 200，超出按策略淘汰。
@@ -484,8 +484,8 @@ v1 的 `serve` JSON API 面向音视频、直播、专栏（opus / cv）与集�
 `BBDown.WebUI` 是 serve 模式的 Web 前端（Vue 3 + Vite + TypeScript，pnpm workspace），目标复刻 GUI 业务功能，当前为 WIP（尚未生产可用）。它不内置下载能力，全部经 serve 的 REST（任务提交 / 取消 / 移除 / 清空 / 启动）与始终开启的 WebSocket 事件流（`/hubs/tasks`，任务列表与完成态由 `taskList` 帧推送驱动）与 `BBDown serve` 通信。设计要点：
 
 - **状态层与视图分离**：`state/` 持有全局状态（`store` + `types`），`snapshot` 把 WS 推送的 `taskList` 快照归一到统一视图模型，`taskView` 把 `DownloadTask` 映射为视图模型（按 `ResourceId` 规范 id 前缀识别资源类型）；`connection` 管理 WebSocket 订阅与重连，`actions` 收口提交 / 取消 / 移除 / 启动，`useTasks` 为组合式封装。
-- **网络层**：`api/client` 负责 REST 任务控制（提交 / 取消 / 移除 / 清空 / 启动），`api/ws` 维护始终开启的 WebSocket 事件流连接（任务列表与完成态由 `taskList` 帧推送，断线指数退避自动重连）。凭据由用户在「设置」中填写，随任务请求提交，不做浏览器侧持久化。
-- **纯函数优先**：`lib/` 下 `content`（内容字符表与顺序）、`options`（选项映射）、`format`（ETA 与耗时格式化）、`urlDetector`（下载目标识别）、`live`（直播清晰度）均为可单测纯函数，测试在 `src/__tests__/` 与 `src/state/*.spec.ts`。
-- **视图组件**：`ConnectionBar`（纯状态栏，地址 / 令牌展示与「设置」入口）、`OptionsPanel`（内容 / 下载 / 解析选项，serve 接口排除的字段禁用并标注原因）、`TaskList`（任务队列与状态）、`LogPanel`（日志区）、`AskDialog`（交互选项弹窗）、`ServeSettingsDialog`（连接设置弹窗，地址与令牌 localStorage 持久化）。两枚弹窗均由 App 根层持有，避免组件内部 `Teleport`。
+- **网络层**：`api/client` 负责 REST 任务控制（提交 / 取消 / 移除 / 清空 / 启动），`api/ws` 维护始终开启的 WebSocket 事件流连接（任务列表与完成态由 `taskList` 帧推送，断线指数退避自动重连）。凭据由 serve 启动参数 `--cookie` / `--access-token` 指定，留空回落服务端本机 `BBDown.data`（CLI / GUI 的 `login` 命令写入）；任务请求不含凭据字段，「设置」中填写的是 serve 地址与鉴权令牌，持久化于浏览器 `localStorage`。
+- **纯函数优先**：`lib/` 下 `content`（内容字符表与顺序）、`options`（选项映射）、`availability`（选项可用性联动）、`format`（ETA 与耗时格式化）、`urlDetector`（下载目标识别）、`live`（直播清晰度）均为可单测纯函数，测试在 `src/__tests__/` 与 `src/state/*.spec.ts`。
+- **视图组件**：`ConnectionBar`（纯状态栏，地址 / 令牌展示与「设置」入口）、`OptionsPanel`（内容 / 下载 / 解析选项，serve 接口排除的字段禁用并标注原因）、`PriorityPicker`（优先级选择器）、`TaskList`（任务队列与状态）、`LogPanel`（日志区）、`AskDialog`（交互选项弹窗）、`ServeSettingsDialog`（连接设置弹窗，地址与令牌 localStorage 持久化）。两枚弹窗均由 App 根层持有，避免组件内部 `Teleport`。
 
 构建与运行见 [README](./README.md)「Web 前端」节。

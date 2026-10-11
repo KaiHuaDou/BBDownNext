@@ -38,6 +38,8 @@ internal sealed partial class TaskStore(ServeConfig config, ChannelWriter<TaskEn
     private readonly string? host = config.Host;
     private readonly string? epHost = config.EpHost;
     private readonly string? tvHost = config.TvHost;
+    private readonly string? cookie = config.Cookie;
+    private readonly string? accessToken = config.AccessToken;
     private readonly bool useAria2c = config.UseAria2c;
     private readonly string? ffmpegPath = config.FFmpegPath;
     private readonly string? mp4boxPath = config.Mp4boxPath;
@@ -187,13 +189,7 @@ internal sealed partial class TaskStore(ServeConfig config, ChannelWriter<TaskEn
     {
         lock (pendingGate)
         {
-            var result = StartLocked(id);
-            if (result == StartResult.Started)
-            {
-                NotifyChanged( );
-            }
-
-            return result;
+            return StartLocked(id);
         }
     }
 
@@ -215,6 +211,8 @@ internal sealed partial class TaskStore(ServeConfig config, ChannelWriter<TaskEn
             return StartResult.QueueFull;
         }
 
+        // 通知放在此处而非 Start 公共入口：EnqueueAsync 命中已有暂停任务并经 Relaunch 拉起的路径同样要推送
+        NotifyChanged( );
         return StartResult.Started;
     }
 

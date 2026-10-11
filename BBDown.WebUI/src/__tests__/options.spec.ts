@@ -20,7 +20,7 @@ describe('toServeRequest', () => {
     expect(request.onlyShowInfo).toBe(false)
   })
 
-  // 凭据由服务端 BBDown.data 提供，前端不再经请求体携带
+  // 凭据由 serve 启动参数或本机 BBDown.data 提供，请求体不含凭据字段
   it('不带凭据字段', () => {
     const request = toServeRequest(DEFAULT_OPTIONS, 'av170001')
     expect('cookie' in request).toBe(false)

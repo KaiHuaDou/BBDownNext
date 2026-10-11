@@ -107,6 +107,17 @@ internal static class SubCommands
             {
                 Description = "TV 端 API 请求 Host，所有任务统一使用此值"
             },
+            new Option<string>("--cookie")
+            {
+                Description = """
+                所有任务统一使用的 Cookie（如 SESSDATA），留空回落本机 BBDown.data；
+                任务请求体不含 cookie 字段
+                """
+            },
+            new Option<string>("--access-token")
+            {
+                Description = "所有任务统一使用的 access_token（TV / APP 接口），留空回落本机 BBDown.data"
+            },
             new Option<string>("--cors-origin")
             {
                 Description = """
@@ -182,6 +193,8 @@ internal static class SubCommands
             TvHost: result.GetValue<string>("--api-tv-host"),
             CorsOrigin: result.GetValue<string>("--cors-origin"),
             MaxConcurrent: result.GetValue<int>("--max-concurrent"),
+            Cookie: result.GetValue<string>("--cookie"),
+            AccessToken: result.GetValue<string>("--access-token"),
             UseAria2c: result.GetValue<bool>("--aria2c"),
             FFmpegPath: result.GetValue<string>("--ffmpeg-path"),
             Mp4boxPath: result.GetValue<string>("--mp4box-path"),

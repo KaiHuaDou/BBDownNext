@@ -491,6 +491,8 @@ APP 未登录    本地无 access_token
 | `--api-host`       | <br /> | API 请求 Host，所有任务统一使用此值；请求体不能指定 host（防止凭据被导向外部服务器）                                                             |
 | `--api-ep-host`    | <br /> | 番剧 / 影视 API 请求 Host，所有任务统一使用此值                                                                                                  |
 | `--api-tv-host`    | <br /> | TV 端 API 请求 Host，所有任务统一使用此值                                                                                                        |
+| `--cookie`         | <br /> | 所有任务统一使用的 Cookie（如 `SESSDATA`），留空回落本机 `BBDown.data`                                                                           |
+| `--access-token`   | <br /> | 所有任务统一使用的 `access_token`（TV / APP 接口），留空回落本机 `BBDown.data`                                                                   |
 | `--cors-origin`    | <br /> | 除回环来源（127.0.0.1 / localhost）外，额外允许该单一来源跨域调用 serve（CORS）                                                                  |
 | `--max-concurrent` | <br /> | 同时下载的任务数上限，默认 0（不限制）；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队                                                       |
 | `--aria2c`         | <br /> | 所有任务统一调用 aria2c 下载（需自行准备可执行文件）                                                                                             |
