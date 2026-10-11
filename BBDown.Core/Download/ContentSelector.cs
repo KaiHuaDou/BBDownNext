@@ -44,7 +44,7 @@ public readonly record struct ContentItem(char Ch, DownloadContent Flag, string 
 
 public static class ContentSelector
 {
-    public const string Default = "avmsCiAM";
+    public const string Default = "avmsSCiAM";
 
     /// <summary>字符的唯一规范顺序，同时用于输出、互转、警告文案与 GUI 内容选项；顺序与 CLI 帮助、GUI 面板布局保持一致。</summary>
     public static IReadOnlyList<ContentItem> Order { get; } =
@@ -66,7 +66,7 @@ public static class ContentSelector
 
     private static readonly string ValidChars = string.Concat(Order.Select(e => e.Ch));
 
-    /// <summary>默认内容集 a v m s C i A M（opus 模式下仅 i / A / M / o / O 生效）。</summary>
+    /// <summary>默认内容集 a v m s S C i A M（opus 模式下仅 i / A / M / o / O 生效）。</summary>
     public static DownloadContent DefaultFlags { get; } = Resolve([Default], [], [], false, false, false, false, out _);
 
     /// <summary>

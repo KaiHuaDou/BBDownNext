@@ -6,6 +6,14 @@
 
 本文件的内容基于对代码实际差异的比对（而非提交信息），以准确反映用户可见的行为变化。
 
+## [v2.3.1]
+
+### 破坏性更改
+
+- **默认内容集纳入 AI 字幕**
+    - 默认内容集 `avmsCiAM` → `avmsSCiAM`，CLI / GUI / WebUI 默认勾选同步包含 AI 字幕（`S`）；不需要时用 `-W S` 移除。
+    - 无 AI 字幕的视频产物不变；保存过旧内容集的 GUI 配置沿用保存值。
+
 ## [v2.3.0]
 
 ### 破坏性更改
@@ -830,3 +838,4 @@
 [v2.2.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.2.0...v2.2.1
 [v2.2.2]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.2.1...v2.2.2
 [v2.3.0]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.2.2...v2.3.0
+[v2.3.1]: https://github.com/KaiHuaDou/BBDownNext/compare/v2.3.0...v2.3.1

@@ -37,8 +37,8 @@ public class ContentSelectorTests
     [Fact]
     public void Resolve_DefaultFlags_MatchesDefaultString( )
     {
-        // 规范顺序 a v c d s S o O C m A i M 下，默认集 a v m s C i A M 的规范化输出
-        Assert.Equal("avsCmAiM", ContentSelector.ToNormalizedString(ContentSelector.DefaultFlags));
+        // 规范顺序 a v c d s S o O C m A i M 下，默认集 a v m s S C i A M 的规范化输出
+        Assert.Equal("avsSCmAiM", ContentSelector.ToNormalizedString(ContentSelector.DefaultFlags));
     }
 
     // ---- 集合运算 ----

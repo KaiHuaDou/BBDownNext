@@ -402,7 +402,7 @@ WEB / TV / APP 三类凭据合并进**同一个 JSON 对象**（字段：`cookie
 
 ## 8. 字幕 / 弹幕 / 评论 / 文件名
 
-- **字幕 (`SubUtil`)**：已登录账号可走 WEB/TV；**未登录时只能走 APP gRPC** 获取字幕。AI 字幕默认不下载，需内容集含 `S`（`-w S`）显式开启。
+- **字幕 (`SubUtil`)**：已登录账号可走 WEB/TV；**未登录时只能走 APP gRPC** 获取字幕。AI 字幕由内容集 `S` 控制，默认集已包含。
 - **弹幕 (`DanmakuUtil`)**：支持 XML / ASS 两种格式（`--danmaku-formats`），ASS 参数全部硬编码不可配，无去重 / 过滤。
 - **评论 (`CommentFetcher` / `CommentRenderer` / `CommentWriter` / `CommentDownload`)**：走 `/x/v2/reply/wbi/main`（WBI 签名 + 游标分页），type / oid 参数化：视频稿件 `1/avid`、专栏文章 `12/cvid`、图文动态直接采用 opus/detail 下发的 `basic.comment_type / comment_id_str`（相簿区）。`--comments-count` / `-cn` 默认 `0`（不下载，且需内容集含 `o` / `O` 才真正抓取），`--comments-sort` / `-cs` 选 `hot`/`time`，`--comments-formats` / `-cf` 选 `json`/`txt`（`CommentFormat` 与弹幕格式**两个互不相干的特性，解析逻辑各自独立**）。评论区按 **oid** 绑定、与 cid / 分 P 无关：视频链路挂在 `PageQueue.RunAsync` 逐分 P 委托里用局部 `HashSet` 按 aid 去重，**DASH 与 FLV 两条路径都覆盖**，多 P 同 aid 只抓一次；专栏 / 图文链路由 `OpusDownload` 在 Markdown 写入前导出，产物齐全则跳过抓取。写入统一经 `CommentWriter`（`.comments.json` / `.comments.txt` 与 Markdown / 视频产物同名）。默认只保留一级评论内联的最多 3 条楼中楼预览，内容集含 `O`（`-g O`）才额外翻页抓全。抓取失败一律降级为「拿到多少算多少」（专栏链路整体重试耗尽后只告警，不影响 Markdown 导出），只有 WBI 签名错误（`-403`）才抛异常——评论下载与视频 / 专栏下载互不干扰。
 - **文件名 (`FileNameUtil`)**：按 **UTF-8 字节数截断，上限 200 字节**（约 66 个汉字），避免过长路径；变量支持自定义日期格式 `<publishDate:yyyyMMdd>` / `<videoDate:格式>`。

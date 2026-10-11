@@ -31,7 +31,7 @@ public static class Account
         }
         catch (Exception ex)
         {
-            LogDebug("获取账号信息失败: {0}", ex.Message);
+            LogDebug("获取账号信息失败：{0}", ex.Message);
             return (new AccountInfo(false, "", 0, false, ""), "");
         }
     }
