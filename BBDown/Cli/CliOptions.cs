@@ -38,10 +38,19 @@ internal static class CliOptions
     // 解析实际忽略大小写，故清掉默认补全后按说明中的小写取值域重新给出
     static CliOptions( )
     {
-        ApiOption.CompletionSources.Clear();
+        ApiOption.CompletionSources.Clear( );
         ApiOption.CompletionSources.Add(["web", "tv", "app", "intl"]);
-        MuxOption.CompletionSources.Clear();
+        MuxOption.CompletionSources.Clear( );
         MuxOption.CompletionSources.Add(["none", "mpeg4", "mp4box", "mkv"]);
+        // 未匹配任何选项的「-x」样式 token 会被宽容解析吞成 url 值，落进输入解析抛「输入有误」
+        // 在解析层拦截，报「未识别的参数」；URL 与简写 ID 均不以 - 开头，无误伤面
+        Url.Validators.Add(result =>
+        {
+            foreach (var token in result.Tokens.Where(t => t.Value.StartsWith('-')))
+            {
+                result.AddError($"未识别的参数：{token.Value}");
+            }
+        });
     }
     internal static readonly Option<string> Host = new("--host", [])
     {

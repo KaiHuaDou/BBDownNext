@@ -89,7 +89,8 @@ internal sealed class Program
 
         var parserConfiguration = new ParserConfiguration( )
         {
-            EnablePosixBundling = true,
+            // 短选项不捆绑：-ab 必须按「名为 ab 的未知选项」报错，而不是拆成 -a -b
+            EnablePosixBundling = false,
         };
 
         var rootResult = rootCommand.Parse(args, parserConfiguration);
@@ -112,8 +113,8 @@ internal sealed class Program
                 rootResult = rootCommand.Parse(mergedArgs, parserConfiguration);
             }
 
-            // 既无 URL 参数、也无配置文件提供地址时，打印用法而不是抛「缺少必需参数」（--help/--version 不产生错误，仍走原流程）
-            if (!HasUrlArgument(rootResult) && (rootResult.Errors.Count > 0 || string.IsNullOrEmpty(rootResult.GetValue<string>(CliOptions.ConfigFile.Name))))
+            // 解析报错且无 URL 参数时先给出用法示例，降低排错成本（--help / --version 不产生错误，仍走原流程）
+            if (!HasUrlArgument(rootResult) && rootResult.Errors.Count > 0)
             {
                 PrintUsageExample( );
             }
@@ -121,6 +122,17 @@ internal sealed class Program
 
         if (!TryReportParseErrors(rootResult))
         {
+            return 1;
+        }
+
+        // TreatUnmatchedTokensAsErrors 保持关闭（配置文件补齐依赖宽容解析），未匹配 token（敲错的短选项等）
+        // 落在 UnmatchedTokens，须在进入执行前拦截：放行只会落进输入解析抛出含糊的「输入有误」
+        if (rootResult.UnmatchedTokens is { Count: > 0 } unmatched)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Error.WriteLine($"未识别的参数：{string.Join(" ", unmatched)}");
+            Console.ResetColor( );
+            Console.Error.WriteLine("请使用 BBDown --help 查看帮助");
             return 1;
         }
 
@@ -173,6 +185,14 @@ internal sealed class Program
 
     private static async Task<int> RunApp(DownloadRequest myOption)
     {
+        // 无参数运行（url 为空）时给出用法示例即退出：放行只会落进输入解析抛「输入有误」
+        // --help / --version 由 InvokeAsync 在进入动作前处理，不会到达此处
+        if (string.IsNullOrWhiteSpace(myOption.Url))
+        {
+            PrintUsageExample( );
+            return 1;
+        }
+
         // b23.tv 短链需展开后再识别形式：独立链路（直播 / 专栏 / 集合）展开到对应 URL 才能正确分流
         // （否则落入通用解析抛"未知 id 类型"）。重复展开无副作用，下游 OpusDownload 二次展开无副作用
         var url = myOption.Url;

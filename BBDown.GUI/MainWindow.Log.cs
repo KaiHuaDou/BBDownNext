@@ -24,7 +24,7 @@ public partial class MainWindow
     private IBrush NormalBrush => Foreground ?? new SolidColorBrush(Color.FromRgb(0xEE, 0xEE, 0xEE));
 
     /// <summary>
-    /// 任务日志唯一入口：<c>[任务N] </c> 前缀与失败行的 <c>[错误] </c> 标记只在此拼一次
+    /// 任务日志唯一入口：<c>[任务 N] </c> 前缀与失败行的 <c>[错误] </c> 标记只在此拼一次
     /// <paramref name="scope"/> 是总线携带的任务序号（字符串形态），调用方不做前缀拼装
     /// </summary>
     private void AppendTaskLog(string scope, string line, bool isError)

@@ -36,7 +36,7 @@ public static class Config
         ("116", "1080P 高帧率"),
         ("112", "1080P 高码率"),
         ("80", "1080P 高清"),
-        // 智能修复是 AI 超分产物，源分辨率常低于原生 1080P，但 qn 数值(100)大于 80
+        // 智能修复是 AI 超分产物，源分辨率常低于原生 1080P，但 qn 数值 (100) 大于 80
         // 默认不抢占原生 1080P，需要时以 -q "智能修复" 显式指定
         ("100", "智能修复"),
         ("74", "720P 高帧率"),
@@ -88,7 +88,7 @@ public static class Config
     // B 站随时可能下发未收录的 qn，回落到原始值而不是抛 KeyNotFoundException
     public static string GetQualityName(string qn)
     {
-        return QualityNameMap.TryGetValue(qn, out var name) ? name : $"未知清晰度(qn={qn})";
+        return QualityNameMap.TryGetValue(qn, out var name) ? name : $"未知清晰度 (qn={qn})";
     }
 
     // dolby.type：1=普通杜比音效，2=全景杜比音效；仅 id 30250 需要区分，其余按 id 直接映射
@@ -100,7 +100,7 @@ public static class Config
             return dolbyType == 2 ? DolbyAtmosQualityName : DolbyQualityName;
         }
 
-        return AudioQualityNameMap.TryGetValue(id, out var name) ? name : $"未知音质(id={id})";
+        return AudioQualityNameMap.TryGetValue(id, out var name) ? name : $"未知音质 (id={id})";
     }
 
     // 轨道排序权重（越小越优先），以 Qualities 的排列为准

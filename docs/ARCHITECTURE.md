@@ -161,7 +161,7 @@ BBDown/
 │   │
 │   ├── PlayUrl/            # 命名空间 BBDown.Core.PlayUrl — 播放地址解析
 │   │   ├── PlayUrlRequest.cs       # 顶层 internal record struct（aidOri/aid/cid/epId 与 API 模式）
-│   │   ├── PlayUrlClient.cs        # URL 构造 + 发送（WEB/TV/INTL/网页回退）+ appkey 常量
+│   │   ├── PlayUrlClient.cs        # URL 构造 + 发送（WEB/TV/INTL/网页回退/v1 回退）+ appkey 常量
 │   │   ├── PlayUrlResponse.cs      # 响应形状导航（data/result/video_info 节点定位、大会员判定）
 │   │   ├── DashTrackReader.cs      # 纯函数：DASH JSON → 视频/音频轨（免二压两次响应并集、杜比/Hi-Res 回退）
 │   │   ├── FlvTrackReader.cs       # 纯函数：FLV 分段 → 轨道
@@ -193,6 +193,7 @@ BBDown/
 │   ├── Util/               # BV 转换、FileNameUtil(200 字节截断)、HTTPUtil、SignUtil(WBI)、SubUtil、GrpcUtil(gRPC 帧)、DanmakuUtil(弹幕 xml/ass)、ProgressSampler(进度采样)、ArchiveLog、Redactor、JsonUtil、Utils、ViewPointUtil
 │   ├── APP/                # APP gRPC 协议 (proto 生成代码)
 │   ├── Parser.cs           # 播放地址解析入口：编排 ExtractTracksAsync + 番剧分段点映射（请求构造/发送、响应导航、轨道读取已下沉到 PlayUrl/）
+│   ├── PreviewOnlyException.cs # playurl 载荷试看中止异常（is_preview=1，重试层按不可重试处理）
 │   ├── ResourceId.cs       # 联合类型（Av / Ep / Season / CheeseEp / CheeseSeason / Fav / MediaList / Series / Space / WatchLater）
 │   ├── ResourceIdJsonConverter.cs # ResourceId JSON 序列化
 │   ├── AppEnv.cs           # 进程级环境：AppDir / CancellationToken / Cancel()
@@ -343,6 +344,7 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 - **WBI 签名**：仅对 **UGC** 的 playurl、`wbi/view`、`wbi/v2` 使用；当未探测到账号（`Wbi` 为空）时，所有 WBI 接口退化为不签名。番剧 / 课程的 playurl **不做 WBI 签名**。
 - **APP 端 gRPC**：非 `Grpc.Net` 客户端，而是手写 HTTP POST + gzip 帧（`AppHelper.PackMessage` / `ReadMessage`），鉴权靠 `identify_v1` 令牌头。
 - **playurl 请求次数**：DASH 会先按用户 `-q` 请求一次，再额外以最高清晰度（`qn=127`）请求一次以取得「免二压 / 原始画质」视频轨（两次取并集）；**FLV 始终以 `qn=127` 请求，忽略 `-q`**。
+- **v1 回退与试看判定**：WEB 番剧 / 课程 v2 接口未下发任何轨道时，回退 v1 接口（`pgc/player/web/playurl`，课程 `/pugv/` 段替换）再解析一次；payload 明示 `is_preview=1`（仅试看片段）时明确报错中止。不解读其它播放端拒绝原因（DRM 等，见「加密轨道」一节）。
 
 ---
 
@@ -374,6 +376,8 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 - 并行控制：`ParallelCount` 默认 32 条连接；`--single-thread` 或 CMCC 域名强制单块；FLV 片段间并行（上限 4）× 片段内连接合计不超过 32。
 - **重跑同一条命令即可从断点继续**，范围覆盖：单条流（视频轨下完、音频轨失败 → 只补音频轨）与合集 / 多 P（某分 P 失败仅补该分 P）。所有分片（含边下边混流的临时文件）都成功后才清理临时文件。
 - CDN 策略：CMCC 等特殊 CDN 强制单线程；`ReplaceUrl` 默认把 https→http（mcdn 域跳过）。
+- host 替换后的直链先经 Range 0-0 探测，命中 404 且 host 确经 `CdnHost` 替换时改回原始直链下载：备用 host 不承载部分内容（如大会员影片的 APP 接口流），重试沿用已替换地址会整单失败。
+- 成品已完整而跳过下载时，同目标名下的 `.download` / `.aria2` 残留一并回收（`DownloadUtil.DeleteResumeArtifacts`），不触碰未完成产物的续传文件。
 
 ---
 

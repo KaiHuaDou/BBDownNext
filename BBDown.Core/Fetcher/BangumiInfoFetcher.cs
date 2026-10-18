@@ -40,14 +40,15 @@ public static class BangumiInfoFetcher
             }
 
             var (code, message) = ReadApiError(infoJson.RootElement);
-            throw new InvalidOperationException($"获取番剧信息失败(code={code})：{message}");
+            throw new InvalidOperationException($"获取番剧信息失败 (code={code})：{message}");
 
         }
 
-        var cover = result.GetProperty("cover").ToString( );
-        var title = result.GetProperty("title").ToString( );
-        var desc = result.GetProperty("evaluate").ToString( );
-        var pubTimeStr = result.GetProperty("publish").GetProperty("pub_time").ToString( );
+        // publish / cover 等字段为 null 或缺失时按缺失处理：链式 GetProperty 会抛含糊异常中断整个信息获取
+        var cover = ReadText(result, "cover");
+        var title = ReadText(result, "title");
+        var desc = ReadText(result, "evaluate");
+        var pubTimeStr = TryGetObject(result, "publish", out var publish) ? ReadStr(publish, "pub_time") : "";
         // 服务端格式固定为公历 yyyy-MM-dd HH:mm:ss，必须用 InvariantCulture：CurrentCulture 在非公历默认历法
         // locale（fa-IR / ar-SA 等）下解析失败，番剧发布时间会中断整个信息获取
         var pubTime = string.IsNullOrEmpty(pubTimeStr) ? 0 : DateTimeOffset.ParseExact(pubTimeStr, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture).ToUnixTimeSeconds( );
@@ -60,7 +61,7 @@ public static class BangumiInfoFetcher
             {
                 if (TryGetArray(section, "episodes", out var sectionEpisodes) && ContainsEpisode(sectionEpisodes, locateEpId))
                 {
-                    title += "[" + section.GetProperty("title").ToString( ) + "]";
+                    title += "[" + ReadStr(section, "title") + "]";
                     pages = sectionEpisodes;
                     break;
                 }

@@ -101,7 +101,7 @@ public static class JsonUtil
         return false;
     }
 
-    // 非数组(含 default(JsonElement))时给空序列, 免去调用方到处判 ValueKind
+    // 非数组 (含 default(JsonElement)) 时给空序列，免去调用方到处判 ValueKind
     public static IEnumerable<JsonElement> EnumerateArrayOrEmpty(JsonElement element)
     {
         return element.ValueKind == JsonValueKind.Array ? element.EnumerateArray( ) : [];
@@ -124,7 +124,7 @@ public static class JsonUtil
         return node.ValueKind == JsonValueKind.Array ? [.. node.EnumerateArray( )] : null;
     }
 
-    // dimension 字段在部分条目上缺失, 取不到时给空串而不是抛 KeyNotFoundException
+    // dimension 字段在部分条目上缺失，取不到时给空串而不是抛 KeyNotFoundException
     public static string ReadDimension(JsonElement parent)
     {
         if (parent.ValueKind != JsonValueKind.Object
@@ -139,7 +139,7 @@ public static class JsonUtil
         return $"{width}x{height}";
     }
 
-    // 番剧(pgc season) 的 duration 以毫秒计, 而 UGC pages 与课程 pugv 的同名字段已是秒; 调用方统一按秒存放故在此换算
+    // 番剧 (pgc season) 的 duration 以毫秒计，而 UGC pages 与课程 pugv 的同名字段已是秒; 调用方统一按秒存放故在此换算
     // TryGetInt64 遇到非 Number 的 ValueKind 会抛而不是返回 false, 需先判类型; 取不到时给 0 而不是抛
     public static int ReadDurationSeconds(JsonElement parent)
     {
@@ -193,7 +193,7 @@ public static class JsonUtil
         }
 
         var (code, message) = ReadApiError(root);
-        throw new ApiException(code, $"获取{label}失败(code={code})：{message}");
+        throw new ApiException(code, $"获取{label}失败 (code={code})：{message}");
     }
 
     // 番剧接口用 episodes[].Id 标识分集。原实现把整棵子树 ToString 后找 "/ep{id}"

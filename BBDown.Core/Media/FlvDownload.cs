@@ -41,6 +41,8 @@ public static class FlvDownload
                 continue;
             }
 
+            // 替换 host 前留原始直链：备用 CDN 不承载部分内容（404）时改回原始地址下载
+            var originalClips = clips.ToArray( );
             CdnHost.Apply(myOption, clips, ctx.Fetch.Cfg);
 
             TrackSelect.PrintFlvTracksInfo(parsedResult, clips, myOption.OnlyShowInfo);
@@ -95,7 +97,7 @@ public static class FlvDownload
             {
                 // 片段下载是整 P 必要步骤，独立重试；耗尽则整 P 失败（不影响其他分 P）
                 clipPaths = await RetryAsync(
-                    async ( ) => await DownloadClipsAsync(clips, pageCtx, session.Config, ct),
+                    async ( ) => await DownloadClipsAsync(clips, originalClips, pageCtx, session.Config, ct),
                     myOption.MaxRetry, $"P{p.Index} 片段", ct, ex => PageDownload.ShouldRetry(ex, ct));
             }
 
@@ -179,7 +181,7 @@ public static class FlvDownload
     // DownloaderAdapter.MaxRangeConcurrency，避免片段间 x 片段内连接数超出 CDN 对单客户端的连接限制
     private const int MaxClipParallelism = 2;
 
-    private static async Task<List<string>> DownloadClipsAsync(List<string> clips, PageContext pageCtx, DownloadConfig downloadConfig, CancellationToken ct = default)
+    private static async Task<List<string>> DownloadClipsAsync(List<string> clips, string[] originalClips, PageContext pageCtx, DownloadConfig downloadConfig, CancellationToken ct = default)
     {
         var p = pageCtx.Page;
         var pad = string.Empty.PadRight(clips.Count.ToString( ).Length, '0');
@@ -193,7 +195,7 @@ public static class FlvDownload
             var clipPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.P{p.Index}.{p.Cid}.{i.ToString(pad)}.mp4");
             clipPaths[i] = clipPath;
             Log($"开始下载 P{p.Index} 视频，片段（{(i + 1).ToString(pad)} / {clips.Count}）...");
-            await DownloadAsync(clips[i], clipPath, clipConfig, ct: token);
+            await DownloadAsync(clips[i], clipPath, clipConfig, fallbackUrl: originalClips[i], ct: token);
         });
         return [.. clipPaths];
     }

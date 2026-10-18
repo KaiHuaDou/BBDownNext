@@ -99,8 +99,8 @@ internal static class AppHelper
             Spmid = "main.ugc-video-detail.0.0",
             FromSpmid = "main.my-history.0.0",
             PreferCodecType = codec,
-            Download = 0, //0:播放 1:flv下载 2:dash下载
-            ForceHost = 2 //0:允许使用ip 1:使用http 2:使用https
+            Download = 0, //0:播放 1:flv 下载 2:dash 下载
+            ForceHost = 2 //0:允许使用 ip 1:使用 http 2:使用 https
         };
         LogDebug("PayLoadPlain: {0}", JsonSerializer.Serialize(obj, JsonContext.Default.PlayViewReq));
         return GrpcUtil.PackMessage(obj.ToByteArray( ));

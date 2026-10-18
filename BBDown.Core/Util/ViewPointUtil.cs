@@ -19,7 +19,7 @@ internal static class ViewPointUtil
         parsedResult.ExtraPoints = FillGapsWithMainContent(parsedResult.ExtraPoints);
     }
 
-    // 番剧片头片尾转分段信息, 预计效果: 正片? -> 片头 -> 正片 -> 片尾
+    // 番剧片头片尾转分段信息，预计效果：正片？-> 片头 -> 正片 -> 片尾
     public static List<ViewPoint> FillGapsWithMainContent(List<ViewPoint> points)
     {
         List<ViewPoint> result = [];

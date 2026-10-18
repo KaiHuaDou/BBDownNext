@@ -41,6 +41,13 @@ public class DownloadTests
         Assert.True(PageDownload.ShouldRetry(new IOException( ), CancellationToken.None));
     }
 
+    // 载荷试看与充电试看同属权限状态，重试不改变结果
+    [Fact]
+    public void ShouldRetry_PreviewOnly_ReturnsFalse( )
+    {
+        Assert.False(PageDownload.ShouldRetry(new PreviewOnlyException("试看"), CancellationToken.None));
+    }
+
     [Theory]
     // 真实场景：02:23:48 的稿件只下发 00:06:29
     [InlineData(true, 8628, 389, true)]

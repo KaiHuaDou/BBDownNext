@@ -62,7 +62,7 @@ public class CommentWriterTests
         var basePath = Path.Combine(dir.FullPath, "x.md");
 
         var paths = await CommentWriter.WriteAsync(
-            basePath, SampleDocument( ), [ ], fullReplies: false, TestContext.Current.CancellationToken);
+            basePath, SampleDocument( ), [], fullReplies: false, TestContext.Current.CancellationToken);
 
         Assert.Empty(paths);
         Assert.Empty(Directory.GetFiles(dir.FullPath));

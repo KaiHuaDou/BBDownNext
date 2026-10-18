@@ -227,7 +227,7 @@ public static partial class Utils
     /// <summary>运行外部程序，stderr 逐行回吐日志、stdout 逐行进调试日志，取消时杀掉子进程；返回退出码。</summary>
     public static async Task<int> RunExe(string app, List<string> args, CancellationToken ct = default)
     {
-        LogDebug("{0}命令: {1}", Path.GetFileNameWithoutExtension(app), FormatArgs(args));
+        LogDebug("{0}命令：{1}", Path.GetFileNameWithoutExtension(app), FormatArgs(args));
         using Process p = new( );
         p.StartInfo.FileName = app;
         foreach (var arg in args)

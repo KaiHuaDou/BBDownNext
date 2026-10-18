@@ -50,6 +50,8 @@ public static partial class BiliHeaders
         BiliApi.IntlWebHost, BiliApi.LiveApiHost,
         "www.bilibili.com", "space.bilibili.com", "bangumi.bilibili.com",
         "comment.bilibili.com", "live.bilibili.com",
+        // www.bilibili.tv 为 B 站海外站站点页，页面与 ep 解析经它取数
+        "www.bilibili.tv",
         // passport.snm0516.aisee.tv 即 B 站 passport 下发的跨域种 cookie 节点（aisee.tv 为 B 站自有域名），整体放行
         "passport.snm0516.aisee.tv"
     ];
@@ -72,9 +74,18 @@ public static partial class BiliHeaders
                || Matches(host, cfg.TvHost);
     }
 
+    // 配置项容许带 scheme 或端口（如 --host https://api.example.com:8443），比较前先归一出主机名
+    // Uri.Host 不含端口，逐字比较会把带端口的配置错判为不可信
     private static bool Matches(string host, string configured)
     {
-        return configured.Length > 0 && host.Equals(configured, StringComparison.OrdinalIgnoreCase);
+        if (configured.Length == 0)
+        {
+            return false;
+        }
+
+        var candidate = configured.Contains("://", StringComparison.Ordinal) ? configured : $"https://{configured}";
+        return Uri.TryCreate(candidate, UriKind.Absolute, out var uri)
+               && host.Equals(uri.Host, StringComparison.OrdinalIgnoreCase);
     }
 
     // cookie 值不含 ';'，故按 ';' 切分后逐段剔除设备标识段即可；保留其余段原样拼接不破坏用户 cookie 格式

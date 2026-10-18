@@ -58,7 +58,7 @@ public static class LiveMuxer
         var faststart = new FileInfo(input).Length <= FaststartMaxBytes;
         if (!faststart)
         {
-            LogWarn("文件较大, 跳过 faststart 优化 (可正常播放, 边下边播时需先缓冲)");
+            LogWarn("文件较大，跳过 faststart 优化 (可正常播放，边下边播时需先缓冲)");
         }
 
         var code = await Utils.RunExe(tools.Ffmpeg, BuildLiveRemuxArgs(input, outPath, faststart, Config.DebugLog), ct);
@@ -82,14 +82,14 @@ public static class LiveMuxer
     {
         if (!File.Exists(outPath) || expectedBytes <= 0)
         {
-            LogError("合并产物缺失, 已保留分段文件");
+            LogError("合并产物缺失，已保留分段文件");
             return false;
         }
 
         var actual = new FileInfo(outPath).Length;
         if (actual < expectedBytes * MinMergeRatio)
         {
-            LogError($"合并产物大小 {actual} 远小于分段总和 {expectedBytes}, 疑似数据丢失, 已保留分段文件");
+            LogError($"合并产物大小 {actual} 远小于分段总和 {expectedBytes}, 疑似数据丢失，已保留分段文件");
             return false;
         }
 
@@ -121,7 +121,7 @@ public static class LiveMuxer
 
             if (tsFiles.Count == 0)
             {
-                LogError("全部分段转换失败, 已保留分段文件");
+                LogError("全部分段转换失败，已保留分段文件");
                 return false;
             }
 
@@ -156,7 +156,7 @@ public static class LiveMuxer
         return args;
     }
 
-    // 直播流时间戳常跳变/回绕, 不重建 PTS 会导致时长错误甚至无法 seek
+    // 直播流时间戳常跳变/回绕，不重建 PTS 会导致时长错误甚至无法 seek
     // +discardcorrupt / -err_detect ignore_err 同 BuildLiveToTsArgs 注释，压制停录截断导致的噪声与损坏
     internal static List<string> BuildLiveRemuxArgs(string input, string output, bool faststart, bool debugLog)
     {

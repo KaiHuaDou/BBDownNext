@@ -38,7 +38,7 @@ public static partial class SubUtil
         catch (Exception ex)
         {
             // 网络故障与"该源确实没有字幕"在这里被压平成同一个结果，至少让 debug 日志能区分
-            LogDebug("字幕候选接口不可用: {0}", ex.Message);
+            LogDebug("字幕候选接口不可用：{0}", ex.Message);
             return null;
         }
     }

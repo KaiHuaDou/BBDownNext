@@ -75,7 +75,7 @@ public static class CommentFetcher
                     LogWarn($"评论接口被风控拦截，已抓取 {document.Comments.Count} 条");
                     return document;
                 default:
-                    throw new InvalidOperationException($"获取评论失败(code={code})：{message}");
+                    throw new InvalidOperationException($"获取评论失败 (code={code})：{message}");
             }
 
             var data = Child(response.RootElement, "data");
@@ -183,7 +183,7 @@ public static class CommentFetcher
                 var (code, message) = JsonUtil.ReadApiError(response.RootElement);
                 if (code != 0)
                 {
-                    LogWarn($"抓取 rpid={comment.Rpid} 的楼中楼失败(code={code})：{message}");
+                    LogWarn($"抓取 rpid={comment.Rpid} 的楼中楼失败 (code={code})：{message}");
                     break;
                 }
 

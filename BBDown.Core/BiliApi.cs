@@ -25,6 +25,7 @@ public static class BiliApi
     // 主机可被代理，故只登记路径
     public const string PlayUrlWebPath = "/x/player/wbi/playurl";
     public const string PlayUrlPgcPath = "/pgc/player/web/v2/playurl";
+    public const string PlayUrlPgcV1Path = "/pgc/player/web/playurl";
     public const string PlayUrlTvPath = "/x/tv/playurl";
     public const string PlayUrlPgcTvPath = "/pgc/player/api/playurltv";
     public const string SeasonPgcPath = "/pgc/view/web/season";

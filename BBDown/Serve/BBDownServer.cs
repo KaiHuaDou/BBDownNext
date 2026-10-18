@@ -161,7 +161,7 @@ internal class BBDownServer
                         Window = TimeSpan.FromMinutes(1),
                         AutoReplenishment = true,
                     }));
-            });
+        });
     }
 
     /// <summary>

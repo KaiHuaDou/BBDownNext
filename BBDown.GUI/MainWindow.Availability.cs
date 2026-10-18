@@ -3,6 +3,7 @@
 using System;
 using System.Linq;
 using System.Text;
+
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
@@ -41,7 +42,7 @@ public partial class MainWindow
         var mode = info is null ? null : ModeOf(info.Kind);
         var content = ContentSelector.FromNormalizedString(ReadContent( ));
         var infoOnly = InfoOnlyCheckBox.IsChecked == true;
-        var comments = (int)(CommentsCountBox.Value ?? 0);
+        var comments = (int) (CommentsCountBox.Value ?? 0);
         var mux = ReadMux( );
 
         ApplyContentArea(mode, infoOnly, comments);

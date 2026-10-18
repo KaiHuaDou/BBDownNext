@@ -62,9 +62,9 @@ internal static partial class PlayUrlClient
         return $"{host}{(cheese ? BiliApi.CheesePlayPath : BiliApi.BangumiPlayPath)}/ep{Esc(epId)}";
     }
 
-    // 大会员专享限制时, 改从网页源码抠 window.__playinfo__
-    // 与正常 API 路径解耦为独立方法, 并按 cheese / 番剧构造正确的播放页地址
-    // 匹配失败时抛明确异常(而非返回空串导致后续 JSON 解析报莫名其妙的错)
+    // 大会员专享限制时，改从网页源码抠 window.__playinfo__
+    // 与正常 API 路径解耦为独立方法，并按 cheese / 番剧构造正确的播放页地址
+    // 匹配失败时抛明确异常 (而非返回空串导致后续 JSON 解析报莫名其妙的错)
     internal static async Task<string> FetchFromWebPageAsync(PlayUrlRequest req, CancellationToken ct = default)
     {
         // 调用方 FetchAsync 已保证仅番剧/课程走此路径（UGC 无 ep_id 会提前抛可读错误）
@@ -144,6 +144,19 @@ internal static partial class PlayUrlClient
 
         query.Append($"&wts={UnixTimestamp( )}");
         return req.IsBangumi ? query.ToString( ) : WbiSign(query.ToString( ), req.Cfg);
+    }
+
+    // v1 番剧 / 课程播放接口：v2 未下发任何轨道时的回退通道（部分内容 v2 被播放端判定拒绝下发，v1 仍返回完整流）
+    internal static async Task<string> FetchLegacyAsync(PlayUrlRequest req, string qn, CancellationToken ct = default)
+    {
+        return await GetWebSourceAsync(BuildLegacyApi(req.IsCheese, req.Cfg.Host) + BuildWebQuery(req, qn), req.Cfg, null, ct);
+    }
+
+    // v1 网关地址：课程与番剧共用，仅 /pgc/ 段替换为 /pugv/（与 BuildPrefix 同一约定）
+    internal static string BuildLegacyApi(bool cheese, string host)
+    {
+        var path = cheese ? BiliApi.PlayUrlPgcV1Path.Replace("/pgc/", "/pugv/") : BiliApi.PlayUrlPgcV1Path;
+        return $"https://{host}{path}?";
     }
 
     internal static async Task<string> FetchIntlAsync(PlayUrlRequest req, string qn, string code = "0", CancellationToken ct = default)

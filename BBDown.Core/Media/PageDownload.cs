@@ -107,10 +107,10 @@ public static class PageDownload
                || (ex is AggregateException agg && agg.InnerExceptions.Any(e => e is OperationCanceledException));
     }
 
-    // 充电权限不会因为重试而改变，重试只会让用户白等两轮退避
+    // 充电权限与试看判定都不会因为重试而改变，重试只会让用户白等两轮退避
     internal static bool ShouldRetry(Exception ex, CancellationToken ct)
     {
-        return !IsCancellation(ex, ct) && ex is not ChargedPreviewException;
+        return !IsCancellation(ex, ct) && ex is not (ChargedPreviewException or PreviewOnlyException);
     }
 
     // 双条件：稿件确为充电专属（is_upower_exclusive 是稿件属性，与账号无关），且 playurl 下发时长明显短于 view 声称的完整时长

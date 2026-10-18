@@ -72,6 +72,7 @@ public class BiliHeadersTests
     [InlineData("api.biliintl.com", true)]
     [InlineData("api.live.bilibili.com", true)]
     [InlineData("www.bilibili.com", true)]
+    [InlineData("www.bilibili.tv", true)]
     [InlineData("space.bilibili.com", true)]
     [InlineData("bangumi.bilibili.com", true)]
     [InlineData("comment.bilibili.com", true)]
@@ -96,6 +97,15 @@ public class BiliHeadersTests
     {
         var cfg = AppConfig.Empty with { EpHost = "mirror.example.com" };
         Assert.True(BiliHeaders.IsTrustedCookieHost("mirror.example.com", cfg));
+    }
+
+    // 配置值带 scheme 或端口时同样须命中：Uri.Host 不含端口，逐字比较会错判为不可信
+    [Fact]
+    public void IsTrustedCookieHost_ConfiguredHostWithSchemeAndPort( )
+    {
+        var cfg = AppConfig.Empty with { Host = "https://mirror.example.com:8443" };
+        Assert.True(BiliHeaders.IsTrustedCookieHost("mirror.example.com", cfg));
+        Assert.False(BiliHeaders.IsTrustedCookieHost("other.example.com", cfg));
     }
 
     // 凭据门必须在附加任何头之前生效，拒绝携带操作者 Cookie 的请求发往不可信主机

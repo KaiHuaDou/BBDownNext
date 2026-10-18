@@ -9,7 +9,7 @@ using BBDown.Core.Download;
 // 本示例不做实际处理：以 0 退出且不写 DestPath，主程序据此判定「轨道无需处理」，原文件照常混流
 if (args.Length != 1)
 {
-    Console.WriteLine("用法：BBDown.Sample <请求JSON路径>");
+    Console.WriteLine("用法：BBDown.Sample <请求 JSON 路径>");
     return 2;
 }
 

@@ -34,7 +34,7 @@ public class Page
     public string? Desc { get; set; }
     public string? OwnerName { get; set; }
     public string? OwnerMid { get; set; }
-    // 番剧/课程等场景 aid 可能为空或非数字, 此时没有对应 BV 号, 不应连累文件名模板与元数据写入
+    // 番剧/课程等场景 aid 可能为空或非数字，此时没有对应 BV 号，不应连累文件名模板与元数据写入
     // 超出 BV 编码区间的值（对端可控）同样按「没有 BV 号」处理，而不是让 Encode 抛异常
     public string Bvid => long.TryParse(Aid, out var avid) && BilibiliBvConverter.CanEncode(avid) ? BilibiliBvConverter.Encode(avid) : "";
     // CA1002: 保持 List<T>，调用方（BBDown 主项目）会对该集合执行 Add/整体替换

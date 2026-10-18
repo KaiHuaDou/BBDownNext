@@ -79,7 +79,7 @@ public static class AudioFetcher
             7201006 => $"获取{label}失败：该音频不存在或已下架（au{auId}）",
             72010027 => $"获取{label}失败：版权音乐已重定向，暂不支持（au{auId}）",
             4511006 => $"获取{label}失败：该音频无法播放（au{auId}）",
-            _ => $"获取{label}失败(code={code})：{message}（au{auId}）",
+            _ => $"获取{label}失败 (code={code})：{message}（au{auId}）",
         });
     }
 }

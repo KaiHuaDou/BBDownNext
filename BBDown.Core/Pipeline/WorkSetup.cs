@@ -191,14 +191,8 @@ public static class WorkSetup
     /// </summary>
     internal static ToolPaths ResolveToolPaths(DownloadRequest myOption)
     {
-        // 显式路径优先，否则在 PATH/AppDir 中探测，再不行回落到命令名（运行期由进程查找，仍可能命中 PATH）
-        var ffmpeg = !string.IsNullOrEmpty(myOption.FFmpegPath) && File.Exists(myOption.FFmpegPath)
-            ? myOption.FFmpegPath
-            : FindExecutable("ffmpeg") ?? "ffmpeg";
-
-        var mp4box = !string.IsNullOrEmpty(myOption.Mp4boxPath) && File.Exists(myOption.Mp4boxPath)
-            ? myOption.Mp4boxPath
-            : FindExecutable("mp4box", "MP4Box", "MP4box") ?? "mp4box";
+        var ffmpeg = ResolveToolPath(myOption.FFmpegPath, "ffmpeg");
+        var mp4box = ResolveToolPath(myOption.Mp4boxPath, "mp4box", "MP4Box", "MP4box");
 
         // 不混流时不强制要求 ffmpeg 存在
         if (myOption.Mux != MuxMode.None && (string.IsNullOrEmpty(ffmpeg) || !File.Exists(ffmpeg)))
@@ -209,16 +203,31 @@ public static class WorkSetup
         string? aria2c = null;
         if (myOption.UseAria2c)
         {
-            aria2c = !string.IsNullOrEmpty(myOption.Aria2cPath) && File.Exists(myOption.Aria2cPath)
-                ? myOption.Aria2cPath
-                : FindExecutable("aria2c");
-            if (string.IsNullOrEmpty(aria2c))
+            aria2c = ResolveToolPath(myOption.Aria2cPath, "aria2c");
+            if (string.IsNullOrEmpty(aria2c) || !File.Exists(aria2c))
             {
                 throw new InvalidOperationException("找不到可执行的 aria2c 文件");
             }
         }
 
         return new ToolPaths(ffmpeg, mp4box, aria2c);
+    }
+
+    // 显式路径不存在时告警再回落：静默回落会让用户以为在用自己指定的版本（GUI 预填路径失效时尤为隐蔽）
+    // 探测不到时回落裸命令名，交由进程运行期按 PATH 查找
+    private static string ResolveToolPath(string? explicitPath, params string[] names)
+    {
+        if (!string.IsNullOrEmpty(explicitPath))
+        {
+            if (File.Exists(explicitPath))
+            {
+                return explicitPath;
+            }
+
+            LogWarn($"指定的 {names[0]} 路径不存在，改用程序目录 / PATH 查找：{explicitPath}");
+        }
+
+        return FindExecutable(names) ?? names[0];
     }
 
     /// <summary>

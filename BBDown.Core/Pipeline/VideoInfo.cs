@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -106,7 +106,7 @@ public static class VideoInfo
     {
         var probe = accountProbes.GetOrAdd(
             ProbeKey(cfg),
-            _ => new Lazy<Task<(AccountInfo Info, string Wbi)>>( ( ) => Account.ProbeAccountAsync(cfg, CancellationToken.None) )).Value;
+            _ => new Lazy<Task<(AccountInfo Info, string Wbi)>>(( ) => Account.ProbeAccountAsync(cfg, CancellationToken.None))).Value;
         return probe.WaitAsync(ct);
     }
 

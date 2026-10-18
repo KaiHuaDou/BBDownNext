@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -122,7 +122,7 @@ public class HttpTransferTests
     [Fact]
     public async Task Send_ExceedsMaxRedirectHops_Throws( )
     {
-        var stub = new RedirectStub([.. Enumerable.Repeat((HttpStatusCode.Found, (string?)"https://api.bilibili.com/loop"), HttpTransfer.MaxRedirectHops + 2)]);
+        var stub = new RedirectStub([.. Enumerable.Repeat((HttpStatusCode.Found, (string?) "https://api.bilibili.com/loop"), HttpTransfer.MaxRedirectHops + 2)]);
 
         await Assert.ThrowsAsync<InvalidOperationException>(( ) => Send(stub.Respond( )));
 

@@ -483,29 +483,29 @@ APP 未登录    本地无 access_token
 
 ### `serve` 参数
 
-| 参数               | 简写   | 说明                                                                                                                                             |
-| ------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--listen`         | `-l`   | 监听地址，默认 `http://127.0.0.1:23333`                                                                                                          |
-| `--serve-token`    | <br /> | serve 鉴权令牌；显式传入后才启用强制鉴权（HTTP 接口须带 `X-BBDown-Token` 头，WebSocket 握手 `/hubs/tasks` 用 `Sec-WebSocket-Protocol` 首值、另兼容 `?token=` 查询参数），未传入则默认免令牌开放并警告 |
-| `--work-dir`       | <br /> | 所有任务的下载输出目录，请求中的同名字段会被忽略                                                                                                 |
-| `--api-host`       | <br /> | API 请求 Host，所有任务统一使用此值；请求体不能指定 host（防止凭据被导向外部服务器）                                                             |
-| `--api-ep-host`    | <br /> | 番剧 / 影视 API 请求 Host，所有任务统一使用此值                                                                                                  |
-| `--api-tv-host`    | <br /> | TV 端 API 请求 Host，所有任务统一使用此值                                                                                                        |
-| `--cookie`         | <br /> | 所有任务统一使用的 Cookie（如 `SESSDATA`），留空回落本机 `BBDown.data`                                                                           |
-| `--access-token`   | <br /> | 所有任务统一使用的 `access_token`（TV / APP 接口），留空回落本机 `BBDown.data`                                                                   |
-| `--cors-origin`    | <br /> | 除回环来源（127.0.0.1 / localhost）外，额外允许该单一来源跨域调用 serve（CORS）                                                                  |
-| `--max-concurrent` | <br /> | 同时下载的任务数上限，默认 0（不限制）；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队                                                       |
-| `--aria2c`         | <br /> | 所有任务统一调用 aria2c 下载（需自行准备可执行文件）                                                                                             |
-| `--ffmpeg-path`    | <br /> | 所有任务统一使用的 FFmpeg 路径，留空在 `PATH` 与程序目录查找                                                                                     |
-| `--mp4box-path`    | <br /> | 所有任务统一使用的 MP4Box 路径，留空在 `PATH` 与程序目录查找                                                                                     |
-| `--aria2c-path`    | <br /> | 所有任务统一使用的 aria2c 路径，留空在 `PATH` 与程序目录查找                                                                                     |
-| `--aria2c-args`    | <br /> | 所有任务统一使用的 aria2c 附加参数（详见脚注 [^aria2cargs]）                                                                                     |
-| `--post-process`   | <br /> | 所有任务统一使用的后处理程序路径，留空不启用                                                                                                     |
-| `--user-agent`     | <br /> | 所有任务统一使用的 user-agent，留空用默认值                                                                                                      |
-| `--debug`          | <br /> | 输出调试日志                                                                                                                                     |
-| `--file-pattern`   | <br /> | 所有任务统一使用的单 P 文件名模板，留空用默认值                                                                                                  |
-| `--multi-file-pattern` | <br /> | 所有任务统一使用的多 P 文件名模板，留空用默认值                                                                                              |
-| `--webui`          | <br /> | 启用内嵌 WebUI：在同一监听端口一并托管前端（任意 `--listen` 均生效），无需单独部署 BBDown.WebUI；构建时未嵌入 dist 则启动告警并不托管前端        |
+| 参数                   | 简写   | 说明                                                                                                                                                                                                  |
+| ---------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--listen`             | `-l`   | 监听地址，默认 `http://127.0.0.1:23333`                                                                                                                                                               |
+| `--serve-token`        | <br /> | serve 鉴权令牌；显式传入后才启用强制鉴权（HTTP 接口须带 `X-BBDown-Token` 头，WebSocket 握手 `/hubs/tasks` 用 `Sec-WebSocket-Protocol` 首值、另兼容 `?token=` 查询参数），未传入则默认免令牌开放并警告 |
+| `--work-dir`           | <br /> | 所有任务的下载输出目录，请求中的同名字段会被忽略                                                                                                                                                      |
+| `--api-host`           | <br /> | API 请求 Host，所有任务统一使用此值；请求体不能指定 host（防止凭据被导向外部服务器）                                                                                                                  |
+| `--api-ep-host`        | <br /> | 番剧 / 影视 API 请求 Host，所有任务统一使用此值                                                                                                                                                       |
+| `--api-tv-host`        | <br /> | TV 端 API 请求 Host，所有任务统一使用此值                                                                                                                                                             |
+| `--cookie`             | <br /> | 所有任务统一使用的 Cookie（如 `SESSDATA`），留空回落本机 `BBDown.data`                                                                                                                                |
+| `--access-token`       | <br /> | 所有任务统一使用的 `access_token`（TV / APP 接口），留空回落本机 `BBDown.data`                                                                                                                        |
+| `--cors-origin`        | <br /> | 除回环来源（127.0.0.1 / localhost）外，额外允许该单一来源跨域调用 serve（CORS）                                                                                                                       |
+| `--max-concurrent`     | <br /> | 同时下载的任务数上限，默认 0（不限制）；大于 0 时最多 N 个任务同时下载，其余按提交顺序排队                                                                                                            |
+| `--aria2c`             | <br /> | 所有任务统一调用 aria2c 下载（需自行准备可执行文件）                                                                                                                                                  |
+| `--ffmpeg-path`        | <br /> | 所有任务统一使用的 FFmpeg 路径，留空在 `PATH` 与程序目录查找                                                                                                                                          |
+| `--mp4box-path`        | <br /> | 所有任务统一使用的 MP4Box 路径，留空在 `PATH` 与程序目录查找                                                                                                                                          |
+| `--aria2c-path`        | <br /> | 所有任务统一使用的 aria2c 路径，留空在 `PATH` 与程序目录查找                                                                                                                                          |
+| `--aria2c-args`        | <br /> | 所有任务统一使用的 aria2c 附加参数（详见脚注 [^aria2cargs]）                                                                                                                                          |
+| `--post-process`       | <br /> | 所有任务统一使用的后处理程序路径，留空不启用                                                                                                                                                          |
+| `--user-agent`         | <br /> | 所有任务统一使用的 user-agent，留空用默认值                                                                                                                                                           |
+| `--debug`              | <br /> | 输出调试日志                                                                                                                                                                                          |
+| `--file-pattern`       | <br /> | 所有任务统一使用的单 P 文件名模板，留空用默认值                                                                                                                                                       |
+| `--multi-file-pattern` | <br /> | 所有任务统一使用的多 P 文件名模板，留空用默认值                                                                                                                                                       |
+| `--webui`              | <br /> | 启用内嵌 WebUI：在同一监听端口一并托管前端（任意 `--listen` 均生效），无需单独部署 BBDown.WebUI；构建时未嵌入 dist 则启动告警并不托管前端                                                             |
 
 ```bash
 # 以默认地址启动服务器（本地回环，免令牌）

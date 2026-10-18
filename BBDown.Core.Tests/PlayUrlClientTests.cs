@@ -30,4 +30,13 @@ public class PlayUrlClientTests
     {
         Assert.Equal(expected, PlayUrlClient.BuildWebPageUrl(cheese, "123", "mirror.example.com"));
     }
+
+    // v1 回退网关：番剧走 /pgc/，课程按既有约定把 /pgc/ 段替换为 /pugv/
+    [Theory]
+    [InlineData(false, "https://api.example.com/pgc/player/web/playurl?")]
+    [InlineData(true, "https://api.example.com/pugv/player/web/playurl?")]
+    public void BuildLegacyApi_FollowsCheesePath(bool cheese, string expected)
+    {
+        Assert.Equal(expected, PlayUrlClient.BuildLegacyApi(cheese, "api.example.com"));
+    }
 }

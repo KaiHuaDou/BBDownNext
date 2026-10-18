@@ -92,4 +92,16 @@ internal static class PlayUrlResponse
             _ => data.GetProperty(nodeName)
         };
     }
+
+    // 试看判定：payload 节点 is_preview=1（数字或布尔）即仅含试看片段（未登录 / 权限不足的典型表现）
+    // 仅此一个内容态判定；播放端其它拒绝原因（DRM 等）不属解析层职责，不解读
+    internal static bool IsPreview(JsonElement payload)
+    {
+        if (payload.ValueKind != JsonValueKind.Object || !payload.TryGetProperty("is_preview", out var preview))
+        {
+            return false;
+        }
+
+        return preview.ValueKind == JsonValueKind.True || ReadLong(preview) == 1;
+    }
 }

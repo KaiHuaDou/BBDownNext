@@ -60,14 +60,14 @@ internal static class SubCommands
     private static Command LoginStatusCommand( )
     {
         var command = new Command("status", "输出 WEB / TV / APP 三个通道的当前登录状态");
-        command.SetAction(( _) => Login.StatusAsync(AppEnv.CancellationToken));
+        command.SetAction((_) => Login.StatusAsync(AppEnv.CancellationToken));
         return command;
     }
 
     private static Command LoginRefreshCommand( )
     {
         var command = new Command("refresh", "用本地 refresh_token 续期 WEB Cookie");
-        command.SetAction(( _) => Login.RefreshAsync(AppEnv.CancellationToken));
+        command.SetAction((_) => Login.RefreshAsync(AppEnv.CancellationToken));
         return command;
     }
 

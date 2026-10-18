@@ -56,7 +56,8 @@ public static class FavListFetcher
         var mid = fav.Mid.ToString( );
         if (mid.Length == 0)
         {
-            throw new ArgumentException($"收藏夹链接缺少 fid 与用户 id: {fav}", nameof(fav));
+            // 不用 paramName 形参：AOT 下资源键 Arg_ParamName_Name 解析失败会把键名原样拼进消息
+            throw new ArgumentException($"收藏夹链接缺少 fid 与用户 id：{fav}");
         }
 
         var favListApi = $"{BiliApi.FavFolderList}?up_mid={mid}";
@@ -202,20 +203,23 @@ public static class FavListFetcher
                     LogWarn($"多 P 收藏视频 {m.GetProperty("id")} 详情抓取失败，仅下载首分 P");
                 }
 
+                // ugc / upper 为 null 或缺失时按缺失处理：链式 GetProperty 会抛含糊异常中断整列表解析
+                TryGetObject(m, "ugc", out var ugc);
+                TryGetObject(m, "upper", out var upper);
                 Page p = new( )
                 {
                     Index = index,
-                    Aid = m.GetProperty("id").ToString( ),
-                    Cid = m.GetProperty("ugc").GetProperty("first_cid").ToString( ),
+                    Aid = ReadText(m, "id"),
+                    Cid = ReadText(ugc, "first_cid"),
                     EpId = "",
-                    Title = m.GetProperty("title").ToString( ),
-                    Dur = m.GetProperty("duration").GetInt32( ),
+                    Title = ReadText(m, "title"),
+                    Dur = (int) ReadLong(m, "duration"),
                     Res = "",
-                    PubTime = m.GetProperty("pubtime").GetInt64( ),
-                    Cover = m.GetProperty("cover").ToString( ),
-                    Desc = m.GetProperty("intro").ToString( ),
-                    OwnerName = m.GetProperty("upper").GetProperty("name").ToString( ),
-                    OwnerMid = m.GetProperty("upper").GetProperty("mid").ToString( ),
+                    PubTime = ReadLong(m, "pubtime"),
+                    Cover = ReadText(m, "cover"),
+                    Desc = ReadText(m, "intro"),
+                    OwnerName = ReadStr(upper, "name"),
+                    OwnerMid = ReadText(upper, "mid"),
                 };
                 index++;
                 if (seenPages.Add(p))

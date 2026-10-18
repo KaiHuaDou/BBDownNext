@@ -46,8 +46,8 @@ public static class BBDownAria2c
             try { p.Kill(true); }
             catch (Exception ex)
             {
-            // 进程可能已自行退出或句柄失效：杀不掉只影响清理彻底性，留调试痕迹即可
-            LogDebug("aria2c 终止失败：{0}", ex.Message);
+                // 进程可能已自行退出或句柄失效：杀不掉只影响清理彻底性，留调试痕迹即可
+                LogDebug("aria2c 终止失败：{0}", ex.Message);
             }
         });
         try

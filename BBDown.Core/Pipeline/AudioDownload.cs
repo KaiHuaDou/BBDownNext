@@ -71,7 +71,7 @@ public static class AudioDownload
         // downloader 自动向 ProgressBus 上报进度（ProgressBar / serve 任务行共用）
         var config = new DownloadConfig { Cookie = cfg.Cookie, NoForceHttp = true };
         using var stage = ProgressBus.BeginStage("下载音频");
-        await DownloadAsync(playUrl.Url, filePath, config, resumable: true, ct);
+        await DownloadAsync(playUrl.Url, filePath, config, resumable: true, ct: ct);
         Log($"已保存到 {filePath}");
         sink.Saved?.Invoke(filePath);
 

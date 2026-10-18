@@ -14,14 +14,14 @@ public static class GrpcUtil
     {
         if (data.Length < 5)
         {
-            throw new InvalidDataException($"gRPC 响应帧头不足 5 字节(实际 {data.Length} 字节)");
+            throw new InvalidDataException($"gRPC 响应帧头不足 5 字节 (实际 {data.Length} 字节)");
         }
 
         var compressed = data[0] == 1;
         var size = BinaryPrimitives.ReadInt32BigEndian(data.AsSpan(1, 4));
         if (size < 0 || 5L + size > data.Length)
         {
-            throw new InvalidDataException($"gRPC 帧头声明报文体 {size} 字节, 实际只有 {data.Length - 5} 字节");
+            throw new InvalidDataException($"gRPC 帧头声明报文体 {size} 字节，实际只有 {data.Length - 5} 字节");
         }
 
         var body = data[5..(5 + size)];

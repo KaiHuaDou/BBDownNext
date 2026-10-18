@@ -271,7 +271,8 @@ public static partial class InputResolver
             return new Av(long.Parse(input));
         }
 
-        throw new ArgumentException("输入有误", nameof(input));
+        // 不用 paramName 形参：AOT 下资源键 Arg_ParamName_Name 解析失败会把键名原样拼进消息
+        throw new ArgumentException($"输入有误：{input}");
     }
 
     // 课程（cheese）解析：纯字符串，不触网

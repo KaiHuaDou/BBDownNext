@@ -108,7 +108,7 @@ internal static class DashTrackReader
             return;
         }
 
-        // 处理杜比音频：type 区分普通杜比音效(1)与全景杜比音效(2)，id 固定为 30250
+        // 处理杜比音频：type 区分普通杜比音效 (1) 与全景杜比音效 (2)，id 固定为 30250
         if (dash.TryGetProperty("dolby", out var dolby) && dolby.ValueKind == JsonValueKind.Object
             && dolby.TryGetProperty("audio", out var dolbyAudio) && dolbyAudio.ValueKind == JsonValueKind.Array)
         {

@@ -20,7 +20,7 @@ public class ConfigTests
     [InlineData("abc")]
     public void GetQualityName_UnknownQnDoesNotThrow(string qn)
     {
-        Assert.Equal($"未知清晰度(qn={qn})", Config.GetQualityName(qn));
+        Assert.Equal($"未知清晰度 (qn={qn})", Config.GetQualityName(qn));
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class ConfigTests
     [InlineData("abc")]
     public void GetAudioQualityName_UnknownIdDoesNotThrow(string id)
     {
-        Assert.Equal($"未知音质(id={id})", Config.GetAudioQualityName(id));
+        Assert.Equal($"未知音质 (id={id})", Config.GetAudioQualityName(id));
     }
 
     // 智能修复(qn=100)排在原生 1080P(qn=80)之后：默认不抢占原生画质

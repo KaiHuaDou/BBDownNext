@@ -44,7 +44,29 @@ public static class Parser
             return result;
         }
 
-        using var doc = JsonDocument.Parse(result.RawResponse);
+        // 主响应（UGC / 番剧 v2 / 课程 v2 / TV）解析收集；INTL 与 APP 已在上方提前返回
+        var collected = CollectFromResponse(result, req, result.RawResponse);
+
+        // WEB 番剧 / 课程 v2 未解析到任何轨道时回退 v1 接口再取一次：
+        // 部分内容 v2 被播放端判定拒绝下发而 v1 仍返回完整流；触发只看「无任何轨道」，不解读拒绝原因
+        if (!collected && req.Api == ApiType.Web && req.IsBangumi)
+        {
+            var legacyJson = await PlayUrlClient.FetchLegacyAsync(req, effectiveQn, ct);
+            LogDebug("v1 回退响应（截断）：{0}", HTTPUtil.TruncateForLog(legacyJson));
+            if (CollectFromResponse(result, req, legacyJson))
+            {
+                result.RawResponse = legacyJson;
+            }
+        }
+
+        return result;
+    }
+
+    // 单个 playurl 响应的解析收口：code 校验、风控判定、试看判定、轨道收集与章节追加
+    // 返回是否解析到任何轨道；调用时 result 内尚无轨道
+    private static bool CollectFromResponse(ParsedResult result, PlayUrlRequest req, string json)
+    {
+        using var doc = JsonDocument.Parse(json);
         // playurl 非 0 code（-400/-404/-352 等）意味着拉流失败：直接抛可读错误
         // 否则会静默落到根节点解析出空轨道，下游只报一句晦涩的「解析此分 P 失败」
         var (code, message) = ReadApiError(doc.RootElement);
@@ -56,8 +78,7 @@ public static class Parser
         }
 
         // 人机验证风控：code=0、数据合法，但只有 v_voucher 凭据而无 dash/durl
-        // 抛出可读错误才能进入 PageDownload 的解析重试并按退避节奏重来
-        // 否则一路静默解析出空轨道，用户只看到「未解析到任何音视频轨道」而无从判断原因
+        // 抛出可读错误才能进入 PageDownload 的解析重试并按退避节奏重来，而不是静默产出空轨道
         // 仅在尚未收到任何轨道时判：INTL 的 prefer_code_type=1 重发若被风控，首轮轨道仍可用
         if (result.VideoTracks.Count == 0 && result.AudioTracks.Count == 0)
         {
@@ -66,6 +87,12 @@ public static class Parser
 
         var nodeName = PlayUrlResponse.ResolveDataNodeName(doc.RootElement);
         var root = PlayUrlResponse.GetRootNode(doc.RootElement, nodeName);
+
+        // 试看判定：payload 明示 is_preview=1 即仅含试看片段，明确报错而非把试看当正片落盘
+        if (PlayUrlResponse.IsPreview(root))
+        {
+            throw new PreviewOnlyException("该内容当前仅返回试看片段（未登录或权限不足），已中止下载；请登录具有观看权限的账号后重试");
+        }
 
         if (HasObject(root, "dash"))
         {
@@ -92,7 +119,7 @@ public static class Parser
             AppendBangumiViewPoints(result, root);
         }
 
-        return result;
+        return result.VideoTracks.Count != 0 || result.AudioTracks.Count != 0;
     }
 
     // INTL 两次请求合并：首响应用 prefer_code_type=0，成功收集后再以 prefer_code_type=1 请求并合并

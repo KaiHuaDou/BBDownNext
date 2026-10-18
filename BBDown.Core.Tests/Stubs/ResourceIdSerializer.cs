@@ -1,4 +1,5 @@
 using System;
+
 using Xunit.Sdk;
 
 [assembly: RegisterXunitSerializer(typeof(BBDown.Core.Tests.ResourceIdSerializer), typeof(ResourceId))]

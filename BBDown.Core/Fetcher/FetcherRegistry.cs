@@ -21,7 +21,7 @@ public static class FetcherRegistry
             Av a => await NormalInfoFetcher.FetchAsync(a.Aid, cfg, ct),
             Ep e => await FetchEpisodeAsync(e, cfg, useIntlApi, ct),
             Season when useIntlApi => throw new NotSupportedException(
-                "国际版番剧接口(--intl-api)不支持 md/整季输入，请改用具体 ep 号，或去掉 --intl-api。"),
+                "国际版番剧接口 (--intl-api) 不支持 md/整季输入，请改用具体 ep 号，或去掉 --intl-api。"),
             Season s => await BangumiInfoFetcher.FetchAsync(s, cfg, ct),
             CheeseEp e => await CheeseInfoFetcher.FetchAsync(e, cfg, ct),
             CheeseSeason s => await CheeseInfoFetcher.FetchAsync(s, cfg, ct),
@@ -75,7 +75,7 @@ public static class FetcherRegistry
             }
             catch (Exception seriesEx)
             {
-                throw new InvalidOperationException($"{ex.Message}; 按系列解析同样失败: {seriesEx.Message}", ex);
+                throw new InvalidOperationException($"{ex.Message}; 按系列解析同样失败：{seriesEx.Message}", ex);
             }
         }
     }

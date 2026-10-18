@@ -46,6 +46,9 @@ public static class MuxFinish
         Log($"{savePath} 已存在，跳过下载...");
         session.Sink.Saved?.Invoke(savePath);
         SafeDelete(session.PageCtx.CoverPath);
+        // 成品已完整，轨道续传临时文件（.download / .aria2）不再有用，回收以免磁盘残留
+        DownloadUtil.DeleteResumeArtifacts(session.PageCtx.VideoPath);
+        DownloadUtil.DeleteResumeArtifacts(session.PageCtx.AudioPath);
         TryDeleteEmptyDir(session.PageCtx.TempDir);
         return PageOutcome.Abort(selection);
     }

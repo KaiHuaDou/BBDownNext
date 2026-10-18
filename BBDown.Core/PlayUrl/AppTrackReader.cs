@@ -12,7 +12,7 @@ using static BBDown.Core.Logger;
 
 namespace BBDown.Core.PlayUrl;
 
-// App 端走 gRPC 拿到的是强类型 PlayViewReply, 直接构建轨道, 无需经 JSON 转换
+// App 端走 gRPC 拿到的是强类型 PlayViewReply, 直接构建轨道，无需经 JSON 转换
 internal static class AppTrackReader
 {
     internal static async Task<ParsedResult> FetchAsync(PlayUrlRequest req, CancellationToken ct = default)
@@ -60,7 +60,7 @@ internal static class AppTrackReader
     {
         foreach (var stream in info.StreamList)
         {
-            // 仅提供分段(flv)地址的档位没有 dashVideo, 直接跳过
+            // 仅提供分段 (flv) 地址的档位没有 dashVideo, 直接跳过
             if (stream.DashVideo == null)
             {
                 continue;
@@ -138,7 +138,7 @@ internal static class AppTrackReader
         };
     }
 
-    // 与 TrackFactory.PickBaseUrl(List<string>) 签名不同: 这里把 (baseUrl, backupUrl) 组建成列表后转交 TrackFactory
+    // 与 TrackFactory.PickBaseUrl(List<string>) 签名不同：这里把 (baseUrl, backupUrl) 组建成列表后转交 TrackFactory
     private static string PickBaseUrl(string baseUrl, IEnumerable<string> backupUrl)
     {
         return TrackFactory.PickBaseUrl([baseUrl, .. backupUrl]);

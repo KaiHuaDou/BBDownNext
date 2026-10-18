@@ -102,6 +102,9 @@ public static class DashDownload
         Log("已选择的流：");
         TrackSelect.PrintSelectedTrackInfo(selectedVideo, selectedAudio, p.Dur);
 
+        // 替换 host 前留原始直链：备用 CDN 不承载部分内容（404）时改回原始地址下载
+        var videoOriginalUrl = selectedVideo?.BaseUrl;
+        var audioOriginalUrl = selectedAudio?.BaseUrl;
         CdnHost.Apply(myOption, selectedVideo, selectedAudio, ctx.Fetch.Cfg);
 
         if (MuxFinish.TrySkipExisting(session, savePath, selection) is { } skipped)
@@ -111,7 +114,7 @@ public static class DashDownload
 
         var videoPath = pageCtx.VideoPath;
         var audioPath = pageCtx.AudioPath;
-        var (audioMaterial, mux) = await DownloadTracksAsync(parsedResult, session, selection, pageCtx, videoPath, audioPath, ct);
+        var (audioMaterial, mux) = await DownloadTracksAsync(parsedResult, session, selection, pageCtx, videoPath, audioPath, videoOriginalUrl, audioOriginalUrl, ct);
 
         if (parsedResult.VideoTracks.Count == 0)
         {
@@ -134,7 +137,8 @@ public static class DashDownload
     // （可能因杜比视界调整的）封装模式。主媒体下载窗口（进度条显隐）与“实际下载哪些轨”共用同一组布尔，统一在此收口
     private static async Task<(List<AudioMaterial> AudioMaterial, MuxMode Mux)> DownloadTracksAsync(
         ParsedResult parsedResult, DownloadSession session, TrackSelection selection,
-        PageContext pageCtx, string videoPath, string audioPath, CancellationToken ct)
+        PageContext pageCtx, string videoPath, string audioPath,
+        string? videoOriginalUrl, string? audioOriginalUrl, CancellationToken ct)
     {
         var (myOption, ctx, _, _, _, _) = session;
         var p = pageCtx.Page;
@@ -167,14 +171,14 @@ public static class DashDownload
 
                 // 视频是必要轨，重试耗尽则整 P 失败
                 Log($"开始下载 P{p.Index} 视频...");
-                await TryDownloadTrackAsync(session, selectedVideo!.BaseUrl, videoPath, $"P{p.Index} 视频", true, ct);
+                await TryDownloadTrackAsync(session, selectedVideo!.BaseUrl, videoPath, $"P{p.Index} 视频", true, videoOriginalUrl, ct);
             }
 
             if (hasAudio)
             {
                 // 音频是必要轨，重试耗尽则整 P 失败
                 Log($"开始下载 P{p.Index} 音频...");
-                await TryDownloadTrackAsync(session, selectedAudio!.BaseUrl, audioPath, $"P{p.Index} 音频", true, ct);
+                await TryDownloadTrackAsync(session, selectedAudio!.BaseUrl, audioPath, $"P{p.Index} 音频", true, audioOriginalUrl, ct);
             }
 
             // 背景配音非必要轨，失败仅跳过该轨
@@ -182,7 +186,7 @@ public static class DashDownload
             {
                 backgroundPath = Path.Combine(pageCtx.TempDir, $"{p.Aid}.{p.Cid}.P{p.Index}.back_ground.m4a");
                 Log($"开始下载 P{p.Index} 背景配音...");
-                if (!await TryDownloadTrackAsync(session, selectedBackgroundAudio!.BaseUrl, backgroundPath, $"P{p.Index} 背景配音", false, ct))
+                if (!await TryDownloadTrackAsync(session, selectedBackgroundAudio!.BaseUrl, backgroundPath, $"P{p.Index} 背景配音", false, ct: ct))
                 {
                     backgroundPath = "";
                     hasBackgroundAudio = false;
@@ -209,7 +213,7 @@ public static class DashDownload
 
                     role.Path = Path.Combine(pageCtx.TempDir, Path.GetFileName(role.Path));
                     Log($"开始下载 P{p.Index} 配音 [{role.Title}]...");
-                    if (!await TryDownloadTrackAsync(session, roleAudio.BaseUrl, role.Path, $"P{p.Index} 配音 [{role.Title}]", false, ct))
+                    if (!await TryDownloadTrackAsync(session, roleAudio.BaseUrl, role.Path, $"P{p.Index} 配音 [{role.Title}]", false, ct: ct))
                     {
                         continue;
                     }
@@ -248,13 +252,14 @@ public static class DashDownload
 
     // 单轨下载收口：必要轨（required）重试耗尽异常上抛（整 P 失败）；可选轨失败仅告警返回 false
     // 半截文件未进入 audioMaterial、混流清理不会删，就地清理避免残留
-    private static async Task<bool> TryDownloadTrackAsync(DownloadSession session, string url, string path, string label, bool required, CancellationToken ct)
+    // fallbackUrl 为 host 替换前的原始直链，仅主视频 / 主音频轨经 CdnHost 替换过 host
+    private static async Task<bool> TryDownloadTrackAsync(DownloadSession session, string url, string path, string label, bool required, string? fallbackUrl = null, CancellationToken ct = default)
     {
         var (_, _, _, _, downloadConfig, _) = session;
         try
         {
             await RetryAsync(
-                async ( ) => await DownloadAsync(url, path, downloadConfig, ct: ct),
+                async ( ) => await DownloadAsync(url, path, downloadConfig, fallbackUrl: fallbackUrl, ct: ct),
                 session.Options.MaxRetry, label, ct, ex => PageDownload.ShouldRetry(ex, ct));
             return true;
         }

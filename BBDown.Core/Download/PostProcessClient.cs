@@ -35,7 +35,10 @@ public static class PostProcessClient
         try
         {
             await File.WriteAllTextAsync(requestPath, JsonSerializer.Serialize(new PostProcessRequest(aid, cid, kind, trackPath, destPath, ffmpeg), PostProcessJsonContext.Default.PostProcessRequest), ct);
-            using var process = Process.Start(new ProcessStartInfo(postProcessExe, requestPath) { UseShellExecute = false })!;
+            // 参数走 ArgumentList：两参构造按空格拆分命令行，路径含空格时请求文件路径被拆裂
+            var start = new ProcessStartInfo(postProcessExe) { UseShellExecute = false };
+            start.ArgumentList.Add(requestPath);
+            using var process = Process.Start(start)!;
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(ProcessTimeoutMs);
             try

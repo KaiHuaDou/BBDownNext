@@ -166,7 +166,7 @@ public static class OpusMarkdownRenderer
         }
 
         var content = WebUtility.HtmlDecode(p.Code ?? "");
-        // 内容里若已含 ``` ，围栏加长到 4 个反引号避免提前闭合
+        // 内容里若已含 ```，围栏加长到 4 个反引号避免提前闭合
         var fence = content.Contains("```", StringComparison.Ordinal) ? "````" : "```";
         sb.AppendLine($"{fence}{lang}");
         sb.AppendLine(content.TrimEnd( ));

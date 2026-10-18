@@ -7,11 +7,11 @@
 
 ## 0. 总览
 
-| 总线                  | 事件形式                                                          | 频次                                                                  | 状态   |
-| --------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------- | ------ |
-| `MessageBus`（消息）  | `LogMessage`（Level / Text / Time / Scope）                       | 低频                                                                  | 已完成 |
-| `ProgressBus`（进度） | 阶段边界 `ProgressRangeStart / End` + 阶段内快照 `ProgressSample` | 低频边界 + 高频样本                                                   | 已完成 |
-| `AskBus`（交互）      | 请求 `OptionRequestEvent` → 应答（结构化 `AskAnswer`）            | 低频请求-应答                                                         | 已完成 |
+| 总线                  | 事件形式                                                          | 频次                | 状态   |
+| --------------------- | ----------------------------------------------------------------- | ------------------- | ------ |
+| `MessageBus`（消息）  | `LogMessage`（Level / Text / Time / Scope）                       | 低频                | 已完成 |
+| `ProgressBus`（进度） | 阶段边界 `ProgressRangeStart / End` + 阶段内快照 `ProgressSample` | 低频边界 + 高频样本 | 已完成 |
+| `AskBus`（交互）      | 请求 `OptionRequestEvent` → 应答（结构化 `AskAnswer`）            | 低频请求 - 应答     | 已完成 |
 
 共性：
 
@@ -82,12 +82,12 @@
 
 ### 2.5 消费端
 
-| 宿主        | 订阅位置                                                                                                                                                                                                                                                      | 展示                                                                                                                                                                                |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CLI         | `BBDown/ProgressBar.cs`                                                                                                                                                                                                                                       | 控制台进度条（ratio / speed / ETA / spinner），阶段开始显示 / 结束清行隐藏，超过 1 秒无采样则清行，交互读输入前暂停渲染（`CliInteraction.BeforeRead / AfterRead`）                  |
-| CLI（直播） | `BBDown/Cli/LiveProgress.cs`                                                                                                                                                                                                                                  | 单行状态（detail + 体积 + 速度），重定向到文件时落日志                                                                                                                              |
-| GUI         | `BBDown.GUI/MainWindow.Progress.cs` `OnProgress`                                                                                                                                                                                                              | 阶段开始 → 重置该任务 ETA 基准；样本 → 任务行进度 / 速度 / ETA（detail 优先展示）；阶段结束 → 无动作，任务收尾随状态隐藏                                                            |
-| serve       | `TaskMessageBridge`（阶段边界 → 事件帧）+ `TaskWorker.OnProgress`（样本 → `DownloadTask` 的 REST 字段 `Progress` / `DownloadSpeed` / `TotalDownloadedBytes`）+ `TaskSocketHub.ForwardSnapshots`（周期轮询 `Latest(scope)`，样本引用变化才推 `snapshot` 帧）   | WebSocket `event` / `snapshot` 帧 + `/api/v1/tasks` 接口约定                                                                                                                        |
+| 宿主        | 订阅位置                                                                                                                                                                                                                                                    | 展示                                                                                                                                                               |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CLI         | `BBDown/ProgressBar.cs`                                                                                                                                                                                                                                     | 控制台进度条（ratio / speed / ETA / spinner），阶段开始显示 / 结束清行隐藏，超过 1 秒无采样则清行，交互读输入前暂停渲染（`CliInteraction.BeforeRead / AfterRead`） |
+| CLI（直播） | `BBDown/Cli/LiveProgress.cs`                                                                                                                                                                                                                                | 单行状态（detail + 体积 + 速度），重定向到文件时落日志                                                                                                             |
+| GUI         | `BBDown.GUI/MainWindow.Progress.cs` `OnProgress`                                                                                                                                                                                                            | 阶段开始 → 重置该任务 ETA 基准；样本 → 任务行进度 / 速度 / ETA（detail 优先展示）；阶段结束 → 无动作，任务收尾随状态隐藏                                           |
+| serve       | `TaskMessageBridge`（阶段边界 → 事件帧）+ `TaskWorker.OnProgress`（样本 → `DownloadTask` 的 REST 字段 `Progress` / `DownloadSpeed` / `TotalDownloadedBytes`）+ `TaskSocketHub.ForwardSnapshots`（周期轮询 `Latest(scope)`，样本引用变化才推 `snapshot` 帧） | WebSocket `event` / `snapshot` 帧 + `/api/v1/tasks` 接口约定                                                                                                       |
 
 ---
 
