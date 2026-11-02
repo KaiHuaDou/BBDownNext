@@ -15,24 +15,24 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
-    "unocss": "^66.10.5",
+    "unocss": "^66.12.0",
     "vue": "rc"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.5",
     "@types/jsdom": "^30.0.0",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@vitejs/plugin-vue": "^6.0.10",
     "@vue/test-utils": "^2.5.1",
     "@vue/tsconfig": "^0.9.1",
-    "jsdom": "^30.1.2",
+    "jsdom": "^30.1.3",
     "oxfmt": "latest",
     "oxlint": "latest",
     "oxlint-tsgolint": "latest",
     "typescript": "^6.0.3",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vite-plugin-vue-devtools": "^8.2.1",
-    "vitest": "^5.0.3",
-    "vue-tsc": "^3.3.13"
+    "vitest": "^5.0.5",
+    "vue-tsc": "^3.3.14"
   }
 }

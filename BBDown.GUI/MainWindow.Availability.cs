@@ -1,8 +1,8 @@
 #pragma warning disable CS8602 // Avalonia 源生成的 x:Name 控件字段可空
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -49,7 +49,7 @@ public partial class MainWindow
         ApplyDownloadArea(mode, infoOnly, mux);
         ApplyEnvironmentArea(mode, infoOnly, UseAria2cCheckBox.IsChecked == true, mux);
         ApplyParserArea(mode);
-        ApplyContentWarn(info is not null, mode, content, comments, infoOnly);
+        ApplyTargetLine(info, ContentWarnings(info is not null, mode, content, comments, infoOnly));
     }
 
     private static ContentMode? ModeOf(TargetKind kind)
@@ -177,41 +177,48 @@ public partial class MainWindow
         LiveQualityBox.IsEnabled = mode is null or ContentMode.Live;
     }
 
-    private void ApplyContentWarn(bool hasTarget, ContentMode? mode, DownloadContent content, int comments, bool infoOnly)
+    // 识别结果与内容警告同处一行；警告存在时整行转用提示色，避免两种颜色挤在一行
+    private void ApplyTargetLine(TargetInfo? info, string? warnings)
     {
-        var warnings = new StringBuilder( );
-        if (hasTarget && VideoLike(mode) && !infoOnly)
+        if (info is null)
+        {
+            TargetHintText.Text = "未能识别";
+            TargetHintText.Foreground = ThemeBrush.Get(ThemeBrush.Hint);
+            return;
+        }
+
+        TargetHintText.Text = warnings is null ? $"✓ {info.Description}" : $"✓ {info.Description} · {warnings}";
+        TargetHintText.Foreground = ThemeBrush.Get(warnings is null ? ThemeBrush.Ok : ThemeBrush.Waiting);
+    }
+
+    private string? ContentWarnings(bool hasTarget, ContentMode? mode, DownloadContent content, int comments, bool infoOnly)
+    {
+        if (!hasTarget || infoOnly)
+        {
+            return null;
+        }
+
+        List<string> warnings = [];
+        if (VideoLike(mode))
         {
             if ((content & (DownloadContent.MuxCover | DownloadContent.MuxMetadata)) != 0 && !HasBothAv(content))
             {
-                AppendWarn(warnings, "封面嵌入（C）与嵌入元数据（m）需要同时勾选音频与视频才会生效");
+                warnings.Add("封面嵌入（C）与元数据（m）需同时勾选音频与视频");
             }
 
-            if ((content & DownloadContent.Danmaku) == 0
-                && (DanmakuXmlCheckBox.IsChecked == true || DanmakuAssCheckBox.IsChecked == true))
+            if ((content & DownloadContent.Danmaku) != 0
+                && DanmakuXmlCheckBox.IsChecked != true
+                && DanmakuAssCheckBox.IsChecked != true)
             {
-                AppendWarn(warnings, "已选择弹幕格式，但内容未勾选弹幕（d），弹幕不会下载");
+                warnings.Add("未选择弹幕格式，按默认 xml + ass 下载");
             }
         }
 
-        if (hasTarget && Commentable(mode) && !infoOnly
-            && comments > 0 && (content & (DownloadContent.Comments | DownloadContent.FullComments)) == 0)
+        if (Commentable(mode) && comments > 0 && (content & (DownloadContent.Comments | DownloadContent.FullComments)) == 0)
         {
-            AppendWarn(warnings, "已设置评论条数，但内容未勾选评论（o / O），评论不会下载");
+            warnings.Add("未勾选评论（o / O），评论条数不生效");
         }
 
-        ContentWarnText.Text = warnings.ToString( );
-        ContentWarnText.IsVisible = warnings.Length > 0;
-        ContentWarnText.Foreground = ThemeBrush.Get(ThemeBrush.Hint);
-    }
-
-    private static void AppendWarn(StringBuilder builder, string text)
-    {
-        if (builder.Length > 0)
-        {
-            builder.Append('；');
-        }
-
-        builder.Append(text);
+        return warnings.Count == 0 ? null : string.Join("；", warnings);
     }
 }

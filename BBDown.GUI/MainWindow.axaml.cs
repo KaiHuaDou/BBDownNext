@@ -73,7 +73,7 @@ public partial class MainWindow : Window
         ApplyPlaceholderTexts( );
         RestoreQueue( );
         _ = RenewWebCookieOnStartupAsync( );
-        UpdateTargetHint( );
+        RefreshAvailability( );
         AppendLog("就绪");
 
         DragDrop.SetAllowDrop(this, true);
@@ -179,7 +179,6 @@ public partial class MainWindow : Window
 
     private void TargetBoxTextChanged(object? o, TextChangedEventArgs e)
     {
-        UpdateTargetHint( );
         RefreshAvailability( );
     }
 
@@ -337,19 +336,5 @@ public partial class MainWindow : Window
         }
 
         return true;
-    }
-
-    private void UpdateTargetHint( )
-    {
-        if (UrlDetector.Describe(TargetBox.Text) is not { } info)
-        {
-            TargetHintText.Text = "未能识别";
-            TargetHintText.Foreground = ThemeBrush.Get(ThemeBrush.Hint);
-        }
-        else
-        {
-            TargetHintText.Text = $"✓ {info.Description}";
-            TargetHintText.Foreground = ThemeBrush.Get(ThemeBrush.Ok);
-        }
     }
 }

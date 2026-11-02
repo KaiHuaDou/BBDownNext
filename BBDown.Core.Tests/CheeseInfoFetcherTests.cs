@@ -62,6 +62,30 @@ public class CheeseInfoFetcherTests
     }
 
     [Fact]
+    public async Task Fetch_NumericMid_ReadsOwnerInfo( )
+    {
+        // 接口的 up_info.mid 是数字，按字符串取值会抛 JsonElement 类型错误
+        const string json = """
+        {
+          "data": {
+            "cover": "http://cover/x.jpg",
+            "title": "课程",
+            "subtitle": "副标题",
+            "up_info": { "uname": "UP主", "mid": 123456 },
+            "episodes": [
+              { "aid": 1, "cid": 11, "id": 101, "index": 1, "title": "第1集", "duration": 100, "release_date": 1, "status": 1 }
+            ]
+          }
+        }
+        """;
+        var info = await HttpStub.WithJsonResponse(json,
+            ( ) => CheeseInfoFetcher.FetchAsync(new ResourceId.CheeseEp(101), AppConfig.Empty));
+
+        Assert.Equal("UP主", info.PagesInfo[0].OwnerName);
+        Assert.Equal("123456", info.PagesInfo[0].OwnerMid);
+    }
+
+    [Fact]
     public async Task Fetch_MissingUpInfo_DefaultsToEmptyOwner( )
     {
         // up_info 缺失时不应抛 KeyNotFoundException，UP 主信息退化为空

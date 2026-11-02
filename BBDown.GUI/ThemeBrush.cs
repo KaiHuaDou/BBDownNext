@@ -16,12 +16,13 @@ internal static class ThemeBrush
     public const string Failed = "FailedBrush";
 
     /// <summary>
-    /// 按当前主题变体取画刷。取不到时返回 null 而非回退色：硬编码回退色在另一个主题下必然对比度不足，
-    /// 返回 null 时控件沿用自身前景色，而前景色始终随主题
+    /// 按当前主题变体取画刷。键只登记在 ThemeDictionaries 里，
+    /// 必须显式传入 ActualThemeVariant；不带变体的查找按 Default 走，取不到
     /// </summary>
     public static IBrush? Get(string key)
     {
-        return Application.Current is { } app && app.TryFindResource(key, out var value)
+        return Application.Current is { } app
+               && app.TryGetResource(key, app.ActualThemeVariant, out var value)
             ? value as IBrush
             : null;
     }

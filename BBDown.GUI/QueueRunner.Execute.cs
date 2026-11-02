@@ -1,3 +1,5 @@
+#pragma warning disable CA1001 // shutdown 只读 Token 作关停信号，不取 WaitHandle 故无内核句柄，生命周期随窗口
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;

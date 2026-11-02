@@ -6,7 +6,7 @@ using Avalonia.Media;
 
 namespace BBDown.GUI;
 
-/// <summary>任务状态 → 状态文字颜色；取主题变体登记的笔刷，未登记时为 null，由控件沿用主题前景色。</summary>
+/// <summary>任务状态 → 状态文字颜色；取主题变体登记的笔刷，未登记时为 null（文字不可见）。</summary>
 public sealed class StatusToBrushConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

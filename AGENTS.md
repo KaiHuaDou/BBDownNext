@@ -16,9 +16,10 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 另有新版文档：`./bilibili-API-collect/0-BACNext-Main-2MB.md` 和 `./bilibili-API-collect/0-BACNext-Passport-57KB.md`
 
-## 环境要求
+## 环境
 
-所有命令必须在**沙箱外**运行
+- `127.0.0.1:7890` 有代理，可以解决网络问题
+- 所有命令必须在**沙箱外**运行
 
 ### Skills
 
@@ -30,7 +31,9 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 ### dotnet
 
-运行前先执行 `taskkill -f -im dotnet.exe`（Git Bash 下用 `-` 前缀，`//` 前缀无效）清理残留进程，必要时连带 `testhost.exe` / `BBDown.Tests.exe`
+- 运行前先执行 `taskkill -f -im dotnet.exe`（Git Bash 下用 `-` 前缀，`//` 前缀无效）清理残留进程
+    - 必要时连带 `testhost.exe` / `BBDown.Tests.exe`
+- 永远不要使用任何 `-NoLogo`/`--nologo` 参数
 
 ### Node.js
 
@@ -62,16 +65,14 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 - 激进重构，避免任何屎山，当前在 alpha 阶段没有任何兼容性要求
 - 避免 HACK，即特判逻辑（绕过逻辑）
 
-### 编码与文档
-
-#### 文件规模
+### 文件规模
 
 - 测试不受本节限制
 - 单个 `.cs` 文件不得超过 384 行、单个方法不得超过 128 行
     - 如因清理历史遗留问题暂时超过，必须在在后续改动中尽快拆分
-    - 使用 `tokei` 来分析行数
+    - 使用 `tokei -s lines` 来分析行数
 
-#### 注释
+### 注释
 
 - 所有注释均使用中文
 - 注释句尾不使用标点
@@ -85,10 +86,11 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 #### 文档与提交
 
+- **永远不要执行任何 `git` 的 `commit`、`stash`、`revert`、`push`、`pull` 命令**
 - **禁止**将你自行编写的任何计划、设计草稿、临时文档提交或暂存到仓库
 - 所有对外文档（`README.md`、命令行帮助、提示语）**只陈述事实**，不得添加任何多余的形容词或修饰性语言
 - 全文（注释、文档、提交信息）
-    - **禁用词**：不再、承载、此前、代际、兜底、对齐、封顶、恒为、粒度、落点、落盘、幂等、判别、契约、缺省、事实依据、收敛、受控、同源、形态、压速、语义、在位、重算、XX 态、齐备、旁路
+    - **禁用词**：不再、承载、此前、代际、兜底、对齐、封顶、恒为、粒度、落点、落盘、幂等、判别、契约、缺省、事实依据、收敛、受控、同源、形态、压速、语义、在位、重算、XX 态、齐备、旁路、夹取、夹具，接线，夹回，dry-run，一轮
     - **禁用语法**：不仅……而且……、既是……也是……
     - **不建议使用的占位词**：进行、加以、予以、给以、作、作出、做出、实施、开展、展开、着手、发出、提出、施以、处以、借以、用以、得以、受到、遭到、得到、获得、引起、导致、造成、产生、发生、形成、出现、
     - 对于任意名词，严格控制限定词数量，能由语境推导的一律不写明
@@ -119,26 +121,31 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 ### 语法
 
-- C# 15 最新语法：集合表达式（`[]`、模式匹配、LINQ 等等
-- **遵守我的`.editorconfig`**
-- 所有语法必须兼容 AOT
+- 所有语法必须兼容 AOT（除 WPF 相关外）
     - 正则表达式不要使用不适用于源生成的语法
-- 偏好`TryGetValue`，更偏好`GetValueOrDefault`
-- 偏好 `var`
-- 偏好 `lock(<System.Threading.Lock gate>)`
-- 偏好 `is null`/`is not null`
-- 偏好 `await using`
+- **除非冲突的情况**，不要在 class 前使用 namespace 前缀，尽量使用 `using <namespace>;`（即便只有一处调用也要
+- **遵守我的`.editorconfig`**
+- `<summary>`、`</summary>` 无论如何都单独占一行
 - `record class` 可简写为 `record`
+- 不要在方法/嵌套方法/构造函数上使用 `=>`，属性可以
+- 空括号中间要加空格，即`( )`
+- 偏好 `await using`
+- 偏好 `is null`/`is not null`
+- 偏好 `lock(<System.Threading.Lock gate>)`
+- 偏好 `var`
+- 偏好`TryGetValue`，更偏好`GetValueOrDefault`
 - 偏好自动属性
 - 正则表达式、路径偏好 `@""`
 - 字符串拼接偏好 `StringBuilder` 和 `$""`，避免使用 `+` 拼接
-- 空括号中间要加空格，即`( )`
-- 不要在方法/嵌套方法/构造函数上使用 `=>`，属性可以
-- `<summary>`、`</summary>` 无论如何都单独占一行
-- **除非冲突的情况**，不要在 class 前使用 namespace 前缀，尽量使用 `using <namespace>;`（即便只有一处调用也要
+- C# 15 最新语法：集合表达式（`[]`、模式匹配、LINQ 等等
 - `#pragma`
     - 整文件抑制
     - `#pragma` 放在文件顶部，后留一空行
+
+## 测试
+
+- 避免全量测试，手动指定测试范围
+    - 工作验收时可以全量测试
 
 ### 命名
 
@@ -275,7 +282,7 @@ bilibili API 相关文档在 `./bilibili-API-collect`文件夹下
 
 ## 工作
 
-你总会遇到另一个 AGENT 在仓库里面同时工作，永远不要破坏别人的工作
+你总会遇到另一个 AGENT 在仓库里面同时工作，永远不要破坏别人的工作！
 
 ### Git 与 worktree
 

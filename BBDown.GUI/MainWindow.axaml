@@ -30,9 +30,7 @@
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="目标" />
                     <TextBox x:Name="TargetBox" TextChanged="TargetBoxTextChanged" />
                 </DockPanel>
-                <TextBlock x:Name="TargetHintText" Margin="0,8,0,0" FontSize="14" />
-                <TextBlock x:Name="ContentWarnText" Margin="0,4,0,0" FontSize="14"
-                           IsVisible="False" TextWrapping="Wrap" />
+                <TextBlock x:Name="TargetHintText" Margin="0,8,0,0" FontSize="14" TextWrapping="Wrap" />
             </StackPanel>
 
             <Grid x:Name="ContentGrid" Grid.Row="1" Margin="5">
@@ -151,9 +149,11 @@
                                             Orientation="Horizontal">
                                     <CheckBox x:Name="CommentJsonCheckBox"
                                               Margin="0,3,8,3" VerticalAlignment="Center"
+                                              IsCheckedChanged="AvailabilityInputChanged"
                                               Content="JSON" />
                                     <CheckBox x:Name="CommentTxtCheckBox"
                                               Margin="0,3,0,3" VerticalAlignment="Center"
+                                              IsCheckedChanged="AvailabilityInputChanged"
                                               Content="TXT" />
                                 </StackPanel>
                                 <TextBlock Grid.Row="4" Grid.Column="0"
@@ -163,9 +163,11 @@
                                             Orientation="Horizontal">
                                     <CheckBox x:Name="DanmakuXmlCheckBox"
                                               Margin="0,3,8,3" VerticalAlignment="Center"
+                                              IsCheckedChanged="AvailabilityInputChanged"
                                               Content="XML" />
                                     <CheckBox x:Name="DanmakuAssCheckBox"
                                               Margin="0,3,0,3" VerticalAlignment="Center"
+                                              IsCheckedChanged="AvailabilityInputChanged"
                                               Content="ASS" />
                                 </StackPanel>
                             </Grid>
@@ -525,7 +527,8 @@
                            Margin="0,0,0,5"
                            FontSize="12" />
                 <Grid>
-                    <TextBlock x:Name="TaskListEmptyHint" Classes="EmptyHint" Text="队列为空" />
+                    <!--叠在列表之上，否则被列表背景盖住-->
+                    <TextBlock x:Name="TaskListEmptyHint" Classes="EmptyHint" Text="队列为空" ZIndex="1" />
                     <ListBox x:Name="TaskList">
                         <!--去掉 Fluent ListBoxItem 默认内边距，让背景进度条铺满整项-->
                         <ListBox.Styles>
@@ -609,7 +612,7 @@
                       IsExpanded="True">
                 <StackPanel>
                     <Grid>
-                        <TextBlock x:Name="LogListEmptyHint" Classes="EmptyHint" Text="暂无日志" />
+                        <TextBlock x:Name="LogListEmptyHint" Classes="EmptyHint" Text="暂无日志" ZIndex="1" />
                         <ListBox x:Name="LogList" MaxHeight="256" FontFamily="Consolas, monospace">
                             <ListBox.Styles>
                                 <Style Selector="ListBoxItem">
