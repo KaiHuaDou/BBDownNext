@@ -87,6 +87,23 @@ public static class LiveSignal
         }
     }
 
+    /// <summary>
+    /// 停止本进程内的录制会话。CLI 一次只录一路，Ctrl+Break 不必指明房间
+    /// 返回 <c>false</c> 表示没有可停的录制，调用方应退化为全局取消
+    /// </summary>
+    public static bool TryRequestStopAny( )
+    {
+        foreach (var sessionId in active.Keys)
+        {
+            if (TryRequestStop(sessionId))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // 仅当槽位仍是自己时摘除：走 ICollection.Remove 的原子比较移除
     // 「先无条件 TryRemove 再判断回填」的两步形式在中间窗口会让 TryRequestStop 查不到条目
     // 调用方据此误判为无录制而退化成全局取消，误杀并发中的其它录制

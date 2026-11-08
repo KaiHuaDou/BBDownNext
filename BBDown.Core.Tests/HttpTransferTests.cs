@@ -58,6 +58,15 @@ public class HttpTransferTests
         Assert.Equal(expected, HttpTransfer.IsRedirect(status));
     }
 
+    [Theory]
+    [InlineData("/x/v2/next", "https://api.bilibili.com/x/v2/next")]
+    [InlineData("next", "https://api.bilibili.com/x/v2/next")]
+    [InlineData("https://passport.bilibili.com/ok", "https://passport.bilibili.com/ok")]
+    public void ResolveLocation_ResolvesRelativeAgainstCurrentUrl(string location, string expected)
+    {
+        Assert.Equal(expected, HttpTransfer.ResolveLocation("https://api.bilibili.com/x/v2/start", new Uri(location, UriKind.RelativeOrAbsolute)));
+    }
+
     [Fact]
     public async Task Send_NonRedirect_ReturnsResponseWithoutSecondRequest( )
     {

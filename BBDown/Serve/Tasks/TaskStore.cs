@@ -203,11 +203,11 @@ internal sealed partial class TaskStore(ServeConfig config, ChannelWriter<TaskEn
 
         // 先置等待态再入队：channel 写建立先后序，worker 取到的必然是 Queued 之后的状态
         // TryWrite 失败回退 Pending，任务保留暂停态可再次 start
-        envelope.Task.Status = DownloadStatus.Queued;
+        envelope.Task.MoveTo(DownloadStatus.Queued);
         if (!queueWriter.TryWrite(envelope))
         {
             pending[id] = envelope;
-            envelope.Task.Status = DownloadStatus.Pending;
+            envelope.Task.MoveTo(DownloadStatus.Pending);
             return StartResult.QueueFull;
         }
 
@@ -269,10 +269,7 @@ internal sealed partial class TaskStore(ServeConfig config, ChannelWriter<TaskEn
     /// </summary>
     public static DownloadTask CreateTask(ResourceId id, string url, DownloadStatus initialStatus = DownloadStatus.Queued)
     {
-        return new(id, url, DateTimeOffset.Now.ToUnixTimeMilliseconds( ))
-        {
-            Status = initialStatus,
-        };
+        return new(id, url, DateTimeOffset.Now.ToUnixTimeMilliseconds( ), initialStatus);
     }
 
     /// <summary>

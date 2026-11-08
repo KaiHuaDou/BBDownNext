@@ -163,9 +163,8 @@ public sealed class TaskState : INotifyPropertyChanged
 public sealed partial class QueueRunner(Action<Action> dispatch)
 {
     private readonly Action<Action> dispatch = dispatch;
-    private readonly List<TaskState> waiting = [];
-    private readonly List<TaskState> running = [];
-    private readonly List<TaskState> finished = [];
+    // 任务按加入顺序排列，Status 是唯一的状态来源；列表位置只决定调度与展示的先后
+    private readonly List<TaskState> tasks = [];
     private readonly CancellationTokenSource shutdown = new( );
     // 槽位可用信号：SignalSlotFree 换新 TCS 并完成旧的，故任意时刻至多一个待消费信号。
     // 计数值信号量做不到这点——并发上限上调多次会累积许可，等待者醒来后 CAS 连续失败形成忙等
@@ -205,16 +204,16 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
     /// <summary>队列或任务状态变化时触发（保证在 UI 线程）。</summary>
     public event EventHandler? Changed;
 
-    public IEnumerable<TaskState> All => waiting.Concat(running).Concat(finished);
+    public IEnumerable<TaskState> All => tasks;
 
     /// <summary>是否存在等待调度的任务。</summary>
-    public bool HasWaiting => waiting.Count > 0;
+    public bool HasWaiting => tasks.Any(t => t.Status == TaskStatus.Waiting);
 
     /// <summary>立即执行：入队尾并启动调度；并发已满时返回 true（任务排队等待）。</summary>
     public bool RunNow(TaskParams options, string url)
     {
-        waiting.Add(CreateState(options, url));
-        var queued = running.Count >= concurrency;
+        tasks.Add(CreateState(options, url));
+        var queued = tasks.Count(t => t.Status == TaskStatus.Running) >= concurrency;
         Changed?.Invoke(this, EventArgs.Empty);
         StartSchedule( );
         return queued;
@@ -223,7 +222,7 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
     /// <summary>加入任务队列尾部，不启动调度。</summary>
     public void Enqueue(TaskParams options, string url)
     {
-        waiting.Add(CreateState(options, url));
+        tasks.Add(CreateState(options, url));
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -243,7 +242,7 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
     /// <summary>移除指定任务：等待中或已完成直接移除；运行中不处理（用取消）。</summary>
     public bool Remove(TaskState state)
     {
-        var removed = waiting.Remove(state) || finished.Remove(state);
+        var removed = tasks.Remove(state);
         if (removed)
         {
             Changed?.Invoke(this, EventArgs.Empty);
@@ -253,13 +252,13 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
     }
 
     /// <summary>
-    /// 把失败/已取消的任务重新入队尾并启动调度；不在已完成列表时返回 false
+    /// 把失败/已取消的任务重新排到队尾并启动调度；任务未失败或未被取消时返回 false
     /// 速度 / 剩余时间基准一并清零：留着上一轮的 Detail、lastRatio 与 etaStart 时，
     /// 重跑后首个样本到达前会显示上一轮的速度与剩余时间
     /// </summary>
     public bool Retry(TaskState state)
     {
-        if (!finished.Remove(state))
+        if (state.Status is not (TaskStatus.Failed or TaskStatus.Cancelled) || !tasks.Contains(state))
         {
             return false;
         }
@@ -271,7 +270,8 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
         state.etaStart = DateTime.UtcNow;
         state.TokenSource = null;
         state.exitCode = -1;
-        waiting.Add(state);
+        tasks.Remove(state);
+        tasks.Add(state);
         Changed?.Invoke(this, EventArgs.Empty);
         StartSchedule( );
         return true;
@@ -279,12 +279,11 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
 
     public void ClearFinished( )
     {
-        if (finished.Count == 0)
+        if (tasks.RemoveAll(t => t.Status is TaskStatus.Success or TaskStatus.Failed or TaskStatus.Cancelled) == 0)
         {
             return;
         }
 
-        finished.Clear( );
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -294,9 +293,12 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
     /// </summary>
     public void Shutdown( )
     {
-        foreach (var state in running)
+        foreach (var state in tasks)
         {
-            state.TokenSource?.Cancel( );
+            if (state.Status == TaskStatus.Running)
+            {
+                state.TokenSource?.Cancel( );
+            }
         }
 
         shutdown.Cancel( );
@@ -308,7 +310,7 @@ public sealed partial class QueueRunner(Action<Action> dispatch)
     /// </summary>
     public bool CancelTask(TaskState state)
     {
-        if (!running.Contains(state))
+        if (state.Status != TaskStatus.Running || !tasks.Contains(state))
         {
             return false;
         }

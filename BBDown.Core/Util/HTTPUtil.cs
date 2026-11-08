@@ -188,7 +188,7 @@ public static class HTTPUtil
             using var webResponse = await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead, ct);
             if (HttpTransfer.IsRedirect(webResponse.StatusCode) && webResponse.Headers.Location is { } next)
             {
-                url = next.IsAbsoluteUri ? next.AbsoluteUri : new Uri(new Uri(url), next.OriginalString).AbsoluteUri;
+                url = HttpTransfer.ResolveLocation(url, next);
                 continue;
             }
 

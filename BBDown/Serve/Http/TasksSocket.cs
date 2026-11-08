@@ -26,9 +26,8 @@ internal sealed partial class TaskSocketHub(TaskStore store)
     // 单帧发送（含排队）超时：慢客户端不得拖住转发泵
     private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(15);
 
-    // 订阅表：任务 → 订阅该任务的连接；转发循环在表非空时存在（见 TasksSocket.Forward.cs）
-    private readonly ConcurrentDictionary<ResourceId, ConcurrentDictionary<WebSocket, byte>> subscriptions = new( );
-    private readonly ConcurrentDictionary<ResourceId, CancellationTokenSource> forwarders = new( );
+    // 订阅表：任务 → 连接集合与转发循环（见 TasksSocket.Forward.cs）
+    private readonly ConcurrentDictionary<ResourceId, TaskSubscription> subscriptions = new( );
     // 每连接发送锁：广播与回执帧可能并发写同一连接，WebSocket 不保证并发写安全
     // 弱表：条目随连接对象回收。普通字典在「连接已关闭、广播快照仍持有该连接」时会补加回一条永不摘除的条目
     // 且关服路径的 Dispose 会与在途 WaitAsync 竞态
@@ -176,9 +175,7 @@ internal sealed partial class TaskSocketHub(TaskStore store)
             return;
         }
 
-        var set = subscriptions.GetOrAdd(task.Id, _ => new ConcurrentDictionary<WebSocket, byte>( ));
-        set[socket] = 0;
-        StartForwarder(task, ctx);
+        Attach(socket, task, ctx);
         // 快照恢复：订阅时先推一次当前进度样本
         if (ProgressBus.Latest(scope)?.Sample is { } snapshot)
         {
@@ -258,5 +255,22 @@ internal sealed partial class TaskSocketHub(TaskStore store)
         }
 
         return Uri.TryCreate(origin, UriKind.Absolute, out var uri) && SsrfGuard.IsLoopbackHost(uri.Host);
+    }
+}
+
+// 一个任务的订阅槽位：连接集合与转发循环同生共死。两者放在同一个对象里，
+// 「最后一个订阅者离开」只需看集合是否为空，不必在两本表之间比对身份
+internal sealed class TaskSubscription
+{
+    private int started;
+
+    public ConcurrentDictionary<WebSocket, byte> Sockets { get; } = new( );
+
+    public CancellationTokenSource Forwarder { get; } = new( );
+
+    /// <summary>转发循环只启动一次；并发订阅同一任务时只有一个调用方拿到 true。</summary>
+    public bool TryStart( )
+    {
+        return Interlocked.Exchange(ref started, 1) == 0;
     }
 }

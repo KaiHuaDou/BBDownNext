@@ -77,8 +77,9 @@ public static class DownloaderAdapter
             await downloader.DownloadFileTaskAsync(url, path, ct);
             var (error, package) = await tcs.Task;
 
-            // 成功判定见 IsDownloadSuccess：Completed 即成功；库把「目标已存在即跳过」以 Failed 送达
-            // 但文件保留，须视为成功，否则重跑误报失败
+            // 成功判定见 IsDownloadSuccess：Completed 即成功；Failed 且目标仍在时按成功处理
+            // 目标已存在时库按 FileExistPolicy.IgnoreDownload 直接发 Stopped（DownloadService.ProvideDownloadOnFile），
+            // 本层判为未完成，故调用方须先把不可信的残留删掉
             if (IsDownloadSuccess(package.Status, File.Exists(path)))
             {
                 return;
@@ -98,9 +99,9 @@ public static class DownloaderAdapter
         }
     }
 
-    // 下载成功判定：Completed 即为成功；downloader 的 FileExistPolicy.IgnoreDownload 把「目标已存在即跳过」
-    // 以 Failed 状态送达（库行为，实测验证）且保留原文件——该场景必须视为成功，否则重跑会误报失败
-    // 文件不存在的 Failed 才是真实下载失败。此隐含约定抽成纯函数以便单测锁定，避免库升级后静默改判
+    // 下载成功判定：Completed 即为成功；Failed 且目标文件仍在时按成功处理
+    // 目标已存在即跳过不经过这里：库按 FileExistPolicy.IgnoreDownload 发的是 Stopped，本层判为未完成
+    // 文件不存在的 Failed 才是真实下载失败。判定抽成纯函数以便单测锁定，库升级若改判会在这里先报错
     internal static bool IsDownloadSuccess(DownloadStatus status, bool fileExists)
     {
         return status == DownloadStatus.Completed

@@ -19,22 +19,23 @@ public sealed partial class QueueRunner
                 TaskState? state = null;
                 dispatch(( ) =>
                 {
-                    if (waiting.Count > 0)
+                    var next = tasks.Find(t => t.Status == TaskStatus.Waiting);
+                    if (next is null)
                     {
-                        state = waiting[0];
-                        waiting.RemoveAt(0);
-                        running.Add(state);
-                        state.Status = TaskStatus.Running;
-                        state.TokenSource = new CancellationTokenSource( );
-                        Changed?.Invoke(this, EventArgs.Empty);
+                        return;
                     }
+
+                    state = next;
+                    next.Status = TaskStatus.Running;
+                    next.TokenSource = new CancellationTokenSource( );
+                    Changed?.Invoke(this, EventArgs.Empty);
                 });
 
                 if (state is null)
                 {
                     ReleaseSlot( );
                     var hasWaiting = false;
-                    dispatch(( ) => hasWaiting = waiting.Count > 0);
+                    dispatch(( ) => hasWaiting = HasWaiting);
                     if (hasWaiting)
                     {
                         continue;
@@ -53,13 +54,13 @@ public sealed partial class QueueRunner
         finally
         {
             // 复位与滞留重查收拢到 UI 线程：与 RunNow/Enqueue/StartSchedule 的入队同线程串行执行
-            // 消除后台裸读 waiting.Count 的可见性窗口（可能漏看 UI 线程刚入队的任务，导致永久滞留）
+            // 消除后台裸读任务列表的可见性窗口（可能漏看 UI 线程刚入队的任务，导致永久滞留）
             try
             {
                 dispatch(( ) =>
                 {
                     scheduling = false;
-                    if (waiting.Count > 0)
+                    if (HasWaiting)
                     {
                         StartSchedule( );
                     }
@@ -106,41 +107,27 @@ public sealed partial class QueueRunner
             var exitCode = await Executor(state, token);
             // 先于 UI 回投落位：关窗导致 dispatch 失败时，写入逻辑仍能凭 exitCode 排除已收尾任务
             state.exitCode = exitCode;
-            dispatch(( ) =>
-            {
-                state.Status = exitCode == 0 ? TaskStatus.Success : TaskStatus.Failed;
-                MoveToFinished(state);
-                Changed?.Invoke(this, EventArgs.Empty);
-            });
+            dispatch(( ) => Complete(state, exitCode == 0 ? TaskStatus.Success : TaskStatus.Failed));
         }
         catch (OperationCanceledException)
         {
-            dispatch(( ) =>
-            {
-                state.Status = TaskStatus.Cancelled;
-                MoveToFinished(state);
-                Changed?.Invoke(this, EventArgs.Empty);
-            });
+            dispatch(( ) => Complete(state, TaskStatus.Cancelled));
         }
         catch (Exception ex)
         {
-            dispatch(( ) =>
-            {
-                state.Status = TaskStatus.Failed;
-                MoveToFinished(state);
-                Changed?.Invoke(this, EventArgs.Empty);
-            });
+            dispatch(( ) => Complete(state, TaskStatus.Failed));
             Logger?.Invoke(state, ex.Message);
         }
     }
 
-    private void MoveToFinished(TaskState state)
+    // 任务结束的唯一收口：状态、取消源与列表通知一次写完，无需在几个集合之间搬移
+    private void Complete(TaskState state, TaskStatus status)
     {
-        running.Remove(state);
+        state.Status = status;
         // 收尾即释放取消源：无内核句柄不强制，但保持生命周期与任务一致（Retry 会重建）
         state.TokenSource?.Dispose( );
         state.TokenSource = null;
-        finished.Add(state);
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>

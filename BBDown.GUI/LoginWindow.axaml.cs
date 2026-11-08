@@ -24,6 +24,9 @@ public partial class LoginWindow : Window
     // 会话轮次：每次重试自增；旧会话的迟到回投按轮次整体丢弃，避免状态文本被上一次运行的回调覆盖
     private int session;
 
+    // 窗口的对外表现只有这一个来源：调用方选阶段，状态文本与重试按钮由 SetPrompt 推出
+    private enum Prompt { Generating, WaitingScan, WaitingConfirm, Expired, Failed, Done }
+
     public LoginResult? Result { get; private set; }
 
     // 无参构造仅用于 Avalonia XamlLoader 的运行时可达性检查，实际使用走带参构造
@@ -83,8 +86,7 @@ public partial class LoginWindow : Window
         PostState(current, ( ) =>
         {
             QrImage.Source = null;
-            StatusText.Text = "正在生成二维码...";
-            RetryButton.IsVisible = false;
+            SetPrompt(Prompt.Generating);
         });
         var token = tokenSource.Token;
         _ = Task.Run(( ) => RunLoginAsync(current, token));
@@ -97,11 +99,7 @@ public partial class LoginWindow : Window
             var result = await LoginAsync(current, token);
             if (result is null)
             {
-                PostState(current, ( ) =>
-                {
-                    StatusText.Text = "二维码已过期，可重新生成";
-                    RetryButton.IsVisible = true;
-                });
+                PostState(current, ( ) => SetPrompt(Prompt.Expired));
                 return;
             }
 
@@ -117,11 +115,7 @@ public partial class LoginWindow : Window
         }
         catch (Exception e)
         {
-            PostState(current, ( ) =>
-            {
-                StatusText.Text = $"登录失败：{e.Message}";
-                RetryButton.IsVisible = true;
-            });
+            PostState(current, ( ) => SetPrompt(Prompt.Failed, e.Message));
         }
     }
 
@@ -159,21 +153,35 @@ public partial class LoginWindow : Window
         PostState(current, ( ) =>
         {
             QrImage.Source = MakeBitmap(bytes);
-            StatusText.Text = "等待扫码";
+            SetPrompt(Prompt.WaitingScan);
         });
         return Task.CompletedTask;
     }
 
     private void SetQrState(Login.QrState state, int current)
     {
-        PostState(current, ( ) => StatusText.Text = state switch
+        PostState(current, ( ) => SetPrompt(state switch
         {
-            Login.QrState.WaitingScan => "等待扫码",
-            Login.QrState.WaitingConfirm => "已扫码，请在手机上确认",
-            Login.QrState.Expired => "二维码已过期",
-            Login.QrState.Success => "登录成功",
+            Login.QrState.WaitingScan => Prompt.WaitingScan,
+            Login.QrState.WaitingConfirm => Prompt.WaitingConfirm,
+            Login.QrState.Expired => Prompt.Expired,
+            _ => Prompt.Done,
+        }));
+    }
+
+    private void SetPrompt(Prompt prompt, string? error = null)
+    {
+        StatusText.Text = prompt switch
+        {
+            Prompt.Generating => "正在生成二维码...",
+            Prompt.WaitingScan => "等待扫码",
+            Prompt.WaitingConfirm => "已扫码，请在手机上确认",
+            Prompt.Expired => "二维码已过期，可重新生成",
+            Prompt.Failed => $"登录失败：{error}",
+            Prompt.Done => "登录成功",
             _ => "",
-        });
+        };
+        RetryButton.IsVisible = prompt is Prompt.Expired or Prompt.Failed;
     }
 
     // 回投 UI 线程并校验会话轮次：重试后旧会话的更新直接丢弃

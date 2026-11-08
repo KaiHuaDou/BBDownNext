@@ -6,6 +6,7 @@ namespace BBDown.Core.Tests;
 /// <summary>
 /// <see cref="LiveSignal"/> 按直播间持有进程级注册表。各用例使用互不相同的标识
 /// 残留注册影响不到其它用例，因此无需串行集合
+/// TryRequestStopAny 读的是整张表，故只在本类内使用：本类用例逐个执行，且都在 using 里释放
 /// </summary>
 public class LiveSignalTests
 {
@@ -45,6 +46,24 @@ public class LiveSignalTests
 
         Assert.False(LiveSignal.TryRequestStop("disposed-scope"));
         Assert.False(cts.IsCancellationRequested);
+    }
+
+    // CLI 一次只录一路，Ctrl+Break 不需要指明房间
+    [Fact]
+    public void TryRequestStopAny_WithRegistration_CancelsIt( )
+    {
+        using var cts = new CancellationTokenSource( );
+        using var scope = LiveSignal.Register("any-session", cts);
+
+        Assert.True(LiveSignal.TryRequestStopAny( ));
+        Assert.True(cts.IsCancellationRequested);
+    }
+
+    // 没有可停的录制时返回 false，调用方据此退化为全局取消
+    [Fact]
+    public void TryRequestStopAny_WithoutRegistration_ReturnsFalse( )
+    {
+        Assert.False(LiveSignal.TryRequestStopAny( ));
     }
 
     // 录制收尾时 cts 可能先于信号到达被释放，此时 Cancel 会抛 ObjectDisposedException

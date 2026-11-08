@@ -63,7 +63,7 @@ public static partial class Login
             await showQr(url);
         }
 
-        var confirmed = false;
+        var previous = QrState.WaitingScan;
         var failures = 0;
         while (true)
         {
@@ -86,24 +86,24 @@ public static partial class Login
 
             var (state, data) = plan.Interpret(root);
             onState?.Invoke(state);
-            switch (state)
+            if (state == QrState.Expired)
             {
-                case QrState.Expired:
-                    LogColor(plan.ExpiredText);
-                    return null;
-                case QrState.WaitingScan:
-                    break;
-                case QrState.WaitingConfirm:
-                    if (!confirmed)
-                    {
-                        Log("扫码成功，请确认...");
-                        confirmed = true;
-                    }
-
-                    break;
-                case QrState.Success:
-                    return data;
+                LogColor(plan.ExpiredText);
+                return null;
             }
+
+            if (state == QrState.Success)
+            {
+                return data;
+            }
+
+            // 扫码与确认是两个阶段：只在刚进入确认时提示，重复轮询不刷屏
+            if (state == QrState.WaitingConfirm && previous != QrState.WaitingConfirm)
+            {
+                Log("扫码成功，请确认...");
+            }
+
+            previous = state;
         }
     }
 

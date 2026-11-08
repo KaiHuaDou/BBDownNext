@@ -188,6 +188,46 @@ public class ResumeDownloadTests
         }
     }
 
+    // 空文件不算成品：删掉重下，否则「跳过 → 混流失败」会一直重复
+    [Fact]
+    public async Task Download_EmptyFile_Redownloads( )
+    {
+        using var dir = new TempDir( );
+        {
+            var data = Enumerable.Range(0, 64).Select(i => (byte) (i % 251)).ToArray( );
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
+            File.WriteAllBytes(dest, []);
+
+            using var handler = new ServingHandler { Data = data };
+            await WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
+                "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
+
+            Assert.NotEmpty(handler.Requests);
+            Assert.True(File.ReadAllBytes(dest).SequenceEqual(data));
+        }
+    }
+
+    // aria2c 残留（预分配成品 + 控制文件）按未完成处理：两个文件都删掉再下
+    [Fact]
+    public async Task Download_AriaControlWithTarget_RedownloadsOverStaleFile( )
+    {
+        using var dir = new TempDir( );
+        {
+            var data = Enumerable.Range(0, 96).Select(i => (byte) (i % 251)).ToArray( );
+            var dest = Path.Combine(dir.FullPath, "video.mp4");
+            File.WriteAllBytes(dest, new byte[data.Length]);
+            File.WriteAllBytes(dest + ".aria2", [1, 2, 3]);
+
+            using var handler = new ServingHandler { Data = data };
+            await WithDownloadStub(handler, ( ) => DownloadUtil.DownloadAsync(
+                "https://upos-sz.bilivideo.com/x.m4s", dest, new DownloadConfig( ), ct: CancellationToken.None));
+
+            Assert.NotEmpty(handler.Requests);
+            Assert.True(File.ReadAllBytes(dest).SequenceEqual(data));
+            Assert.False(File.Exists(dest + ".aria2"));
+        }
+    }
+
     // 多线程分片下载：stub 按 Range 切片，最终文件内容完整
     [Fact]
     public async Task Download_MultiThread_ProducesCompleteFile( )

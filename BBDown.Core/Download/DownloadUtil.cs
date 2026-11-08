@@ -18,6 +18,30 @@ public static class DownloadUtil
     // CMCC 的 CDN 节点不支持 Range/多线程分片，强行并发会整体失败，故对其强制单线程
     private const string CmccCdnMarker = "-cmcc-";
 
+    // 目标文件与 aria2c 控制文件的四种组合：只有成品可跳过，其余都要重新下载或交给 aria2c 续传
+    internal enum TrackState
+    {
+        Missing,
+        Complete,
+        AriaStale,
+        AriaPartial,
+    }
+
+    /// <summary>
+    /// 按成品与 aria2c 控制文件是否存在判定落盘情况。两者同时存在时成品不可信：
+    /// 控制文件说明上一次下载没走完，成品可能只是 aria2c 预分配的空壳
+    /// </summary>
+    internal static TrackState ReadState(bool finalExists, bool controlExists)
+    {
+        return (finalExists, controlExists) switch
+        {
+            (true, true) => TrackState.AriaStale,
+            (true, false) => TrackState.Complete,
+            (false, true) => TrackState.AriaPartial,
+            _ => TrackState.Missing,
+        };
+    }
+
     /// <summary>封面、弹幕这类一次性小文件：下完即走，不保留续传状态。</summary>
     public static Task DownloadFileAsync(string url, string path, DownloadConfig config, CancellationToken ct = default)
     {
@@ -58,11 +82,20 @@ public static class DownloadUtil
             singleThread = true;
         }
 
+        var target = new FileInfo(path);
+        var state = ReadState(target.Exists, File.Exists(path + ".aria2"));
+        // 空文件不算成品：下载器遇到已存在的目标只跳过不覆盖，必须先删掉再下
+        if (state == TrackState.Complete && target.Length == 0)
+        {
+            SafeDelete(path);
+            state = TrackState.Missing;
+        }
+
         if (config.UseAria2c)
         {
             // aria2c 中断后目标文件（预分配 / 半成品）与 .aria2 控制文件并存
             // 控制文件仍在时交给 aria2c --continue 恢复，不能把残缺文件当成品跳过
-            if (File.Exists(path) && !File.Exists(path + ".aria2"))
+            if (state == TrackState.Complete)
             {
                 LogDebug("文件已下载过，跳过下载");
                 DeleteResumeArtifacts(path);
@@ -85,20 +118,22 @@ public static class DownloadUtil
         }
 
         // 目标文件已完整产出过：直接跳过（.download 只在中断时残留，此时最终文件不存在）
-        // .aria2 控制文件仍在时成品可能是 aria2 的预分配半成品，不按成品跳过，清掉控制文件改走普通下载重新覆盖
-        if (File.Exists(path) && !File.Exists(path + ".aria2"))
+        if (state == TrackState.Complete)
         {
             LogDebug("文件已下载过，跳过下载");
             DeleteResumeArtifacts(path);
             return;
         }
 
-        if (File.Exists(path) && File.Exists(path + ".aria2"))
+        if (state == TrackState.AriaStale)
         {
             LogWarn("目标文件存在但 .aria2 控制文件仍在，可能为未完成的下载，重新下载覆盖");
+            // 成品与控制文件都要删：下载器遇到已存在的目标只跳过不覆盖，留着会以「下载未完成」失败
+            SafeDelete(path);
             SafeDelete(path + ".aria2");
         }
 
+        // AriaPartial 只有控制文件、没有成品：普通下载照常写入，残留的控制文件不影响结果
         await DownloaderAdapter.RunAsync(url, path, config, singleThread, resumable, ct);
     }
 

@@ -108,14 +108,14 @@ internal sealed partial class TaskWorker : BackgroundService
     {
         if (gate is null)
         {
-            task.Status = DownloadStatus.Running;
+            task.MoveTo(DownloadStatus.Running);
             store.NotifyChanged( );
             await download( );
             return;
         }
 
         await gate.WaitAsync(token);
-        task.Status = DownloadStatus.Running;
+        task.MoveTo(DownloadStatus.Running);
         store.NotifyChanged( );
         try
         {
@@ -134,20 +134,22 @@ internal sealed partial class TaskWorker : BackgroundService
         // 与 /get-tasks 返回的 id 相同，桥接器 / 进度回写据此字符串匹配），收尾后退出作用域
         var scope = task.Scope;
         byScope[scope] = task;
+        var succeeded = true;
+        var cancelled = false;
         using (MessageBus.BeginScope(scope))
         {
             try
             {
                 await RunGatedAsync(task, ( ) => RunDownloadAsync(task, envelope), task.Cts.Token);
-                task.IsSuccessful = true;
             }
             catch (OperationCanceledException) when (task.Cts.IsCancellationRequested)
             {
                 // 关服（Ctrl+C）或单独停止任务都会取消 task.Cts：前者走进程级令牌，后者走停止端点
                 // 排队中的任务会在闸门处被取消，属正常退出路径，不该刷成"下载失败"
                 // ErrorMessage 供客户端区分「已取消」与真实失败；IsCancelled 为结构化标记，避免前端解析文案
+                succeeded = false;
+                cancelled = true;
                 task.ErrorMessage = "任务已取消";
-                task.IsCancelled = true;
                 if (AppEnv.CancellationToken.IsCancellationRequested)
                 {
                     Logger.LogWarn($"{task.Id} 已取消（服务器正在退出）");
@@ -161,6 +163,7 @@ internal sealed partial class TaskWorker : BackgroundService
             {
                 // 走 Logger 才有全局锁，serve 模式并发任务直接写 Console 会互相插字
                 // 错误消息经路径脱敏后写入任务约定，客户端经 /get-tasks 或事件流可读
+                succeeded = false;
                 var msg = RedactPaths(Config.DebugLog ? e.ToString( ) : Utils.FormatErrorMessage(e));
                 task.ErrorMessage = msg;
                 Logger.LogError($"{task.Id} 下载失败：{msg}");
@@ -172,9 +175,7 @@ internal sealed partial class TaskWorker : BackgroundService
         {
             byScope.TryRemove(scope, out _);
 
-            // 成败标志已就位（成功 true / 异常保持 false），收尾一次原子写入状态与成败
-            var succeeded = task.IsSuccessful;
-            task.SetFinished(succeeded);
+            task.Finish(succeeded, cancelled);
             task.TaskFinishTime = DateTimeOffset.Now.ToUnixTimeMilliseconds( );
             if (succeeded)
             {

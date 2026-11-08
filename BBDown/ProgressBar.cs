@@ -26,6 +26,9 @@ public sealed class ProgressBar : IDisposable
     private readonly Action? suspendHook;
     private readonly Action? resumeHook;
 
+    // 渲染泵：Stopped 不计时，Running 每帧重新计时，Suspended 交互读输入期间停帧
+    private enum Pump { Stopped, Running, Suspended }
+
     // 以下状态字段只在持有 gate 时访问（disposed 例外：Blit 在 WriteGate 内终检，volatile 保证可见性）
     private double ratio;
     private string speedText = string.Empty;
@@ -34,9 +37,9 @@ public sealed class ProgressBar : IDisposable
     private DateTime etaStart;
     private double lastRatio;
     private long lastSampleTick;
-    private bool downloading;
-    private bool rendering;
-    private bool suspended;
+    private Pump pump;
+    // 主媒体下载窗口是否打开：窗口外的样本不驱动进度条，也不恢复已被空闲停掉的渲染
+    private bool windowOpen;
     private volatile bool disposed;
 
     // 差异重绘基准，与全部控制台写入同锁：只在 WriteGate 内访问
@@ -91,8 +94,7 @@ public sealed class ProgressBar : IDisposable
         {
             if (!disposed)
             {
-                suspended = true;
-                renderTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                SetPump(Pump.Suspended);
                 erase = true;
             }
         }
@@ -103,7 +105,7 @@ public sealed class ProgressBar : IDisposable
         }
     }
 
-    // 交互读输入后恢复渲染
+    // 交互读输入后恢复渲染；下载窗口已关闭时停在 Stopped，不空转定时器
     public void Resume( )
     {
         if (!drawToConsole)
@@ -115,8 +117,7 @@ public sealed class ProgressBar : IDisposable
         {
             if (!disposed)
             {
-                suspended = false;
-                renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
+                SetPump(windowOpen ? Pump.Running : Pump.Stopped);
             }
         }
     }
@@ -148,18 +149,20 @@ public sealed class ProgressBar : IDisposable
         {
             if (!disposed)
             {
-                downloading = value;
+                windowOpen = value;
                 if (value)
                 {
                     // 标记本帧为“刚采样”，避免 Render 在首个真实采样到达前误判空闲而清行
                     lastSampleTick = Environment.TickCount64;
-                    rendering = true;
-                    renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
+                    // 交互读输入期间开窗不抢占暂停：提示与用户输入仍独占本行
+                    if (pump != Pump.Suspended)
+                    {
+                        SetPump(Pump.Running);
+                    }
                 }
                 else
                 {
-                    renderTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-                    rendering = false;
+                    SetPump(Pump.Stopped);
                     erase = true;
                 }
             }
@@ -171,13 +174,20 @@ public sealed class ProgressBar : IDisposable
         }
     }
 
+    // 渲染泵的唯一转移点：状态与定时器一起改。调用方须持有 gate
+    private void SetPump(Pump next)
+    {
+        pump = next;
+        renderTimer?.Change(next == Pump.Running ? RenderInterval : Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+    }
+
     // 阶段内样本每 200ms 到达一次，更新进度、速度与剩余时间显示（speed 由链路折算好）
     private void OnSample(ProgressSampleEvent sample)
     {
         lock (gate)
         {
             // 窗口外（封面/弹幕等附属下载）不驱动进度条
-            if (!downloading)
+            if (!windowOpen)
             {
                 return;
             }
@@ -200,11 +210,10 @@ public sealed class ProgressBar : IDisposable
 
             etaText = Utils.FormatEta(sample.Ratio, now - etaStart) is { } eta ? $" ETA {eta}" : string.Empty;
 
-            // 有采样即视为下载进行中：若因空闲停过渲染，恢复定时器
-            if (!rendering)
+            // 有采样即视为下载进行中：若因空闲停过渲染，恢复定时器（暂停中不恢复，输入结束后由 Resume 接手）
+            if (pump == Pump.Stopped)
             {
-                rendering = true;
-                renderTimer?.Change(RenderInterval, Timeout.InfiniteTimeSpan);
+                SetPump(Pump.Running);
             }
         }
     }
@@ -214,16 +223,16 @@ public sealed class ProgressBar : IDisposable
         var text = string.Empty;
         lock (gate)
         {
-            if (disposed || cancelToken.IsCancellationRequested || suspended)
+            if (disposed || cancelToken.IsCancellationRequested || pump != Pump.Running)
             {
                 return;
             }
 
-            // 窗口外或下载结束（进入混流等阶段）后采样停止：擦掉残留的进度条并停掉渲染
+            // 窗口关闭或下载结束（进入混流等阶段）后采样停止：擦掉残留的进度条并停掉渲染
             // 采样停止的空闲判定只是补充，正常路径由 SetDownloading(false) 即时清行
-            if (!downloading || Environment.TickCount64 - lastSampleTick > IdleTimeout.TotalMilliseconds)
+            if (!windowOpen || Environment.TickCount64 - lastSampleTick > IdleTimeout.TotalMilliseconds)
             {
-                rendering = false;
+                SetPump(Pump.Stopped);
             }
             else
             {

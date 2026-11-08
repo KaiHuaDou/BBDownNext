@@ -47,12 +47,15 @@ export interface TaskSocket {
   submitChoice: (taskId: string, requestId: string, choice: string) => void
 }
 
+/** 连接阶段：idle 未建立，open 已连上，waiting 等重连，closed 由调用方关闭。 */
+type Phase = 'idle' | 'open' | 'waiting' | 'closed'
+
 /** 连接状态机持有对象：以显式状态传递，使各处理函数为模块级（无嵌套闭包）。 */
 interface SocketState {
   config: ServeConfig
   handlers: SocketHandlers
   socket: WebSocket | null
-  closed: boolean
+  phase: Phase
   retryDelay: number
   retryTimer: ReturnType<typeof setTimeout> | null
   pingTimer: ReturnType<typeof setInterval> | null
@@ -67,11 +70,25 @@ function stopPing(state: SocketState): void {
   }
 }
 
+/** 阶段切换的唯一入口：定时器随阶段启停，不会留下「已断开但仍在 ping」这类组合。 */
+function setPhase(state: SocketState, next: Phase): void {
+  state.phase = next
+  if (next !== 'open') {
+    stopPing(state)
+  }
+
+  if (next !== 'waiting' && state.retryTimer) {
+    clearTimeout(state.retryTimer)
+    state.retryTimer = null
+  }
+}
+
 function scheduleReconnect(state: SocketState): void {
-  if (state.closed || state.retryTimer) {
+  if (state.phase === 'closed' || state.retryTimer) {
     return
   }
 
+  setPhase(state, 'waiting')
   state.retryTimer = setTimeout(() => {
     state.retryTimer = null
     open(state)
@@ -94,6 +111,7 @@ function onOpen(state: SocketState): void {
   state.handlers.onOpen()
   // 保活：服务端无事件推送时连接可能被中间层空闲回收，定期 ping
   stopPing(state)
+  setPhase(state, 'open')
   state.pingTimer = setInterval(() => send(state, { kind: 'ping' }), PingIntervalMs)
 }
 
@@ -230,11 +248,12 @@ function onMessage(state: SocketState, message: MessageEvent): void {
 }
 
 function onClose(state: SocketState): void {
-  stopPing(state)
-  if (!state.closed) {
-    state.handlers.onStatus('事件通道已断开，重连中…')
-    scheduleReconnect(state)
+  if (state.phase === 'closed') {
+    return
   }
+
+  state.handlers.onStatus('事件通道已断开，重连中…')
+  scheduleReconnect(state)
 }
 
 function onError(state: SocketState): void {
@@ -242,10 +261,11 @@ function onError(state: SocketState): void {
 }
 
 function open(state: SocketState): void {
-  if (state.closed) {
+  if (state.phase === 'closed') {
     return
   }
 
+  setPhase(state, 'idle')
   try {
     // 令牌作子协议名传：浏览器会把所选子协议回显校验，非法子协议名会在此抛 SyntaxError
     const token = state.config.token
@@ -275,7 +295,7 @@ export function connectTaskSocket(config: ServeConfig, handlers: SocketHandlers)
     config,
     handlers,
     socket: null,
-    closed: false,
+    phase: 'idle',
     retryDelay: 1000,
     retryTimer: null,
     pingTimer: null,
@@ -285,13 +305,7 @@ export function connectTaskSocket(config: ServeConfig, handlers: SocketHandlers)
   return {
     connect: () => open(state),
     close: () => {
-      state.closed = true
-      if (state.retryTimer) {
-        clearTimeout(state.retryTimer)
-        state.retryTimer = null
-      }
-
-      stopPing(state)
+      setPhase(state, 'closed')
       state.socket?.close()
       state.socket = null
     },

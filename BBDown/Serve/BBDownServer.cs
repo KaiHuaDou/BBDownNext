@@ -31,26 +31,19 @@ internal class BBDownServer
 
     private WebApplication? app;
     private string? serveToken;
-    private bool authRequired;
-    private bool authFinalized;
 
     // 鉴权判定：显式传入 --serve-token 才启用强制鉴权（所有访问均须带令牌）；未传入则默认免令牌开放，仅打印警告
-    private void FinalizeAuth(string url)
+    private bool AuthRequired => serveToken is not null;
+
+    // 未指定令牌时任何能连上本监听端口的客户端都可无令牌调用，仅以警告提示暴露风险（不自动生成令牌）
+    // 绑定非回环时风险更高，按监听地址给出不同措辞
+    private void WarnIfUnauthenticated(string url)
     {
-        if (authFinalized)
+        if (AuthRequired)
         {
             return;
         }
 
-        authFinalized = true;
-        if (serveToken is not null)
-        {
-            authRequired = true;
-            return;
-        }
-
-        // 未指定令牌：任何能连上本监听端口的客户端都可无令牌调用，仅以警告提示暴露风险（不自动生成令牌）；绑定非回环时风险更高
-        authRequired = false;
         var nonLoopback = !SsrfGuard.IsLoopbackUrl(url);
         Console.BackgroundColor = ConsoleColor.DarkYellow;
         Console.ForegroundColor = ConsoleColor.Black;
@@ -68,9 +61,9 @@ internal class BBDownServer
             return;
         }
 
+        // 令牌在此定型：下面的认证管道按它决定是否强制认证
         serveToken = config.ServeToken;
-        // 鉴权判定须在注册认证管道前完成（--serve-token 传入才强制，否则免令牌仅警告），Run 传入的 URL 与之等价
-        FinalizeAuth(config.ListenUrl ?? DefaultListenUrl);
+        WarnIfUnauthenticated(config.ListenUrl ?? DefaultListenUrl);
 
         var builder = WebApplication.CreateSlimBuilder( );
         // 仅供集成测试：在指定地址（通常为 http://127.0.0.1:0 随机端口）绑定，避免占用生产默认端口
@@ -106,10 +99,10 @@ internal class BBDownServer
                 ApiKeyAuthenticationOptions.DefaultScheme,
                 options => options.ExpectedToken = serveToken);
         // UseAuthorization 要求授权服务始终注册；FallbackPolicy 默认拒绝仅鉴权模式启用
-        // 未启用强制鉴权（authRequired == false）时无 FallbackPolicy，匿名全放行
+        // 未启用强制鉴权时无 FallbackPolicy，匿名全放行
         builder.Services.AddAuthorization(options =>
         {
-            if (authRequired)
+            if (AuthRequired)
             {
                 options.FallbackPolicy = new AuthorizationPolicyBuilder( ).RequireAuthenticatedUser( ).Build( );
             }
@@ -190,7 +183,7 @@ internal class BBDownServer
         // 置于限流之前：连本机都不该来的请求不配消耗限流配额
         app.Use(async (context, next) =>
         {
-            if (!authRequired && !SsrfGuard.IsLoopbackHost(context.Request.Host.Host))
+            if (!AuthRequired && !SsrfGuard.IsLoopbackHost(context.Request.Host.Host))
             {
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 return;
@@ -224,7 +217,7 @@ internal class BBDownServer
         {
             await next( );
             // HasStarted 守卫：响应一旦开始写就改不了状态码与头，强行赋值只会抛 InvalidOperationException
-            if (authRequired && !context.Response.HasStarted && context.Response.StatusCode == StatusCodes.Status401Unauthorized
+            if (AuthRequired && !context.Response.HasStarted && context.Response.StatusCode == StatusCodes.Status401Unauthorized
                 && ExceedsAuthFailureLimit(context.Connection.RemoteIpAddress?.ToString( ) ?? "unknown"))
             {
                 context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -264,7 +257,6 @@ internal class BBDownServer
             return;
         }
 
-        FinalizeAuth(url);
         var result = Uri.TryCreate(url, UriKind.Absolute, out var uriResult)
             && uriResult.Scheme == Uri.UriSchemeHttp;
         if (!result)

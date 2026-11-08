@@ -75,6 +75,12 @@ public static class HttpTransfer
             or HttpStatusCode.TemporaryRedirect or HttpStatusCode.PermanentRedirect;
     }
 
+    /// <summary>Location 可以是相对地址（如 <c>/x/v2/next</c>），按当前地址为基解析成绝对地址。</summary>
+    internal static string ResolveLocation(string url, Uri location)
+    {
+        return location.IsAbsoluteUri ? location.AbsoluteUri : new Uri(new Uri(url), location.OriginalString).AbsoluteUri;
+    }
+
     /// <summary>
     /// 携带凭据的请求的唯一发送入口：手动逐跳跟随重定向，每跳都过 <see cref="BiliHeaders.IsTrustedCookieHost"/>
     /// HttpClient 的自动重定向在库内部完成，凭据门只覆盖首跳，重定向目标会绕过它
@@ -111,7 +117,7 @@ public static class HttpTransfer
                 return response;
             }
 
-            var next = location.IsAbsoluteUri ? location.AbsoluteUri : new Uri(new Uri(url), location.OriginalString).AbsoluteUri;
+            var next = ResolveLocation(url, location);
             response.Dispose( );
             // 303 必须转为 GET（与浏览器一致）；307 / 308 保持原方法与请求体
             method = response.StatusCode == HttpStatusCode.SeeOther ? HttpMethod.Get : method;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Channels;
@@ -20,21 +21,32 @@ internal sealed partial class TaskSocketHub
     // 满了丢最旧的进度帧——日志与选项请求不能丢，它们走同一队列，故按整帧丢最旧
     private const int OutgoingCapacity = 256;
 
-    private void StartForwarder(DownloadTask task, ChannelWorkflowContext ctx)
+    // 把连接挂到任务的订阅槽位，并确保转发循环已启动。挂载期间槽位被别人摘掉（最后一个订阅者刚离开）时重来一次
+    private void Attach(WebSocket socket, DownloadTask task, ChannelWorkflowContext ctx)
     {
-        var tokenSource = new CancellationTokenSource( );
-        if (!forwarders.TryAdd(task.Id, tokenSource))
+        while (true)
         {
-            tokenSource.Dispose( );
+            var subscription = subscriptions.GetOrAdd(task.Id, _ => new TaskSubscription( ));
+            subscription.Sockets[socket] = 0;
+            if (!subscriptions.TryGetValue(task.Id, out var current) || !ReferenceEquals(current, subscription))
+            {
+                subscription.Sockets.TryRemove(socket, out _);
+                continue;
+            }
+
+            if (subscription.TryStart( ))
+            {
+                _ = ForwardAsync(task, ctx, subscription);
+            }
+
             return;
         }
-
-        _ = ForwardAsync(task, ctx, tokenSource.Token);
     }
 
-    // 转发循环：可靠事件即时推，进度按周期帧推（仅变化时）；无订阅者时结束并允许下次订阅重启
-    private async Task ForwardAsync(DownloadTask task, ChannelWorkflowContext ctx, CancellationToken token)
+    // 转发循环：可靠事件即时推，进度按周期帧推（仅变化时）；无订阅者时由 RemoveSubscription 取消
+    private async Task ForwardAsync(DownloadTask task, ChannelWorkflowContext ctx, TaskSubscription subscription)
     {
+        var token = subscription.Forwarder.Token;
         try
         {
             var outgoing = Channel.CreateBounded<EventFrame>(new BoundedChannelOptions(OutgoingCapacity) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });
@@ -55,17 +67,6 @@ internal sealed partial class TaskSocketHub
         catch (OperationCanceledException)
         {
             // 订阅清空或关服导致的取消，转发结束属正常路径
-        }
-        finally
-        {
-            // 仅当槽位仍是自己启动的 cts 才摘除（与 LiveSignal.Unregister 同范式）：RemoveSubscription 摘除并取消
-            // 旧 cts 后，新订阅者可能已注册新 cts，无条件 TryRemove 会把后注册者的条目一并删掉，产生并行重复转发器
-            // 同一 Token 相等即为自己的 cts；CancellationTokenSource.Dispose 可重复调用，重复释放安全
-            if (forwarders.TryGetValue(task.Id, out var current) && current.Token == token)
-            {
-                forwarders.TryRemove(task.Id, out _);
-                current.Dispose( );
-            }
         }
     }
 
@@ -105,12 +106,12 @@ internal sealed partial class TaskSocketHub
     // 广播一帧给任务订阅者；发送失败的连接视为断开，移出订阅
     private async Task BroadcastAsync(ResourceId id, EventFrame frame, CancellationToken token)
     {
-        if (!subscriptions.TryGetValue(id, out var set))
+        if (!subscriptions.TryGetValue(id, out var subscription))
         {
             return;
         }
 
-        foreach (var (socket, _) in set)
+        foreach (var (socket, _) in subscription.Sockets)
         {
             try
             {
@@ -174,31 +175,31 @@ internal sealed partial class TaskSocketHub
 
     private void RemoveSubscription(WebSocket socket, ResourceId id)
     {
-        if (!subscriptions.TryGetValue(id, out var set))
+        if (!subscriptions.TryGetValue(id, out var subscription))
         {
             return;
         }
 
-        set.TryRemove(socket, out _);
-        if (!set.IsEmpty)
+        subscription.Sockets.TryRemove(socket, out _);
+        if (!subscription.Sockets.IsEmpty)
         {
             return;
         }
 
-        // 最后订阅者离开：停转发循环
-        subscriptions.TryRemove(id, out _);
-        if (forwarders.TryRemove(id, out var tokenSource))
+        // 最后订阅者离开：整个槽位摘除并停转发循环。值比较的原子移除保证只摘自己看到的那个实例，
+        // 不会删掉后来者新建的槽位
+        if (((ICollection<KeyValuePair<ResourceId, TaskSubscription>>) subscriptions).Remove(new(id, subscription)))
         {
-            tokenSource.Cancel( );
-            tokenSource.Dispose( );
+            subscription.Forwarder.Cancel( );
+            subscription.Forwarder.Dispose( );
         }
     }
 
     private void RemoveAllSubscriptions(WebSocket socket)
     {
-        foreach (var (id, set) in subscriptions)
+        foreach (var (id, subscription) in subscriptions)
         {
-            if (set.ContainsKey(socket))
+            if (subscription.Sockets.ContainsKey(socket))
             {
                 RemoveSubscription(socket, id);
             }

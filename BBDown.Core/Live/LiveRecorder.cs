@@ -56,15 +56,37 @@ internal sealed class LiveRecorder(
     public async Task<LiveRecordResult> RunAsync(string destPathWithoutExtension, int qn, CancellationToken recordToken, CancellationToken globalToken)
     {
         List<string> segments = [];
-        var codecName = "";
+        var (reason, codecName) = await RecordAsync(destPathWithoutExtension, qn, segments, recordToken);
+
+        // SIGINT 必须穿透到 Program：保留 part、不混流、退出码 130
+        globalToken.ThrowIfCancellationRequested( );
+
+        if (segments.Count == 0)
+        {
+            throw new InvalidOperationException(reason == LiveStopReason.StreamEnded
+                ? "直播已结束或无可用流，未录制到任何内容"
+                : "录制失败，未产出任何分段");
+        }
+
+        return new LiveRecordResult(segments, codecName, reason);
+    }
+
+    // 每轮只做一件事：解析流地址 → 写一个分段 → 按结果决定继续还是收尾
+    // 收尾原因随返回值给出：每个出口都得写明原因，漏写会编译失败
+    private async Task<(LiveStopReason Reason, string CodecName)> RecordAsync(string destPathWithoutExtension, int qn, List<string> segments, CancellationToken recordToken)
+    {
         // 首段成功后锁定编码：同一场直播的 avc/hevc 候选并存时，失败轮换会挑到另一种编码
         // 而合并阶段只对全部分段套同一 bsf，编码不一的段会被 ffmpeg 静默丢弃（数据丢失）。锁死后全程同编码
         var pinnedCodec = "";
         var failures = 0;
-        var reason = LiveStopReason.UserStopped;
 
-        while (!recordToken.IsCancellationRequested)
+        while (true)
         {
+            if (recordToken.IsCancellationRequested)
+            {
+                return (LiveStopReason.UserStopped, pinnedCodec);
+            }
+
             LivePlayInfo? info;
             try
             {
@@ -72,15 +94,14 @@ internal sealed class LiveRecorder(
             }
             catch (OperationCanceledException)
             {
-                break;
+                return (LiveStopReason.UserStopped, pinnedCodec);
             }
             catch (Exception e)
             {
                 var giveUp = await GiveUpAsync(e.Message, ++failures, recordToken);
                 if (giveUp is not null)
                 {
-                    reason = giveUp.Value;
-                    break;
+                    return (giveUp.Value, pinnedCodec);
                 }
 
                 continue;
@@ -88,8 +109,7 @@ internal sealed class LiveRecorder(
 
             if (info is null || info.Candidates.Count == 0)
             {
-                reason = LiveStopReason.StreamEnded;
-                break;
+                return (LiveStopReason.StreamEnded, pinnedCodec);
             }
 
             var pool = SelectPool(info, pinnedCodec);
@@ -107,22 +127,18 @@ internal sealed class LiveRecorder(
             {
                 // 磁盘满 / 目标不可写：重试只会以同样的方式失败，直接保住已录内容
                 LogError($"写入分段失败：{e.Message}");
-                reason = LiveStopReason.DiskError;
-                Keep(segments, partPath, candidate, ref codecName);
-                pinnedCodec = codecName;
-                break;
+                Keep(segments, partPath, candidate, ref pinnedCodec);
+                return (LiveStopReason.DiskError, pinnedCodec);
             }
             catch (Exception e)
             {
                 // 大量数据写入后抛出的非 IO 异常（如进度回调故障），已写内容多半完整，与磁盘错误路径同样保留
                 // 保留的分段带入其编码，重试轮换只在同编码候选中进行
-                Keep(segments, partPath, candidate, ref codecName);
-                pinnedCodec = codecName;
+                Keep(segments, partPath, candidate, ref pinnedCodec);
                 var giveUp = await GiveUpAsync(e.Message, ++failures, recordToken);
                 if (giveUp is not null)
                 {
-                    reason = giveUp.Value;
-                    break;
+                    return (giveUp.Value, pinnedCodec);
                 }
 
                 continue;
@@ -131,8 +147,7 @@ internal sealed class LiveRecorder(
             if (written >= MinSegmentBytes)
             {
                 segments.Add(partPath);
-                codecName = candidate.CodecName;
-                pinnedCodec = codecName;
+                pinnedCodec = candidate.CodecName;
                 failures = 0;
             }
             else
@@ -142,7 +157,7 @@ internal sealed class LiveRecorder(
 
             if (recordToken.IsCancellationRequested)
             {
-                break;
+                return (LiveStopReason.UserStopped, pinnedCodec);
             }
 
             if (written < MinSegmentBytes)
@@ -150,8 +165,7 @@ internal sealed class LiveRecorder(
                 var giveUp = await GiveUpAsync("分段无有效数据", ++failures, recordToken);
                 if (giveUp is not null)
                 {
-                    reason = giveUp.Value;
-                    break;
+                    return (giveUp.Value, pinnedCodec);
                 }
 
                 continue;
@@ -159,18 +173,6 @@ internal sealed class LiveRecorder(
 
             LogWarn("直播流中断，正在重连...");
         }
-
-        // SIGINT 必须穿透到 Program：保留 part、不混流、退出码 130
-        globalToken.ThrowIfCancellationRequested( );
-
-        if (segments.Count == 0)
-        {
-            throw new InvalidOperationException(reason == LiveStopReason.StreamEnded
-                ? "直播已结束或无可用流，未录制到任何内容"
-                : "录制失败，未产出任何分段");
-        }
-
-        return new LiveRecordResult(segments, codecName, reason);
     }
 
     // 同一清晰度的多个 CDN 按失败次数轮换，避免死磕一个坏节点

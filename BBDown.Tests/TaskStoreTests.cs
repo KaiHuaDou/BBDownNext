@@ -129,10 +129,10 @@ public class TaskStoreTests
     {
         var store = NewStore(new ServeConfig( ));
         var ok = TaskStore.CreateTask(new ResourceId.Av(1), "u");
-        ok.IsSuccessful = true;
+        ok.Finish(true);
         store.MoveToFinished(ok);
         var bad = TaskStore.CreateTask(new ResourceId.Av(2), "u");
-        bad.IsSuccessful = false;
+        bad.Finish(false);
         store.MoveToFinished(bad);
 
         store.ClearFailedFinished( );

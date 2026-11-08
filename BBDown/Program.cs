@@ -18,20 +18,13 @@ namespace BBDown;
 
 internal sealed class Program
 {
-    // 录制中的直播会话标识，供 Ctrl+Break handler 精准停止对应录制（并发场景互不干扰）
-    // volatile：主线程写、CancelKeyPress handler 线程读，需内存屏障保证 handler 读到最新值
-    // 已知窗口：RunAsync 返回到 finally 置 null 之间到达的 Ctrl+Break 会命中已结束的会话（TryRequestStop 返回 false，无害）
-    // 值与 LiveTarget.SessionId 同形，两处必须一致
-    private static volatile string? CurrentLiveSessionId;
-
     private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
         e.Cancel = true;
 
         // Ctrl+Break（SIGQUIT）在录制直播时是「停录并混流」，绝不能触发全局取消——那会把随后的 ffmpeg 一起杀掉
-        // 非录制场景 CurrentLiveSessionId 为 null，TryRequestStop 固定为 false，直接落回原有的全局取消路径，既有行为零变化
-        if (e.SpecialKey == ConsoleSpecialKey.ControlBreak
-            && CurrentLiveSessionId is { } liveId && LiveSignal.TryRequestStop(liveId))
+        // 非录制场景 LiveSignal 里没有会话，TryRequestStopAny 固定为 false，直接落回原有的全局取消路径
+        if (e.SpecialKey == ConsoleSpecialKey.ControlBreak && LiveSignal.TryRequestStopAny( ))
         {
             // 与全部控制台写入同锁：换行会插进进度条帧中间
             lock (ConsoleHost.WriteGate)
@@ -227,11 +220,9 @@ internal sealed class Program
                 if (dispatchId is ResourceId.LiveRoom)
                 {
                     // 直播录制产物是无限增长的流，分 P 选择、清晰度优先级那套解析对它无意义
-                    // CurrentLiveSessionId 与 LiveDownload 内的 LiveSignal 注册键同形，Ctrl+Break 据此停录
                     try
                     {
                         using var liveProgress = new LiveProgress( );
-                        CurrentLiveSessionId = ResourceIdJsonConverter.Format(dispatchId);
                         await WorkerDispatcher.RunAsync(dispatchId, myOption, default, null, AppEnv.CancellationToken);
                         return 0;
                     }
@@ -239,10 +230,6 @@ internal sealed class Program
                     {
                         LogWarn("录制已中断，已录制的分段文件保留在工作目录中（未混流）。");
                         return 130;
-                    }
-                    finally
-                    {
-                        CurrentLiveSessionId = null;
                     }
                 }
 
