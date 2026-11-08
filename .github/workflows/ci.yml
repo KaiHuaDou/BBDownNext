@@ -323,23 +323,19 @@ jobs:
       # musl 目标在 Alpine 容器内按宿主架构原生编译。宿主 Ubuntu 既无 musl sysroot，
       # 其 ld.bfd 也不支持 aarch64；交叉链接要么直接失败，要么悄悄链到 glibc 产出假 musl 二进制。
       # 用 docker run 而非 job 级 container，避免 Actions runner 注入的 glibc node 在 musl 容器内跑不起来。
-      # 镜像 tag 里的 alpine 版本需与 global.json 的 SDK 版本一同升级，否则 docker pull 会直接报 manifest unknown。
-      - name: Resolve SDK version from global.json
-        id: sdkver
-        shell: bash
-        run: echo "version=$(grep -m 1 -o '"version"\s*:\s*"[^"]*"' global.json | sed 's/.*:\s*"//;s/"//')" >> "$GITHUB_OUTPUT"
-
+      # 镜像用浮动的 10.0-alpine-aot：写死 SDK 版本与 Alpine 变体的标签会失效（docker pull 报 manifest unknown）。
+      # 该变体自带 Native AOT 需要的 clang 与 zlib 头文件；SDK 补丁版本由 MCR 决定，比 global.json 新时靠 latestFeature 滚动。
       - name: Cache apk packages
         uses: actions/cache@v6
         with:
           path: ~/.cache/apk
-          key: apk-musl-${{ steps.sdkver.outputs.version }}
+          key: apk-musl-10.0-alpine-aot
 
       - name: Publish (AOT in Alpine)
         run: |
           docker run --rm -v "$PWD":/src -v "$HOME/.cache/apk":/var/cache/apk -w /src \
-            mcr.microsoft.com/dotnet/sdk:${{ steps.sdkver.outputs.version }}-alpine3.23 sh -c '
-              apk add clang build-base zlib-dev protobuf grpc-plugins &&
+            mcr.microsoft.com/dotnet/sdk:10.0-alpine-aot sh -c '
+              apk add protobuf grpc-plugins &&
               export PROTOBUF_PROTOC=/usr/bin/protoc &&
               export GRPC_PROTOC_PLUGIN=/usr/bin/grpc_csharp_plugin &&
               dotnet publish BBDown -r ${{ matrix.rid }} -c ${{ env.BUILD_CONFIG }} -o artifact'
