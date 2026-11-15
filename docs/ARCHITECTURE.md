@@ -6,11 +6,11 @@
 
 ## 1. 概览
 
-BBDown 是一个基于 **.NET 10** 的哔哩哔哩视频下载 / 解析命令行工具，定位为单文件可执行体（`dotnet publish -p:PublishAot=true` 可产出 AOT 原生二进制）。整体被拆为三块：
+BBDown 是一个基于 **.NET 11** 的哔哩哔哩视频下载 / 解析命令行工具，定位为单文件可执行体（`dotnet publish -p:PublishAot=true` 可产出 AOT 原生二进制）。整体被拆为三块：
 
 - **`BBDown`**：入口可执行项目（SDK `Microsoft.NET.Sdk.Web`），负责命令行解析、serve 服务器模式与入口编排；下载能力全部在 `BBDown.Core`。
 - **`BBDown.Core`**：核心类库（`IsAotCompatible=true`），负责下载编排、媒体下载、混流、直播、登录、解析、字幕、弹幕等全部可复用能力。
-- **`BBDown.GUI`**：图形界面（Avalonia，`net10.0`），直接引用 `BBDown.Core` 下载库，以库调用方式执行下载（非子进程调用 `BBDown.exe`），AOT 单文件发布。
+- **`BBDown.GUI`**：图形界面（Avalonia，`net11.0-windows`），直接引用 `BBDown.Core` 下载库，以库调用方式执行下载（非子进程调用 `BBDown.exe`），AOT 单文件发布。
 
 代码层面强制 **nullable enable**、**`TreatWarningsAsErrors=true`**、**集中式包版本管理**（`Directory.Packages.props`），并以 `System.Text.Json` **源生成器**（`JsonSerializerContext`）替代运行时反射，保证 AOT 裁剪安全。
 
@@ -207,7 +207,7 @@ BBDown/
 │   ├── Logger.cs           # 日志（Output 可注入，GUI 等宿主替换输出目标）
 │   └── DEPENDENCIES.md     # 依赖架构说明
 │
-├── BBDown.GUI/             # 图形界面（Avalonia，net10.0，AOT 单文件）
+├── BBDown.GUI/             # 图形界面（Avalonia，net11.0-windows，AOT 单文件）
 │   ├── Program.cs          # 入口：Avalonia 应用装配与启动
 │   ├── App.axaml.cs        # Application 入口
 │   ├── MainWindow.axaml    # 主窗口布局（任务列表 / 日志区 / 选项面板）
@@ -354,8 +354,8 @@ API 通道由 `--api web|tv|app|intl` **单选**（默认 `web`，忽略大小�
 
 - **令牌鉴权**：`SetUpServer` → `FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时启用强制鉴权；未传入则默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。强制鉴权时 HTTP 接口须携带 `X-BBDown-Token` 请求头，WebSocket 握手 `/hubs/tasks` 接受 `Sec-WebSocket-Protocol` 首值（浏览器无法自定义握手头），非浏览器客户端另可用 `?token=` 查询参数，否则返回 `401`。
 - **请求字段收窄**：`ServeRequestOptions` 是 `DownloadRequest` 的客户端可提交的子集，刻意剔除服务端指定字段（`FFmpegPath`/`Mp4boxPath`/`Aria2cPath`/`Aria2cArgs`/`WorkDir`/`FilePattern`/`MultiFilePattern`/`Host`/`EpHost`/`TvHost`/`Cookie`/`AccessToken`... 等），这些一律以服务端启动配置为准（`ServeConfig`），即便请求传入也会被忽略；交互式选项（`InteractiveQuality`/`InteractivePages`）与直播清晰度（`LiveQuality`）保留在请求字段中，Web 前端经 WebSocket 事件流远程应答选项请求。
-- **SSRF 防护**（`SsrfGuard`）：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点；专用 `WebHookClient` 关闭自动重定向并在连接前二次校验端点 IP。
-- **CORS**：默认放行**回环来源**（`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环判定），非回环 `Origin` 依旧无 `Access-Control-Allow-Origin` 头、被浏览器拦截，与写端点 / WebSocket 的 Origin 校验（防 DNS rebinding）保持一致；公网暴露仍需配合反向代理与 TLS。
+- **SSRF 防护**（`SsrfGuard`）：任务完成后的 `CallBackWebHook` 回调用 `IsSafeWebHook` / `IsPrivateAddress` 校验，拒绝内网 / 回环地址，仅允许公网可达端点；专用 `WebHookClient` 关闭自动重定向、直连不走系统代理，并在连接前二次校验端点 IP。
+- **CORS**：默认放行**回环来源**（`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环与监听端口判定），非回环 `Origin` 依旧无 `Access-Control-Allow-Origin` 头、被浏览器拦截，与写端点 / WebSocket 的 Origin 校验（防 DNS rebinding）保持一致；公网暴露仍需配合反向代理与 TLS。
 - **容量上限**：已完成任务保留上限 200，超出按策略淘汰。
 - **任务表以 `ResourceId` 为键**（`ConcurrentDictionary<ResourceId, DownloadTask>`）：解析结果直接作键，值相等性天然去重，同资源重复提交命中同一任务；`DownloadTask.Id` 即该 `ResourceId`，JSON 序列化为规范字符串（如 `season2539`，与路径参数同一编码，见 [API.md](./API.md) 的任务标识一节）。
 - **并发限流**：`--max-concurrent N`（默认 `0` = 不限制）。`SetUpServer` 在 `N > 0` 时建立 `SemaphoreSlim(N, N)`；任务经 `TaskWorker.RunGatedAsync` 在调用 `DownloadPipeline.RunAsync` 前取额度、`finally` 归还。取额度在 id 去重登记**之后**，因此排队中的任务已在 `runningTasks` 里可见，`DownloadTask.Status` 为 `Queued`，拿到额度转 `Running`，收尾转 `Finished`。`max-concurrent` 仅约束**同时下载的任务数**，多余任务排队；单个任务内部的下载并行度（分片并发）由多线程下载器自行决定，不随限流被压到 `1`。`0` 表示不限制（与 CLI 完全一致）。
@@ -425,7 +425,7 @@ playurl 对部分版权内容下发加密轨道（密文为 CENC cbcs 一类）�
 
 ## 10. 构建与 AOT
 
-- SDK：`Microsoft.NET.Sdk.Web`（`BBDown`）、`Microsoft.NET.Sdk`（`BBDown.Core` / 测试）、`Microsoft.NET.Sdk`（`BBDown.GUI`，Avalonia，`net10.0`）。
+- SDK：`Microsoft.NET.Sdk.Web`（`BBDown`）、`Microsoft.NET.Sdk`（`BBDown.Core` / 测试）、`Microsoft.NET.Sdk`（`BBDown.GUI`，Avalonia，`net11.0-windows`）。
 - `BBDown.Core` 标记 `IsAotCompatible=true`；序列化一律用 `JsonSerializerContext` 源生成器（`CredentialJsonContext` / `DownloadRequestJsonContext` / `PartJsonContext` / `PostProcessJsonContext` / `AppJsonSerializerContext` / `ServeRequestOptionsJsonContext`），禁止运行时反射。
 - 全局 `TreatWarningsAsErrors=true`、`Nullable enable`、`LangVersion latest`、集中式包版本（`Directory.Packages.props`）。
 - 发布 AOT：`dotnet publish -c Release -r <RID> /p:PublishAot=true`。注意 AOT 下 `BBDown.data` 等 JSON 必须走源生成器，否则会被裁剪，反序列化失败。

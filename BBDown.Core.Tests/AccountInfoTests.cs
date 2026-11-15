@@ -8,7 +8,7 @@ public class AccountInfoTests
     public void ParseNav_ParsesLoggedInVip( )
     {
         const string json = "{\"data\":{\"isLogin\":true,\"uname\":\"测试用户\",\"level_info\":{\"current_level\":6},\"vip\":{\"vipStatus\":1,\"vipType\":2,\"label\":{\"text\":\"大会员\"}}}}";
-        var data = JsonDocument.Parse(json).RootElement.GetProperty("data");
+        var data = JsonElement.Parse(json).GetProperty("data");
         var info = Account.ParseNav(data);
         Assert.True(info.IsLogin);
         Assert.Equal("测试用户", info.UserName);
@@ -21,7 +21,7 @@ public class AccountInfoTests
     public void ParseNav_ParsesLoggedOutNoVip( )
     {
         const string json = "{\"data\":{\"isLogin\":false,\"uname\":\"\",\"level_info\":{\"current_level\":0},\"vip\":{\"vipStatus\":0,\"vipType\":0,\"label\":{\"text\":\"\"}}}}";
-        var data = JsonDocument.Parse(json).RootElement.GetProperty("data");
+        var data = JsonElement.Parse(json).GetProperty("data");
         var info = Account.ParseNav(data);
         Assert.False(info.IsLogin);
         Assert.Equal("", info.UserName);
@@ -34,7 +34,7 @@ public class AccountInfoTests
     public void ParseNav_ToleratesMissingVip( )
     {
         const string json = "{\"data\":{\"isLogin\":true,\"uname\":\"路人\"}}";
-        var data = JsonDocument.Parse(json).RootElement.GetProperty("data");
+        var data = JsonElement.Parse(json).GetProperty("data");
         var info = Account.ParseNav(data);
         Assert.True(info.IsLogin);
         Assert.Equal("路人", info.UserName);
@@ -46,7 +46,7 @@ public class AccountInfoTests
     public void ParseMyInfo_ParsesLoggedInVip( )
     {
         const string json = "{\"code\":0,\"data\":{\"name\":\"测试用户\",\"level\":6,\"vip\":{\"status\":1,\"label\":{\"text\":\"大会员\"}}}}";
-        var data = JsonDocument.Parse(json).RootElement.GetProperty("data");
+        var data = JsonElement.Parse(json).GetProperty("data");
         var info = Account.ParseMyInfo(data);
         Assert.True(info.IsLogin);
         Assert.Equal("测试用户", info.UserName);
@@ -60,7 +60,7 @@ public class AccountInfoTests
     public void ParseMyInfo_ToleratesMissingVip( )
     {
         const string json = "{\"code\":0,\"data\":{\"name\":\"路人\",\"level\":3}}";
-        var data = JsonDocument.Parse(json).RootElement.GetProperty("data");
+        var data = JsonElement.Parse(json).GetProperty("data");
         var info = Account.ParseMyInfo(data);
         Assert.Equal("路人", info.UserName);
         Assert.Equal(3, info.Level);
@@ -73,7 +73,7 @@ public class AccountInfoTests
     public void ParseMyInfo_ToleratesUnexpectedFieldTypes( )
     {
         const string json = "{\"code\":0,\"data\":{\"name\":123,\"level\":\"六\",\"vip\":{\"status\":\"1\"}}}";
-        var data = JsonDocument.Parse(json).RootElement.GetProperty("data");
+        var data = JsonElement.Parse(json).GetProperty("data");
         var info = Account.ParseMyInfo(data);
         Assert.Equal(0, info.Level);
         Assert.False(info.IsVip);

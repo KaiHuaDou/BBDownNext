@@ -9,7 +9,7 @@ public class EpisodePagesTests
 {
     private static JsonElement Parse(string json)
     {
-        return JsonDocument.Parse(json).RootElement.Clone( );
+        return JsonElement.Parse(json);
     }
 
     private const string Episodes = """

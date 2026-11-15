@@ -8,7 +8,7 @@ public class SpaceDynamicDownloadTests
 {
     private static JsonElement Parse(string json)
     {
-        return JsonDocument.Parse(json).RootElement.Clone( );
+        return JsonElement.Parse(json);
     }
 
     [Fact]

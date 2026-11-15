@@ -51,9 +51,16 @@
     - 弹幕格式未选时提示按默认 xml + ass 下载；评论与弹幕格式复选框的勾选即时刷新该行
 - **--post-process 路径含空格修复**
     - 请求文件路径改经 `ArgumentList` 传递，路径含空格时保持完整
+- **serve 回调 WebHook 直连**
+    - 回调 client 关闭系统代理，严格直连已校验的公网地址；原先经系统代理转发时，回调可达性受代理牵连，连接前对最终端点的私网校验拿到的是代理端点而失效
+- **serve 拒绝跨 localhost 端口的浏览器请求**
+    - 写端点（POST / DELETE）与 WebSocket 握手的 Origin 校验要求回环来源的端口与监听端口一致，本机其它端口上的页面按不可信来源拒绝；本机其它端口上的前端开发需用 `--cors-origin` 显式放行
 
 ### 变更
 
+- **目标框架 .NET 10 → .NET 11**
+    - `global.json` 锁定 SDK 11.0.100，全部项目升至 net11.0 / net11.0-windows；Docker 构建镜像升至 `sdk:11.0.100-alpine3.24`，CI musl 镜像升至 `11.0-alpine-aot`
+    - 测试中内联取 `RootElement` 的 `JsonDocument.Parse` 改为 `JsonElement.Parse`，SDK 11 分析器的 CA2026 清零
 - **GUI 任务列表按加入顺序排列**
     - 列表位置只由加入顺序决定，任务开始与结束时行不跳动；重试的任务排到队尾
 - **依赖升级**

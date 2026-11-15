@@ -240,7 +240,7 @@ internal sealed partial class TaskSocketHub(TaskStore store)
     }
 
     /// <summary>
-    /// 握手 Origin 校验：无 Origin（非浏览器客户端）放行；等于 --cors-origin 放行；回环来源放行；其余拒绝（CSWSH）
+    /// Origin 校验：无 Origin（非浏览器客户端）放行；等于 --cors-origin 放行；回环来源须与监听端口一致；其余拒绝（CSWSH 与写端点 CSRF 共用）
     /// </summary>
     internal static bool IsAllowedOrigin(string? origin, ServeConfig config)
     {
@@ -254,7 +254,16 @@ internal sealed partial class TaskSocketHub(TaskStore store)
             return true;
         }
 
-        return Uri.TryCreate(origin, UriKind.Absolute, out var uri) && SsrfGuard.IsLoopbackHost(uri.Host);
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri) || !SsrfGuard.IsLoopbackHost(uri.Host))
+        {
+            return false;
+        }
+
+        // 回环地址之间的边界只有端口：本机其它端口上的页面（本机其它服务被攻破的场景）按不可信处理
+        // 浏览器会把页面自身的端口写进 Origin，与监听端口比对即可识别；Uri 对 http/https 自动补默认端口
+        // 监听地址解析失败（自定义地址非合法 URL）时按无可信回环来源处理
+        return Uri.TryCreate(config.ListenUrl ?? BBDownServer.DefaultListenUrl, UriKind.Absolute, out var listen)
+               && uri.Port == listen.Port;
     }
 }
 

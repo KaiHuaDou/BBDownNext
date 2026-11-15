@@ -71,7 +71,7 @@ public class LiveFetcherParseTests
 
     private static JsonElement Parse(string json)
     {
-        return JsonDocument.Parse(json).RootElement;
+        return JsonElement.Parse(json);
     }
 
     [Fact]

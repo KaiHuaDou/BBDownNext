@@ -10,7 +10,7 @@ public class FlvTrackReaderTests
 {
     private static JsonElement Root(string json)
     {
-        return JsonDocument.Parse(json).RootElement;
+        return JsonElement.Parse(json);
     }
 
     [Fact]

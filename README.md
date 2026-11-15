@@ -152,7 +152,7 @@ cd BBDown
 dotnet build -c Release
 ```
 
-构建产物位于各项目的 `bin/Release/net10.0/` 目录下
+构建产物位于各项目的 `bin/Release/net11.0/` 目录下
 
 ### AOT 单文件
 
@@ -172,13 +172,13 @@ dotnet publish BBDown -r win-x64 -c Release -o <DEST> -p:Win7Compatitable=true
 
 ### 图形界面
 
-BBDown.GUI 是图形界面（GUI）客户端（Avalonia），目标框架 `net10.0`：
+BBDown.GUI 是图形界面（GUI）客户端（Avalonia），目标框架 `net11.0-windows`：
 
 ```bash
 dotnet build BBDown.GUI -c Release
 ```
 
-产物位于 `BBDown.GUI/bin/Release/net10.0/` 下，独立运行，直接复用 `BBDown.Core` 下载库，无需额外的 `BBDown.exe`。
+产物位于 `BBDown.GUI/bin/Release/net11.0-windows/` 下，独立运行，直接复用 `BBDown.Core` 下载库，无需额外的 `BBDown.exe`。
 
 图形界面由独立 CI（[gui.yml](https://github.com/KaiHuaDou/BBDownNext/blob/master/.github/workflows/gui.yml)）在 Windows / macOS / Linux（各 `x64` / `arm64`，Linux 仅 glibc）构建自包含 AOT 单文件产物并上传，可手动触发追加到最新 Release；Windows `x64` 另产出 Win7 兼容包（`Win7Compatitable=true`，YY-Thunks / VC-LTL 静态消除 CRT 依赖），`win-arm64` 不构建 Win7 兼容版。
 
@@ -625,6 +625,8 @@ FLV 封装固定以最高清晰度请求播放地址，用户的清晰度优先�
 **Q：aria2c 怎么用？**
 
 下载 aria2c 二进制并放在 BBDown 同目录或 `PATH` 中，然后加 `--aria2c` 即可。可用 `--aria2c-args` 追加自定义参数（默认已含 `-x16 -s16 -j16 -k 5M`）。aria2c 子进程有 6 小时硬超时：进程僵死时自动杀进程并报错，与用户取消区分；启动失败（未安装 / 路径错误）会给出含指引的可读错误。
+
+代理方面 aria2c 只读取环境变量 `http_proxy` / `https_proxy` / `all-proxy`（以及对应的 `no_proxy`），不读取 Windows 系统代理；其余下载通道使用系统代理设置。需要经代理下载时请为 aria2c 设置上述环境变量。
 
 **Q：和原版 BBDown 有什么区别？**
 

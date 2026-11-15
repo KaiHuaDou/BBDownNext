@@ -3,7 +3,7 @@
 BBDown 的服务器模式（`BBDown serve`）会在本地启动一个 HTTP 服务器，对外暴露任务增删查的 JSON API。本文档描述这些接口的请求 / 响应格式、数据结构与使用注意事项。
 
 > **⚠️ 安全警告：该接口默认免令牌即可调用，未指定 `--serve-token` 时即使绑定到非回环地址（如 `0.0.0.0`）也仅打印警告、不强制鉴权；显式指定 `--serve-token` 后所有接口强制令牌鉴权，客户端必须携带 `X-BBDown-Token` 请求头（WebSocket 握手经 `Sec-WebSocket-Protocol` 子协议头，见 [WebSocket 事件流](#websocket-事件流)），否则返回 `401`。
-> 令牌只防未授权调用、不验证调用方身份；服务器**默认仅对回环来源开放 CORS**（`127.0.0.1` / `localhost` 页面的跨源请求带 `Access-Control-Allow-Origin` 响应头），其余来源需显式 `--cors-origin <url>` 放行；恶意网页（非回环 `Origin`）依旧拿不到 CORS 头、被浏览器拦截。无论是否开 CORS，**切勿直接暴露到公网**；需要跨机器访问时，请自行加反向代理与 TLS，再显式指定 `serve -l http://0.0.0.0:23333`。
+> 令牌只防未授权调用、不验证调用方身份；服务器**默认仅对回环来源开放 CORS**（`127.0.0.1` / `localhost` 页面的跨源请求带 `Access-Control-Allow-Origin` 响应头，回环来源的端口须与监听端口一致），其余来源需显式 `--cors-origin <url>` 放行；恶意网页（非回环 `Origin`）依旧拿不到 CORS 头、被浏览器拦截。无论是否开 CORS，**切勿直接暴露到公网**；需要跨机器访问时，请自行加反向代理与 TLS，再显式指定 `serve -l http://0.0.0.0:23333`。
 
 ---
 
@@ -27,7 +27,7 @@ BBDown serve -l http://0.0.0.0:23333 --work-dir "D:/Downloads"
 | `--api-tv-host`    |      | TV 端 API 请求 Host，所有任务统一使用此值                                                                                                                                    |
 | `--cookie`         |      | 所有任务统一使用的 Cookie（如 `SESSDATA`），留空回落本机 `BBDown.data`；请求体不含凭据字段                                                                                    |
 | `--access-token`   |      | 所有任务统一使用的 `access_token`（TV / APP 接口），留空回落本机 `BBDown.data`                                                                                               |
-| `--cors-origin`    |      | 仅允许该单一来源跨域调用 serve（CORS）；不指定则完全关闭 CORS，回环来源（127.0.0.1 / localhost）始终放行                                                                      |
+| `--cors-origin`    |      | 仅允许该单一来源跨域调用 serve（CORS）；不指定则完全关闭 CORS，回环来源（127.0.0.1 / localhost，端口与监听端口一致）放行                                                                      |
 | `--max-concurrent` |      | 同时下载的任务数上限，默认 `0` 表示不限制；设为 `N > 0` 时最多 `N` 个任务同时下载，其余按提交顺序排队（`Status` 为 `Queued`），单个任务内部的下载并行度由多线程下载器自行决定 |
 | `--aria2c`         |      | 所有任务统一调用 aria2c 下载（需自行准备可执行文件，放在 BBDown 同目录或系统 `PATH` 中）                                                                                     |
 | `--ffmpeg-path`    |      | 所有任务统一使用的 FFmpeg 路径，留空在 `PATH` 与程序目录查找                                                                                                                 |
@@ -184,7 +184,7 @@ serve 不提供登录端点。凭据由启动参数 `--cookie` / `--access-token
 
 - **地址：** `ws://127.0.0.1:23333/hubs/tasks`（TLS 下为 `wss://`）。
 - **鉴权：** WebSocket 握手用 `Sec-WebSocket-Protocol: <token>` 子协议头（服务端回显所选子协议）。非浏览器客户端另可用 `?token=<token>` 查询参数，HTTP API 端点两者都不接受。令牌须为 HTTP token 字符集，否则浏览器无法作为子协议名发送。
-- **Origin 校验（CSWSH 防线）：** 无 `Origin` 头（脚本 / 非浏览器客户端）放行；等于 `--cors-origin` 或回环来源放行；其余跨源握手拒绝（`403`）。
+- **Origin 校验（CSWSH 防线）：** 无 `Origin` 头（脚本 / 非浏览器客户端）放行；等于 `--cors-origin` 或端口与监听端口一致的回环来源放行；其余跨源握手拒绝（`403`）。
 - **连接上限：** 每客户端 IP 最多 5 个并发连接，超限拒绝升级（`429`）；单帧消息上限 64 KB，超限关闭连接。
 
 ### 帧协议（UTF-8 JSON 文本帧）
@@ -302,7 +302,7 @@ serve 不提供登录端点。凭据由启动参数 `--cookie` / `--access-token
 - **`--max-retry`：** 每个下载项在首次尝试之外的额外重试次数，默认 3；非必要项（字幕 / 封面 / 弹幕 / 配音 / 评论）耗尽仅跳过该项，必要项（音视频 / 混流）耗尽则该分 P 失败。serve 请求体字段为 `MaxRetry`（对应 `ServeRequestOptions`）。
 - **`AllowPreview`：** 请求体可携带该布尔字段（对应命令行 `--allow-preview`）。充电专属稿件在无充电权限时接口照常返回成功但只下发试看片段，默认会被识别并跳过，任务表现为 `IsSuccessful == false`；传 `true` 则保留试看片段，输出文件名带 `[试看]` 前缀。
 - **`delayPerPage`：** 数字字段，单位秒，默认 `0`（无间隔）；非数字输入视为约定不合法，返回 `400`。
-- **CORS：** 服务器**默认仅对回环来源开放**（`127.0.0.1` / `localhost` 页面的跨源请求放行，与本机页面直连 serve 的场景一致）；其余来源需显式 `--cors-origin <url>` 放行。非回环 `Origin` 的浏览器请求依旧拿不到 `Access-Control-Allow-Origin` 头、被浏览器拦截（CSRF 面不因此扩大），仅建议在本地 / 可信网络下使用。
+- **CORS：** 服务器**默认仅对回环来源开放**（`127.0.0.1` / `localhost` 页面的跨源请求放行，端口须与监听端口一致，与本机页面直连 serve 的场景一致）；其余来源需显式 `--cors-origin <url>` 放行。非回环 `Origin` 的浏览器请求依旧拿不到 `Access-Control-Allow-Origin` 头、被浏览器拦截（CSRF 面不因此扩大），仅建议在本地 / 可信网络下使用。
 - **专栏导出：** `POST /api/v1/tasks` 接受专栏（opus / cv）地址，与音视频链路共用同一受理队列与并发闸门，经 `OpusArticle` 路由到专栏导出链路。专栏模式生效的内容标志为 `A`（Markdown 文件）、`i`（专栏图片）、`M`（YAML Frontmatter）、`o`（评论）与 `O`（全部评论含楼中楼），其余标志（a / v / m / s / C / d / S）自然失效，任务日志会给出调试提示。默认内容集 `avmsSCiAM` 已包含 `i` / `A` / `M`，即默认导出图片、Markdown 与 front matter；`A` 不选时只导出图片与评论，不写入 Markdown。
 - **评论下载：** 请求体可携带 `CommentCount` / `CommentSort` / `CommentFormats` / `FullComment` 四个字段（对应命令行 `--comments-count` / `--comments-sort` / `--comments-formats` 与内容标志 `O`，默认 `CommentCount=0` 即不下载）。视频任务中评论区按 `aid` 去重抓取（多 P 同稿只抓一次）；专栏 / 图文任务（含文集、空间图文、空间动态图文项）内容含 `o` / `O` 时同样导出评论区，产物齐全则重跑跳过。产物为与主文件同目录的 `<标题>.comments.json` / `<标题>.comments.txt`。注意：加 `FullComment`（额外翻页抓全楼中楼）会随评论条数线性放大请求量，显著拉长单个任务的耗时，请按需使用。
 

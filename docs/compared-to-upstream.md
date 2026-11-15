@@ -36,7 +36,7 @@
 | **FLV / DASH 封装**   | 通用说明                                                                                               | DASH 先按 `-q` 请求再额外以 `MaxQn(127)` 取原始画质轨（两次并集）；FLV 固定 `qn=127`、忽略 `-q`                                                                                                                                                                                                                                                                                                                               |
 | **归档记录**          | `--save-archives-to-file`（旧竖线格式）                                                                | `--save-records` 写 Tab 分隔 `BBDown.archives`（`<aid>\t<cid>\t<路径>`），键为 `(aid, cid)`                                                                                                                                                                                                                                                                                                                                   |
 | **测试覆盖**          | 较少                                                                                                   | **1200+ 单元测试**（Core + BBDown.Tests，含 gRPC 打包往返、cheese 过滤、serve 安全、断点续传清单、文件名截断、WBI 签名、直播加密流跳过、Opus 渲染等）                                                                                                                                                                                                                                                                         |
-| **代码结构**          | 传统结构                                                                                               | 深度重构：下载能力整体下沉 `BBDown.Core`，按职责拆分命名空间（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`，CLI 与 serve 留在 `BBDown`），依赖单向成树（`just check-deps` 守护）；god-class 拆分（如 `BBDownUtil` 按归属拆分）、现代化命名、`System.Threading.Lock`、`[GeneratedRegex]`、`Nullable enable` + `TreatWarningsAsErrors`、net10.0 |
+| **代码结构**          | 传统结构                                                                                               | 深度重构：下载能力整体下沉 `BBDown.Core`，按职责拆分命名空间（`Pipeline` / `Media` / `Mux` / `Download` / `Live` / `Auth` / `Fetcher` / `PlayUrl` / `Opus` / `Comment` / `Entity` / `Util`，CLI 与 serve 留在 `BBDown`），依赖单向成树（`just check-deps` 守护）；god-class 拆分（如 `BBDownUtil` 按归属拆分）、现代化命名、`System.Threading.Lock`、`[GeneratedRegex]`、`Nullable enable` + `TreatWarningsAsErrors`、net11.0 |
 | **直播录制**          | 无                                                                                                     | 新增独立直播链路，直播间地址直录（`live:` / `live.bilibili.com`），`--live-quality` 选清晰度（默认原画 10000，可选 250 超清 / 400 蓝光 / 15000 2K / 20000 4K / 30000 杜比），分段 FLV 写入后合并为 mp4（`Ctrl+Break` 停录合并 / `Ctrl+C` 中断保留分段）；录制状态机具备断流退避重连、CDN failover、编码锁定                                                                                                                   |
 | **图形界面**          | 无                                                                                                     | 新增 BBDown.GUI（Avalonia，跨平台）：单窗口封装下载，直接引用 `BBDown.Core` 下载库（非子进程调用 BBDown.exe），任务队列与并发控制（1–8）、日志实时显示、选项随 exe 便携保存；独立 CI（`gui.yml`）发布单文件自包含产物                                                                                                                                                                                                         |
 
@@ -82,9 +82,9 @@
 - **鉴权**：`FinalizeAuth(url)` 仅在显式传入 `--serve-token` 时设置 `authRequired = true`，HTTP 接口须带 `X-BBDown-Token` 头，WebSocket 握手 `/hubs/tasks` 接受 `Sec-WebSocket-Protocol` 首值（非浏览器客户端另可用 `?token=` 查询参数），缺失/错误返回 401（中间件 `context.Response.StatusCode = 401`）；未传入令牌时默认免令牌开放，仅向控制台打印警告（非回环地址额外提示公网 / 局域网滥用风险）。
 - **SSRF 防护**（`BBDown/Serve/SsrfGuard.cs`，独立静态防护类）：
     - `IsSafeWebHook(uri)` 仅允许公网 `http/https`，拒绝 `localhost`、回环与私网地址。
-    - 专用 `WebHookClient` 关闭自动重定向，并在 `ConnectCallback` 中于建立 TCP 连接前对最终端点 IP 做 `IsPrivateAddress` 二次校验（消除 DNS 重绑定 TOCTOU 窗口），拒绝私网/回环/链路本地/未指定地址（`::`）。
+    - 专用 `WebHookClient` 关闭自动重定向、直连不走系统代理，并在 `ConnectCallback` 中于建立 TCP 连接前对最终端点 IP 做 `IsPrivateAddress` 二次校验（消除 DNS 重绑定 TOCTOU 窗口），拒绝私网/回环/链路本地/未指定地址（`::`）。
 - **服务端固定字段**：`host` / `ep-host` / `tv-host` 三兄弟、`work-dir` 与凭据（`--cookie` / `--access-token`）不写入请求 DTO（`ServeRequestOptions`），由 serve 启动参数固定（聚合为 `ServeConfig` record），避免请求控制 host 或凭据把回落的本机 `SESSDATA` 导向外部服务器（`BBDown/Serve/ServeConfig.cs`）。
-- **CORS 默认放行回环来源**：`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环判定，非回环 `Origin` 仍被浏览器拦截；指定 `--cors-origin` 时叠加该单一来源（`AddCors` → `AllowSpecificOrigin`）。
+- **CORS 默认放行回环来源**：`SetIsOriginAllowed` 经 `TaskSocketHub.IsAllowedOrigin` 按回环与监听端口判定，非回环 `Origin` 仍被浏览器拦截；指定 `--cors-origin` 时叠加该单一来源（`AddCors` → `AllowSpecificOrigin`）。
 - **并发度**：`--max-concurrent N>0` 用 `SemaphoreSlim` 限制同时下载任务数，多余任务排队（`DownloadTask.Status == Queued`）；单个任务内部的下载并行度由多线程下载器自行决定，不压到 1；`0`（默认）表示不限制。任务模型为 `DownloadTask` / `DownloadStatus`。
 
 ### 2.5 专栏/图文导出（Opus）
@@ -160,7 +160,7 @@
 - **测试规模**：`BBDown.Core.Tests` 与 `BBDown.Tests` 合计 **1200+ 单元测试**（`[Fact]` / `[Theory]` 用例合计），覆盖解析、混流、serve 鉴权与 SSRF、断点续传清单、文件名截断、cheese 过滤、WBI 签名、Opus 抓取与渲染、直播加密流跳过、空间列表与稍后再看等。
 - **AOT 与现代化**：
     - `BBDown/Directory.Build.props`：`<PublishAot>true</PublishAot>`，直接 `dotnet publish BBDown -r <RID> -c Release`（CI 命令见 `.github/workflows/ci.yml`，RID 矩阵 8 个）。
-    - `Directory.Build.props`：`<TargetFramework>net10.0</TargetFramework>`、`<Nullable>enable</Nullable>`、`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`、`<AnalysisLevel>latest-all</AnalysisLevel>`。
+    - `Directory.Build.props`：`<TargetFramework>net11.0</TargetFramework>`、`<Nullable>enable</Nullable>`、`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`、`<AnalysisLevel>latest-all</AnalysisLevel>`。
     - `System.Text.Json` 源生成器（如 `CredentialJsonContext`、`AppJsonSerializerContext`、`PostProcessJsonContext`）替代反射，AOT 安全。
     - `[GeneratedRegex]` 集中声明正则（如 `OpusRegexes`、`InputResolver`）；`System.Threading.Lock` 替代 `object` 锁；god-class（如 `BBDownUtil`）按归属拆分。
 
@@ -187,7 +187,7 @@
 
 ### 2.17 图形界面 BBDown.GUI
 
-- **客户端**（`BBDown.GUI/`，Avalonia，跨平台，`net10.0`）：单窗口封装下载——直接引用 `BBDown.Core` 下载库，以库调用方式执行任务（非子进程调用 BBDown.exe），下载内容按 CLI 字符集（a / v / c / C / d / i / m / M / o / O / S / s）全量 CheckBox 配置，其余选项与 CLI 参数一一对应。
+- **客户端**（`BBDown.GUI/`，Avalonia，跨平台，`net11.0-windows`）：单窗口封装下载——直接引用 `BBDown.Core` 下载库，以库调用方式执行任务（非子进程调用 BBDown.exe），下载内容按 CLI 字符集（a / v / c / C / d / i / m / M / o / O / S / s）全量 CheckBox 配置，其余选项与 CLI 参数一一对应。
 - **任务队列**（`QueueRunner` / `TaskParams`）：多任务排队与并发控制（1–8，运行中可调），「执行」与队列任务共享并发池；任务日志经 Core `Logger.Output` 回调进入窗口日志区，仍按级别着色。
 - **便携配置**（`ConfigStore`）：面板选项随 exe 保存到 `BBDown.GUI.config.json`（不保存 url 与队列）。
 - **发布**：独立 CI（`.github/workflows/gui.yml`）在 Windows / macOS / Linux（各 x64 / arm64，Linux 仅 glibc）上发布 AOT 单文件（`PublishAot` + `PublishSingleFile`），并将整个发布目录打包为 zip 上传产物，可手动触发追加到最新 Release；主 CI（`ci.yml`）不构建图形界面。
@@ -221,5 +221,5 @@
 - **交互式选项更名**：`--interactive` / `-ia` → `--interactive-quality` / `-iaq`；`--select-page` / `-p` → `--pages` / `-p`；serve 请求字段同步由 `selectPage` 改为 `pages`。
 - **`opus` 子命令已移除**：专栏 / 图文导出统一走根命令自动识别（`BBDown <专栏地址>`、`BBDown opus{id}`、`BBDown cv{id}`）；裸数字不触发专栏，保留给视频 av 号简写。
 - **serve 接口方法变更**：任务创建 / 清理为 **POST / DELETE**、查询类（`/api/v1/tasks/*`）为 GET，详见 [API.md](./API.md)。旧调用方需相应调整。
-- **CORS 默认放行回环来源**：本分支默认仅回环来源放行，非回环来源须显式传 `--cors-origin` 才开放。
+- **CORS 默认放行回环来源**：本分支默认仅与监听端口一致的回环来源放行，其余来源须显式传 `--cors-origin` 才开放。
 - **解密能力外移**：内置解密选项 `--drm-key` 已移除，改为 `--post-process <exe>` 外部后处理（见 2.15）；图形界面同样没有密钥输入项。

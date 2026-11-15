@@ -7,7 +7,7 @@ public class JsonUtilTests
 {
     private static JsonElement Parse(string json)
     {
-        return JsonDocument.Parse(json).RootElement.Clone( );
+        return JsonElement.Parse(json);
     }
 
     [Theory]

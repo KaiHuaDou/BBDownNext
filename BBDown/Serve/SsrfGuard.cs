@@ -10,9 +10,11 @@ internal static class SsrfGuard
 {
     // 回调专用 client：禁止自动重定向，杜绝 302 跳进内网/云元数据面
     // 并在真正建立 TCP 连接前对最终端点 IP 做二次校验，消除 DNS 重绑定窗口（TOCTOU-free）
+    // 直连不走系统代理：借道代理时连接回调收到的是代理端点，下面的最终端点校验会落空
     internal static readonly HttpClient WebHookClient = new(new SocketsHttpHandler
     {
         AllowAutoRedirect = false,
+        UseProxy = false,
         ConnectCallback = async (context, token) =>
         {
             var endpoint = context.DnsEndPoint;

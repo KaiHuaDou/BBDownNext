@@ -3,7 +3,7 @@
         <OutputType>WinExe</OutputType>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Win7Compatitable)' == 'true'">
-        <TargetFramework>net10.0-windows</TargetFramework>
+        <TargetFramework>net11.0-windows</TargetFramework>
         <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
     </PropertyGroup>
     <PropertyGroup>

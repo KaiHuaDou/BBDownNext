@@ -7,7 +7,7 @@ public class AppLoginTests
 {
     private static JsonElement Parse(string json)
     {
-        return JsonDocument.Parse(json).RootElement.Clone( );
+        return JsonElement.Parse(json);
     }
 
     private static string TvPoll(string code, string data = "null")

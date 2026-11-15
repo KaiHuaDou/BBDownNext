@@ -3,9 +3,9 @@
         <OutputType>Exe</OutputType>
     </PropertyGroup>
     <!-- Win7 兼容构建：dotnet publish -r win-x64 -p:Win7Compatitable=true。
-         net10.0-windows 是 YY-Thunks/VC-LTL 资产的前置 TFM，常规构建不受影响 -->
+         net11.0-windows 是 YY-Thunks/VC-LTL 资产的前置 TFM，常规构建不受影响 -->
     <PropertyGroup Condition="'$(Win7Compatitable)' == 'true'">
-        <TargetFramework>net10.0-windows</TargetFramework>
+        <TargetFramework>net11.0-windows</TargetFramework>
         <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
     </PropertyGroup>
     <PropertyGroup>

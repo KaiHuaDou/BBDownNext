@@ -7,7 +7,7 @@ public class WebLoginTests
 {
     private static JsonElement Parse(string json)
     {
-        return JsonDocument.Parse(json).RootElement.Clone( );
+        return JsonElement.Parse(json);
     }
 
     private static string WebPoll(int dataCode, string url = "", int outerCode = 0)
